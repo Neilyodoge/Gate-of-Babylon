@@ -4,12 +4,11 @@ using UnityEngine;
 
 /// <summary>
 /// Editor window that takes one or more textures (TGA, PNG, etc.) and
-/// converts the alpha channel to a signed distance field (SDF).
+/// converts a specified channel to a signed distance field (SDF).
 ///
-/// The window is intentionally simple: pick one or several textures in the
-/// Project view, then hit the button.  A new file with the suffix
-/// "_sdf.png" will be written next to each source texture.  The SDF is
-/// stored in the red channel of the resulting image (greyscale output).
+/// The window allows selecting which channel (R, G, B, or A) to process,
+/// then generates an output texture with the suffix "_sdf.png".
+/// The SDF is stored in the red channel of the resulting image.
 ///
 /// This tool was inspired by the vegetation work shown at the GDC talk
 /// by Ninja Theory/Horizon; it is primarily intended for foliage
@@ -20,26 +19,39 @@ public class SDFGenerator : EditorWindow
     private const string OutputSuffix = "_sdf";
     private float alphaThreshold = 0.5f;
     private float spreadRange = 32f;
+    private bool processRed = false;
+    private bool processGreen = false;
+    private bool processBlue = false;
+    private bool processAlpha = true;
 
     [MenuItem("Tools/SDF Generator")]
     public static void ShowWindow()
     {
-        GetWindow<SDFGenerator>("SDF Generator");
+        GetWindow<SDFGenerator>("SDF生成器");
     }
 
     private void OnGUI()
     {
-        GUILayout.Label("Select one or more textures in the Project view.", EditorStyles.wordWrappedLabel);
-        GUILayout.Label("The tool converts the alpha channel to SDF and stores it in the output's alpha channel, preserving RGB.", EditorStyles.wordWrappedLabel);
+        GUILayout.Label("在项目视图中选择一个或多个纹理。", EditorStyles.wordWrappedLabel);
+        GUILayout.Label("该工具将选中的通道转换为SDF，并将其存储在输出纹理中。", EditorStyles.wordWrappedLabel);
         GUILayout.Space(8);
 
-        GUILayout.Label("Settings", EditorStyles.boldLabel);
-        alphaThreshold = EditorGUILayout.Slider("Alpha Threshold", alphaThreshold, 0f, 1f);
-        spreadRange = EditorGUILayout.FloatField("Spread Range (pixels)", spreadRange);
+        GUILayout.Label("设置", EditorStyles.boldLabel);
+        
+        // 通道选择复选框
+        GUILayout.Label("处理通道", EditorStyles.boldLabel);
+        processRed = EditorGUILayout.Toggle("红色 (R)", processRed);
+        processGreen = EditorGUILayout.Toggle("绿色 (G)", processGreen);
+        processBlue = EditorGUILayout.Toggle("蓝色 (B)", processBlue);
+        processAlpha = EditorGUILayout.Toggle("Alpha (A)", processAlpha);
+        
+        GUILayout.Space(8);
+        alphaThreshold = EditorGUILayout.Slider("阈值", alphaThreshold, 0f, 1f);
+        spreadRange = EditorGUILayout.FloatField("扩展范围(像素)", spreadRange);
         spreadRange = Mathf.Max(1f, spreadRange);
         GUILayout.Space(8);
 
-        if (GUILayout.Button("Generate SDF for selected textures", GUILayout.Height(30)))
+        if (GUILayout.Button("生成选中纹理的SDF", GUILayout.Height(30)))
         {
             ProcessSelection();
         }
@@ -47,10 +59,17 @@ public class SDFGenerator : EditorWindow
 
     private void ProcessSelection()
     {
+        // 检查是否选择了至少一个通道
+        if (!processRed && !processGreen && !processBlue && !processAlpha)
+        {
+            EditorUtility.DisplayDialog("SDF生成器", "请选择至少一个通道来处理。", "确定");
+            return;
+        }
+
         Object[] items = Selection.objects;
         if (items == null || items.Length == 0)
         {
-            EditorUtility.DisplayDialog("SDF Generator", "No assets selected.", "OK");
+            EditorUtility.DisplayDialog("SDF生成器", "没有选择任何资源。", "确定");
             return;
         }
 
@@ -64,16 +83,17 @@ public class SDFGenerator : EditorWindow
             if (tex == null)
                 continue;
 
-            GenerateSdfForTexture(path, tex, alphaThreshold, spreadRange);
+            // 一次性处理所有选中的通道
+            GenerateSdfForAllChannels(path, tex, alphaThreshold, spreadRange, processRed, processGreen, processBlue, processAlpha);
         }
 
         AssetDatabase.Refresh();
-        Debug.Log("SDF generation complete.");
+        Debug.Log("SDF生成完成。");
     }
 
-    private static void GenerateSdfForTexture(string assetPath, Texture2D original, float alphaThreshold, float spreadRange)
+    private static void GenerateSdfForAllChannels(string assetPath, Texture2D original, float alphaThreshold, float spreadRange, bool procR, bool procG, bool procB, bool procA)
     {
-        // ensure the texture is readable
+        // 确保纹理可读
         string fullPath = Path.Combine(Application.dataPath.Substring(0, Application.dataPath.Length - "Assets".Length), assetPath);
         TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
         bool restoreReadable = false;
@@ -87,38 +107,136 @@ public class SDFGenerator : EditorWindow
         int w = original.width;
         int h = original.height;
         Color32[] pixels = original.GetPixels32();
-
-        // Check if there's actual alpha variation in the texture
-        bool hasAlpha = false;
-        byte firstAlpha = pixels[0].a;
-        foreach (Color32 pixel in pixels)
-        {
-            if (pixel.a != firstAlpha)
-            {
-                hasAlpha = true;
-                break;
-            }
-        }
-
-        if (!hasAlpha)
-        {
-            Debug.LogWarning($"Texture '{assetPath}' does not have varying alpha channel; skipping.");
-            return;
-        }
-        float[] sdf = new float[w * h];
-        bool[] inside = new bool[w * h];
         float maxDist = spreadRange;
 
-        // mark inside/outside
-        for (int i = 0; i < pixels.Length; ++i)
+        // 为每个通道计算 SDF
+        float[] sdfRed = null, sdfGreen = null, sdfBlue = null, sdfAlpha = null;
+
+        if (procR)
+            sdfRed = ComputeChannelSDF(pixels, w, h, "Red", alphaThreshold, maxDist);
+        if (procG)
+            sdfGreen = ComputeChannelSDF(pixels, w, h, "Green", alphaThreshold, maxDist);
+        if (procB)
+            sdfBlue = ComputeChannelSDF(pixels, w, h, "Blue", alphaThreshold, maxDist);
+        if (procA)
+            sdfAlpha = ComputeChannelSDF(pixels, w, h, "Alpha", alphaThreshold, maxDist);
+
+        // 组合结果到输出纹理
+        Texture2D outTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        Color32[] outPixels = new Color32[w * h];
+        for (int i = 0; i < w * h; ++i)
         {
-            inside[i] = pixels[i].a / 255f >= alphaThreshold;
+            // 如果处理该通道，使用 SDF；否则保留原始值
+            byte r = procR ? (byte)(Mathf.Clamp01(0.5f + 0.5f * Mathf.Clamp(sdfRed[i] / maxDist, -1f, 1f)) * 255f) : pixels[i].r;
+            byte g = procG ? (byte)(Mathf.Clamp01(0.5f + 0.5f * Mathf.Clamp(sdfGreen[i] / maxDist, -1f, 1f)) * 255f) : pixels[i].g;
+            byte b = procB ? (byte)(Mathf.Clamp01(0.5f + 0.5f * Mathf.Clamp(sdfBlue[i] / maxDist, -1f, 1f)) * 255f) : pixels[i].b;
+            byte a = procA ? (byte)(Mathf.Clamp01(0.5f + 0.5f * Mathf.Clamp(sdfAlpha[i] / maxDist, -1f, 1f)) * 255f) : pixels[i].a;
+            outPixels[i] = new Color32(r, g, b, a);
+        }
+        outTex.SetPixels32(outPixels);
+        outTex.Apply();
+
+        // 保存输出
+        string directory = Path.GetDirectoryName(fullPath);
+        string filename = Path.GetFileNameWithoutExtension(fullPath);
+        string originalExtension = Path.GetExtension(assetPath).ToLower();
+        
+        // 根据原始文件格式保存
+        string newFilename = Path.Combine(directory, filename + OutputSuffix + originalExtension);
+        byte[] bytes;
+        
+        if (originalExtension == ".tga")
+        {
+            bytes = outTex.EncodeToTGA();
+        }
+        else if (originalExtension == ".exr")
+        {
+            bytes = outTex.EncodeToEXR();
+        }
+        else
+        {
+            // 默认保存为 PNG
+            bytes = outTex.EncodeToPNG();
+            if (originalExtension != ".png")
+                newFilename = Path.Combine(directory, filename + OutputSuffix + ".png");
+        }
+        
+        File.WriteAllBytes(newFilename, bytes);
+
+        if (restoreReadable && importer != null)
+        {
+            importer.isReadable = false;
+            importer.SaveAndReimport();
         }
 
-        // brute-force distance transform (not particularly fast, but textures
-        // used for foliage are usually modest in size).  For each pixel we
-        // scan the entire image looking for the closest pixel with the
-        // opposite "sign" (inside vs. outside) and record the signed distance.
+        // 计算相对路径用于日志
+        string relativeOutputName = filename + OutputSuffix;
+        if (originalExtension == ".tga" || originalExtension == ".exr")
+            relativeOutputName += originalExtension;
+        else
+            relativeOutputName += ".png";
+        
+        string relativeNewPath = Path.GetDirectoryName(assetPath) + "/" + relativeOutputName;
+        AssetDatabase.ImportAsset(relativeNewPath);
+        Debug.Log($"从 '{assetPath}' 生成多通道SDF '{relativeNewPath}'。");
+
+        DestroyImmediate(outTex);
+    }
+
+    private static float[] ComputeChannelSDF(Color32[] pixels, int w, int h, string channelName, float threshold, float maxDist)
+    {
+        // 提取指定通道
+        byte[] channelValues = new byte[pixels.Length];
+        bool hasVariation = false;
+        byte firstValue = 0;
+        
+        for (int i = 0; i < pixels.Length; ++i)
+        {
+            byte value = 0;
+            switch (channelName)
+            {
+                case "Red":
+                    value = pixels[i].r;
+                    break;
+                case "Green":
+                    value = pixels[i].g;
+                    break;
+                case "Blue":
+                    value = pixels[i].b;
+                    break;
+                case "Alpha":
+                default:
+                    value = pixels[i].a;
+                    break;
+            }
+            channelValues[i] = value;
+            
+            if (i == 0)
+                firstValue = value;
+            else if (value != firstValue)
+                hasVariation = true;
+        }
+
+        if (!hasVariation)
+        {
+            Debug.LogWarning($"通道 {channelName} 没有变化; 使用默认值。");
+            float[] defaultSDF = new float[pixels.Length];
+            for (int i = 0; i < defaultSDF.Length; ++i)
+                defaultSDF[i] = 0f;
+            return defaultSDF;
+        }
+
+        // 计算 SDF
+        float[] sdf = new float[w * h];
+        bool[] inside = new bool[w * h];
+
+        // 标记内外
+        for (int i = 0; i < channelValues.Length; ++i)
+        {
+            inside[i] = channelValues[i] / 255f >= threshold;
+        }
+
+        // 距离变换
         for (int y = 0; y < h; ++y)
         {
             for (int x = 0; x < w; ++x)
@@ -148,34 +266,6 @@ public class SDFGenerator : EditorWindow
             }
         }
 
-        // normalize SDF and write into alpha channel, preserve RGB from original
-        Texture2D outTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-        Color32[] outPixels = new Color32[w * h];
-        for (int i = 0; i < sdf.Length; ++i)
-        {
-            float d = Mathf.Clamp(sdf[i] / maxDist, -1f, 1f);
-            float v = 0.5f + 0.5f * d;
-            byte sdfAlpha = (byte)(Mathf.Clamp01(v) * 255f);
-            // Keep RGB from original, only replace alpha with SDF
-            outPixels[i] = new Color32(pixels[i].r, pixels[i].g, pixels[i].b, sdfAlpha);
-        }
-        outTex.SetPixels32(outPixels);
-        outTex.Apply();
-
-        string directory = Path.GetDirectoryName(fullPath);
-        string filename = Path.GetFileNameWithoutExtension(fullPath);
-        string newFilename = Path.Combine(directory, filename + OutputSuffix + ".png");
-        byte[] bytes = outTex.EncodeToPNG();
-        File.WriteAllBytes(newFilename, bytes);
-
-        if (restoreReadable && importer != null)
-        {
-            importer.isReadable = false;
-            importer.SaveAndReimport();
-        }
-
-        string relativeNewPath = Path.GetDirectoryName(assetPath) + "/" + filename + OutputSuffix + ".png";
-        AssetDatabase.ImportAsset(relativeNewPath);
-        Debug.Log($"Generated SDF '{relativeNewPath}' from '{assetPath}'.");
+        return sdf;
     }
 }
