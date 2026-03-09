@@ -3,6 +3,36 @@ using System;
 namespace UnityEngine.Rendering.Universal
 {
     /// <summary>
+    /// Bloom模式枚举
+    /// </summary>
+    public enum BloomMode
+    {
+        /// <summary>
+        /// URP内置Bloom算法
+        /// </summary>
+        Default = 0,
+
+        /// <summary>
+        /// 自定义nBloom算法（Kawase模糊 + Kill Fireflies）
+        /// </summary>
+        n = 1,
+    }
+
+    /// <summary>
+    /// BloomMode 的 VolumeParameter 封装
+    /// </summary>
+    [Serializable]
+    public sealed class BloomModeParameter : VolumeParameter<BloomMode>
+    {
+        /// <summary>
+        /// Creates a new <see cref="BloomModeParameter"/> instance.
+        /// </summary>
+        /// <param name="value">The initial value to store in the parameter.</param>
+        /// <param name="overrideState">The initial override state for the parameter.</param>
+        public BloomModeParameter(BloomMode value, bool overrideState = false) : base(value, overrideState) { }
+    }
+
+    /// <summary>
     /// This controls the size of the bloom texture.
     /// </summary>
     public enum BloomDownscaleMode
@@ -25,6 +55,13 @@ namespace UnityEngine.Rendering.Universal
     [URPHelpURL("post-processing-bloom")]
     public sealed partial class Bloom : VolumeComponent, IPostProcessComponent
     {
+        /// <summary>
+        /// Bloom模式选择：Default使用URP内置Bloom，nBloom使用自定义Bloom算法
+        /// </summary>
+        [Header("Bloom Mode")]
+        [Tooltip("选择Bloom模式：Default使用URP内置Bloom，nBloom使用自定义Bloom算法（Kawase模糊 + Kill Fireflies）")]
+        public BloomModeParameter bloomMode = new BloomModeParameter(BloomMode.Default);
+
         /// <summary>
         /// Set the level of brightness to filter out pixels under this level.
         /// This value is expressed in gamma-space.
@@ -65,6 +102,19 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         [Tooltip("Use bicubic sampling instead of bilinear sampling for the upsampling passes. This is slightly more expensive but helps getting smoother visuals.")]
         public BoolParameter highQualityFiltering = new BoolParameter(false);
+
+        /// <summary>
+        /// [nBloom模式] 阈值过渡的柔和度，控制Bloom边缘的软硬程度
+        /// </summary>
+        [Header("nBloom Mode Settings")]
+        [Tooltip("[nBloom模式] 阈值过渡的柔和度")]
+        public ClampedFloatParameter thresholdKnee = new ClampedFloatParameter(0.5f, 0f, 1f);
+
+        /// <summary>
+        /// [nBloom模式] 抑制萤火虫高亮像素，防止极亮像素造成闪烁
+        /// </summary>
+        [Tooltip("[nBloom模式] 抑制萤火虫高亮像素")]
+        public BoolParameter killFireflies = new BoolParameter(true);
 
         /// <summary>
         /// Controls the starting resolution that this effect begins processing.

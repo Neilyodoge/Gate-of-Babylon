@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine.Experimental.Rendering;
 
@@ -42,6 +42,8 @@ namespace UnityEngine.Rendering.Universal
         RTHandle m_PongTexture;
         RTHandle[] m_BloomMipDown;
         RTHandle[] m_BloomMipUp;
+        RTHandle[] m_nBloomDown;
+        RTHandle[] m_nBloomUp;
         RTHandle m_BlendTexture;
         RTHandle m_EdgeColorTexture;
         RTHandle m_EdgeStencilTexture;
@@ -151,6 +153,11 @@ namespace UnityEngine.Rendering.Universal
             ShaderConstants._BloomMipDown = new int[k_MaxPyramidSize];
             m_BloomMipUp = new RTHandle[k_MaxPyramidSize];
             m_BloomMipDown = new RTHandle[k_MaxPyramidSize];
+            m_nBloomDown = new RTHandle[k_MaxPyramidSize];
+            m_nBloomUp = new RTHandle[k_MaxPyramidSize];
+
+            ShaderConstants._nBloomMipDown = new int[k_MaxPyramidSize];
+            ShaderConstants._nBloomMipUp = new int[k_MaxPyramidSize];
 
             for (int i = 0; i < k_MaxPyramidSize; i++)
             {
@@ -159,6 +166,11 @@ namespace UnityEngine.Rendering.Universal
                 // Get name, will get Allocated with descriptor later
                 m_BloomMipUp[i] = RTHandles.Alloc(ShaderConstants._BloomMipUp[i], name: "_BloomMipUp" + i);
                 m_BloomMipDown[i] = RTHandles.Alloc(ShaderConstants._BloomMipDown[i], name: "_BloomMipDown" + i);
+
+                ShaderConstants._nBloomMipDown[i] = Shader.PropertyToID("_nBloomDown" + i);
+                ShaderConstants._nBloomMipUp[i] = Shader.PropertyToID("_nBloomUp" + i);
+                m_nBloomDown[i] = RTHandles.Alloc(ShaderConstants._nBloomMipDown[i], name: "_nBloomDown" + i);
+                m_nBloomUp[i] = RTHandles.Alloc(ShaderConstants._nBloomMipUp[i], name: "_nBloomUp" + i);
             }
 
             m_MRT2 = new RenderTargetIdentifier[2];
@@ -200,6 +212,10 @@ namespace UnityEngine.Rendering.Universal
             foreach (var handle in m_BloomMipDown)
                 handle?.Release();
             foreach (var handle in m_BloomMipUp)
+                handle?.Release();
+            foreach (var handle in m_nBloomDown)
+                handle?.Release();
+            foreach (var handle in m_nBloomUp)
                 handle?.Release();
             m_ScalingSetupTarget?.Release();
             m_UpscaledTarget?.Release();
@@ -500,7 +516,12 @@ namespace UnityEngine.Rendering.Universal
                 if (bloomActive)
                 {
                     using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.Bloom)))
-                        SetupBloom(cmd, GetSource(), m_Materials.uber);
+                    {
+if (m_Bloom.bloomMode.value == BloomMode.n)
+                            SetupnBloom(cmd, GetSource(), m_Materials.uber);
+                        else
+                            SetupBloom(cmd, GetSource(), m_Materials.uber);
+                    }
                 }
 
                 // Lens Flare
@@ -1025,12 +1046,12 @@ namespace UnityEngine.Rendering.Universal
         {
             // given
             //    S----------- E--X-------
-            //    |    `  ~.  /,´
+            //    |    `  ~.  /,麓
             //    |-- ---    Q
             //    |        ,/    `
-            //  1 |      ,´/       `
-            //    |    ,´ /         ´
-            //    |  ,´  /           ´
+            //  1 |      ,麓/       `
+            //    |    ,麓 /         麓
+            //    |  ,麓  /           麓
             //    |,`   /             ,
             //    O    /
             //    |   /               ,
@@ -1038,9 +1059,9 @@ namespace UnityEngine.Rendering.Universal
             //    | /                ,
             //    |/                .
             //    P
-            //    |              ´
-            //    |         , ´
-            //    +-    ´
+            //    |              麓
+            //    |         , 麓
+            //    +-    麓
             //
             // have X
             // want to find E
@@ -1168,6 +1189,112 @@ namespace UnityEngine.Rendering.Universal
             uberMaterial.SetTexture(ShaderConstants._LensDirt_Texture, dirtTexture);
 
             // Keyword setup - a bit convoluted as we're trying to save some variants in Uber...
+            if (m_Bloom.highQualityFiltering.value)
+                uberMaterial.EnableKeyword(dirtIntensity > 0f ? ShaderKeywordStrings.BloomHQDirt : ShaderKeywordStrings.BloomHQ);
+            else
+                uberMaterial.EnableKeyword(dirtIntensity > 0f ? ShaderKeywordStrings.BloomLQDirt : ShaderKeywordStrings.BloomLQ);
+        }
+
+#endregion
+
+#region nBloom
+
+        /// <summary>
+        /// nBloom自定义Bloom算法：使用Kawase模糊 + Kill Fireflies
+        /// </summary>
+        void SetupnBloom(CommandBuffer cmd, RTHandle source, Material uberMaterial)
+        {
+            // 起始分辨率为半分辨率
+            int tw = m_Descriptor.width >> 1;
+            int th = m_Descriptor.height >> 1;
+
+            // 计算迭代次数
+            int maxSize = Mathf.Max(tw, th);
+            int iterations = Mathf.FloorToInt(Mathf.Log(maxSize, 2f) - 1);
+            int mipCount = Mathf.Clamp(iterations, 1, m_Bloom.maxIterations.value);
+
+            // 获取 nBloom 材质
+            var nBloomMaterial = m_Materials.nBloom;
+            if (nBloomMaterial == null)
+                return;
+
+            // 设置材质参数
+            float threshold = m_Bloom.threshold.value;
+            float thresholdKnee = m_Bloom.thresholdKnee.value;
+            float scatter = m_Bloom.scatter.value;
+            float clampVal = m_Bloom.clamp.value;
+            int killFireflies = m_Bloom.killFireflies.value ? 1 : 0;
+
+            nBloomMaterial.SetFloat(ShaderConstants._nBloomThreshold, threshold);
+            nBloomMaterial.SetFloat(ShaderConstants._nBloomThresholdKnee, thresholdKnee);
+            nBloomMaterial.SetFloat(ShaderConstants._nBloomScatter, scatter);
+            nBloomMaterial.SetFloat(ShaderConstants._nBloomClamp, clampVal);
+            nBloomMaterial.SetInteger(ShaderConstants._nBloomKillFireflies, killFireflies);
+
+            // 鍒嗛厤 RT
+            var desc = GetCompatibleDescriptor(tw, th, m_DefaultHDRFormat);
+            for (int i = 0; i < mipCount; i++)
+            {
+                RenderingUtils.ReAllocateIfNeeded(ref m_nBloomDown[i], desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: m_nBloomDown[i].name);
+                RenderingUtils.ReAllocateIfNeeded(ref m_nBloomUp[i], desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: m_nBloomUp[i].name);
+                desc.width = Mathf.Max(1, desc.width >> 1);
+                desc.height = Mathf.Max(1, desc.height >> 1);
+            }
+
+            // Pass 0: 棰勮繃婊?- 鎻愬彇楂樹寒鍖哄煙
+            Blitter.BlitCameraTexture(cmd, source, m_nBloomDown[0], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, nBloomMaterial, 0);
+
+            // Pass 1: 下采样金字塔
+            var lastDown = m_nBloomDown[0];
+            for (int i = 1; i < mipCount; i++)
+            {
+                Blitter.BlitCameraTexture(cmd, lastDown, m_nBloomDown[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, nBloomMaterial, 1);
+                lastDown = m_nBloomDown[i];
+            }
+
+            // Pass 2: 上采样并合并金字塔（Kawase模糊上采样）
+            RTHandle lastBloom = m_nBloomDown[mipCount - 1];
+            for (int i = mipCount - 2; i >= 0; i--)
+            {
+                cmd.SetGlobalTexture(ShaderConstants._nBloomTex, lastBloom);
+                Blitter.BlitCameraTexture(cmd, m_nBloomDown[i], m_nBloomUp[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, nBloomMaterial, 2);
+                lastBloom = m_nBloomUp[i];
+            }
+
+            // 在 UberPost 上设置 Bloom 参数
+            var tint = m_Bloom.tint.value.linear;
+            var luma = ColorUtils.Luminance(tint);
+            tint = luma > 0f ? tint * (1f / luma) : Color.white;
+
+            var bloomParams = new Vector4(m_Bloom.intensity.value, tint.r, tint.g, tint.b);
+            uberMaterial.SetVector(ShaderConstants._Bloom_Params, bloomParams);
+            uberMaterial.SetFloat(ShaderConstants._Bloom_RGBM, 0f); // nBloom模式不使用RGBM编码
+
+            cmd.SetGlobalTexture(ShaderConstants._Bloom_Texture, lastBloom);
+
+            // Lens Dirt 设置（复用原始Bloom的Lens Dirt逻辑）
+            var dirtTexture = m_Bloom.dirtTexture.value == null ? Texture2D.blackTexture : m_Bloom.dirtTexture.value;
+            float dirtRatio = dirtTexture.width / (float)dirtTexture.height;
+            float screenRatio = m_Descriptor.width / (float)m_Descriptor.height;
+            var dirtScaleOffset = new Vector4(1f, 1f, 0f, 0f);
+            float dirtIntensity = m_Bloom.dirtIntensity.value;
+
+            if (dirtRatio > screenRatio)
+            {
+                dirtScaleOffset.x = screenRatio / dirtRatio;
+                dirtScaleOffset.z = (1f - dirtScaleOffset.x) * 0.5f;
+            }
+            else if (screenRatio > dirtRatio)
+            {
+                dirtScaleOffset.y = dirtRatio / screenRatio;
+                dirtScaleOffset.w = (1f - dirtScaleOffset.y) * 0.5f;
+            }
+
+            uberMaterial.SetVector(ShaderConstants._LensDirt_Params, dirtScaleOffset);
+            uberMaterial.SetFloat(ShaderConstants._LensDirt_Intensity, dirtIntensity);
+            uberMaterial.SetTexture(ShaderConstants._LensDirt_Texture, dirtTexture);
+
+            // Keyword设置 - nBloom模式使用LQ关键字（因为不需要bicubic上采样）
             if (m_Bloom.highQualityFiltering.value)
                 uberMaterial.EnableKeyword(dirtIntensity > 0f ? ShaderKeywordStrings.BloomHQDirt : ShaderKeywordStrings.BloomHQ);
             else
@@ -1562,6 +1689,7 @@ namespace UnityEngine.Rendering.Universal
             public readonly Material cameraMotionBlur;
             public readonly Material paniniProjection;
             public readonly Material bloom;
+            public readonly Material nBloom;
             public readonly Material temporalAntialiasing;
             public readonly Material scalingSetup;
             public readonly Material easu;
@@ -1582,6 +1710,7 @@ namespace UnityEngine.Rendering.Universal
                 cameraMotionBlur = Load(data.shaders.cameraMotionBlurPS);
                 paniniProjection = Load(data.shaders.paniniProjectionPS);
                 bloom = Load(data.shaders.bloomPS);
+                nBloom = Load(data.shaders.nBloomPS);
                 temporalAntialiasing = Load(data.shaders.temporalAntialiasingPS);
                 scalingSetup = Load(data.shaders.scalingSetupPS);
                 easu = Load(data.shaders.easuPS);
@@ -1614,6 +1743,7 @@ namespace UnityEngine.Rendering.Universal
                 CoreUtils.Destroy(cameraMotionBlur);
                 CoreUtils.Destroy(paniniProjection);
                 CoreUtils.Destroy(bloom);
+                CoreUtils.Destroy(nBloom);
                 CoreUtils.Destroy(temporalAntialiasing);
                 CoreUtils.Destroy(scalingSetup);
                 CoreUtils.Destroy(easu);
@@ -1684,6 +1814,16 @@ namespace UnityEngine.Rendering.Universal
 
             public static int[] _BloomMipUp;
             public static int[] _BloomMipDown;
+
+            // nBloom 相关属性ID
+            public static int[] _nBloomMipDown;
+            public static int[] _nBloomMipUp;
+            public static readonly int _nBloomThreshold = Shader.PropertyToID("_Threshold");
+            public static readonly int _nBloomThresholdKnee = Shader.PropertyToID("_ThresholdKnee");
+            public static readonly int _nBloomScatter = Shader.PropertyToID("_Scatter");
+            public static readonly int _nBloomClamp = Shader.PropertyToID("_Clamp");
+            public static readonly int _nBloomKillFireflies = Shader.PropertyToID("_KillFireflies");
+            public static readonly int _nBloomTex = Shader.PropertyToID("_BloomTex");
         }
 
 #endregion

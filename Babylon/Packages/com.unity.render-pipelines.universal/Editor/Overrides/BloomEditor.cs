@@ -7,12 +7,15 @@ namespace UnityEditor.Rendering.Universal
     [CustomEditor(typeof(Bloom))]
     sealed class BloomEditor : VolumeComponentEditor
     {
+        SerializedDataParameter m_BloomMode;
         SerializedDataParameter m_Threshold;
         SerializedDataParameter m_Intensity;
         SerializedDataParameter m_Scatter;
         SerializedDataParameter m_Clamp;
         SerializedDataParameter m_Tint;
         SerializedDataParameter m_HighQualityFiltering;
+        SerializedDataParameter m_ThresholdKnee;
+        SerializedDataParameter m_KillFireflies;
         SerializedDataParameter m_Downsample;
         SerializedDataParameter m_MaxIterations;
         SerializedDataParameter m_DirtTexture;
@@ -22,12 +25,15 @@ namespace UnityEditor.Rendering.Universal
         {
             var o = new PropertyFetcher<Bloom>(serializedObject);
 
+            m_BloomMode = Unpack(o.Find(x => x.bloomMode));
             m_Threshold = Unpack(o.Find(x => x.threshold));
             m_Intensity = Unpack(o.Find(x => x.intensity));
             m_Scatter = Unpack(o.Find(x => x.scatter));
             m_Clamp = Unpack(o.Find(x => x.clamp));
             m_Tint = Unpack(o.Find(x => x.tint));
             m_HighQualityFiltering = Unpack(o.Find(x => x.highQualityFiltering));
+            m_ThresholdKnee = Unpack(o.Find(x => x.thresholdKnee));
+            m_KillFireflies = Unpack(o.Find(x => x.killFireflies));
             m_Downsample = Unpack(o.Find(x => x.downscale));
             m_MaxIterations = Unpack(o.Find(x => x.maxIterations));
             m_DirtTexture = Unpack(o.Find(x => x.dirtTexture));
@@ -36,6 +42,12 @@ namespace UnityEditor.Rendering.Universal
 
         public override void OnInspectorGUI()
         {
+            // Bloom模式选择
+            PropertyField(m_BloomMode);
+
+            EditorGUILayout.Space();
+
+            // 通用Bloom参数
             PropertyField(m_Threshold);
             PropertyField(m_Intensity);
             PropertyField(m_Scatter);
@@ -45,6 +57,17 @@ namespace UnityEditor.Rendering.Universal
 
             if (m_HighQualityFiltering.overrideState.boolValue && m_HighQualityFiltering.value.boolValue && CoreEditorUtils.buildTargets.Contains(GraphicsDeviceType.OpenGLES2))
                 EditorGUILayout.HelpBox("High Quality Bloom isn't supported on GLES2 platforms.", MessageType.Warning);
+
+            // nBloom模式专有参数
+if (m_BloomMode.value.intValue == (int)BloomMode.n)
+            {
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("nBloom Mode Settings", EditorStyles.boldLabel);
+                PropertyField(m_ThresholdKnee);
+                PropertyField(m_KillFireflies);
+            }
+
+            EditorGUILayout.Space();
 
             PropertyField(m_Downsample);
             PropertyField(m_MaxIterations);
