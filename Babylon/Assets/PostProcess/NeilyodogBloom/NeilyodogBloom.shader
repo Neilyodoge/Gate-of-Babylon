@@ -1,4 +1,4 @@
-Shader "Hidden/WZBloom"
+Shader "Hidden/NeilyodogBloom"
 {
     SubShader
     {
@@ -31,7 +31,7 @@ Shader "Hidden/WZBloom"
         int _KillFireflies;
         
         // 亮度计算
-        half Luminance_WZ(half3 color)
+half Luminance_NeilyodogBloom(half3 color)
         {
             return dot(color, half3(0.299, 0.587, 0.114));
         }
@@ -39,7 +39,7 @@ Shader "Hidden/WZBloom"
         // 二次阈值函数
         half3 QuadraticThreshold(half3 color, float threshold, float knee)
         {
-            half brightness = Luminance_WZ(color);
+            half brightness = Luminance_NeilyodogBloom(color);
             
             half softThreshold = knee;
             half softThresholdBrightness = threshold - softThreshold;
@@ -71,10 +71,10 @@ Shader "Hidden/WZBloom"
             // Kill fireflies
             if (_KillFireflies)
             {
-                half l1 = Luminance_WZ(s1.rgb);
-                half l2 = Luminance_WZ(s2.rgb);
-                half l3 = Luminance_WZ(s3.rgb);
-                half l4 = Luminance_WZ(s4.rgb);
+                half l1 = Luminance_NeilyodogBloom(s1.rgb);
+                half l2 = Luminance_NeilyodogBloom(s2.rgb);
+                half l3 = Luminance_NeilyodogBloom(s3.rgb);
+                half l4 = Luminance_NeilyodogBloom(s4.rgb);
                 
                 half avgL = (l1 + l2 + l3 + l4) * 0.25;
                 half maxL = max(max(l1, l2), max(l3, l4));

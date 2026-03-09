@@ -6,7 +6,7 @@ using UnityEngine.Rendering.Universal;
 namespace UnityEngine.Rendering.Universal
 {
     [Serializable]
-    public class WZBloomSettings
+    public class NeilyodogBloomSettings
     {
         [Header("Bloom设置")]
         [Range(0.0f, 5.0f)]
@@ -37,21 +37,26 @@ namespace UnityEngine.Rendering.Universal
     }
 
     [Serializable]
-    public class WZBloomRenderFeature : ScriptableRendererFeature
+    public class NeilyodogBloomRenderFeature : ScriptableRendererFeature
     {
         [SerializeField]
-        public WZBloomSettings settings = new WZBloomSettings();
+        public NeilyodogBloomSettings settings = new NeilyodogBloomSettings();
         
-        private WZBloomPass bloomPass;
+        private NeilyodogBloomPass bloomPass;
         
         public override void Create()
         {
-            bloomPass = new WZBloomPass(settings);
+            bloomPass = new NeilyodogBloomPass(settings);
         }
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
             if (settings.intensity <= 0.0f)
+                return;
+            
+            // 仅对Game和SceneView摄像机生效，避免Preview等摄像机触发null target
+            if (renderingData.cameraData.cameraType != CameraType.Game && 
+                renderingData.cameraData.cameraType != CameraType.SceneView)
                 return;
                 
             renderer.EnqueuePass(bloomPass);
@@ -59,7 +64,8 @@ namespace UnityEngine.Rendering.Universal
 
         public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
         {
-            if (renderingData.cameraData.cameraType == CameraType.Game)
+            if (renderingData.cameraData.cameraType == CameraType.Game || 
+                renderingData.cameraData.cameraType == CameraType.SceneView)
             {
                 // 请求CopyColor，确保可以正确读取camera color
                 bloomPass.ConfigureInput(ScriptableRenderPassInput.Color);
@@ -73,11 +79,10 @@ namespace UnityEngine.Rendering.Universal
         }
     }
 
-    public class WZBloomPass : ScriptableRenderPass
+    public class NeilyodogBloomPass : ScriptableRenderPass
     {
-        private WZBloomSettings settings;
+        private NeilyodogBloomSettings settings;
         private Material bloomMaterial;
-        private ProfilingSampler profilingSampler;
         
         // 使用RTHandle替代已废弃的RenderTextureHandle
         private RTHandle[] downSampleRT;
@@ -95,10 +100,10 @@ namespace UnityEngine.Rendering.Universal
         private static readonly int _KillFireflies = Shader.PropertyToID("_KillFireflies");
         private static readonly int _BloomTex = Shader.PropertyToID("_BloomTex");
         
-        public WZBloomPass(WZBloomSettings settings)
+        public NeilyodogBloomPass(NeilyodogBloomSettings settings)
         {
             this.settings = settings;
-            this.profilingSampler = new ProfilingSampler("WZBloom");
+            this.profilingSampler = new ProfilingSampler("NeilyodogBloom");
             this.renderPassEvent = RenderPassEvent.BeforeRenderingPostProcessing;
         }
 
@@ -116,7 +121,7 @@ namespace UnityEngine.Rendering.Universal
             // 初始化Bloom材质
             if (bloomMaterial == null)
             {
-                Shader bloomShader = Shader.Find("Hidden/WZBloom");
+                Shader bloomShader = Shader.Find("Hidden/NeilyodogBloom");
                 if (bloomShader != null)
                 {
                     bloomMaterial = new Material(bloomShader);
@@ -133,7 +138,7 @@ namespace UnityEngine.Rendering.Universal
             pyramidSize = Mathf.Max(1, pyramidSize);
             
             // 分配临时颜色RT（全分辨率，用于最终合成中转）
-            RenderingUtils.ReAllocateIfNeeded(ref tempColorRT, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: "_WZBloomTempColor");
+            RenderingUtils.ReAllocateIfNeeded(ref tempColorRT, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: "_NeilyodogBloomTempColor");
             
             // 分配RTHandle（如果数量变化了需要重新分配）
             if (downSampleRT == null || downSampleRT.Length != pyramidSize)
@@ -150,14 +155,18 @@ namespace UnityEngine.Rendering.Universal
                 rtDesc.width = Mathf.Max(1, width / div);
                 rtDesc.height = Mathf.Max(1, height / div);
                 
-                RenderingUtils.ReAllocateIfNeeded(ref downSampleRT[i], rtDesc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: $"_WZBloomDown{i}");
-                RenderingUtils.ReAllocateIfNeeded(ref upSampleRT[i], rtDesc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: $"_WZBloomUp{i}");
+                RenderingUtils.ReAllocateIfNeeded(ref downSampleRT[i], rtDesc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: $"_NeilyodogBloomDown{i}");
+                RenderingUtils.ReAllocateIfNeeded(ref upSampleRT[i], rtDesc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: $"_NeilyodogBloomUp{i}");
             }
         }
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
             if (bloomMaterial == null || downSampleRT == null || downSampleRT.Length == 0)
+                return;
+            
+            // 防止cameraColorTarget为null或其底层RT无效
+            if (cameraColorTarget == null || cameraColorTarget.rt == null)
                 return;
                 
             CommandBuffer cmd = CommandBufferPool.Get();
@@ -203,6 +212,9 @@ namespace UnityEngine.Rendering.Universal
                 
                 // 将合成结果copy回camera color（不带material的重载不支持loadAction/storeAction）
                 Blitter.BlitCameraTexture(cmd, tempColorRT, cameraColorTarget);
+                
+                // 恢复camera color为当前render target，防止影响后续pass
+                CoreUtils.SetRenderTarget(cmd, cameraColorTarget);
             }
             
             context.ExecuteCommandBuffer(cmd);
