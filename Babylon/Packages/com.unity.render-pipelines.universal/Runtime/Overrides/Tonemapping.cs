@@ -24,6 +24,19 @@ namespace UnityEngine.Rendering.Universal
         /// Note that if you use this tonemapper all the grading operations will be done in the ACES color spaces for optimal precision and results.
         /// </summary>
         ACES, // ACES Filmic reference tonemapper (custom approximation)
+
+        /// <summary>
+        /// 使用GT Tonemapping算法（Gran Turismo Tonemapping，来自Hajime Uchimura的GDC 2017分享）。
+        /// 该算法在保留暗部细节的同时具有良好的高光压缩，能更好地保持色彩准确性，适合写实风格。
+        /// </summary>
+        GT, // Gran Turismo Tonemapping (Uchimura 2017)
+
+        /// <summary>
+        /// 使用简化版ACES Tonemapping（Krzysztof Narkowicz的拟合曲线）。
+        /// 相比完整ACES更轻量，适合移动端等性能敏感场景，视觉效果接近但精度较低。
+        /// 参考: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+        /// </summary>
+        ACESSimple, // Simplified ACES Filmic (Narkowicz 2016)
     }
 
     /// <summary>

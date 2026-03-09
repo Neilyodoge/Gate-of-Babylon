@@ -2076,6 +2076,8 @@ namespace ShaderStrippingAndPrefiltering
                 ShaderKeywordStrings.BloomHQDirt,
                 ShaderKeywordStrings.TonemapACES,
                 ShaderKeywordStrings.TonemapNeutral,
+                ShaderKeywordStrings.TonemapGT,
+                ShaderKeywordStrings.TonemapACESSimple,
                 ShaderKeywordStrings.FilmGrain,
             };
 

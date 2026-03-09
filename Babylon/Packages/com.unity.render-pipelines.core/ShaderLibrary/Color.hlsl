@@ -563,6 +563,74 @@ real3 NeutralTonemap(real3 x)
     return x;
 }
 
+// GT Tonemapping (Gran Turismo Tonemapping)
+// 基于 Hajime Uchimura 在 GDC 2017 / CEDEC 2017 的分享
+// 参考: https://www.desmos.com/calculator/gslcdxvipg
+// 特点: 在保留暗部细节的同时具有良好的高光压缩，色彩准确性好，适合写实风格
+real GTToneSegment(real x, real P, real a, real m, real l, real c, real b)
+{
+    // 高光压缩段
+    real l0 = ((P - m) * l) / a;
+    real S0 = m + l0;
+    real S1 = m + a * l0;
+    real C2 = (a * P) / (P - S1);
+    real CP = -C2 / P;
+
+    real w0 = 1.0 - smoothstep(0.0, m, x);
+    real w2 = step(m + l0, x);
+    real w1 = 1.0 - w0 - w2;
+
+    real T = m * pow(x / m, c) + b;
+    real S = P - (P - S1) * exp(CP * (x - S0));
+    real L = m + a * (x - m);
+
+    return T * w0 + L * w1 + S * w2;
+}
+
+real3 GTTonemap(real3 x)
+{
+    // 确保输入非负
+    x = max((0.0).xxx, x);
+
+    // GT Tonemapping 默认参数
+    // P: 最大亮度 (Max Brightness)
+    // a: 对比度 (Contrast)
+    // m: 线性段起始点 (Linear Section Start)
+    // l: 线性段长度 (Linear Section Length)
+    // c: 暗部曲线形状 (Black Tightness Shape)
+    // b: 暗部提升偏移 (Black Tightness Offset / Pedestal)
+    const real P = 1.0;
+    const real a = 1.0;
+    const real m = 0.22;
+    const real l = 0.4;
+    const real c = 1.33;
+    const real b = 0.0;
+
+    x.r = GTToneSegment(x.r, P, a, m, l, c, b);
+    x.g = GTToneSegment(x.g, P, a, m, l, c, b);
+    x.b = GTToneSegment(x.b, P, a, m, l, c, b);
+
+    return x;
+}
+
+// 简化版 ACES Filmic Tonemapping (Krzysztof Narkowicz 2016)
+// 参考: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+// 参考: https://www.desmos.com/calculator/zygyam5cg3
+// 相比完整ACES更轻量高效，适合移动端等性能敏感场景
+real3 ACESSimpleTonemap(real3 x)
+{
+    // 确保输入非负
+    x = max((0.0).xxx, x);
+
+    const real a = 2.51;
+    const real b = 0.03;
+    const real c = 2.43;
+    const real d = 0.59;
+    const real e = 0.14;
+
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 // Raw, unoptimized version of John Hable's artist-friendly tone curve
 // Input is linear RGB
 real EvalCustomSegment(real x, real4 segmentA, real2 segmentB)

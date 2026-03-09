@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine.Experimental.Rendering;
 
@@ -1414,6 +1414,8 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
                 {
                     case TonemappingMode.Neutral: material.EnableKeyword(ShaderKeywordStrings.TonemapNeutral); break;
                     case TonemappingMode.ACES: material.EnableKeyword(ShaderKeywordStrings.TonemapACES); break;
+                    case TonemappingMode.GT: material.EnableKeyword(ShaderKeywordStrings.TonemapGT); break;
+                    case TonemappingMode.ACESSimple: material.EnableKeyword(ShaderKeywordStrings.TonemapACESSimple); break;
                     default: break; // None
                 }
             }

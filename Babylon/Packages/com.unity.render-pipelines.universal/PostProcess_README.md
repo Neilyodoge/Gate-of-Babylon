@@ -1,6 +1,10 @@
 # Post-Processing 自定义修改说明
 
-## Bloom 模块
+本文档记录了对 URP 后处理模块的自定义扩展和修改。
+
+---
+
+# Bloom 模块
 
 在 URP 原始 Bloom 基础上扩展了 **BloomMode** 切换，支持两种 Bloom 算法：
 
@@ -190,7 +194,7 @@ return sum * 0.25;
 
 ---
 
-## 涉及文件
+## Bloom 涉及文件
 
 | 文件 | 说明 |
 |------|------|
@@ -200,3 +204,161 @@ return sum * 0.25;
 | `Shaders/PostProcessing/nBloom.shader` | nBloom 专用 Shader（Prefilter / Downsample / Upsample / Combine） |
 | `Runtime/Data/PostProcessData.cs` | 后处理资源数据，引用 nBloom Shader |
 | `Runtime/Data/PostProcessData.asset` | 后处理资源配置 |
+
+---
+
+# Tonemapping 模块
+
+在 URP 原始 Tonemapping 基础上扩展了两种额外的 Tonemapping 算法：**GT**（Gran Turismo Tonemapping）和 **ACESSimple**（简化版 ACES），加上 URP 内置的 **Neutral** 和 **ACES**，共提供四种可选的色调映射模式。
+
+## 模式总览
+
+| 模式 | 来源 | 色彩空间 | 性能 | 适用场景 |
+|------|------|---------|------|---------|
+| **None** | — | — | — | 不应用色调映射 |
+| **Neutral** | URP 内置 | sRGB | ⭐⭐⭐ 低 | 通用场景，对色相/饱和度影响最小，适合作为深度调色的起点 |
+| **ACES** | URP 内置 | ACEScg/ACES | ⭐⭐ 中 | 影视级品质，完整的 ACES RRT+ODT 近似，色彩准确但计算量较大 |
+| **GT** | Hajime Uchimura (GDC 2017) | sRGB | ⭐⭐⭐ 低 | 写实风格，暗部细节保留好，高光压缩自然 |
+| **ACESSimple** | Krzysztof Narkowicz (2016) | sRGB | ⭐⭐⭐⭐ 极低 | 移动端/性能敏感场景，视觉接近 ACES 但仅需一个有理函数 |
+
+## 各算法详细说明
+
+### Neutral（URP 内置）
+
+URP 默认的 Neutral Tonemapper，特点是对色相和饱和度影响最小，仅做范围重映射。适合需要大量后期调色的工作流，因为它不会引入额外的色彩偏移。
+
+### ACES（URP 内置）
+
+完整的 ACES（Academy Color Encoding System）色调映射近似。整个 Color Grading 流程都在 ACES 色彩空间中进行，包括：
+- 对比度调整在 ACEScc 空间中完成
+- Tonemapping 使用 `ACEScg → ACES(AP0) → AcesTonemap()` 的标准流程
+- 亮度计算使用 `AcesLuminance()` 而非标准 `Luminance()`
+
+视觉效果更具电影感，对比度更强，但会影响色相和饱和度。
+
+### GT（Gran Turismo Tonemapping）
+
+> **参考文献**：Hajime Uchimura, "HDR Theory and practice", GDC 2017 / CEDEC 2017
+
+该算法使用一条分段 S 曲线，分为暗部（Toe）、线性段（Linear）、高光（Shoulder）三部分。
+
+#### 核心公式
+
+```
+分段函数 f(x):
+  暗部 (x < m):     T = m * pow(x/m, c) + b
+  线性段 (m ≤ x ≤ m+l):  L = m + a * (x - m)
+  高光 (x > m+l):    S = P - (P - S1) * exp(CP * (x - S0))
+```
+
+#### 默认参数
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| P | 1.0 | 最大亮度 (Max Brightness) |
+| a | 1.0 | 对比度 (Contrast) |
+| m | 0.22 | 线性段起始点 (Linear Section Start) |
+| l | 0.4 | 线性段长度 (Linear Section Length) |
+| c | 1.33 | 暗部曲线形状 (Black Tightness Shape) |
+| b | 0.0 | 暗部提升偏移 (Pedestal) |
+
+#### 特点
+
+- **暗部细节保留好**：通过 `c`（暗部曲线形状）参数控制暗部压缩程度，`c > 1` 时暗部提升更平缓
+- **高光压缩自然**：使用指数衰减（`exp`）实现高光到最大亮度的平滑过渡
+- **色彩准确**：在 sRGB 空间中逐通道操作，不引入色彩空间变换带来的偏移
+- **性能优秀**：无需复杂的色彩空间转换，计算量与 Neutral 相当
+
+### ACESSimple（简化版 ACES）
+
+> **参考文献**：[ACES Filmic Tone Mapping Curve - Krzysztof Narkowicz](https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/)
+> **可视化**：[Desmos 曲线](https://www.desmos.com/calculator/zygyam5cg3?lang=zh-CN)
+
+使用单个有理函数拟合 ACES 曲线，代码极为简洁：
+
+```hlsl
+f(x) = (x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14)
+```
+
+#### ACES vs ACESSimple 对比
+
+| 特性 | ACES（完整版） | ACESSimple（简化版） |
+|------|--------------|---------------------|
+| 色彩空间 | 在 ACEScg 色彩空间中操作 | 直接在线性 sRGB 中操作 |
+| Color Grading | 对比度在 ACEScc 中调整，亮度用 ACES Luminance | 标准 sRGB 流程，标准 Luminance |
+| 指令数 | 较多（Glow、Red Modifier、全局去饱和等） | 仅一个有理函数，约 5 条指令 |
+| 精度 | 高，忠实还原 ACES RRT+ODT 参考 | 近似拟合，暗部/亮部有轻微偏差 |
+| 适用场景 | 影视级品质渲染 | 移动端、性能敏感场景 |
+
+---
+
+## Tonemapping 集成架构
+
+### 数据流
+
+```
+Volume (Tonemapping.cs)
+  │  TonemappingMode 枚举
+  ▼
+C# Pass (ColorGradingLutPass / PostProcessPass)
+  │  根据 mode 启用对应 Shader 关键字
+  │  _TONEMAP_NEUTRAL / _TONEMAP_ACES / _TONEMAP_GT / _TONEMAP_ACES_SIMPLE
+  ▼
+Shader (LutBuilderHdr / UberPost)
+  │  multi_compile 分支选择
+  ▼
+Tonemap 函数 (LutBuilderHdr.shader → Tonemap())
+  │  HDR Color Grading 路径：在 LUT 构建时应用
+  │
+ApplyTonemap 函数 (Common.hlsl)
+  │  LDR 路径：在 UberPost 中直接应用
+  ▼
+色调映射算法实现 (Color.hlsl)
+  NeutralTonemap() / AcesTonemap() / GTTonemap() / ACESSimpleTonemap()
+```
+
+### HDR vs LDR 两条路径
+
+- **HDR Color Grading**（`_HDR_GRADING` 启用时）：Tonemapping 在 `LutBuilderHdr.shader` 的 `Tonemap()` 函数中执行，结果烘入 3D LUT，后续通过 LUT 查表应用
+- **LDR Color Grading**：Tonemapping 在 `Common.hlsl` 的 `ApplyTonemap()` 中直接执行，在 `UberPost.shader` 中调用
+
+### Shader 关键字与 Variant Stripping
+
+每种 Tonemapping 模式对应一个 shader 关键字，通过 `multi_compile_local` 声明：
+
+```hlsl
+#pragma multi_compile_local _ _TONEMAP_ACES _TONEMAP_NEUTRAL _TONEMAP_GT _TONEMAP_ACES_SIMPLE
+```
+
+`ShaderScriptableStripper.cs` 会在构建时剥离未使用的 Tonemapping variant，减小包体。
+
+---
+
+## 使用方式
+
+1. 在 Volume 组件中添加 **Tonemapping** Override
+2. 在 **Mode** 下拉框中选择算法：
+   - `None`：不应用色调映射
+   - `Neutral`：URP 默认，对色彩影响最小
+   - `ACES`：完整 ACES 近似，电影感色调
+   - `GT`：Gran Turismo Tonemapping，写实风格
+   - `ACESSimple`：简化 ACES，性能优先
+3. 选择 **ACES** 或 **Neutral** 时，若启用 HDR Output 还可配置额外参数（Range Reduction Mode、Paper White 等）
+
+> **注意**：GT 和 ACESSimple 不使用 ACES 色彩空间进行 Color Grading，走标准 sRGB 路径（与 Neutral 一致）。在 HDR Output 场景下，它们会走通用的 Rec2020 转换路径。
+
+---
+
+## Tonemapping 涉及文件
+
+| 文件 | 说明 |
+|------|------|
+| `Runtime/Overrides/Tonemapping.cs` | Tonemapping Volume 组件定义，包含 `TonemappingMode` 枚举 |
+| `Runtime/UniversalRenderPipelineCore.cs` | Shader 关键字字符串定义（`_TONEMAP_GT`、`_TONEMAP_ACES_SIMPLE`） |
+| `Runtime/Passes/ColorGradingLutPass.cs` | HDR LUT 构建 Pass，根据 mode 启用对应关键字 |
+| `Runtime/Passes/PostProcessPass.cs` | 后处理渲染 Pass，LDR 路径中根据 mode 启用对应关键字 |
+| `Shaders/PostProcessing/LutBuilderHdr.shader` | HDR LUT 构建 Shader，包含 `Tonemap()` 函数的所有分支 |
+| `Shaders/PostProcessing/UberPost.shader` | UberPost Shader，声明 tonemapping multi_compile |
+| `Shaders/PostProcessing/Common.hlsl` | 后处理公共函数，包含 `ApplyTonemap()` 的所有分支 |
+| `com.unity.render-pipelines.core/../Color.hlsl` | 核心色彩库，包含 `GTTonemap()` 和 `ACESSimpleTonemap()` 的算法实现 |
+| `Editor/ShaderScriptableStripper.cs` | Shader variant stripping，构建时剥离未使用的 tonemapping variant |
