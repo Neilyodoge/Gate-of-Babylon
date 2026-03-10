@@ -12,7 +12,7 @@
 |------|---------------------|---------------------|
 | 模糊方式 | 逐步高斯模糊（9-tap / 双线性） | **Kawase 模糊**（4-tap box 下采样 + Kawase 上采样） |
 | 阈值处理 | 线性 soft-knee 阈值 | **二次阈值函数**（QuadraticThreshold），过渡更平滑 |
-| 防闪烁 | 无 | **Kill Fireflies**，抑制极亮像素造成的闪烁 |
+| 防闪烁 | 无 | **Kill Fireflies**（Karis Average 加权平均），抑制极亮像素造成的闪烁 |
 | 上采样 | 可选双三次插值（High Quality Filtering） | Kawase 滤波上采样，天然平滑 |
 | 编码方式 | RGBM 编码（移动端兼容） | 直接 HDR，不使用 RGBM 编码 |
 | 性能特征 | 标准开销，适合通用场景 | 采样次数更少，适合需要高质量 Bloom 且对性能敏感的场景 |
@@ -47,7 +47,7 @@ nBloom 基于 **Kawase Blur** 方案，参考了以下文章的思路：
 [Pass 0] 预过滤（QuadraticThreshold + Clamp）
   │
   ▼
-[Pass 1] 下采样金字塔（4-tap Box Filter + Kill Fireflies）
+[Pass 1] 下采样金字塔（4-tap Box Filter + Kill Fireflies / Karis Average）
   │  ½ → ¼ → ⅛ → ... → 1/2^N
   ▼
 [Pass 2] Kawase 上采样合并（逐级混合）
@@ -71,20 +71,25 @@ half contribution = max(soft, brightness - threshold);
 
 这使得 Bloom 边缘过渡更加柔和自然，避免硬切割感。
 
-**2. Kill Fireflies（抑制萤火虫）**
+**2. Kill Fireflies（抑制萤火虫 - Karis Average）**
 
-在下采样阶段检测并抑制极端亮度的像素，防止单个极亮像素在 Bloom 中产生闪烁：
+在下采样阶段使用 **Karis Average（亮度倒数加权平均）** 算法，自然地压制极端亮度的像素，防止单个极亮像素在 Bloom 中产生闪烁。
+
+通过 `#pragma multi_compile_local _ _KILL_FIREFLY` 编译期关键字控制，关闭时零性能开销。
 
 ```hlsl
-half avgL = (l1 + l2 + l3 + l4) * 0.25;
-half maxL = max(max(l1, l2), max(l3, l4));
-if (maxL > avgL * 8.0)
-{
-    result = half4(avgL, avgL, avgL, 1.0);
-}
+// Karis Average：w = 1 / (strength + luminance)，亮度越高权重越低
+half w0 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s0.rgb));
+half w1 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s1.rgb));
+half w2 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s2.rgb));
+half w3 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s3.rgb));
+half w = w0 + w1 + w2 + w3;
+result = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / w;
 ```
 
-当某个采样点亮度超过平均亮度 8 倍时，用平均亮度替代，有效消除萤火虫效应。
+**原理**：计算每个采样点的亮度，取其倒数作为混合权重。亮度越高的像素权重越低，从而被自然压制；亮度正常的像素权重保持较高，几乎不受影响。这种方式避免了硬阈值判断带来的视觉断层，过渡完全平滑连续。
+
+其中 `FILTER_STRENGTH = 1.0` 控制压制力度（值越小压制越激进），`1.0` 为业界常用默认值。
 
 **3. Kawase 模糊上采样**
 
@@ -188,7 +193,7 @@ return sum * 0.25;
    - `n`：使用自定义 nBloom 算法
 3. 当选择 `n` 模式时，会显示额外的 **nBloom Mode Settings**：
    - **Threshold Knee**：阈值过渡柔和度（0~1）
-   - **Kill Fireflies**：是否开启萤火虫抑制
+   - **Kill Fireflies**：是否开启萤火虫抑制（Karis Average 加权平均，编译期关键字，关闭时无性能开销）
 
 两种模式共享以下通用参数：Threshold、Intensity、Scatter、Tint、Clamp、High Quality Filtering、Downscale、Max Iterations、Lens Dirt。
 

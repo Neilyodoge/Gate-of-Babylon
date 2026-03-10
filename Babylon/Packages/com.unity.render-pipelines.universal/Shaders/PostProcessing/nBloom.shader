@@ -13,6 +13,8 @@ Shader "Hidden/nBloom"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
         
+        #pragma multi_compile_local _ _KILL_FIREFLY
+        
         // Blitter会自动将源纹理绑定到_BlitTexture，由Blit.hlsl声明
         // _BlitTexture 和 sampler_LinearClamp 由 Blit.hlsl 提供
         // Vert 顶点着色器也由 Blit.hlsl 提供
@@ -28,18 +30,20 @@ Shader "Hidden/nBloom"
         float _Intensity;
         float _Scatter;
         float _Clamp;
-        int _KillFireflies;
         
-        // 亮度计算
-half Luminance_nBloom(half3 color)
+        // Karis Average 滤波强度（值越小压制越强，1.0为默认）
+        static const half FILTER_STRENGTH = 1.0;
+        
+        // 亮度计算（sRGB 亮度）
+        half luminance_sRGB(half3 color)
         {
-            return dot(color, half3(0.299, 0.587, 0.114));
+            return dot(color, half3(0.2126, 0.7152, 0.0722));
         }
         
         // 二次阈值函数
         half3 QuadraticThreshold(half3 color, float threshold, float knee)
         {
-            half brightness = Luminance_nBloom(color);
+            half brightness = luminance_sRGB(color);
             
             half softThreshold = knee;
             half softThresholdBrightness = threshold - softThreshold;
@@ -56,34 +60,31 @@ half Luminance_nBloom(half3 color)
             return color * contribution;
         }
         
-        // 4-tap box 下采样
+        // 4-tap box 下采样（含 Kill Fireflies 加权平均）
         half4 Downsample4Tap(float2 uv, float2 texelSize)
         {
             float4 d = texelSize.xyxy * float4(-0.5, -0.5, 0.5, 0.5);
             
-            half4 s1 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.xy);
-            half4 s2 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.zy);
-            half4 s3 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.xw);
-            half4 s4 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.zw);
+            half4 s0 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.xy);
+            half4 s1 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.zy);
+            half4 s2 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.xw);
+            half4 s3 = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + d.zw);
             
-            half4 result = (s1 + s2 + s3 + s4) * 0.25;
+            half4 result;
             
-            // Kill fireflies
-            if (_KillFireflies)
-            {
-                half l1 = Luminance_nBloom(s1.rgb);
-                half l2 = Luminance_nBloom(s2.rgb);
-                half l3 = Luminance_nBloom(s3.rgb);
-                half l4 = Luminance_nBloom(s4.rgb);
-                
-                half avgL = (l1 + l2 + l3 + l4) * 0.25;
-                half maxL = max(max(l1, l2), max(l3, l4));
-                
-                if (maxL > avgL * 8.0)
-                {
-                    result = half4(avgL, avgL, avgL, 1.0);
-                }
-            }
+            #if _KILL_FIREFLY
+            // Karis Average：亮度倒数加权平均，自然压制高亮像素
+            // 原理：w = 1 / (strength + luminance)，亮度越高权重越低
+            half w0 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s0.rgb));
+            half w1 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s1.rgb));
+            half w2 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s2.rgb));
+            half w3 = 1.0 / (FILTER_STRENGTH + luminance_sRGB(s3.rgb));
+            half w = w0 + w1 + w2 + w3;
+            result = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / w;
+            #else
+            // 简单均匀平均
+            result = (s0 + s1 + s2 + s3) * 0.25;
+            #endif
             
             return result;
         }

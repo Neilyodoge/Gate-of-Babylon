@@ -1229,7 +1229,12 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
             nBloomMaterial.SetFloat(ShaderConstants._nBloomThresholdKnee, thresholdKnee);
             nBloomMaterial.SetFloat(ShaderConstants._nBloomScatter, scatter);
             nBloomMaterial.SetFloat(ShaderConstants._nBloomClamp, clampVal);
-            nBloomMaterial.SetInteger(ShaderConstants._nBloomKillFireflies, killFireflies);
+            
+            // Kill Fireflies 使用 shader keyword 控制，编译期分支，无性能开销
+            if (killFireflies == 1)
+                nBloomMaterial.EnableKeyword("_KILL_FIREFLY");
+            else
+                nBloomMaterial.DisableKeyword("_KILL_FIREFLY");
 
             // 鍒嗛厤 RT
             var desc = GetCompatibleDescriptor(tw, th, m_DefaultHDRFormat);
@@ -1824,7 +1829,6 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
             public static readonly int _nBloomThresholdKnee = Shader.PropertyToID("_ThresholdKnee");
             public static readonly int _nBloomScatter = Shader.PropertyToID("_Scatter");
             public static readonly int _nBloomClamp = Shader.PropertyToID("_Clamp");
-            public static readonly int _nBloomKillFireflies = Shader.PropertyToID("_KillFireflies");
             public static readonly int _nBloomTex = Shader.PropertyToID("_BloomTex");
         }
 
