@@ -2078,6 +2078,7 @@ namespace ShaderStrippingAndPrefiltering
                 ShaderKeywordStrings.TonemapNeutral,
                 ShaderKeywordStrings.TonemapGT,
                 ShaderKeywordStrings.TonemapACESSimple,
+                ShaderKeywordStrings.TonemapUE4,
                 ShaderKeywordStrings.FilmGrain,
             };
 

@@ -37,6 +37,14 @@ namespace UnityEngine.Rendering.Universal
         /// 参考: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
         /// </summary>
         ACESSimple, // Simplified ACES Filmic (Narkowicz 2016)
+
+        /// <summary>
+        /// 使用UE4原生的Film Tonemapper（参数化S曲线）。
+        /// 在ACEScg色彩空间中操作，包含Glow模块、红色修正、蓝色修正、pre/post去饱和处理。
+        /// 通过Slope/Toe/Shoulder/BlackClip/WhiteClip五个参数控制曲线形状。
+        /// 参考: Unreal Engine 4/5 PostProcessTonemap.usf
+        /// </summary>
+        UE4, // Unreal Engine 4 Film Tonemapper
     }
 
     /// <summary>

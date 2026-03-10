@@ -631,6 +631,128 @@ real3 ACESSimpleTonemap(real3 x)
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
 }
 
+// ============================================================================
+// UE4 Film Tonemapper
+// 移植自 Unreal Engine 4 PostProcessTonemap.usf 的 FilmToneMap 函数
+// 在 ACEScg (AP1) 色彩空间中操作，使用参数化 S 曲线
+// 包含 ACES Glow 模块、Red Modifier、Pre/Post Desaturation
+// 参数: Slope, Toe, Shoulder, BlackClip, WhiteClip
+// 参考: https://docs.unrealengine.com/en-US/RenderingAndGraphics/PostProcessEffects/ColorGrading/
+// ============================================================================
+
+// UE4 内部辅助函数 - 平方
+real UE4_Square(real x)
+{
+    return x * x;
+}
+
+// UE4 Film Tonemapping 核心函数
+// 输入: sRGB 线性色彩空间
+// 输出: sRGB 线性色彩空间 [0,1]
+real3 UE4FilmTonemap(real3 LinearColor)
+{
+    // 确保输入非负
+    LinearColor = max((0.0).xxx, LinearColor);
+
+    // ---- 色彩空间转换矩阵 ----
+    const real3x3 sRGB_2_AP0 = mul(XYZ_2_AP0_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
+    const real3x3 sRGB_2_AP1 = mul(XYZ_2_AP1_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
+    const real3x3 AP1_2_sRGB = mul(XYZ_2_REC709_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
+    const real3x3 AP1_2_AP0  = mul(XYZ_2_AP0_MAT, AP1_2_XYZ_MAT);
+    const real3x3 AP0_2_AP1  = AP0_2_AP1_MAT;
+
+    // ---- ACES Glow 模块 ----
+    real3 ColorAP0 = mul(sRGB_2_AP0, LinearColor);
+
+    const real RRT_GLOW_GAIN = 0.05;
+    const real RRT_GLOW_MID  = 0.08;
+
+    real saturation = rgb_2_saturation(ColorAP0);
+    real ycIn = rgb_2_yc(ColorAP0);
+    real s = sigmoid_shaper((saturation - 0.4) / 0.2);
+    real addedGlow = 1.0 + glow_fwd(ycIn, RRT_GLOW_GAIN * s, RRT_GLOW_MID);
+    ColorAP0 *= addedGlow;
+
+    // ---- Red Modifier ----
+    const real RRT_RED_SCALE = 0.82;
+    const real RRT_RED_PIVOT = 0.03;
+    const real RRT_RED_HUE   = 0.0;
+    const real RRT_RED_WIDTH = 135.0;
+
+    real hue = rgb_2_hue(ColorAP0);
+    real centeredHue = center_hue(hue, RRT_RED_HUE);
+    real hueWeight = UE4_Square(smoothstep(0.0, 1.0, 1.0 - abs(2.0 * centeredHue / RRT_RED_WIDTH)));
+    ColorAP0.r += hueWeight * saturation * (RRT_RED_PIVOT - ColorAP0.r) * (1.0 - RRT_RED_SCALE);
+
+    // ---- 转换到 ACEScg (AP1) 工作空间 ----
+    real3 WorkingColor = mul(AP0_2_AP1, ColorAP0);
+    WorkingColor = max((0.0).xxx, WorkingColor);
+
+    // Pre desaturation (UE4 默认 0.96)
+    WorkingColor = lerp(dot(WorkingColor, AP1_RGB2Y).xxx, WorkingColor, 0.96);
+
+    // ---- Film Tone Curve 参数 (UE4 ACES 预设) ----
+    const real FilmSlope     = 0.91;
+    const real FilmToe       = 0.53;
+    const real FilmShoulder  = 0.23;
+    const real FilmBlackClip = 0.0;
+    const real FilmWhiteClip = 0.035;
+
+    const real ToeScale      = 1.0 + FilmBlackClip - FilmToe;
+    const real ShoulderScale = 1.0 + FilmWhiteClip - FilmShoulder;
+
+    const real InMatch  = 0.18;
+    const real OutMatch = 0.18;
+
+    // 计算 ToeMatch（确保 0.18 灰度正确映射）
+    real ToeMatch;
+    if (FilmToe > 0.8)
+    {
+        // 0.18 在直线段上
+        ToeMatch = (1.0 - FilmToe - OutMatch) / FilmSlope + log10(InMatch);
+    }
+    else
+    {
+        // 0.18 在 Toe 段上 — 求解使得输入 InMatch 对应输出 OutMatch
+        const real bt = (OutMatch + FilmBlackClip) / ToeScale - 1.0;
+        ToeMatch = log10(InMatch) - 0.5 * log((1.0 + bt) / (1.0 - bt)) * (ToeScale / FilmSlope);
+    }
+
+    real StraightMatch   = (1.0 - FilmToe) / FilmSlope - ToeMatch;
+    real ShoulderMatch   = FilmShoulder / FilmSlope - StraightMatch;
+
+    // ---- 在对数空间中应用三段式曲线 ----
+    real3 LogColor = log10(WorkingColor);
+
+    real3 StraightColor  = FilmSlope * (LogColor + StraightMatch);
+    real3 ToeColor       = (-FilmBlackClip) + (2.0 * ToeScale) / (1.0 + exp((-2.0 * FilmSlope / ToeScale) * (LogColor - ToeMatch)));
+    real3 ShoulderColor  = (1.0 + FilmWhiteClip) - (2.0 * ShoulderScale) / (1.0 + exp((2.0 * FilmSlope / ShoulderScale) * (LogColor - ShoulderMatch)));
+
+    // 根据对数值域选择合适的段
+    ToeColor      = (LogColor < ToeMatch)      ? ToeColor      : StraightColor;
+    ShoulderColor = (LogColor > ShoulderMatch)  ? ShoulderColor : StraightColor;
+
+    // 使用 smoothstep 在三段之间平滑过渡
+    real3 t = saturate((LogColor - ToeMatch) / (ShoulderMatch - ToeMatch));
+    t = (ShoulderMatch < ToeMatch) ? 1.0 - t : t;
+    t = (3.0 - 2.0 * t) * t * t;
+    real3 ToneColor = lerp(ToeColor, ShoulderColor, t);
+
+    // Post desaturation (UE4 默认 0.93)
+    ToneColor = lerp(dot(ToneColor, AP1_RGB2Y).xxx, ToneColor, 0.93);
+
+    // 确保非负
+    ToneColor = max((0.0).xxx, ToneColor);
+
+    // ---- 转回 sRGB 色彩空间 ----
+    real3 FilmColor = mul(AP1_2_sRGB, ToneColor);
+
+    // 裁剪 out-of-gamut 值
+    FilmColor = max((0.0).xxx, FilmColor);
+
+    return FilmColor;
+}
+
 // Raw, unoptimized version of John Hable's artist-friendly tone curve
 // Input is linear RGB
 real EvalCustomSegment(real x, real4 segmentA, real2 segmentB)

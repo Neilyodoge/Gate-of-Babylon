@@ -81,6 +81,8 @@ half3 ApplyTonemap(half3 input)
     input = GTTonemap(input);
 #elif _TONEMAP_ACES_SIMPLE
     input = ACESSimpleTonemap(input);
+#elif _TONEMAP_UE4
+    input = UE4FilmTonemap(input);
 #endif
 
     return saturate(input);

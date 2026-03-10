@@ -1,7 +1,7 @@
 Shader "Hidden/Universal Render Pipeline/LutBuilderHdr"
 {
     HLSLINCLUDE
-        #pragma multi_compile_local _ _TONEMAP_ACES _TONEMAP_NEUTRAL _TONEMAP_GT _TONEMAP_ACES_SIMPLE
+        #pragma multi_compile_local _ _TONEMAP_ACES _TONEMAP_NEUTRAL _TONEMAP_GT _TONEMAP_ACES_SIMPLE _TONEMAP_UE4
         #pragma multi_compile_local_fragment _ HDR_COLORSPACE_CONVERSION
 
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -205,6 +205,10 @@ Shader "Hidden/Universal Render Pipeline/LutBuilderHdr"
             #elif _TONEMAP_ACES_SIMPLE
             {
                 colorLinear = ACESSimpleTonemap(colorLinear);
+            }
+            #elif _TONEMAP_UE4
+            {
+                colorLinear = UE4FilmTonemap(colorLinear);
             }
             #endif
 

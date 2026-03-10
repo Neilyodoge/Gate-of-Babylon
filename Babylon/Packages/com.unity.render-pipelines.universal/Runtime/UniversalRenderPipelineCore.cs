@@ -1229,6 +1229,9 @@ namespace UnityEngine.Rendering.Universal
         /// <summary> Keyword used for Simplified ACES Tonemapping. </summary>
         public const string TonemapACESSimple = "_TONEMAP_ACES_SIMPLE";
 
+        /// <summary> Keyword used for UE4 Film Tonemapping. </summary>
+        public const string TonemapUE4 = "_TONEMAP_UE4";
+
         /// <summary> Keyword used for Film Grain. </summary>
         public const string FilmGrain = "_FILM_GRAIN";
 

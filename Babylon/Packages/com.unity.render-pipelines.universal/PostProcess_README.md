@@ -214,7 +214,7 @@ return sum * 0.25;
 
 # Tonemapping 模块
 
-在 URP 原始 Tonemapping 基础上扩展了两种额外的 Tonemapping 算法：**GT**（Gran Turismo Tonemapping）和 **ACESSimple**（简化版 ACES），加上 URP 内置的 **Neutral** 和 **ACES**，共提供四种可选的色调映射模式。
+在 URP 原始 Tonemapping 基础上扩展了三种额外的 Tonemapping 算法：**GT**（Gran Turismo Tonemapping）、**ACESSimple**（简化版 ACES）和 **UE4**（Unreal Engine 4 Film Tonemapper），加上 URP 内置的 **Neutral** 和 **ACES**，共提供五种可选的色调映射模式。
 
 ## 模式总览
 
@@ -225,6 +225,7 @@ return sum * 0.25;
 | **ACES** | URP 内置 | ACEScg/ACES | ⭐⭐ 中 | 影视级品质，完整的 ACES RRT+ODT 近似，色彩准确但计算量较大 |
 | **GT** | Hajime Uchimura (GDC 2017) | sRGB | ⭐⭐⭐ 低 | 写实风格，暗部细节保留好，高光压缩自然 |
 | **ACESSimple** | Krzysztof Narkowicz (2016) | sRGB | ⭐⭐⭐⭐ 极低 | 移动端/性能敏感场景，视觉接近 ACES 但仅需一个有理函数 |
+| **UE4** | Unreal Engine 4/5 | ACEScg/ACES | ⭐⭐ 中 | 完整的 UE 原生 Film Tonemapper，包含 Glow/Red Modifier/Pre-Post Desaturation |
 
 ## 各算法详细说明
 
@@ -295,6 +296,108 @@ f(x) = (x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14)
 | 精度 | 高，忠实还原 ACES RRT+ODT 参考 | 近似拟合，暗部/亮部有轻微偏差 |
 | 适用场景 | 影视级品质渲染 | 移动端、性能敏感场景 |
 
+### UE4（Unreal Engine 4 Film Tonemapper）
+
+> **参考来源**：Unreal Engine 4/5 `TonemapCommon.ush` 中的 `FilmToneMap` 函数
+
+这是 UE4/UE5 默认使用的 Film Tonemapper，完整移植自参考工程的 `TonemapCommon.cginc`。与 URP 内置 ACES 不同，UE4 版本使用的是基于 **log10 的参数化三段 S 曲线**（Toe/Straight/Shoulder），而非 URP ACES 的 RRT+ODT 近似。
+
+#### 处理流程
+
+```
+sRGB (D65)
+  │
+  ▼
+[D65→D60 色度适应] sRGB → XYZ → D65_2_D60_CAT → AP0 (ACES2065-1)
+  │
+  ▼
+[Glow 模块] 低亮度微光增益（RRT_GLOW_GAIN = 0.05）
+  │  基于场景平均亮度，在暗部添加微弱的整体亮度提升
+  ▼
+[Red Modifier] 红色色相校正（RRT_RED_SCALE = 0.82）
+  │  压缩过饱和红色，使其向橙色偏移，避免红色过于刺眼
+  ▼
+[AP0 → AP1] 转入 ACEScg 工作空间
+  │
+  ▼
+[Pre Desaturation] 全局去饱和 0.96
+  │  Tonemap 前轻微降低饱和度，防止高饱和色彩在映射时溢色
+  ▼
+[Film Tone Curve] 参数化 S 曲线（log10 域）
+  │  三段式：Toe（暗部）/ Straight（线性段）/ Shoulder（高光）
+  │  使用 smoothstep 三次 Hermite 插值实现平滑过渡
+  ▼
+[Post Desaturation] 全局去饱和 0.93
+  │  Tonemap 后进一步降低饱和度，确保输出色彩在 sRGB 色域内
+  ▼
+[D60→D65 色度适应] AP1 → XYZ → D60_2_D65_CAT → sRGB
+  │
+  ▼
+sRGB 输出
+```
+
+#### Film Tone Curve 核心算法
+
+在 log10 域中构建分段 S 曲线，三段各用二次函数（smoothstep）拟合：
+
+```hlsl
+// Toe (暗部): log10 空间中的二次曲线
+real ToeVal = (-ToeSlope * ToeMatch + ToeOffset) * smoothstep(0, 1, (ToeNew - x) / (ToeNew - InBlack));
+
+// Shoulder (高光): log10 空间中的二次曲线
+real ShoulderVal = (ShoulderSlope * ShoulderMatch + ShoulderOffset) * smoothstep(0, 1, (x - ShoulderNew) / (InWhite - ShoulderNew));
+
+// 最终组合
+real f = x + ToeVal + ShoulderVal;
+return exp2(f) - FilmBlackClip;  // 从 log2 域回到线性
+```
+
+#### 默认参数（ACES 预设）
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| `FilmSlope` | 0.91 | 曲线中间段斜率，控制整体对比度 |
+| `FilmToe` | 0.53 | 暗部曲线强度，值越大暗部越暗 |
+| `FilmShoulder` | 0.23 | 高光压缩强度，值越大高光越压缩 |
+| `FilmBlackClip` | 0.0 | 黑色裁切，控制最暗处截断 |
+| `FilmWhiteClip` | 0.035 | 白色裁切，控制最亮处过曝余量 |
+
+#### UE4 vs URP ACES 对比
+
+| 特性 | URP ACES（内置） | UE4 Film Tonemapper |
+|------|-----------------|---------------------|
+| Tonemap 曲线 | RRT+ODT 近似（分段有理函数） | log10 参数化三段 S 曲线 |
+| Glow 模块 | ✅ | ✅ |
+| Red Modifier | ✅ | ✅ |
+| Pre Desaturation | ✅ (0.96) | ✅ (0.96) |
+| Post Desaturation | ✅ (0.93) | ✅ (0.93) |
+| 曲线可调参数 | 无（固定 RRT+ODT 拟合） | 5 个参数（Slope/Toe/Shoulder/BlackClip/WhiteClip） |
+| Color Grading 空间 | ACEScc（D60 白点） | 标准 sRGB/LogC（D65 白点） |
+| 色度适应 | D60→D65（仅输出时） | D65→D60→D65（往返） |
+| 视觉风格 | 更高对比度，更强烈的电影感 | 更接近 UE4/UE5 的默认渲染效果 |
+
+---
+
+## 色温白点（White Point）参考
+
+各 Tonemapping 模式在内部处理和输出时使用不同的色温白点基准：
+
+| Tonemapping | 工作白点 | 输出白点 | 色度适应 (CAT) | 说明 |
+|-------------|---------|---------|---------------|------|
+| **ACES** | D60 | D65 | D60→D65（输出时） | ACES 标准白点为 D60 (CIE xy = 0.32168, 0.33767)，完整 Color Grading 流程（ACEScc 对比度、ACES Luminance）都在 D60 色彩空间中进行 |
+| **UE4** | D60 | D65 | D65→D60→D65（往返） | 输入时先做 D65→D60 色度适应进入 ACES 域处理，处理完后再做 D60→D65 转回 sRGB |
+| **Neutral** | D65 | D65 | 无 | 直接在 sRGB (D65) 线性空间中逐通道操作 |
+| **GT** | D65 | D65 | 无 | 直接在 sRGB (D65) 线性空间中逐通道操作 |
+| **ACESSimple** | D65 | D65 | 无 | 尽管名为"ACES Simple"，但不做任何色彩空间转换，直接在 sRGB 中操作 |
+
+**核心区别**：ACES 和 UE4 在 Tonemap 前会把颜色从 sRGB (D65) 转到 ACES 域 (D60)，在高饱和度区域的色彩处理更准确（因 D60 和 D65 对 R/G/B 通道的增益不同）。而 Neutral/GT/ACESSimple 始终在 D65 sRGB 色彩空间中直接操作。
+
+**Color Grading 阶段**：
+- **ACES 模式**：对比度调整在 ACEScc 空间中完成（D60 白点），亮度计算使用 `AcesLuminance()`（基于 AP1 三刺激值 `AP1_RGB2Y`）
+- **其他所有模式**（Neutral/GT/ACESSimple/UE4）：对比度在 LogC 空间中完成（D65 白点），亮度计算使用标准 `Luminance()`（基于 sRGB 系数）
+
+**白平衡**：所有模式共享相同的白平衡实现（`LinearToLMS` → `_ColorBalance` → `LMSToLinear`），在 LMS 色彩空间中操作。LMS 转换（Hunt-Pointer-Estevez 变换）是一个感知模型空间，不依赖 D60/D65 的选择，因此白平衡调整对所有模式行为一致。
+
 ---
 
 ## Tonemapping 集成架构
@@ -307,7 +410,7 @@ Volume (Tonemapping.cs)
   ▼
 C# Pass (ColorGradingLutPass / PostProcessPass)
   │  根据 mode 启用对应 Shader 关键字
-  │  _TONEMAP_NEUTRAL / _TONEMAP_ACES / _TONEMAP_GT / _TONEMAP_ACES_SIMPLE
+  │  _TONEMAP_NEUTRAL / _TONEMAP_ACES / _TONEMAP_GT / _TONEMAP_ACES_SIMPLE / _TONEMAP_UE4
   ▼
 Shader (LutBuilderHdr / UberPost)
   │  multi_compile 分支选择
@@ -319,7 +422,7 @@ ApplyTonemap 函数 (Common.hlsl)
   │  LDR 路径：在 UberPost 中直接应用
   ▼
 色调映射算法实现 (Color.hlsl)
-  NeutralTonemap() / AcesTonemap() / GTTonemap() / ACESSimpleTonemap()
+  NeutralTonemap() / AcesTonemap() / GTTonemap() / ACESSimpleTonemap() / UE4FilmTonemap()
 ```
 
 ### HDR vs LDR 两条路径
@@ -332,7 +435,7 @@ ApplyTonemap 函数 (Common.hlsl)
 每种 Tonemapping 模式对应一个 shader 关键字，通过 `multi_compile_local` 声明：
 
 ```hlsl
-#pragma multi_compile_local _ _TONEMAP_ACES _TONEMAP_NEUTRAL _TONEMAP_GT _TONEMAP_ACES_SIMPLE
+#pragma multi_compile_local _ _TONEMAP_ACES _TONEMAP_NEUTRAL _TONEMAP_GT _TONEMAP_ACES_SIMPLE _TONEMAP_UE4
 ```
 
 `ShaderScriptableStripper.cs` 会在构建时剥离未使用的 Tonemapping variant，减小包体。
@@ -350,7 +453,7 @@ ApplyTonemap 函数 (Common.hlsl)
    - `ACESSimple`：简化 ACES，性能优先
 3. 选择 **ACES** 或 **Neutral** 时，若启用 HDR Output 还可配置额外参数（Range Reduction Mode、Paper White 等）
 
-> **注意**：GT 和 ACESSimple 不使用 ACES 色彩空间进行 Color Grading，走标准 sRGB 路径（与 Neutral 一致）。在 HDR Output 场景下，它们会走通用的 Rec2020 转换路径。
+> **注意**：GT、ACESSimple 和 UE4 不使用 ACES 色彩空间进行 Color Grading，走标准 sRGB/LogC 路径（与 Neutral 一致）。UE4 模式在 Tonemap 阶段自行进行 sRGB↔ACES 的色彩空间往返转换。在 HDR Output 场景下，它们会走通用的 Rec2020 转换路径。
 
 ---
 
@@ -359,11 +462,12 @@ ApplyTonemap 函数 (Common.hlsl)
 | 文件 | 说明 |
 |------|------|
 | `Runtime/Overrides/Tonemapping.cs` | Tonemapping Volume 组件定义，包含 `TonemappingMode` 枚举 |
-| `Runtime/UniversalRenderPipelineCore.cs` | Shader 关键字字符串定义（`_TONEMAP_GT`、`_TONEMAP_ACES_SIMPLE`） |
+| `Runtime/UniversalRenderPipelineCore.cs` | Shader 关键字字符串定义（`_TONEMAP_GT`、`_TONEMAP_ACES_SIMPLE`、`_TONEMAP_UE4`） |
 | `Runtime/Passes/ColorGradingLutPass.cs` | HDR LUT 构建 Pass，根据 mode 启用对应关键字 |
 | `Runtime/Passes/PostProcessPass.cs` | 后处理渲染 Pass，LDR 路径中根据 mode 启用对应关键字 |
 | `Shaders/PostProcessing/LutBuilderHdr.shader` | HDR LUT 构建 Shader，包含 `Tonemap()` 函数的所有分支 |
 | `Shaders/PostProcessing/UberPost.shader` | UberPost Shader，声明 tonemapping multi_compile |
 | `Shaders/PostProcessing/Common.hlsl` | 后处理公共函数，包含 `ApplyTonemap()` 的所有分支 |
-| `com.unity.render-pipelines.core/../Color.hlsl` | 核心色彩库，包含 `GTTonemap()` 和 `ACESSimpleTonemap()` 的算法实现 |
+| `com.unity.render-pipelines.core/../Color.hlsl` | 核心色彩库，包含 `GTTonemap()`、`ACESSimpleTonemap()` 和 `UE4FilmTonemap()` 的算法实现 |
+| `com.unity.render-pipelines.core/../ACES.hlsl` | ACES 色彩科学库，包含色彩空间矩阵和转换函数（D60↔D65 CAT、AP0/AP1/sRGB 转换等） |
 | `Editor/ShaderScriptableStripper.cs` | Shader variant stripping，构建时剥离未使用的 tonemapping variant |
