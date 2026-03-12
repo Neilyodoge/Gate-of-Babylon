@@ -687,7 +687,7 @@ static const half RRT_RED_PIVOT = 0.03;
 static const half RRT_RED_HUE = 0.0;
 static const half RRT_RED_WIDTH = 135.0;
 
-static const half RRT_SAT_FACTOR = 0.96;
+static const half RRT_SAT_FACTOR = 0.96 + 0.2;
 
 half3 RRT(half3 aces)
 {
@@ -834,7 +834,7 @@ half3 linear_to_bt1886(half3 x, half gamma, half Lw, half Lb)
 
 static const half CINEMA_WHITE = 48.0f;
 static const half CINEMA_BLACK = CINEMA_WHITE / 2400.0;
-static const half ODT_SAT_FACTOR = 0.93;
+static const half ODT_SAT_FACTOR = 0.93 + 0.2;
 
 // <ACEStransformID>ODT.Academy.RGBmonitor_100nits_dim.a1.0.3</ACEStransformID>
 // <ACESuserName>ACES 1.0 Output - sRGB</ACESuserName>
