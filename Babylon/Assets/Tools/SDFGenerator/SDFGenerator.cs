@@ -24,7 +24,7 @@ public class SDFGenerator : EditorWindow
     private bool processBlue = false;
     private bool processAlpha = true;
 
-    [MenuItem("Tools/SDF Generator")]
+[MenuItem("Tools/ArtTools/SDF Generator")]
     public static void ShowWindow()
     {
         GetWindow<SDFGenerator>("SDF生成器");
