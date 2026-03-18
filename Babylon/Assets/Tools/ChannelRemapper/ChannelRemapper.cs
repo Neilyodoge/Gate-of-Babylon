@@ -46,10 +46,6 @@ public class ChannelRemapper : EditorWindow
     private SourceChannel outA_Source = SourceChannel.A;
     private bool outA_Invert = false;
 
-    // 预览相关
-    private Texture2D previewTexture = null;
-    private Vector2 scrollPos;
-
     [MenuItem("Tools/ArtTools/通道重映射工具")]
     public static void ShowWindow()
     {
