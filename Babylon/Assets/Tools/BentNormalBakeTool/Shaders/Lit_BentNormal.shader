@@ -1,7 +1,8 @@
 // ============================================================================
 // Lit_BentNormal.shader
 // 基于 URP Lit shader 的 Bent Normal 版本
-// Bent Normal 数据存储在 Mesh UV2 中，由顶点着色器解码
+// Bent Normal 数据固定存储在 Mesh UV2 (TEXCOORD2) 中，由顶点着色器解码
+// UV 通道分配约定: UV2=BentNormal, UV3=平滑法线(PBRToon描边)
 // ============================================================================
 Shader "Universal Render Pipeline/Lit_BentNormal"
 {
@@ -46,7 +47,8 @@ Shader "Universal Render Pipeline/Lit_BentNormal"
         [Normal] _DetailNormalMap("Normal Map", 2D) = "bump" {}
 
         // ====== Bent Normal (Visibility Cone) 属性 ======
-        // 数据存储在 Mesh UV2 中，通过 _VISIBILITY_ON 关键字启用
+        // 数据固定存储在 Mesh UV2 (TEXCOORD2) 中，通过 _VISIBILITY_ON 关键字启用
+        // UV 通道分配约定: UV2=BentNormal, UV3=平滑法线(PBRToon描边)
         [Header(Bent Normal from UV)]
         [Toggle(_VISIBILITY_ON)] _EnableVisibility("Enable Visibility (UV Data)", Float) = 0.0
         _OcclusionScale("Occlusion Scale", Range(0.0, 1.0)) = 1.0

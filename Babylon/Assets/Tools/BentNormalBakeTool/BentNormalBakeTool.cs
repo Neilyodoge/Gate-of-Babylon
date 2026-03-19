@@ -557,6 +557,9 @@ namespace BentNormalBaker
                 "将 bent normal 数据烘焙到 Mesh 的 UV 通道中。\n" +
                 "数据编码: Vector4(relativeB, theta, aperture, scale)\n" +
                 "Shader 在顶点着色器中解码还原 bent normal 方向。\n\n" +
+                "UV 通道分配约定：\n" +
+                "  UV2 (TEXCOORD2) → Bent Normal 数据（本工具默认写入）\n" +
+                "  UV3 (TEXCOORD3) → 平滑法线（PBRToon 描边使用）\n\n" +
                 "使用方法：\n" +
                 "1. 在 Hierarchy 中选择要烘焙的 GameObject\n" +
                 "2. 调整下方参数\n" +
@@ -602,6 +605,9 @@ namespace BentNormalBaker
             // ===== 数据格式说明 =====
             EditorGUILayout.LabelField("数据格式说明", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
+                "UV 通道分配约定：\n" +
+                "  UV2 (TEXCOORD2) → Bent Normal 数据（本工具默认写入）\n" +
+                "  UV3 (TEXCOORD3) → 平滑法线（PBRToon 描边使用）\n\n" +
                 "UV 通道数据编码 (Vector4):\n" +
                 "  x (relativeB) = dot(bentNormal, biTangent)\n" +
                 "  y (theta)     = atan2(relativeT, relativeN)\n" +

@@ -1,7 +1,8 @@
 // ============================================================================
 // Lit_BentNormalInput.hlsl
 // 基于 URP Lit shader 的 Input 文件
-// Bent Normal 数据存储在 Mesh UV2 中，不再需要额外贴图
+// Bent Normal 数据固定存储在 Mesh UV2 (TEXCOORD2) 中，不再需要额外贴图
+// UV 通道分配约定: UV2=BentNormal, UV3=平滑法线(PBRToon描边)
 // ============================================================================
 #ifndef LIT_BENT_NORMAL_INPUT_INCLUDED
 #define LIT_BENT_NORMAL_INPUT_INCLUDED

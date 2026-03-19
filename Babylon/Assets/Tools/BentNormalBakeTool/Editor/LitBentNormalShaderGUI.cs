@@ -57,20 +57,20 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
         // ====== Bent Normal 区域的 Styles ======
         static class BentNormalStyles
         {
-            public static readonly GUIContent bentNormalHeader = EditorGUIUtility.TrTextContent(
+        public static readonly GUIContent bentNormalHeader = EditorGUIUtility.TrTextContent(
                 "Bent Normal (Visibility Cone)",
-                "Bent Normal 数据存储在 Mesh UV2 中，由烘焙工具写入。启用后将使用 Visibility Cone 改善间接光遮蔽和镜面反射遮蔽。");
+                "Bent Normal 数据固定存储在 Mesh UV2 (TEXCOORD2) 中，由烘焙工具写入。UV 通道分配: UV2=BentNormal, UV3=平滑法线。启用后将使用 Visibility Cone 改善间接光遮蔽和镜面反射遮蔽。");
 
             public static readonly GUIContent enableVisibilityText = EditorGUIUtility.TrTextContent(
                 "Enable Visibility (UV Data)",
-                "启用后从 Mesh UV2 读取烘焙的 Bent Normal 数据 (Visibility Cone)。需要先使用 Bent Normal Baker 工具烘焙数据到 Mesh 中。");
+                "启用后从 Mesh UV2 (TEXCOORD2) 读取烘焙的 Bent Normal 数据 (Visibility Cone)。需要先使用 Bent Normal Baker 工具烘焙数据到 Mesh 中。UV2 专用于 BentNormal，UV3 专用于平滑法线。");
 
             public static readonly GUIContent occlusionScaleText = EditorGUIUtility.TrTextContent(
                 "Occlusion Scale",
                 "控制 Visibility Cone 遮蔽效果的强度。0 = 无遮蔽，1 = 完全遮蔽。");
 
             public static readonly GUIContent helpBoxText = EditorGUIUtility.TrTextContent(
-                "请先使用 Bent Normal Baker 工具（菜单：Rendering > Art Toolkit > Bent Normal Baker）将 Bent Normal 数据烘焙到 Mesh UV2 中。");
+                "请先使用 Bent Normal Baker 工具（菜单：Tools > ArtTools > Bent Normal Baker）将 Bent Normal 数据烘焙到 Mesh UV2 (TEXCOORD2) 中。\nUV 通道分配约定: UV2=BentNormal, UV3=平滑法线(PBRToon描边)。");
         }
 
         // ====== 注册额外的 Foldout 区域 ======

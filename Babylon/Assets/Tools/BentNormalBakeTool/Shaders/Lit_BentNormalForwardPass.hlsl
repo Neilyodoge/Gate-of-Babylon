@@ -1,8 +1,9 @@
 // ============================================================================
 // Lit_BentNormalForwardPass.hlsl
 // 基于 URP LitForwardPass 的 Bent Normal 版本
-// Bent Normal 数据存储在 Mesh UV2 中，在顶点着色器中解码
-// 
+// Bent Normal 数据固定存储在 Mesh UV2 (TEXCOORD2) 中，在顶点着色器中解码
+// UV 通道分配约定: UV2=BentNormal, UV3=平滑法线(PBRToon描边)
+//
 // UV2 数据格式: float4(relativeB, theta, aperture, scale)
 // 解码方式:
 //   tangentLength = sqrt(1 - relativeB * relativeB)
@@ -41,8 +42,9 @@ struct Attributes
     float4 tangentOS    : TANGENT;
     float2 texcoord     : TEXCOORD0;
     float2 staticLightmapUV   : TEXCOORD1;
-    // UV2: bent normal 数据 (relativeB, theta, aperture, scale)
+    // UV2: bent normal 数据 (relativeB, theta, aperture, scale) —— 固定占用 TEXCOORD2
     float4 texcoord2    : TEXCOORD2;
+    // UV3 (TEXCOORD3): 保留给平滑法线 (PBRToon 描边使用)
     float2 dynamicLightmapUV  : TEXCOORD3;
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
