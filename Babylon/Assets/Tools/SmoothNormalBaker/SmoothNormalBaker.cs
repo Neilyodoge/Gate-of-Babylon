@@ -5,7 +5,7 @@ using UnityEngine;
 
 /// <summary>
 /// 平滑法线烘焙工具：
-/// 计算模型的平滑法线（基于共享位置的顶点法线平均），
+/// 计算模型的面积加权平滑法线（遍历三角面，用叉积累加面法线，天然携带面积权重），
 /// 将平滑法线的 x/y 固定存入 UV3(TEXCOORD3).xy 中（2通道编码）。
 /// 
 /// ========== UV 通道分配约定 ==========
@@ -215,7 +215,13 @@ public class SmoothNormalBaker : EditorWindow
     }
 
     /// <summary>
-    /// 核心算法：计算平滑法线并写入 TEXCOORD2.xy（2通道编码）
+    /// 核心算法：计算面积加权平滑法线并写入 TEXCOORD3.xy（2通道编码）
+    /// 
+    /// 算法说明：
+    /// 遍历所有三角面，用叉积计算面法线（叉积的模 = 三角形面积×2，天然携带面积权重），
+    /// 按顶点位置分组累加后归一化，得到面积加权的平滑法线。
+    /// 相比等权平均，面积加权在网格密度不均匀时表现更稳定，
+    /// 大三角面贡献更大权重，避免密集小面导致法线偏移。
     /// </summary>
     private Mesh BakeSmoothNormals(Mesh sourceMesh)
     {
@@ -226,35 +232,53 @@ public class SmoothNormalBaker : EditorWindow
         mesh.name = sourceMesh.name + OutputSuffix;
 
         Vector3[] vertices = mesh.vertices;
-        Vector3[] normals = mesh.normals;
-
-        if (normals == null || normals.Length == 0)
-        {
-            mesh.RecalculateNormals();
-            normals = mesh.normals;
-        }
-
         int vertexCount = vertices.Length;
 
-        // 1. 按位置分组，计算每个位置的平均法线
+        // 1. 按位置分组，使用面积加权累加面法线
         Dictionary<Vector3Int, Vector3> smoothNormalMap = new Dictionary<Vector3Int, Vector3>();
 
+        // 初始化所有顶点位置的条目
         for (int i = 0; i < vertexCount; i++)
         {
-            // 将位置量化为整数 key（精度约 0.0001）
             Vector3Int key = PositionToKey(vertices[i]);
-
-            if (smoothNormalMap.ContainsKey(key))
+            if (!smoothNormalMap.ContainsKey(key))
             {
-                smoothNormalMap[key] += normals[i];
-            }
-            else
-            {
-                smoothNormalMap[key] = normals[i];
+                smoothNormalMap[key] = Vector3.zero;
             }
         }
 
-        // 2. 归一化平均法线
+        // 遍历所有子网格的三角形，用叉积累加面法线（天然面积加权）
+        for (int subMesh = 0; subMesh < mesh.subMeshCount; subMesh++)
+        {
+            int[] triangles = mesh.GetTriangles(subMesh);
+
+            for (int t = 0; t < triangles.Length; t += 3)
+            {
+                int i0 = triangles[t];
+                int i1 = triangles[t + 1];
+                int i2 = triangles[t + 2];
+
+                Vector3 v0 = vertices[i0];
+                Vector3 v1 = vertices[i1];
+                Vector3 v2 = vertices[i2];
+
+                // 叉积 = 面法线 × 2倍面积，天然携带面积权重
+                Vector3 edge1 = v1 - v0;
+                Vector3 edge2 = v2 - v0;
+                Vector3 faceNormal = Vector3.Cross(edge1, edge2);
+
+                // 累加到三个顶点对应的位置分组
+                Vector3Int key0 = PositionToKey(v0);
+                Vector3Int key1 = PositionToKey(v1);
+                Vector3Int key2 = PositionToKey(v2);
+
+                smoothNormalMap[key0] += faceNormal;
+                smoothNormalMap[key1] += faceNormal;
+                smoothNormalMap[key2] += faceNormal;
+            }
+        }
+
+        // 2. 归一化得到最终平滑法线
         List<Vector3Int> keys = new List<Vector3Int>(smoothNormalMap.Keys);
         foreach (var key in keys)
         {
