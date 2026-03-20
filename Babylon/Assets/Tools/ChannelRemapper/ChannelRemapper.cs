@@ -57,6 +57,8 @@ public class ChannelRemapper : EditorWindow
     {
         GUILayout.Label("通道重映射工具", EditorStyles.boldLabel);
         GUILayout.Label("在 Project 视图中选择一张或多张贴图，为输出的每个通道指定来源。", EditorStyles.wordWrappedLabel);
+        GUILayout.Space(4);
+        EditorGUILayout.HelpBox("当前PBRToon使用的是 Metallic / Smoothness / AO / Highlight", MessageType.Info);
         GUILayout.Space(6);
 
         // ===== 通道映射设置 =====
