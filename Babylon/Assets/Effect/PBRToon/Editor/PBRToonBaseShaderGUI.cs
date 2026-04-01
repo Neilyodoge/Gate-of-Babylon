@@ -9,6 +9,9 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
     /// </summary>
     internal class PBRToonBaseShaderGUI : BaseShaderGUI
     {
+        // ====== Play Mode 状态跟踪（修复运行时 Inspector 点击无响应） ======
+        private bool _lastPlaying;
+
         // ====== Foldout 标记 ======
         static readonly uint PBRPropsFoldout = 1 << 4;
         static readonly uint DirectLightFoldout = 1 << 5;
@@ -400,6 +403,18 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
                     MessageType.Info);
                 EditorGUI.indentLevel--;
             }
+        }
+
+        public override void OnGUI(MaterialEditor materialEditorIn, MaterialProperty[] properties)
+        {
+            // Play Mode 切换时强制重新初始化 GUI，修复运行时 Inspector 点击无响应的问题
+            bool currentPlaying = EditorApplication.isPlaying;
+            if (currentPlaying != _lastPlaying)
+            {
+                _lastPlaying = currentPlaying;
+                m_FirstTimeApply = true;
+            }
+            base.OnGUI(materialEditorIn, properties);
         }
 
         public override void DrawAdvancedOptions(Material material)
