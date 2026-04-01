@@ -28,8 +28,8 @@ Shader "Universal Render Pipeline/PBRToon/Base"
 
         [Header(Shadow)]
         _ShadowColor                            ("ShadowColor", Color) = (0,0,0,1)
-        _ShadowOffset                           ("ShadowOffset", Range(-1, 1)) = 0.5
-        _ShadowSmoothNdotL                      ("ShadowSmoothNdotL", Range(0, 1)) = 0.25
+        _ShadowOffset                           ("ShadowOffset", Range(-1, 1)) = 0
+        _ShadowSharpness                        ("ShadowSharpness", Range(1, 100)) = 10
         _ShadowSmoothScene                      ("ShadowSmoothScene", Range(0, 1)) = 0.1
         _ShadowStrength                         ("ShadowStrength", Range(0, 1)) = 1.0
 
@@ -53,6 +53,7 @@ Shader "Universal Render Pipeline/PBRToon/Base"
 
         // ====== 自发光 & 边缘光 ======
         [Header(Emission)]
+        [NoScaleOffset]_EmissionMap             ("EmissionMap", 2D) = "white" {}
         [HDR]_EmissionCol                       ("EmissionCol", Color) = (0,0,0,1)
 
         [Header(RimLight)]
@@ -69,6 +70,37 @@ Shader "Universal Render Pipeline/PBRToon/Base"
         _OutlineDepthOldRange                   ("OutlineDepthOldRange", Vector) = (0.01, 2.00, 6.00, 0)
         _OutlineDepthNewRange                   ("OutlineDepthNewRange", Vector) = (0.105, 0.245, 0.60, 0)
         _OutlineNormalScale                     ("OutlineNormalScale", Range(0, 100)) = 1
+
+        // ====== 自定义 PCF 阴影 ======
+        [Header(Shadow PCF)]
+        [KeywordEnum(Base, PCF_2x2, PCF_3x3, PCF_5x5, PCF_7x7, PCSS)]
+        _ToonShadow                             ("Shadow Quality", Float) = 2
+
+        // ====== PCSS 参数 ======
+        [Header(PCSS Params)]
+        _PcssSoftness                           ("PCSS Softness", Range(0.001, 0.1)) = 0.02
+        _PcssSoftnessFalloff                    ("PCSS Softness Falloff", Range(0.1, 5)) = 1.5
+        _PcssBlockerSamples                     ("PCSS Blocker Samples", Range(4, 32)) = 16
+        _PcssFilterSamples                      ("PCSS Filter Samples", Range(4, 32)) = 16
+        _PcssBlockerGradientBias                ("PCSS Blocker Gradient Bias", Range(0, 0.01)) = 0.0
+        _PcssPCFGradientBias                    ("PCSS PCF Gradient Bias", Range(0, 0.01)) = 0.0
+
+        // ====== Shadow Edge Color ======
+        [Header(Shadow Edge Color)]
+        [Toggle(_SHADOW_EDGE_COLOR)]_EnableShadowEdgeColor ("Enable Shadow Edge Color", Float) = 0
+        _ShadowEdgeBegin                        ("Shadow Edge Begin", Range(0, 1)) = 0.2
+        _ShadowEdgeEnd                          ("Shadow Edge End", Range(0, 1)) = 0.8
+        _ShadowEdgeBeginColor                   ("Shadow Edge Begin Color", Color) = (0.3, 0.1, 0.1, 1)
+        _ShadowEdgeEndColor                     ("Shadow Edge End Color", Color) = (1, 0.9, 0.8, 1)
+        _ShadowEdgeDarkColor                    ("Shadow Edge Dark Color", Color) = (0, 0, 0, 1)
+        _ShadowEdgeLightColor                   ("Shadow Edge Light Color", Color) = (1, 1, 1, 1)
+        _ShadowEdgeFadeBeginWidth               ("Shadow Edge Fade Begin Width", Range(0, 0.5)) = 0.1
+        _ShadowEdgeFadeEndWidth                 ("Shadow Edge Fade End Width", Range(0, 0.5)) = 0.1
+
+        // ====== Debug ======
+        [Header(Debug)]
+        [Toggle(_DEBUG_SHADOW)]_DebugShadow     ("Debug Shadow", Float) = 0
+        [Enum(Shadow,0, Ramp,1)]_DebugShadowMode ("Debug Shadow Mode", Float) = 0
 
         // ====== 其他设置 ======
         [Header(Other Settings)]
@@ -115,21 +147,19 @@ Shader "Universal Render Pipeline/PBRToon/Base"
             #pragma shader_feature_local _SHADOW_RAMP
             #pragma shader_feature_local _INDIR_CUBEMAP
             #pragma shader_feature_local _ALPHATEST_ON
+            #pragma shader_feature_local _ _TOON_SHADOW_BASE _TOON_SHADOW_PCF_2X2 _TOON_SHADOW_PCF_3X3 _TOON_SHADOW_PCF_5X5 _TOON_SHADOW_PCF_7X7 _TOON_SHADOW_PCSS
+            #pragma shader_feature_local _SHADOW_EDGE_COLOR
+            #pragma shader_feature_local _DEBUG_SHADOW
 
             // Universal Pipeline keywords
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
-            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
-            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
+            #pragma multi_compile _ _CHAR_SHADOW_ATLAS_ON
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
-            #pragma multi_compile_fragment _ _LIGHT_COOKIES
-            #pragma multi_compile _ _LIGHT_LAYERS
-            #pragma multi_compile _ _FORWARD_PLUS
 
-            // Unity defined keywords
-            #pragma multi_compile _ LIGHTMAP_ON
-            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            // 以下 multi_compile 已精简：卡通角色不需要反射探针混合/盒投影、
+            // Light Cookie、Light Layers、Forward+、Lightmap(动态物体)、LOD Crossfade
 
             // GPU Instancing
             #pragma multi_compile_instancing
@@ -161,9 +191,19 @@ Shader "Universal Render Pipeline/PBRToon/Base"
             // Shadow
             float4  _ShadowColor;
             float   _ShadowOffset;
-            float   _ShadowSmoothNdotL;
+            float   _ShadowSharpness;
             float   _ShadowSmoothScene;
             float   _ShadowStrength;
+
+            // Shadow Edge Color
+            float   _ShadowEdgeBegin;
+            float   _ShadowEdgeEnd;
+            float4  _ShadowEdgeBeginColor;
+            float4  _ShadowEdgeEndColor;
+            float4  _ShadowEdgeDarkColor;
+            float4  _ShadowEdgeLightColor;
+            float   _ShadowEdgeFadeBeginWidth;
+            float   _ShadowEdgeFadeEndWidth;
 
             // Indirect
             float4  _SelfEnvColor;
@@ -189,12 +229,26 @@ Shader "Universal Render Pipeline/PBRToon/Base"
             float4  _OutlineDepthOldRange;
             float4  _OutlineDepthNewRange;
             float   _OutlineNormalScale;
+            // PCSS
+            float   _PcssSoftness;
+            float   _PcssSoftnessFalloff;
+            float   _PcssBlockerSamples;
+            float   _PcssFilterSamples;
+            float   _PcssBlockerGradientBias;
+            float   _PcssPCFGradientBias;
+            // Debug
+            float   _DebugShadowMode;
             CBUFFER_END
+
+            // ToonShadowFilter 必须在 CBUFFER 之后 include，
+            // 因为 PCSS 模式需要读取 CBUFFER 中的 _PcssBlockerSamples 等参数
+            #include "ToonShadowFilter.hlsl"
 
             // ====== 纹理声明 ======
             TEXTURE2D(_BaseMap);            SAMPLER(sampler_BaseMap);
             TEXTURE2D(_PBRMask);            SAMPLER(sampler_PBRMask);
             TEXTURE2D(_NormalMap);           SAMPLER(sampler_NormalMap);
+            TEXTURE2D(_EmissionMap);         SAMPLER(sampler_EmissionMap);
             TEXTURE2D(_ShadowRampTex);      SAMPLER(sampler_ShadowRampTex);
             TEXTURECUBE(_IndirSpecCubemap);
 
@@ -293,8 +347,6 @@ Shader "Universal Render Pipeline/PBRToon/Base"
                 float NdotV = dot(normalWS, viewDirWS);
                 float clampedNdotV = ClampNdotV(NdotV);
 
-                uint meshRenderingLayers = GetMeshRenderingLayer();
-
                 // ===== 初始化光照累加器 =====
                 ToonDirectLighting directLighting;
                 ToonIndirectLighting indirectLighting;
@@ -315,13 +367,14 @@ Shader "Universal Render Pipeline/PBRToon/Base"
 
                 float directRimArea = GetCharacterDirectRimLightArea(normalVS, screenUV, depth, _DirectRimWidth);
 
+                // ===== Debug 阴影变量 =====
+                float3 _dbg_shadow = 1;    // 实时阴影（shadowScene，shadowMap 采样结果）
+                float3 _dbg_rampTex = 1;   // 明暗交界线（shadowNdotL，NdotL 控制的 ramp）
+
                 // ===== 主光源 =====
                 float4 shadowCoord = TransformWorldToShadowCoord(positionWS);
                 Light mainLight = GetMainLight(shadowCoord);
 
-                #ifdef _LIGHT_LAYERS
-                if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
-                #endif
                 {
                     float3 lightColor = lerp(mainLight.color, _SelfLight.rgb, _MainLightColorLerp);
                     float3 lightDirWS = mainLight.direction;
@@ -336,17 +389,33 @@ Shader "Universal Render Pipeline/PBRToon/Base"
                     float3 lightDirVS = TransformWorldToViewDir(lightDirWS);
                     lightDirVS = SafeNormalize(lightDirVS);
 
-                    // 阴影
-                    float shadowAttenuation = mainLight.shadowAttenuation;
+                    // 阴影：CSM 使用 URP 默认采样（含 _SHADOWS_SOFT 软阴影）
+                    // Atlas 阴影使用自定义 PCF/PCSS
+                    float shadowAttenuation = ToonMainLightShadowWithCharacterAtlas(shadowCoord, positionWS, NdotL, i.positionHCS.xy);
 
-                    float shadowNdotL = SigmoidSharp(halfLambert, _ShadowOffset, _ShadowSmoothNdotL * 5);
+                    // 明暗交界线: saturate((NdotL - 位置) * 软硬度)
+                    float shadowNdotL = saturate((NdotL - _ShadowOffset) * _ShadowSharpness);
                     float shadowScene = SigmoidSharp(shadowAttenuation, 0.5, _ShadowSmoothScene * 5);
                     float shadowArea = min(shadowNdotL, shadowScene);
                     shadowArea = lerp(1, shadowArea, _ShadowStrength);
 
+                    // 保存 debug 变量：shadow = 实时阴影，ramp = 明暗交界线
+                    _dbg_shadow = shadowScene.xxx;
+                    _dbg_rampTex = shadowNdotL.xxx;
+
                     float3 shadowRamp = lerp(_ShadowColor.rgb, float3(1, 1, 1), shadowArea);
                     #ifdef _SHADOW_RAMP
-                    shadowRamp = SampleDirectShadowRamp(TEXTURE2D_ARGS(_ShadowRampTex, sampler_ShadowRampTex), shadowArea, 0.125).xyz;
+                    shadowRamp = SampleDirectShadowRamp(TEXTURE2D_ARGS(_ShadowRampTex, sampler_ShadowRampTex), NdotL, 0.125).xyz;
+                    #endif
+
+                    // Shadow Edge Color: 在阴影边缘区域叠加渐变颜色
+                    #ifdef _SHADOW_EDGE_COLOR
+                    shadowRamp = GetShadowEdgeColor2(
+                        shadowArea,
+                        _ShadowEdgeBegin, _ShadowEdgeEnd,
+                        _ShadowEdgeBeginColor.rgb, _ShadowEdgeEndColor.rgb,
+                        _ShadowEdgeDarkColor.rgb, _ShadowEdgeLightColor.rgb,
+                        _ShadowEdgeFadeBeginWidth, _ShadowEdgeFadeEndWidth);
                     #endif
 
                     // BRDF
@@ -374,59 +443,11 @@ Shader "Universal Render Pipeline/PBRToon/Base"
 
                 // ===== 附加光源 =====
                 #if defined(_ADDITIONAL_LIGHTS)
-                // 构造 InputData 供 LIGHT_LOOP_BEGIN (Forward+) 使用
-                InputData inputData = (InputData)0;
-                inputData.positionWS = positionWS;
-                inputData.normalizedScreenSpaceUV = screenUV;
-
                 uint pixelLightCount = GetAdditionalLightsCount();
-
-                #if USE_FORWARD_PLUS
-                for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
-                {
-                    FORWARD_PLUS_SUBTRACTIVE_LIGHT_CHECK
-                    Light addLight = GetAdditionalLight(lightIndex, positionWS);
-
-                    #ifdef _LIGHT_LAYERS
-                    if (IsMatchingLightLayer(addLight.layerMask, meshRenderingLayers))
-                    #endif
-                    {
-                        float3 lightDirWS = addLight.direction;
-                        float NdotL = dot(normalWS, lightDirWS);
-                        float clampedNdotL = saturate(NdotL);
-                        float clampedRoughness = max(roughness, 0.002);
-                        float attenuation = addLight.distanceAttenuation * addLight.shadowAttenuation;
-
-                        float LdotV, NdotH, LdotH, invLenLV;
-                        GetBSDFAngle(viewDirWS, lightDirWS, NdotL, NdotV, LdotV, NdotH, LdotH, invLenLV);
-
-                        float3 F = F_Schlick(fresnel0, LdotH);
-                        float DV = DV_SmithJointGGX(NdotH, abs(NdotL), clampedNdotV, clampedRoughness);
-                        float3 specTerm = F * DV;
-                        float diffTerm = Lambert();
-
-                        diffTerm *= clampedNdotL;
-                        specTerm *= clampedNdotL;
-
-                        // 附加光 Rim Light
-                        float3 lightDirVS = TransformWorldToViewDir(lightDirWS);
-                        lightDirVS = SafeNormalize(lightDirVS);
-                        float punctualRimArea = GetCharacterPunctualRimLightArea(lightDirVS, screenUV, depth, _PunctualRimWidth);
-                        float3 punctualRim = GetRimColor(punctualRimArea, diffuseColor, normalVS, lightDirVS, 1, addLight.color, float3(0,0,0));
-
-                        directLighting.diffuse += diffuseColor * diffTerm * addLight.color * attenuation;
-                        directLighting.specular += specTerm * addLight.color * attenuation;
-                        rimColor += punctualRim * attenuation;
-                    }
-                }
-                #endif
 
                 LIGHT_LOOP_BEGIN(pixelLightCount)
                     Light addLight = GetAdditionalLight(lightIndex, positionWS);
 
-                    #ifdef _LIGHT_LAYERS
-                    if (IsMatchingLightLayer(addLight.layerMask, meshRenderingLayers))
-                    #endif
                     {
                         float3 lightDirWS = addLight.direction;
                         float NdotL = dot(normalWS, lightDirWS);
@@ -480,11 +501,22 @@ Shader "Universal Render Pipeline/PBRToon/Base"
                 }
 
                 // ===== 自发光 =====
-                float3 emissResult = emission * lerp(_EmissionCol.rgb, _EmissionCol.rgb * albedo.rgb, _EmissionCol.a);
+                float3 emissionTex = SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, UV).rgb;
+                float3 emissResult = emission * emissionTex * lerp(_EmissionCol.rgb, _EmissionCol.rgb * albedo.rgb, _EmissionCol.a);
 
                 // ===== 后处理合并 =====
                 float3 resultColor = ToonPostEvaluate(directLighting, indirectLighting, occlusion, fresnel0, energyCompensation, _IndirDiffIntensity, _IndirSpecIntensity);
                 resultColor += emissResult + rimColor;
+
+                #ifdef _DEBUG_SHADOW
+                {
+                    int debugMode = (int)_DebugShadowMode;
+                    if (debugMode == 1)
+                        return float4(_dbg_rampTex, 1);   // Ramp: 明暗交界线（shadowNdotL）
+                    else
+                        return float4(_dbg_shadow, 1);    // Shadow: 实时阴影（shadowScene）
+                }
+                #endif
 
                 return float4(resultColor, 1);
             }
@@ -786,9 +818,18 @@ Shader "Universal Render Pipeline/PBRToon/Base"
             float   _DirectOcclusion;
             float4  _ShadowColor;
             float   _ShadowOffset;
-            float   _ShadowSmoothNdotL;
+            float   _ShadowSharpness;
             float   _ShadowSmoothScene;
             float   _ShadowStrength;
+            // Shadow Edge Color
+            float   _ShadowEdgeBegin;
+            float   _ShadowEdgeEnd;
+            float4  _ShadowEdgeBeginColor;
+            float4  _ShadowEdgeEndColor;
+            float4  _ShadowEdgeDarkColor;
+            float4  _ShadowEdgeLightColor;
+            float   _ShadowEdgeFadeBeginWidth;
+            float   _ShadowEdgeFadeEndWidth;
             float4  _SelfEnvColor;
             float   _EnvColorLerp;
             float   _IndirDiffUpDirSH;
@@ -807,6 +848,15 @@ Shader "Universal Render Pipeline/PBRToon/Base"
             float4  _OutlineDepthOldRange;
             float4  _OutlineDepthNewRange;
             float   _OutlineNormalScale;
+            // PCSS
+            float   _PcssSoftness;
+            float   _PcssSoftnessFalloff;
+            float   _PcssBlockerSamples;
+            float   _PcssFilterSamples;
+            float   _PcssBlockerGradientBias;
+            float   _PcssPCFGradientBias;
+            // Debug
+            float   _DebugShadowMode;
             CBUFFER_END
 
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
@@ -892,5 +942,6 @@ Shader "Universal Render Pipeline/PBRToon/Base"
         }
     }
 
+    Fallback "Universal Render Pipeline/Lit"
     CustomEditor "UnityEditor.Rendering.Universal.ShaderGUI.PBRToonBaseShaderGUI"
 }

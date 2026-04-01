@@ -106,9 +106,13 @@ float3 GetRimColor(float rimArea, float3 albedo, float3 normalVS, float3 lightDi
 // ShadowRamp 采样
 // ============================================================================
 
-float4 SampleDirectShadowRamp(TEXTURE2D_PARAM(RampTex, RampSampler), float lightRange, float rampY)
+float4 SampleDirectShadowRamp(TEXTURE2D_PARAM(RampTex, RampSampler), float NdotL, float rampY)
 {
-    return SAMPLE_TEXTURE2D(RampTex, RampSampler, float2(lightRange, rampY));
+    // Ramp 纹理约定：NdotL [-1,1] 线性映射到 UV.x [0,1]
+    // NdotL = -1 → UV.x = 0 (Ramp 左端，暗/阴影)
+    // NdotL =  1 → UV.x = 1 (Ramp 右端，亮)
+    float u = NdotL * 0.5 + 0.5; // halfLambert
+    return SAMPLE_TEXTURE2D(RampTex, RampSampler, float2(u, rampY));
 }
 
 float4 SampleDirectSpecularRamp(TEXTURE2D_PARAM(RampTex, RampSampler), float specRange, float rampY)

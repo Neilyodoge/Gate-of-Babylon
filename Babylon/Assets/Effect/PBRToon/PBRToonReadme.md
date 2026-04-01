@@ -16,6 +16,7 @@ Assets/Effect/PBRToon/
 ├── PBRToonFaceDirection.cs             # 面部朝向脚本（运行时组件）
 └── Shaders/
     ├── PBRToonCommon.hlsl              # 公共工具函数库
+    ├── ToonShadowFilter.hlsl           # The Witness 优化 PCF 阴影滤波库
     ├── PBRToonBase.shader              # 基础 Shader（身体/衣服等）
     ├── PBRToonFace.shader              # 面部 Shader（SDF 阴影 + 鼻尖高光）
     └── PBRToonHair.shader              # 头发 Shader（各向异性高光）
@@ -101,6 +102,43 @@ Face 和 Hair 的 ShadowCaster、DepthOnly、DepthNormals 通过 `UsePass` 复�
 | **UV3 (TEXCOORD3)** | **平滑法线** | PBRToon 描边用平滑法线 (.xy 2通道) | 平滑法线烘焙工具 |
 
 > ⚠️ UV2 和 UV3 的用途已固定分配，两个工具不会互相冲突。
+
+### 阴影采样系统（The Witness 优化 PCF）
+
+使用自定义 PCF（Percentage Closer Filtering）替代 URP 默认的 `mainLight.shadowAttenuation`，获得更高质量的阴影边缘过渡。
+
+**核心文件**：`ToonShadowFilter.hlsl`
+
+**算法原理**：
+- 参考 The Witness（见证者）的 GPU Shadow Mapping 优化技术
+- 利用硬件 2x2 PCF 的双线性插值特性，用更少的纹理采样覆盖更大的滤波核
+- 根据子像素位置动态计算采样权重和偏移，相比 URP 固定偏移方案在相同采样次数下获得更平滑的过渡
+
+**滤波核大小**：
+
+| 模式 | 关键字 | 采样次数 | 等效比较次数 | 说明 |
+|------|--------|----------|-------------|------|
+| 3x3（默认） | 无 | 4 次硬件 PCF | 16 次 | 性能好，适合大部分场景 |
+| 5x5 | `_TOON_SHADOW_PCF_5X5` | 9 次硬件 PCF | 36 次 | 更柔和的阴影边缘 |
+
+**使用方式**：
+1. 在材质面板的 **Shadow PCF** 区域选择滤波核大小
+2. 默认 3x3（4 tap），勾选后切换为 5x5（9 tap）
+3. 无需额外 RenderFeature，直接在 Forward Pass 中采样 CSM Shadow Map
+
+**渲染流程**：
+```
+URP CSM Shadow Map 渲染（照常）
+    ↓
+Forward Pass:
+    shadowCoord = TransformWorldToShadowCoord(positionWS)
+    ↓
+    ToonMainLightShadow(shadowCoord)
+        → The Witness 优化 PCF 采样 _MainLightShadowmapTexture
+        → 应用 shadow strength + cascade fade
+    ↓
+    SigmoidSharp → shadowScene → Toon 阴影流程
+```
 
 ### 描边系统
 - **算法**：原神风格背面法线外扩描边

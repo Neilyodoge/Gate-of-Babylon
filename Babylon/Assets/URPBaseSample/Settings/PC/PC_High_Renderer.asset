@@ -1,5 +1,34 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-7833330081339132773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a78fdc1b356387b4799918573d31fb69, type: 3}
+  m_Name: CharacterShadowAtlasRenderFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  settings:
+    atlasResolution: 2048
+    heroTileSize: 128
+    importantTileSize: 512
+    normalTileSize: 256
+    lowTileSize: 128
+    depthBias: 1.5
+    normalBias: 2
+    shadowNearExtent: 20
+    shadowFarExtent: 20
+    orthoXYPadding: 0.1
+    layerMask:
+      serializedVersion: 2
+      m_Bits: 131072
+    maxShadowDistance: 10
+    dynamicTileSize: 1
 --- !u!114 &-3751262535411419207
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12,7 +41,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b3d386ba5cd94485973aee1479b272e, type: 3}
   m_Name: FullscreenMask
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   settings:
     passTag: FullscreenMask
     Event: 450
@@ -42,6 +71,47 @@ MonoBehaviour:
       restoreCamera: 1
       offset: {x: 0, y: 0, z: 0, w: 0}
       cameraFieldOfView: 60
+--- !u!114 &-3000748634824942813
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c0da8a140b6e2f4187f48e89f33ddc1, type: 3}
+  m_Name: CharacterShadowRenderFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  settings:
+    enabled: 1
+    shadowResolution: 2048
+    shadowDistance: 2
+    depthBias: 1
+    normalBias: 1
+    layerMask:
+      m_Bits: 131072
+    debugOverlay: 1
+    debugOverlaySize: 0.262
+--- !u!114 &-2394691467321570948
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5689d1a5df788e048aac6375fa4eece7, type: 3}
+  m_Name: NPRDiffusionRenderFeature
+  m_EditorClassIdentifier: 
+  m_Active: 0
+  settings:
+    intensity: 1
+    threshold: 1
+    thresholdKnee: 0.5
+    blurIterations: 2
 --- !u!114 &-1114110547848633439
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -76,7 +146,10 @@ MonoBehaviour:
   - {fileID: 7833122117494664109}
   - {fileID: 3573653513797426673}
   - {fileID: -3751262535411419207}
-  m_RendererFeatureMap: a163f70a5ce289f0ad6b866f10d7b46cf1dd38d0ef2a9831b937925d99d6f0cb
+  - {fileID: -2394691467321570948}
+  - {fileID: 4518123511825720401}
+  - {fileID: -7833330081339132773}
+  m_RendererFeatureMap: a163f70a5ce289f0ad6b866f10d7b46cf1dd38d0ef2a9831b937925d99d6f0cb7c89a34fcc58c4de5164b65d6599b33e9b346635cb6b4a93
   m_UseNativeRenderPass: 1
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   xrSystemData: {fileID: 11400000, guid: 60e1133243b97e347b653163a8c01b64, type: 2}
@@ -118,6 +191,28 @@ MonoBehaviour:
   m_CopyDepthMode: 1
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
+--- !u!114 &88428409175387076
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b471cb9aa1b55240be6316c691cf01c, type: 3}
+  m_Name: ContactShadowRenderFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  settings:
+    enabled: 1
+    resolution: 1
+    stepCount: 16
+    maxDistance: 0.5
+    thickness: 0.05
+    intensity: 1
+    fadeStart: 10
+    fadeEnd: 30
 --- !u!114 &3573653513797426673
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -130,7 +225,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1614fc811f8f184697d9bee70ab9fe5, type: 3}
   m_Name: DecalRendererFeature
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   m_Settings:
     technique: 1
     maxDrawDistance: 1000
@@ -141,6 +236,25 @@ MonoBehaviour:
       normalBlend: 0
   m_CopyDepthPS: {fileID: 4800000, guid: d6dae50ee9e1bfa4db75f19f99355220, type: 3}
   m_DBufferClear: {fileID: 4800000, guid: f056d8bd2a1c7e44e9729144b4c70395, type: 3}
+--- !u!114 &4518123511825720401
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0aa8053c00caead4db23c2c4512700a1, type: 3}
+  m_Name: ToonOutlineRenderFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  settings:
+    enabled: 1
+    renderPassEvent: 300
+    layerMask:
+      serializedVersion: 2
+      m_Bits: 131072
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -153,7 +267,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f62c9c65cf3354c93be831c8bc075510, type: 3}
   m_Name: ScreenSpaceAmbientOcclusion
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   m_Settings:
     AOMethod: 0
     Downsample: 0

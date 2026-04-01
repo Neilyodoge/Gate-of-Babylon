@@ -16,9 +16,9 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
         static readonly uint IndirectLightFoldout = 1 << 7;
         static readonly uint EmissRimFoldout = 1 << 8;
         static readonly uint OutlineFoldout = 1 << 9;
+        static readonly uint DebugFoldout = 1 << 10;
 
         // Properties
-        private MaterialProperty baseColorProp;
         private MaterialProperty baseMapPropLocal;
         private MaterialProperty pbrMaskProp;
         private MaterialProperty normalMapProp;
@@ -42,7 +42,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
 
         private MaterialProperty shadowColorProp;
         private MaterialProperty shadowOffsetProp;
-        private MaterialProperty shadowSmoothNdotLProp;
+        private MaterialProperty shadowSharpnessProp;
         private MaterialProperty shadowSmoothSceneProp;
         private MaterialProperty shadowStrengthProp;
 
@@ -72,11 +72,36 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
         private MaterialProperty outlineDepthNewRangeProp;
         private MaterialProperty outlineNormalScaleProp;
 
+        // PCF
+        private MaterialProperty toonShadowProp;
+
+        // PCSS
+        private MaterialProperty pcssSoftnessProp;
+        private MaterialProperty pcssSoftnessFalloffProp;
+        private MaterialProperty pcssBlockerSamplesProp;
+        private MaterialProperty pcssFilterSamplesProp;
+        private MaterialProperty pcssBlockerGradientBiasProp;
+        private MaterialProperty pcssPCFGradientBiasProp;
+
+        // Shadow Edge Color
+        private MaterialProperty enableShadowEdgeColorProp;
+        private MaterialProperty shadowEdgeBeginProp;
+        private MaterialProperty shadowEdgeEndProp;
+        private MaterialProperty shadowEdgeBeginColorProp;
+        private MaterialProperty shadowEdgeEndColorProp;
+        private MaterialProperty shadowEdgeDarkColorProp;
+        private MaterialProperty shadowEdgeLightColorProp;
+        private MaterialProperty shadowEdgeFadeBeginWidthProp;
+        private MaterialProperty shadowEdgeFadeEndWidthProp;
+
+        // Debug
+        private MaterialProperty debugShadowProp;
+        private MaterialProperty debugShadowModeProp;
+
         private MaterialProperty cullProp;
-        private MaterialProperty alphaClipProp;
         private MaterialProperty cutoffProp;
 
-        static class Styles
+        new static class Styles
         {
             public static readonly GUIContent pbrPropsHeader = EditorGUIUtility.TrTextContent("PBR Properties");
             public static readonly GUIContent hairSpecHeader = EditorGUIUtility.TrTextContent("Hair Specular");
@@ -84,13 +109,13 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             public static readonly GUIContent indirectLightHeader = EditorGUIUtility.TrTextContent("Indirect Light");
             public static readonly GUIContent emissRimHeader = EditorGUIUtility.TrTextContent("Emission & Rim Light");
             public static readonly GUIContent outlineHeader = EditorGUIUtility.TrTextContent("Outline");
+            public static readonly GUIContent debugHeader = EditorGUIUtility.TrTextContent("⚠ Debug (Editor Only)");
         }
 
         public override void FindProperties(MaterialProperty[] properties)
         {
             base.FindProperties(properties);
 
-            baseColorProp = FindProperty("_BaseColor", properties, false);
             baseMapPropLocal = FindProperty("_BaseMap", properties, false);
             pbrMaskProp = FindProperty("_PBRMask", properties, false);
             normalMapProp = FindProperty("_NormalMap", properties, false);
@@ -113,7 +138,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
 
             shadowColorProp = FindProperty("_ShadowColor", properties, false);
             shadowOffsetProp = FindProperty("_ShadowOffset", properties, false);
-            shadowSmoothNdotLProp = FindProperty("_ShadowSmoothNdotL", properties, false);
+            shadowSharpnessProp = FindProperty("_ShadowSharpness", properties, false);
             shadowSmoothSceneProp = FindProperty("_ShadowSmoothScene", properties, false);
             shadowStrengthProp = FindProperty("_ShadowStrength", properties, false);
 
@@ -142,8 +167,29 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             outlineDepthNewRangeProp = FindProperty("_OutlineDepthNewRange", properties, false);
             outlineNormalScaleProp = FindProperty("_OutlineNormalScale", properties, false);
 
+            toonShadowProp = FindProperty("_ToonShadow", properties, false);
+
+            pcssSoftnessProp = FindProperty("_PcssSoftness", properties, false);
+            pcssSoftnessFalloffProp = FindProperty("_PcssSoftnessFalloff", properties, false);
+            pcssBlockerSamplesProp = FindProperty("_PcssBlockerSamples", properties, false);
+            pcssFilterSamplesProp = FindProperty("_PcssFilterSamples", properties, false);
+            pcssBlockerGradientBiasProp = FindProperty("_PcssBlockerGradientBias", properties, false);
+            pcssPCFGradientBiasProp = FindProperty("_PcssPCFGradientBias", properties, false);
+
+            enableShadowEdgeColorProp = FindProperty("_EnableShadowEdgeColor", properties, false);
+            shadowEdgeBeginProp = FindProperty("_ShadowEdgeBegin", properties, false);
+            shadowEdgeEndProp = FindProperty("_ShadowEdgeEnd", properties, false);
+            shadowEdgeBeginColorProp = FindProperty("_ShadowEdgeBeginColor", properties, false);
+            shadowEdgeEndColorProp = FindProperty("_ShadowEdgeEndColor", properties, false);
+            shadowEdgeDarkColorProp = FindProperty("_ShadowEdgeDarkColor", properties, false);
+            shadowEdgeLightColorProp = FindProperty("_ShadowEdgeLightColor", properties, false);
+            shadowEdgeFadeBeginWidthProp = FindProperty("_ShadowEdgeFadeBeginWidth", properties, false);
+            shadowEdgeFadeEndWidthProp = FindProperty("_ShadowEdgeFadeEndWidth", properties, false);
+
+            debugShadowProp = FindProperty("_DebugShadow", properties, false);
+            debugShadowModeProp = FindProperty("_DebugShadowMode", properties, false);
+
             cullProp = FindProperty("_Cull", properties, false);
-            alphaClipProp = FindProperty("_AlphaClip", properties, false);
             cutoffProp = FindProperty("_Cutoff", properties, false);
         }
 
@@ -184,6 +230,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             materialScopesList.RegisterHeaderScope(Styles.indirectLightHeader, IndirectLightFoldout, DrawIndirectLight);
             materialScopesList.RegisterHeaderScope(Styles.emissRimHeader, EmissRimFoldout, DrawEmissRim);
             materialScopesList.RegisterHeaderScope(Styles.outlineHeader, OutlineFoldout, DrawOutline);
+            materialScopesList.RegisterHeaderScope(Styles.debugHeader, DebugFoldout, DrawDebug);
         }
 
         private void DrawPBRProps(Material material)
@@ -220,8 +267,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             EditorGUILayout.Space(5);
             EditorGUILayout.LabelField("Shadow", EditorStyles.boldLabel);
             if (shadowColorProp != null) materialEditor.ShaderProperty(shadowColorProp, "Shadow Color");
-            if (shadowOffsetProp != null) materialEditor.ShaderProperty(shadowOffsetProp, "Shadow Offset");
-            if (shadowSmoothNdotLProp != null) materialEditor.ShaderProperty(shadowSmoothNdotLProp, "Shadow Smooth NdotL");
+            if (shadowOffsetProp != null) materialEditor.ShaderProperty(shadowOffsetProp, "明暗交界线位置 (Shadow Offset)");
+            if (shadowSharpnessProp != null) materialEditor.ShaderProperty(shadowSharpnessProp, "明暗交界线软硬 (Shadow Sharpness)");
             if (shadowSmoothSceneProp != null) materialEditor.ShaderProperty(shadowSmoothSceneProp, "Shadow Smooth Scene");
             if (shadowStrengthProp != null) materialEditor.ShaderProperty(shadowStrengthProp, "Shadow Strength");
 
@@ -234,6 +281,61 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
                 materialEditor.TexturePropertySingleLine(EditorGUIUtility.TrTextContent("Shadow Ramp Texture"), shadowRampTexProp);
                 EditorGUI.indentLevel--;
             }
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Shadow PCF", EditorStyles.boldLabel);
+            if (toonShadowProp != null)
+            {
+                materialEditor.ShaderProperty(toonShadowProp, "Shadow Quality");
+                int pcfMode = (int)toonShadowProp.floatValue;
+                if (pcfMode == 5)
+                {
+                    EditorGUI.indentLevel++;
+                    if (pcssSoftnessProp != null) materialEditor.ShaderProperty(pcssSoftnessProp, "Softness");
+                    if (pcssSoftnessFalloffProp != null) materialEditor.ShaderProperty(pcssSoftnessFalloffProp, "Softness Falloff");
+                    if (pcssBlockerSamplesProp != null) materialEditor.ShaderProperty(pcssBlockerSamplesProp, "Blocker Samples");
+                    if (pcssFilterSamplesProp != null) materialEditor.ShaderProperty(pcssFilterSamplesProp, "Filter Samples");
+                    if (pcssBlockerGradientBiasProp != null) materialEditor.ShaderProperty(pcssBlockerGradientBiasProp, "Blocker Gradient Bias");
+                    if (pcssPCFGradientBiasProp != null) materialEditor.ShaderProperty(pcssPCFGradientBiasProp, "PCF Gradient Bias");
+                    EditorGUI.indentLevel--;
+                }
+            }
+            EditorGUILayout.HelpBox(
+                "使用 The Witness 优化 PCF 替代 URP 默认阴影滤波\n" +
+                "Base: 1次硬件 2x2 PCF（最快，硬阴影）\n" +
+                "PCF 2x2: 同 Base，显式选择\n" +
+                "PCF 3x3: 4次采样（默认）\n" +
+                "PCF 5x5: 9次采样，更柔和\n" +
+                "PCF 7x7: 16次采样，最高质量固定核\n" +
+                "PCSS: 可变半径软阴影（距离自适应）",
+                MessageType.Info);
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Shadow Edge Color", EditorStyles.boldLabel);
+            if (enableShadowEdgeColorProp != null)
+            {
+                materialEditor.ShaderProperty(enableShadowEdgeColorProp, "Enable Shadow Edge Color");
+                if (enableShadowEdgeColorProp.floatValue > 0)
+                {
+                    EditorGUI.indentLevel++;
+                    if (shadowEdgeBeginProp != null) materialEditor.ShaderProperty(shadowEdgeBeginProp, "渐变起始 (Begin)");
+                    if (shadowEdgeEndProp != null) materialEditor.ShaderProperty(shadowEdgeEndProp, "渐变结束 (End)");
+                    if (shadowEdgeBeginColorProp != null) materialEditor.ShaderProperty(shadowEdgeBeginColorProp, "暗端颜色 (Begin Color)");
+                    if (shadowEdgeEndColorProp != null) materialEditor.ShaderProperty(shadowEdgeEndColorProp, "亮端颜色 (End Color)");
+                    if (shadowEdgeDarkColorProp != null) materialEditor.ShaderProperty(shadowEdgeDarkColorProp, "全暗区颜色 (Dark)");
+                    if (shadowEdgeLightColorProp != null) materialEditor.ShaderProperty(shadowEdgeLightColorProp, "全亮区颜色 (Light)");
+                    if (shadowEdgeFadeBeginWidthProp != null) materialEditor.ShaderProperty(shadowEdgeFadeBeginWidthProp, "暗端过渡宽度");
+                    if (shadowEdgeFadeEndWidthProp != null) materialEditor.ShaderProperty(shadowEdgeFadeEndWidthProp, "亮端过渡宽度");
+                    EditorGUI.indentLevel--;
+                }
+            }
+            EditorGUILayout.HelpBox(
+                "在阴影边缘区域叠加多段渐变颜色，增强视觉层次\n" +
+                "搬运自 V114 yarp 管线 GetShadowEdgeColor2\n" +
+                "Begin/End: 核心渐变区域的阴影值起止\n" +
+                "Dark/Light: 全暗/全亮区域的颜色\n" +
+                "Fade Width: 暗端/亮端的平滑过渡宽度",
+                MessageType.Info);
         }
 
         private void DrawIndirectLight(Material material)
@@ -260,6 +362,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
         private void DrawEmissRim(Material material)
         {
             EditorGUILayout.LabelField("Emission", EditorStyles.boldLabel);
+            if (emissionMapProp != null)
+                materialEditor.TexturePropertySingleLine(EditorGUIUtility.TrTextContent("Emission Map"), emissionMapProp);
             if (emissionColProp != null) materialEditor.ShaderProperty(emissionColProp, "Emission Color");
 
             EditorGUILayout.Space(5);
@@ -296,6 +400,25 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
                 MessageType.Info);
         }
 
+        private void DrawDebug(Material material)
+        {
+            EditorGUILayout.HelpBox(
+                "仅用于编辑器调试，使用 shader_feature_local 变体\n" +
+                "不会被打包进最终构建",
+                MessageType.Warning);
+            if (debugShadowProp != null) materialEditor.ShaderProperty(debugShadowProp, "Debug Shadow");
+            if (debugShadowProp != null && debugShadowProp.floatValue > 0 && debugShadowModeProp != null)
+            {
+                EditorGUI.indentLevel++;
+                materialEditor.ShaderProperty(debugShadowModeProp, "可视化模式");
+                EditorGUILayout.HelpBox(
+                    "Shadow: 阴影区域灰度（shadowArea，含 PCF/PCSS + NdotL），开启 Edge Color 时带 Edge Color\n" +
+                    "Ramp: Shadow Ramp 贴图采样的原始结果（Edge Color 之前）",
+                    MessageType.Info);
+                EditorGUI.indentLevel--;
+            }
+        }
+
         public override void DrawAdvancedOptions(Material material)
         {
             base.DrawAdvancedOptions(material);
@@ -306,7 +429,7 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             SetMaterialKeywords(material);
         }
 
-        private static new void SetMaterialKeywords(Material material)
+        private static void SetMaterialKeywords(Material material)
         {
             if (material.HasProperty("_EnableShadowRamp"))
                 CoreUtils.SetKeyword(material, "_SHADOW_RAMP", material.GetFloat("_EnableShadowRamp") > 0);
@@ -316,6 +439,20 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
                 CoreUtils.SetKeyword(material, "_ALPHATEST_ON", material.GetFloat("_AlphaClip") > 0);
             if (material.HasProperty("_EnableOutline"))
                 CoreUtils.SetKeyword(material, "_OUTLINE_ON", material.GetFloat("_EnableOutline") > 0);
+            if (material.HasProperty("_ToonShadow"))
+            {
+                int pcfMode = (int)material.GetFloat("_ToonShadow");
+                CoreUtils.SetKeyword(material, "_TOON_SHADOW_BASE", pcfMode == 0);
+                CoreUtils.SetKeyword(material, "_TOON_SHADOW_PCF_2X2", pcfMode == 1);
+                CoreUtils.SetKeyword(material, "_TOON_SHADOW_PCF_3X3", pcfMode == 2);
+                CoreUtils.SetKeyword(material, "_TOON_SHADOW_PCF_5X5", pcfMode == 3);
+                CoreUtils.SetKeyword(material, "_TOON_SHADOW_PCF_7X7", pcfMode == 4);
+                CoreUtils.SetKeyword(material, "_TOON_SHADOW_PCSS", pcfMode == 5);
+            }
+            if (material.HasProperty("_EnableShadowEdgeColor"))
+                CoreUtils.SetKeyword(material, "_SHADOW_EDGE_COLOR", material.GetFloat("_EnableShadowEdgeColor") > 0);
+            if (material.HasProperty("_DebugShadow"))
+                CoreUtils.SetKeyword(material, "_DEBUG_SHADOW", material.GetFloat("_DebugShadow") > 0);
         }
 
         public override void AssignNewShaderToMaterial(Material material, Shader oldShader, Shader newShader)
