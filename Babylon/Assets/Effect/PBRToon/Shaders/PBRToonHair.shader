@@ -541,6 +541,82 @@ Shader "Universal Render Pipeline/PBRToon/Hair"
             ENDHLSL
         }
 
+        // ====================================================================
+        // HairShadowMask Pass: 前发投影标记
+        // 渲染到 _HairShadowMask RT, 输出白色(1)标记前发区域
+        // 由 HairShadowRenderFeature 在 BeforeRenderingOpaques 之前调度
+        // ====================================================================
+        Pass
+        {
+            Name "HairShadowMask"
+            Tags
+            {
+                "LightMode" = "HairShadowMask"
+            }
+
+            ZWrite Off
+            ZTest Always        // 不依赖深度，直接标记前发屏幕空间位置
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma target 3.0
+
+            #pragma shader_feature_local _ALPHATEST_ON
+            #pragma multi_compile_instancing
+
+            #pragma vertex HairShadowMaskVert
+            #pragma fragment HairShadowMaskFrag
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            float3  _BaseColor;
+            float4  _BaseMap_ST;
+            float   _Cutoff;
+
+            TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
+
+            struct HairMaskAttributes
+            {
+                float4 positionOS   : POSITION;
+                float2 texcoord     : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct HairMaskVaryings
+            {
+                float4 positionCS   : SV_POSITION;
+                float2 uv           : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            HairMaskVaryings HairShadowMaskVert(HairMaskAttributes input)
+            {
+                HairMaskVaryings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, output);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
+                return output;
+            }
+
+            half4 HairShadowMaskFrag(HairMaskVaryings input) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+
+                #ifdef _ALPHATEST_ON
+                    half4 col = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
+                    clip(col.a - _Cutoff);
+                #endif
+
+                // 输出白色(1)标记前发区域
+                return 1;
+            }
+            ENDHLSL
+        }
+
         // ShadowCaster & DepthOnly 复用 Base
         UsePass "Universal Render Pipeline/PBRToon/Base/SHADOWCASTER"
         UsePass "Universal Render Pipeline/PBRToon/Base/DEPTHONLY"

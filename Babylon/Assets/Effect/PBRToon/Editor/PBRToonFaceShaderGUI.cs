@@ -94,6 +94,10 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
         private MaterialProperty debugShadowProp;
         private MaterialProperty debugShadowModeProp;
 
+        // Hair Shadow
+        private MaterialProperty enableHairShadowProp;
+        private MaterialProperty hairShadowColorProp;
+
         private MaterialProperty cullProp;
         private MaterialProperty cutoffProp;
 
@@ -178,6 +182,9 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
 
             debugShadowProp = FindProperty("_DebugShadow", properties, false);
             debugShadowModeProp = FindProperty("_DebugShadowMode", properties, false);
+
+            enableHairShadowProp = FindProperty("_EnableHairShadow", properties, false);
+            hairShadowColorProp = FindProperty("_HairShadowColor", properties, false);
 
             cullProp = FindProperty("_Cull", properties, false);
             cutoffProp = FindProperty("_Cutoff", properties, false);
@@ -322,6 +329,25 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
                 "Dark/Light: 全暗/全亮区域的颜色\n" +
                 "Fade Width: 暗端/亮端的平滑过渡宽度",
                 MessageType.Info);
+
+            // 前发投影
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("前发投影 (Hair Shadow)", EditorStyles.boldLabel);
+            if (enableHairShadowProp != null)
+            {
+                materialEditor.ShaderProperty(enableHairShadowProp, "Enable Hair Shadow");
+                if (enableHairShadowProp.floatValue > 0 && hairShadowColorProp != null)
+                {
+                    EditorGUI.indentLevel++;
+                    materialEditor.ShaderProperty(hairShadowColorProp, "前发阴影颜色");
+                    EditorGUI.indentLevel--;
+                }
+            }
+            EditorGUILayout.HelpBox(
+                "前发投影: 通过 HairShadowRenderFeature 将前发区域渲染到 _HairShadowMask RT\n" +
+                "Face shader 采样此 RT, 前发区域的脸部像素进入阴影\n" +
+                "需要在 URP Renderer 中添加 HairShadowRenderFeature",
+                MessageType.Info);
         }
 
         private void DrawIndirectLight(Material material)
@@ -451,6 +477,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
                 CoreUtils.SetKeyword(material, "_SHADOW_EDGE_COLOR", material.GetFloat("_EnableShadowEdgeColor") > 0);
             if (material.HasProperty("_DebugShadow"))
                 CoreUtils.SetKeyword(material, "_DEBUG_SHADOW", material.GetFloat("_DebugShadow") > 0);
+            if (material.HasProperty("_EnableHairShadow"))
+                CoreUtils.SetKeyword(material, "_HAIR_SHADOW", material.GetFloat("_EnableHairShadow") > 0);
         }
 
         public override void AssignNewShaderToMaterial(Material material, Shader oldShader, Shader newShader)

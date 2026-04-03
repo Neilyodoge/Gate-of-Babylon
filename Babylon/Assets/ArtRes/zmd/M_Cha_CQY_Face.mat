@@ -12,7 +12,7 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _DEBUG_SHADOW
+  - _HAIR_SHADOW
   - _OUTLINE_ON
   - _TOON_SHADOW_PCF_3X3
   m_InvalidKeywords:
@@ -36,7 +36,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _FaceLightMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 5ad1eb45f1bb1d2478ae0e1ac4465898, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _IndirSpecCubemap:
@@ -60,10 +60,11 @@ Material:
     - _AlphaClip: 0
     - _Cull: 2
     - _Cutoff: 1
-    - _DebugShadow: 1
-    - _DebugShadowMode: 8
+    - _DebugShadow: 0
+    - _DebugShadowMode: 0
     - _DirectOcclusion: 0.1
     - _DirectRimWidth: 2.5
+    - _EnableHairShadow: 1
     - _EnableIndirCubemap: 0
     - _EnableOutline: 1
     - _EnablePCF5x5: 0
@@ -104,6 +105,7 @@ Material:
     - _DirectRimBackCol: {r: 0.2, g: 0.2, b: 0.2, a: 0.5}
     - _DirectRimFrontCol: {r: 1, g: 1, b: 1, a: 0.5}
     - _EmissionCol: {r: 0, g: 0, b: 0, a: 1}
+    - _HairShadowColor: {r: 0.7, g: 0.7, b: 0.8, a: 1}
     - _NoseSpecColor: {r: 0, g: 0, b: 0, a: 1}
     - _OutlineColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     - _OutlineDepthNewRange: {r: 0.105, g: 0.245, b: 0.6, a: 0}

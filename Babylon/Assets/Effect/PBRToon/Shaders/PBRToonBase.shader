@@ -869,7 +869,7 @@ Shader "Universal Render Pipeline/PBRToon/Base"
                 float4 color        : COLOR;
                 float2 texcoord     : TEXCOORD0;
                 float2 uv1          : TEXCOORD1;
-                float2 uv3          : TEXCOORD3; // 平滑法线固定存储在 UV3 (TEXCOORD3)
+                float4 uv3          : TEXCOORD3; // 平滑法线固定存储在 UV3 (TEXCOORD3)，切线空间 xyz
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -891,22 +891,24 @@ Shader "Universal Render Pipeline/PBRToon/Base"
                 output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
 
                 #ifdef _OUTLINE_ON
-                    // 从 UV3 (TEXCOORD3).xy 解码平滑法线（2通道编码）
-                    // UV 通道分配: UV2=BentNormal, UV3=平滑法线
-                    float2 snXY = input.uv3.xy;
+                    // 从 UV3 (TEXCOORD3).xyz 解码切线空间平滑法线（3通道编码）
+                    // UV 通道分配: UV2=BentNormal, UV3=平滑法线（切线空间）
+                    float3 snTS = input.uv3.xyz;
 
-                    // z = sqrt(1 - x² - y²)
-                    float snLenSq = dot(snXY, snXY);
-                    // 如果 xy 都为 0，说明没有烘焙平滑法线，回退到 tangent.xyz
+                    // 如果 xyz 都为 0，说明没有烘焙平滑法线，回退到原始法线
                     float3 smoothNormal;
-                    if (snLenSq > 0.001)
+                    if (dot(snTS, snTS) > 0.001)
                     {
-                        float z = sqrt(max(0, 1.0 - saturate(snLenSq)));
-                        smoothNormal = normalize(float3(snXY, z));
+                        // 构建 TBN 矩阵，将切线空间法线还原到对象空间
+                        float3 T = normalize(input.tangentOS.xyz);
+                        float3 N = normalize(input.normalOS);
+                        float3 B = normalize(cross(N, T) * input.tangentOS.w);
+                        // smoothNormalOS = T * snTS.x + B * snTS.y + N * snTS.z
+                        smoothNormal = normalize(T * snTS.x + B * snTS.y + N * snTS.z);
                     }
                     else
                     {
-                        smoothNormal = input.tangentOS.xyz;
+                        smoothNormal = input.normalOS;
                     }
 
                     output.positionCS = ToonOutlineVertex(

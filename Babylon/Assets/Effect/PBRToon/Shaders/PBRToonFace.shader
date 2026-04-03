@@ -102,6 +102,11 @@ Shader "Universal Render Pipeline/PBRToon/Face"
         _ShadowEdgeFadeBeginWidth               ("Shadow Edge Fade Begin Width", Range(0, 0.5)) = 0.1
         _ShadowEdgeFadeEndWidth                 ("Shadow Edge Fade End Width", Range(0, 0.5)) = 0.1
 
+        // ====== 前发投影 ======
+        [Header(Hair Shadow)]
+        [Toggle(_HAIR_SHADOW)]_EnableHairShadow  ("Enable Hair Shadow", Float) = 0
+        _HairShadowColor                        ("HairShadowColor", Color) = (0.7, 0.7, 0.8, 1)
+
         // ====== Debug ======
         [Header(Debug)]
         [Toggle(_DEBUG_SHADOW)]_DebugShadow     ("Debug Shadow", Float) = 0
@@ -153,6 +158,7 @@ Shader "Universal Render Pipeline/PBRToon/Face"
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ _TOON_SHADOW_BASE _TOON_SHADOW_PCF_2X2 _TOON_SHADOW_PCF_3X3 _TOON_SHADOW_PCF_5X5 _TOON_SHADOW_PCF_7X7 _TOON_SHADOW_PCSS
             #pragma shader_feature_local _SHADOW_EDGE_COLOR
+            #pragma shader_feature_local _HAIR_SHADOW
             #pragma shader_feature_local _DEBUG_SHADOW
 
             // Universal Pipeline keywords
@@ -248,6 +254,8 @@ Shader "Universal Render Pipeline/PBRToon/Face"
             float   _PcssFilterSamples;
             float   _PcssBlockerGradientBias;
             float   _PcssPCFGradientBias;
+            // Hair Shadow
+            float4  _HairShadowColor;
             // Debug
             float   _DebugShadowMode;
             CBUFFER_END
@@ -262,6 +270,13 @@ Shader "Universal Render Pipeline/PBRToon/Face"
             TEXTURE2D(_EmissionMap);         SAMPLER(sampler_EmissionMap);
             TEXTURE2D(_ShadowRampTex);      SAMPLER(sampler_ShadowRampTex);
             TEXTURECUBE(_IndirSpecCubemap);
+
+            // 前发投影 Mask (由 HairShadowRenderFeature 设置为全局纹理)
+            // 当 RenderFeature 未启用时, 全局纹理不存在, 采样结果未定义
+            // 因此必须配合 _HAIR_SHADOW keyword 使用
+            TEXTURE2D(_HairShadowMask);     SAMPLER(sampler_HairShadowMask);
+            // 用于检测 _HairShadowMask 是否已被 RenderFeature 设置
+            float4 _HairShadowMask_TexelSize;
 
             // ====== 结构体 ======
             struct Attributes
@@ -423,6 +438,21 @@ Shader "Universal Render Pipeline/PBRToon/Face"
                     float faceMapShadow = saturate((faceSDF - i.faceLightDot.y) * _ShadowSharpness) * faceShadowArea;
                     float shadowScene = SigmoidSharp(shadowAttenuation, 0.5, _ShadowSmoothScene * 5);
                     float shadowArea = min(faceMapShadow, shadowScene); // Face SDF 控制阴影
+
+                    // 前发投影: 采样 _HairShadowMask, 前发区域的脸部像素进入阴影
+                    #ifdef _HAIR_SHADOW
+                    {
+                        // 安全检查: _HairShadowMask_TexelSize.z > 0 表示纹理已被 RenderFeature 设置
+                        // 未设置时 TexelSize 可能为 0, 此时跳过采样避免未定义行为
+                        if (_HairShadowMask_TexelSize.z > 0)
+                        {
+                            float hairMask = SAMPLE_TEXTURE2D(_HairShadowMask, sampler_HairShadowMask, screenUV).r;
+                            float hairShadowArea = 1.0 - hairMask; // mask=1 表示前发区域, 反转为阴影
+                            shadowArea = min(shadowArea, hairShadowArea);
+                        }
+                    }
+                    #endif
+
                     shadowArea = lerp(1, shadowArea, _ShadowStrength);
 
                     // 保存 debug 变量：shadow = 实时阴影，ramp = 明暗交界线（Face SDF）

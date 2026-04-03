@@ -207,8 +207,8 @@ float OutlineEyeDepthRemap(float In, float2 InMinMax, float2 OutMinMax)
 
 // 原神风格描边顶点着色器
 // positionOS:      对象空间顶点位置
-// smoothNormalOS:  对象空间平滑法线 (从 UV3/TEXCOORD3.xy 解码，z 通过勾股定理重建)
-//                  UV 通道分配: UV2=BentNormal, UV3=平滑法线
+// smoothNormalOS:  对象空间平滑法线 (从 UV3/TEXCOORD3.xyz 解码切线空间法线，用 TBN 矩阵还原到对象空间)
+//                  UV 通道分配: UV2=BentNormal, UV3=平滑法线（切线空间 xyz）
 // vertexColor:     顶点色 (A通道 = 顶点描边宽度缩放，默认0.5)
 // 描边参数由 CBUFFER 中的 uniform 变量提供
 float4 ToonOutlineVertex(
