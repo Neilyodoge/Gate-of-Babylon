@@ -536,7 +536,7 @@ namespace BentNormalBaker
         private BentNormalMeshBakeParameters m_meshParameters = new BentNormalMeshBakeParameters();
         private Vector2 m_scrollPos;
 
-        [MenuItem("Tools/ArtTools/Bent Normal Baker", priority = 2)]
+    [MenuItem("nTools/美术工具/Bent Normal Baker", false, 55)]
         public static void ShowWindow()
         {
             var window = GetWindow<BentNormalBakeToolWindow>(false, "Bent Normal Baker", true);

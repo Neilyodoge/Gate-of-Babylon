@@ -63,11 +63,41 @@ public class TextureNormalizer : EditorWindow
         public bool needsChange;
     }
 
-    [MenuItem("Tools/ArtTools/贴图规范化工具")]
+    [MenuItem("nTools/美术工具/贴图规范化", false, 52)]
     public static void ShowWindow()
     {
         var win = GetWindow<TextureNormalizer>("贴图规范化工具");
         win.minSize = new Vector2(420, 520);
+    }
+
+    private void OnEnable()
+    {
+        // 初始时自动刷新预览
+        AutoRefreshPreview();
+    }
+
+    private void OnSelectionChange()
+    {
+        // 选中变化时自动刷新预览
+        AutoRefreshPreview();
+        Repaint();
+    }
+
+    /// <summary>
+    /// 自动刷新预览（选中文件夹时自动生成预览数据）
+    /// </summary>
+    private void AutoRefreshPreview()
+    {
+        List<string> selectedFolders = GetSelectedFolders();
+        if (selectedFolders.Count > 0)
+        {
+            GeneratePreview(selectedFolders);
+        }
+        else
+        {
+            previewEntries.Clear();
+            hasPreview = false;
+        }
     }
 
     private void OnGUI()
@@ -119,13 +149,13 @@ public class TextureNormalizer : EditorWindow
         }
         GUILayout.Space(4);
 
-        // ===== 预览 / 执行按钮 =====
+        // ===== 执行按钮 =====
         GUI.enabled = selectedFolders.Count > 0;
 
         EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("预览修改", GUILayout.Height(28)))
+        if (GUILayout.Button("刷新预览", GUILayout.Height(28)))
         {
-            GeneratePreview(selectedFolders);
+            AutoRefreshPreview();
         }
         if (GUILayout.Button("执行规范化", GUILayout.Height(28)))
         {
