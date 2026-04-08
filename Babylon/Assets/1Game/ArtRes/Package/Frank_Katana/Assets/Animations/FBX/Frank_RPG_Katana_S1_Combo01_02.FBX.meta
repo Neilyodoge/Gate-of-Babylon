@@ -525,9 +525,7 @@ ModelImporter:
       animation that will be discarded.\n\t'upperarm_r' has translation animation
       that will be discarded.\n\t'lowerarm_r' has translation animation that will
       be discarded.\n\t'hand_r' has translation animation that will be discarded.\n\t'head'
-      has translation animation that will be discarded.\nEvent OnAttackEnd has a
-      time (1.156000) outside the clip's valid range (0.000000..1.133333). It will
-      never be fired"
+      has translation animation that will be discarded.\n"
     animationRetargetingWarnings: 
     animationDoRetargetingWarnings: 0
     importAnimatedCustomProperties: 0
@@ -565,42 +563,42 @@ ModelImporter:
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
       events:
-      - time: 0.22666667
+      - time: 0.22666669
         functionName: OnHitWindowOpen
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.28333333
+      - time: 0.28333336
         functionName: OnSlashVFX
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.56666666
+      - time: 0.5666667
         functionName: OnHitWindowClose
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.51
+      - time: 0.51000005
         functionName: OnComboWindowOpen
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.7366666
+      - time: 0.73666674
         functionName: OnComboWindowClose
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.7933333
+      - time: 0.7933334
         functionName: OnAttackEnd
         data: 
         objectReferenceParameter: {instanceID: 0}

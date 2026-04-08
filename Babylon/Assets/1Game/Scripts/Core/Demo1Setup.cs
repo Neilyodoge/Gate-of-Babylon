@@ -277,29 +277,54 @@ namespace XianTu
 
         private void CreateHUD()
         {
-            // 创建 Canvas
+            // ========== Canvas ==========
             var canvasGo = new GameObject("GameCanvas");
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
-            canvasGo.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<GraphicRaycaster>();
 
             var hud = canvasGo.AddComponent<GameHUD>();
 
-            // === 血条 ===
-            var hpBarBg = CreateUIImage(canvasGo.transform, "HpBarBg",
+            // ========== 左上角：血条区域 ==========
+            var hpPanel = CreateUIImage(canvasGo.transform, "HpPanel",
                 new Vector2(0, 1), new Vector2(0, 1),
-                new Vector2(20, -20), new Vector2(320, -50),
-                new Color(0.2f, 0.2f, 0.2f, 0.8f));
+                new Vector2(20, -15), new Vector2(340, -65),
+                new Color(0, 0, 0, 0)); // 透明容器
 
+            // 血条背景（深色圆角感）
+            var hpBarBg = CreateUIImage(hpPanel.transform, "HpBarBg",
+                Vector2.zero, Vector2.one,
+                new Vector2(0, 0), new Vector2(0, 0),
+                new Color(0.1f, 0.1f, 0.15f, 0.9f));
+
+            // 血条边框
+            var hpBarBorder = CreateUIImage(hpPanel.transform, "HpBarBorder",
+                Vector2.zero, Vector2.one,
+                new Vector2(-1, -1), new Vector2(1, 1),
+                new Color(0.4f, 0.4f, 0.5f, 0.6f));
+            hpBarBorder.GetComponent<Image>().raycastTarget = false;
+
+            // 受伤延迟条（红色，在绿色血条下面）
+            var hpDamageFill = CreateUIImage(hpPanel.transform, "HpDamageFill",
+                Vector2.zero, new Vector2(1, 1),
+                new Vector2(3, 3), new Vector2(-3, -3),
+                new Color(0.85f, 0.15f, 0.15f, 0.8f));
+            hpDamageFill.GetComponent<Image>().type = Image.Type.Filled;
+            hpDamageFill.GetComponent<Image>().fillMethod = Image.FillMethod.Horizontal;
+
+            // 血条 Slider
             var hpSliderGo = new GameObject("HpSlider");
-            hpSliderGo.transform.SetParent(hpBarBg.transform, false);
-            var rt = hpSliderGo.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(2, 2);
-            rt.offsetMax = new Vector2(-2, -2);
+            hpSliderGo.transform.SetParent(hpPanel.transform, false);
+            var hpSliderRt = hpSliderGo.AddComponent<RectTransform>();
+            hpSliderRt.anchorMin = Vector2.zero;
+            hpSliderRt.anchorMax = Vector2.one;
+            hpSliderRt.offsetMin = new Vector2(3, 3);
+            hpSliderRt.offsetMax = new Vector2(-3, -3);
 
             var slider = hpSliderGo.AddComponent<Slider>();
             slider.interactable = false;
@@ -313,54 +338,329 @@ namespace XianTu
             fillAreaRt.offsetMin = Vector2.zero;
             fillAreaRt.offsetMax = Vector2.zero;
 
-            var fill = CreateUIImage(fillArea.transform, "Fill",
+            var hpFill = CreateUIImage(fillArea.transform, "Fill",
                 Vector2.zero, Vector2.one,
                 Vector2.zero, Vector2.zero,
-                new Color(0.2f, 0.8f, 0.3f));
-            slider.fillRect = fill.GetComponent<RectTransform>();
+                new Color(0.2f, 0.85f, 0.35f));
+            slider.fillRect = hpFill.GetComponent<RectTransform>();
             slider.value = 1f;
 
-            var hpText = CreateUIText(hpBarBg.transform, "HpText", "100 / 100", 14,
+            // 血条文字
+            var hpText = CreateUIText(hpPanel.transform, "HpText", "100 / 100", 16,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            hpText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            // 血条文字描边
+            var hpTextOutline = hpText.AddComponent<Outline>();
+            hpTextOutline.effectColor = new Color(0, 0, 0, 0.8f);
+            hpTextOutline.effectDistance = new Vector2(1, -1);
 
             SetPrivateField(hud, "hpSlider", slider);
+            SetPrivateField(hud, "hpFillImage", hpFill.GetComponent<Image>());
+            SetPrivateField(hud, "hpDamageFill", hpDamageFill.GetComponent<Image>());
             SetPrivateField(hud, "hpText", hpText.GetComponent<Text>());
 
-            // === 境界信息 ===
-            var realmText = CreateUIText(canvasGo.transform, "RealmText", "练气期", 24,
+            // ========== 顶部中央：境界信息 ==========
+            var realmPanel = CreateUIImage(canvasGo.transform, "RealmPanel",
                 new Vector2(0.5f, 1), new Vector2(0.5f, 1),
-                new Vector2(-60, -20), new Vector2(60, -60));
-            realmText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            realmText.GetComponent<Text>().color = new Color(1f, 0.85f, 0.3f);
-            SetPrivateField(hud, "realmText", realmText.GetComponent<Text>());
+                new Vector2(-100, -10), new Vector2(100, -55),
+                new Color(0, 0, 0, 0)); // 透明容器
 
-            // === 消息提示 ===
-            var msgText = CreateUIText(canvasGo.transform, "MessageText", "", 18,
-                new Vector2(0.5f, 0.3f), new Vector2(0.5f, 0.3f),
-                new Vector2(-200, -15), new Vector2(200, 15));
-            msgText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            msgText.GetComponent<Text>().color = Color.white;
-            SetPrivateField(hud, "messageText", msgText.GetComponent<Text>());
+            var realmText = CreateUIText(realmPanel.transform, "RealmText", "练气期", 26,
+                new Vector2(0, 0.5f), new Vector2(1, 1),
+                Vector2.zero, Vector2.zero);
+            var realmTxt = realmText.GetComponent<Text>();
+            realmTxt.alignment = TextAnchor.MiddleCenter;
+            realmTxt.color = new Color(1f, 0.85f, 0.3f);
+            realmTxt.fontStyle = FontStyle.Bold;
+            var realmOutline = realmText.AddComponent<Outline>();
+            realmOutline.effectColor = new Color(0, 0, 0, 0.6f);
+            realmOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
-            // === 灵物计数 ===
-            var itemText = CreateUIText(canvasGo.transform, "ItemCountText", "灵物：0 种", 14,
+            var levelText = CreateUIText(realmPanel.transform, "LevelText", "第 1 层", 16,
+                new Vector2(0, 0), new Vector2(1, 0.5f),
+                Vector2.zero, Vector2.zero);
+            var levelTxt = levelText.GetComponent<Text>();
+            levelTxt.alignment = TextAnchor.MiddleCenter;
+            levelTxt.color = new Color(0.8f, 0.8f, 0.9f, 0.8f);
+
+            SetPrivateField(hud, "realmText", realmTxt);
+            SetPrivateField(hud, "levelText", levelTxt);
+
+            // ========== 右上角：敌人计数 ==========
+            var enemyPanel = CreateUIImage(canvasGo.transform, "EnemyPanel",
                 new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-150, -20), new Vector2(-10, -50));
-            itemText.GetComponent<Text>().alignment = TextAnchor.MiddleRight;
-            SetPrivateField(hud, "itemCountText", itemText.GetComponent<Text>());
+                new Vector2(-180, -15), new Vector2(-20, -50),
+                new Color(0.15f, 0.1f, 0.1f, 0.7f));
 
-            // === 操作提示 ===
-            CreateUIText(canvasGo.transform, "ControlsHint",
-                "WASD 移动 | 鼠标瞄准 | 左键挥刀 | Q 技能 | Space 闪避", 12,
+            // 骷髅图标（用文字代替）
+            var enemyIcon = CreateUIText(enemyPanel.transform, "EnemyIcon", "☠", 22,
+                new Vector2(0, 0), new Vector2(0.25f, 1),
+                Vector2.zero, Vector2.zero);
+            enemyIcon.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            enemyIcon.GetComponent<Text>().color = new Color(1f, 0.4f, 0.4f);
+
+            var enemyCountText = CreateUIText(enemyPanel.transform, "EnemyCountText", "0 / 0", 18,
+                new Vector2(0.25f, 0), new Vector2(1, 1),
+                Vector2.zero, Vector2.zero);
+            enemyCountText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            enemyCountText.GetComponent<Text>().color = Color.white;
+
+            SetPrivateField(hud, "enemyCountText", enemyCountText.GetComponent<Text>());
+
+            // ========== 底部中央：技能栏 ==========
+            var skillBar = CreateUIImage(canvasGo.transform, "SkillBar",
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                new Vector2(-250, 10), new Vector2(250, 30));
-            var hint = canvasGo.transform.Find("ControlsHint");
-            if (hint != null)
+                new Vector2(-120, 15), new Vector2(120, 95),
+                new Color(0, 0, 0, 0)); // 透明容器
+
+            // --- Q 技能槽 ---
+            var skillQSlot = CreateSkillSlot(skillBar.transform, "SkillQ", new Vector2(-55, 0), "Q",
+                new Color(0.3f, 0.5f, 1f, 0.8f));
+            SetPrivateField(hud, "skillQCooldownFill", skillQSlot.cdFill);
+            SetPrivateField(hud, "skillQCooldownText", skillQSlot.cdText);
+            SetPrivateField(hud, "skillQIcon", skillQSlot.iconImage);
+
+            // --- 闪避槽 ---
+            var dashSlot = CreateSkillSlot(skillBar.transform, "Dash", new Vector2(55, 0), "闪避",
+                new Color(0.2f, 0.8f, 0.6f, 0.8f));
+            SetPrivateField(hud, "dashCooldownFill", dashSlot.cdFill);
+            SetPrivateField(hud, "dashCooldownText", dashSlot.cdText);
+
+            // ========== 底部中央偏上：连招指示器 ==========
+            var comboPanel = CreateUIImage(canvasGo.transform, "ComboPanel",
+                new Vector2(0.5f, 0), new Vector2(0.5f, 0),
+                new Vector2(-40, 100), new Vector2(40, 120),
+                new Color(0, 0, 0, 0)); // 透明容器
+
+            var comboIndicators = new Image[3];
+            for (int i = 0; i < 3; i++)
             {
-                var t = hint.GetComponent<Text>();
-                t.alignment = TextAnchor.MiddleCenter;
-                t.color = new Color(1, 1, 1, 0.5f);
+                float x = (i - 1) * 22f; // -22, 0, 22
+                var dot = CreateUIImage(comboPanel.transform, $"ComboDot_{i}",
+                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(x - 7, -7), new Vector2(x + 7, 7),
+                    new Color(0.3f, 0.3f, 0.3f, 0.5f));
+                comboIndicators[i] = dot.GetComponent<Image>();
             }
+            SetPrivateField(hud, "comboIndicators", comboIndicators);
+
+            // ========== 左下角：灵物计数 ==========
+            var itemPanel = CreateUIImage(canvasGo.transform, "ItemPanel",
+                new Vector2(0, 0), new Vector2(0, 0),
+                new Vector2(20, 15), new Vector2(160, 50),
+                new Color(0.1f, 0.12f, 0.18f, 0.7f));
+
+            var itemIcon = CreateUIText(itemPanel.transform, "ItemIcon", "🔮", 18,
+                new Vector2(0, 0), new Vector2(0.25f, 1),
+                Vector2.zero, Vector2.zero);
+            itemIcon.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+
+            var itemCountText = CreateUIText(itemPanel.transform, "ItemCountText", "0", 16,
+                new Vector2(0.25f, 0), new Vector2(1, 1),
+                Vector2.zero, Vector2.zero);
+            itemCountText.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
+            itemCountText.GetComponent<Text>().color = new Color(0.7f, 0.9f, 1f);
+            SetPrivateField(hud, "itemCountText", itemCountText.GetComponent<Text>());
+
+            // ========== 中央偏下：消息提示 ==========
+            var msgText = CreateUIText(canvasGo.transform, "MessageText", "", 20,
+                new Vector2(0.5f, 0.35f), new Vector2(0.5f, 0.35f),
+                new Vector2(-250, -15), new Vector2(250, 15));
+            var msgTxt = msgText.GetComponent<Text>();
+            msgTxt.alignment = TextAnchor.MiddleCenter;
+            msgTxt.color = Color.white;
+            msgTxt.supportRichText = true;
+            var msgOutline = msgText.AddComponent<Outline>();
+            msgOutline.effectColor = new Color(0, 0, 0, 0.7f);
+            msgOutline.effectDistance = new Vector2(1, -1);
+            SetPrivateField(hud, "messageText", msgTxt);
+
+            // ========== 底部：操作提示 ==========
+            var controlsHint = CreateUIText(canvasGo.transform, "ControlsHint",
+                "WASD 移动  |  鼠标瞄准  |  左键挥刀  |  Q 技能  |  Space 闪避", 13,
+                new Vector2(0.5f, 0), new Vector2(0.5f, 0),
+                new Vector2(-300, 2), new Vector2(300, 18));
+            var hintTxt = controlsHint.GetComponent<Text>();
+            hintTxt.alignment = TextAnchor.MiddleCenter;
+            hintTxt.color = new Color(1, 1, 1, 0.35f);
+
+            // ========== 死亡面板 ==========
+            CreateDeathPanel(canvasGo.transform, hud);
+
+            // ========== 通关面板 ==========
+            CreateWinPanel(canvasGo.transform, hud);
+
+            // ========== 伤害飘字 ==========
+            var dmgPopup = canvasGo.AddComponent<DamagePopup>();
+            SetPrivateField(dmgPopup, "canvas", canvas);
+        }
+
+        /// <summary>创建技能槽位</summary>
+        private (Image cdFill, Text cdText, Image iconImage) CreateSkillSlot(
+            Transform parent, string name, Vector2 offset, string label, Color bgColor)
+        {
+            float size = 60f;
+            float halfSize = size / 2f;
+
+            // 槽位背景
+            var slot = CreateUIImage(parent, $"{name}Slot",
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(offset.x - halfSize, offset.y - halfSize),
+                new Vector2(offset.x + halfSize, offset.y + halfSize),
+                bgColor);
+
+            // 图标区域（用颜色块代替图标）
+            var icon = CreateUIImage(slot.transform, $"{name}Icon",
+                Vector2.zero, Vector2.one,
+                new Vector2(4, 4), new Vector2(-4, -4),
+                new Color(1, 1, 1, 0.15f));
+
+            // CD 遮罩（Filled Image）
+            var cdFill = CreateUIImage(slot.transform, $"{name}CDFill",
+                Vector2.zero, Vector2.one,
+                new Vector2(2, 2), new Vector2(-2, -2),
+                new Color(0, 0, 0, 0.7f));
+            var cdFillImg = cdFill.GetComponent<Image>();
+            cdFillImg.type = Image.Type.Filled;
+            cdFillImg.fillMethod = Image.FillMethod.Radial360;
+            cdFillImg.fillOrigin = (int)Image.Origin360.Top;
+            cdFillImg.fillClockwise = false;
+            cdFillImg.fillAmount = 0;
+
+            // CD 文字
+            var cdText = CreateUIText(slot.transform, $"{name}CDText", label, 16,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var cdTxt = cdText.GetComponent<Text>();
+            cdTxt.alignment = TextAnchor.MiddleCenter;
+            cdTxt.fontStyle = FontStyle.Bold;
+            var cdOutline = cdText.AddComponent<Outline>();
+            cdOutline.effectColor = new Color(0, 0, 0, 0.8f);
+            cdOutline.effectDistance = new Vector2(1, -1);
+
+            // 快捷键标签
+            var keyLabel = CreateUIText(slot.transform, $"{name}Key", label.Length <= 1 ? label : "",
+                11, new Vector2(0, 1), new Vector2(0, 1),
+                new Vector2(2, -14), new Vector2(18, -2));
+            keyLabel.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            keyLabel.GetComponent<Text>().color = new Color(1, 1, 1, 0.6f);
+
+            // 边框
+            var border = CreateUIImage(slot.transform, $"{name}Border",
+                Vector2.zero, Vector2.one,
+                new Vector2(-1, -1), new Vector2(1, 1),
+                new Color(0.6f, 0.6f, 0.7f, 0.4f));
+            border.GetComponent<Image>().raycastTarget = false;
+
+            return (cdFillImg, cdTxt, icon.GetComponent<Image>());
+        }
+
+        /// <summary>创建死亡面板</summary>
+        private void CreateDeathPanel(Transform parent, GameHUD hud)
+        {
+            // 全屏半透明遮罩
+            var panel = CreateUIImage(parent, "DeathPanel",
+                Vector2.zero, Vector2.one,
+                Vector2.zero, Vector2.zero,
+                new Color(0.05f, 0, 0, 0.75f));
+
+            // 标题
+            var title = CreateUIText(panel.transform, "DeathTitle", "梦境破碎", 48,
+                new Vector2(0.5f, 0.6f), new Vector2(0.5f, 0.6f),
+                new Vector2(-200, -30), new Vector2(200, 30));
+            var titleTxt = title.GetComponent<Text>();
+            titleTxt.alignment = TextAnchor.MiddleCenter;
+            titleTxt.color = new Color(0.9f, 0.2f, 0.2f);
+            titleTxt.fontStyle = FontStyle.Bold;
+            var titleOutline = title.AddComponent<Outline>();
+            titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
+            titleOutline.effectDistance = new Vector2(2, -2);
+
+            // 副标题
+            var sub = CreateUIText(panel.transform, "DeathSubText", "", 20,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(-200, -15), new Vector2(200, 15));
+            var subTxt = sub.GetComponent<Text>();
+            subTxt.alignment = TextAnchor.MiddleCenter;
+            subTxt.color = new Color(0.8f, 0.8f, 0.8f, 0.8f);
+
+            // 重新开始按钮
+            var btnGo = CreateUIImage(panel.transform, "RestartButton",
+                new Vector2(0.5f, 0.35f), new Vector2(0.5f, 0.35f),
+                new Vector2(-80, -22), new Vector2(80, 22),
+                new Color(0.8f, 0.25f, 0.25f, 0.9f));
+            var btn = btnGo.AddComponent<Button>();
+            btn.targetGraphic = btnGo.GetComponent<Image>();
+            var btnColors = btn.colors;
+            btnColors.highlightedColor = new Color(1f, 0.35f, 0.35f);
+            btnColors.pressedColor = new Color(0.6f, 0.15f, 0.15f);
+            btn.colors = btnColors;
+
+            var btnText = CreateUIText(btnGo.transform, "BtnText", "重新入梦", 18,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            btnText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            btnText.GetComponent<Text>().fontStyle = FontStyle.Bold;
+
+            panel.SetActive(false);
+
+            SetPrivateField(hud, "deathPanel", panel);
+            SetPrivateField(hud, "deathTitleText", titleTxt);
+            SetPrivateField(hud, "deathSubText", subTxt);
+            SetPrivateField(hud, "restartButton", btn);
+        }
+
+        /// <summary>创建通关面板</summary>
+        private void CreateWinPanel(Transform parent, GameHUD hud)
+        {
+            // 全屏半透明遮罩
+            var panel = CreateUIImage(parent, "WinPanel",
+                Vector2.zero, Vector2.one,
+                Vector2.zero, Vector2.zero,
+                new Color(0.05f, 0.03f, 0, 0.75f));
+
+            // 标题
+            var title = CreateUIText(panel.transform, "WinTitle", "✨ 渡劫成功 ✨", 48,
+                new Vector2(0.5f, 0.6f), new Vector2(0.5f, 0.6f),
+                new Vector2(-250, -30), new Vector2(250, 30));
+            var titleTxt = title.GetComponent<Text>();
+            titleTxt.alignment = TextAnchor.MiddleCenter;
+            titleTxt.color = new Color(1f, 0.85f, 0.2f);
+            titleTxt.fontStyle = FontStyle.Bold;
+            var titleOutline = title.AddComponent<Outline>();
+            titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
+            titleOutline.effectDistance = new Vector2(2, -2);
+
+            // 副标题
+            var sub = CreateUIText(panel.transform, "WinSubText", "飞升成仙，梦境圆满", 22,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(-200, -15), new Vector2(200, 15));
+            var subTxt = sub.GetComponent<Text>();
+            subTxt.alignment = TextAnchor.MiddleCenter;
+            subTxt.color = new Color(1f, 0.95f, 0.8f, 0.9f);
+
+            // 重新开始按钮
+            var btnGo = CreateUIImage(panel.transform, "WinRestartButton",
+                new Vector2(0.5f, 0.35f), new Vector2(0.5f, 0.35f),
+                new Vector2(-80, -22), new Vector2(80, 22),
+                new Color(0.85f, 0.7f, 0.15f, 0.9f));
+            var btn = btnGo.AddComponent<Button>();
+            btn.targetGraphic = btnGo.GetComponent<Image>();
+            var btnColors = btn.colors;
+            btnColors.highlightedColor = new Color(1f, 0.85f, 0.3f);
+            btnColors.pressedColor = new Color(0.6f, 0.5f, 0.1f);
+            btn.colors = btnColors;
+
+            var btnText = CreateUIText(btnGo.transform, "BtnText", "再入梦境", 18,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            btnText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            btnText.GetComponent<Text>().fontStyle = FontStyle.Bold;
+            btnText.GetComponent<Text>().color = new Color(0.1f, 0.08f, 0);
+
+            panel.SetActive(false);
+
+            SetPrivateField(hud, "winPanel", panel);
+            SetPrivateField(hud, "winTitleText", titleTxt);
+            SetPrivateField(hud, "winSubText", subTxt);
+            SetPrivateField(hud, "winRestartButton", btn);
         }
 
         private void SetupLighting()

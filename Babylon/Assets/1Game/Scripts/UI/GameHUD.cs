@@ -1,15 +1,20 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 namespace XianTu
 {
     /// <summary>
-    /// 游戏 HUD —— 显示血条、境界、技能CD、灵物列表
+    /// 游戏 HUD —— 完整的战斗界面
+    /// 包含：血条（带动画）、技能CD、闪避CD、连招指示器、敌人计数、境界信息、
+    ///       消息提示、死亡/通关面板
     /// </summary>
     public class GameHUD : MonoBehaviour
     {
         [Header("血条")]
         [SerializeField] private Slider hpSlider;
+        [SerializeField] private Image hpFillImage;       // 血条填充（用于变色）
+        [SerializeField] private Image hpDamageFill;      // 受伤延迟条（红色）
         [SerializeField] private Text hpText;
 
         [Header("境界信息")]
@@ -19,6 +24,18 @@ namespace XianTu
         [Header("技能CD")]
         [SerializeField] private Image skillQCooldownFill;
         [SerializeField] private Text skillQCooldownText;
+        [SerializeField] private Image skillQIcon;
+
+        [Header("闪避CD")]
+        [SerializeField] private Image dashCooldownFill;
+        [SerializeField] private Text dashCooldownText;
+
+        [Header("连招指示器")]
+        [SerializeField] private Image[] comboIndicators;  // 3个点
+
+        [Header("敌人计数")]
+        [SerializeField] private Text enemyCountText;
+        [SerializeField] private Image enemyCountIcon;
 
         [Header("灵物计数")]
         [SerializeField] private Text itemCountText;
@@ -27,15 +44,46 @@ namespace XianTu
         [SerializeField] private Text messageText;
         private float _messageTimer;
 
+        [Header("死亡面板")]
+        [SerializeField] private GameObject deathPanel;
+        [SerializeField] private Text deathTitleText;
+        [SerializeField] private Text deathSubText;
+        [SerializeField] private Button restartButton;
+
+        [Header("通关面板")]
+        [SerializeField] private GameObject winPanel;
+        [SerializeField] private Text winTitleText;
+        [SerializeField] private Text winSubText;
+        [SerializeField] private Button winRestartButton;
+
+        // 血条动画
+        private float _targetHpRatio = 1f;
+        private float _damageBarRatio = 1f;
+        private float _damageBarDelay;
+        private const float DAMAGE_BAR_DELAY = 0.5f;
+        private const float DAMAGE_BAR_SPEED = 2f;
+
+        // 连招颜色
+        private readonly Color _comboInactiveColor = new(0.3f, 0.3f, 0.3f, 0.5f);
+        private readonly Color[] _comboActiveColors = {
+            new(0.4f, 0.8f, 1f, 1f),   // 第1段：青色
+            new(0.3f, 1f, 0.5f, 1f),    // 第2段：绿色
+            new(1f, 0.85f, 0.2f, 1f)    // 第3段：金色
+        };
+
         private void Start()
         {
             // 订阅事件
             GameEvents.Subscribe<GameEvents.HealthChanged>(OnHealthChanged);
             GameEvents.Subscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
             GameEvents.Subscribe<GameEvents.SkillCooldownUpdate>(OnSkillCooldownUpdate);
+            GameEvents.Subscribe<GameEvents.DashCooldownUpdate>(OnDashCooldownUpdate);
             GameEvents.Subscribe<GameEvents.ItemPickedUp>(OnItemPickedUp);
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
+            GameEvents.Subscribe<GameEvents.EnemyCountChanged>(OnEnemyCountChanged);
+            GameEvents.Subscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
+            GameEvents.Subscribe<GameEvents.GameWon>(OnGameWon);
 
             // 初始化显示
             if (PlayerController.Instance != null)
@@ -43,18 +91,46 @@ namespace XianTu
                 var stats = PlayerController.Instance.Stats;
                 UpdateHpDisplay(stats.currentHp, stats.maxHp);
             }
+
+            // 隐藏面板
+            if (deathPanel != null) deathPanel.SetActive(false);
+            if (winPanel != null) winPanel.SetActive(false);
+
+            // 初始化连招指示器
+            ResetComboIndicators();
+
+            // 绑定按钮
+            if (restartButton != null)
+                restartButton.onClick.AddListener(OnRestartClicked);
+            if (winRestartButton != null)
+                winRestartButton.onClick.AddListener(OnRestartClicked);
         }
 
         private void Update()
         {
+            float dt = Time.deltaTime;
+
             // 消息淡出
             if (_messageTimer > 0)
             {
-                _messageTimer -= Time.deltaTime;
+                _messageTimer -= dt;
                 if (_messageTimer <= 0 && messageText != null)
                     messageText.text = "";
+                else if (messageText != null)
+                {
+                    // 最后1秒淡出
+                    float alpha = Mathf.Clamp01(_messageTimer / 1f);
+                    var c = messageText.color;
+                    c.a = alpha;
+                    messageText.color = c;
+                }
             }
+
+            // 血条受伤延迟条动画
+            UpdateDamageBar(dt);
         }
+
+        // ==================== 血条 ====================
 
         private void OnHealthChanged(GameEvents.HealthChanged evt)
         {
@@ -63,11 +139,51 @@ namespace XianTu
 
         private void UpdateHpDisplay(float current, float max)
         {
+            float ratio = max > 0 ? current / max : 0;
+            _targetHpRatio = ratio;
+
+            // 如果是受伤（新值比当前低），触发延迟条
+            if (hpSlider != null && ratio < hpSlider.value)
+            {
+                _damageBarDelay = DAMAGE_BAR_DELAY;
+                _damageBarRatio = hpSlider.value;
+            }
+
             if (hpSlider != null)
-                hpSlider.value = max > 0 ? current / max : 0;
+                hpSlider.value = ratio;
+
             if (hpText != null)
                 hpText.text = $"{Mathf.CeilToInt(current)} / {Mathf.CeilToInt(max)}";
+
+            // 血条颜色根据血量变化
+            if (hpFillImage != null)
+            {
+                if (ratio > 0.6f)
+                    hpFillImage.color = new Color(0.2f, 0.85f, 0.35f); // 绿色
+                else if (ratio > 0.3f)
+                    hpFillImage.color = new Color(1f, 0.75f, 0.15f);   // 黄色
+                else
+                    hpFillImage.color = new Color(0.9f, 0.2f, 0.2f);   // 红色
+            }
         }
+
+        private void UpdateDamageBar(float dt)
+        {
+            if (hpDamageFill == null) return;
+
+            if (_damageBarDelay > 0)
+            {
+                _damageBarDelay -= dt;
+            }
+            else
+            {
+                _damageBarRatio = Mathf.MoveTowards(_damageBarRatio, _targetHpRatio, DAMAGE_BAR_SPEED * dt);
+            }
+
+            hpDamageFill.fillAmount = _damageBarRatio;
+        }
+
+        // ==================== 境界 ====================
 
         private void OnRealmBreakthrough(GameEvents.RealmBreakthrough evt)
         {
@@ -76,8 +192,10 @@ namespace XianTu
             if (levelText != null)
                 levelText.text = $"第 {evt.NewRealmLevel + 1} 层";
 
-            ShowMessage($"进入 {evt.RealmName}");
+            ShowMessage($"<color=#FFD700>— {evt.RealmName} —</color>");
         }
+
+        // ==================== 技能CD ====================
 
         private void OnSkillCooldownUpdate(GameEvents.SkillCooldownUpdate evt)
         {
@@ -88,42 +206,162 @@ namespace XianTu
             if (skillQCooldownText != null)
             {
                 if (evt.RemainingTime > 0)
-                    skillQCooldownText.text = $"{evt.RemainingTime:F1}s";
+                    skillQCooldownText.text = $"{evt.RemainingTime:F1}";
                 else
                     skillQCooldownText.text = "Q";
             }
+            // 图标变暗/恢复
+            if (skillQIcon != null)
+                skillQIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
         }
+
+        // ==================== 闪避CD ====================
+
+        private void OnDashCooldownUpdate(GameEvents.DashCooldownUpdate evt)
+        {
+            if (dashCooldownFill != null)
+                dashCooldownFill.fillAmount = evt.TotalCooldown > 0 ? evt.RemainingTime / evt.TotalCooldown : 0;
+            if (dashCooldownText != null)
+            {
+                if (evt.RemainingTime > 0.05f)
+                    dashCooldownText.text = $"{evt.RemainingTime:F1}";
+                else
+                    dashCooldownText.text = "闪避";
+            }
+        }
+
+        // ==================== 连招指示器 ====================
+
+        private void OnComboStepChanged(GameEvents.ComboStepChanged evt)
+        {
+            if (comboIndicators == null) return;
+
+            if (!evt.IsAttacking)
+            {
+                ResetComboIndicators();
+                return;
+            }
+
+            for (int i = 0; i < comboIndicators.Length; i++)
+            {
+                if (comboIndicators[i] == null) continue;
+
+                if (i <= evt.ComboStep)
+                {
+                    comboIndicators[i].color = _comboActiveColors[Mathf.Min(i, _comboActiveColors.Length - 1)];
+                    // 当前段缩放动画
+                    if (i == evt.ComboStep)
+                        StartCoroutine(PunchScale(comboIndicators[i].rectTransform, 1.4f, 0.15f));
+                }
+                else
+                {
+                    comboIndicators[i].color = _comboInactiveColor;
+                }
+            }
+        }
+
+        private void ResetComboIndicators()
+        {
+            if (comboIndicators == null) return;
+            for (int i = 0; i < comboIndicators.Length; i++)
+            {
+                if (comboIndicators[i] != null)
+                    comboIndicators[i].color = _comboInactiveColor;
+            }
+        }
+
+        private IEnumerator PunchScale(RectTransform rt, float punchScale, float duration)
+        {
+            float timer = 0;
+            while (timer < duration)
+            {
+                timer += Time.deltaTime;
+                float t = timer / duration;
+                float scale = Mathf.Lerp(punchScale, 1f, t);
+                rt.localScale = Vector3.one * scale;
+                yield return null;
+            }
+            rt.localScale = Vector3.one;
+        }
+
+        // ==================== 敌人计数 ====================
+
+        private void OnEnemyCountChanged(GameEvents.EnemyCountChanged evt)
+        {
+            if (enemyCountText != null)
+                enemyCountText.text = $"{evt.RemainingCount} / {evt.TotalCount}";
+        }
+
+        // ==================== 灵物 ====================
 
         private void OnItemPickedUp(GameEvents.ItemPickedUp evt)
         {
-            ShowMessage($"获得灵物：{evt.Item.itemName} x{evt.CurrentCount}");
+            ShowMessage($"获得灵物：<color=#{ColorUtility.ToHtmlStringRGB(evt.Item.GetRarityColor())}>{evt.Item.itemName}</color>");
             UpdateItemCount();
-        }
-
-        private void OnRoomCleared(GameEvents.RoomCleared evt)
-        {
-            ShowMessage("房间清理完成！准备进入下一层...");
-        }
-
-        private void OnPlayerDied(GameEvents.PlayerDied evt)
-        {
-            ShowMessage("梦境破碎... 惊醒回到现实");
-        }
-
-        private void ShowMessage(string msg)
-        {
-            if (messageText != null)
-            {
-                messageText.text = msg;
-                _messageTimer = 3f;
-            }
         }
 
         private void UpdateItemCount()
         {
             if (itemCountText == null || PlayerController.Instance == null) return;
             var items = PlayerController.Instance.Inventory.GetAllItems();
-            itemCountText.text = $"灵物：{items.Count} 种";
+            itemCountText.text = $"{items.Count}";
+        }
+
+        // ==================== 房间清理 ====================
+
+        private void OnRoomCleared(GameEvents.RoomCleared evt)
+        {
+            ShowMessage("房间清理完成！准备进入下一层...");
+        }
+
+        // ==================== 死亡/通关 ====================
+
+        private void OnPlayerDied(GameEvents.PlayerDied evt)
+        {
+            if (deathPanel != null)
+            {
+                deathPanel.SetActive(true);
+                if (deathTitleText != null)
+                    deathTitleText.text = "梦境破碎";
+                if (deathSubText != null)
+                {
+                    string realm = GameManager.Instance != null ? GameManager.Instance.CurrentRealmName : "未知";
+                    int level = GameManager.Instance != null ? GameManager.Instance.CurrentLevel + 1 : 0;
+                    deathSubText.text = $"止步于 {realm} · 第 {level} 层";
+                }
+            }
+        }
+
+        private void OnGameWon(GameEvents.GameWon evt)
+        {
+            if (winPanel != null)
+            {
+                winPanel.SetActive(true);
+                if (winTitleText != null)
+                    winTitleText.text = "✨ 渡劫成功 ✨";
+                if (winSubText != null)
+                    winSubText.text = "飞升成仙，梦境圆满";
+            }
+        }
+
+        private void OnRestartClicked()
+        {
+            if (GameManager.Instance != null)
+                GameManager.Instance.Restart();
+        }
+
+        // ==================== 消息提示 ====================
+
+        private void ShowMessage(string msg)
+        {
+            if (messageText != null)
+            {
+                messageText.text = msg;
+                var c = messageText.color;
+                c.a = 1f;
+                messageText.color = c;
+                _messageTimer = 3f;
+            }
         }
 
         private void OnDestroy()
@@ -131,9 +369,13 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.HealthChanged>(OnHealthChanged);
             GameEvents.Unsubscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
             GameEvents.Unsubscribe<GameEvents.SkillCooldownUpdate>(OnSkillCooldownUpdate);
+            GameEvents.Unsubscribe<GameEvents.DashCooldownUpdate>(OnDashCooldownUpdate);
             GameEvents.Unsubscribe<GameEvents.ItemPickedUp>(OnItemPickedUp);
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
+            GameEvents.Unsubscribe<GameEvents.EnemyCountChanged>(OnEnemyCountChanged);
+            GameEvents.Unsubscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
+            GameEvents.Unsubscribe<GameEvents.GameWon>(OnGameWon);
         }
     }
 }

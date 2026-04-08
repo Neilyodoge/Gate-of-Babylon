@@ -112,7 +112,7 @@ namespace XianTu
                 // 通关！
                 Debug.Log("<color=yellow>✨✨✨ 渡劫成功！飞升成仙！✨✨✨</color>");
                 _gameOver = true;
-                // TODO: 通关界面、感悟结算
+                GameEvents.Publish(new GameEvents.GameWon());
                 return;
             }
 

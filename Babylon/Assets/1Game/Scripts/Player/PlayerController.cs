@@ -217,6 +217,13 @@ namespace XianTu
             _dashDirection = _moveInput.sqrMagnitude > 0.01f ? _moveInput : _aimDirection;
             _dashCooldownTimer = stats.dashCooldown;
 
+            // 发布闪避CD更新事件
+            GameEvents.Publish(new GameEvents.DashCooldownUpdate
+            {
+                RemainingTime = stats.dashCooldown,
+                TotalCooldown = stats.dashCooldown
+            });
+
             // 开启无敌帧（哈迪斯风格：闪避全程无敌）
             _invincible = true;
             _invincibleTimer = DASH_INVINCIBLE_TIME;
@@ -228,7 +235,15 @@ namespace XianTu
             float dt = Time.deltaTime;
 
             if (_dashCooldownTimer > 0)
+            {
                 _dashCooldownTimer -= dt;
+                // 发布闪避CD更新
+                GameEvents.Publish(new GameEvents.DashCooldownUpdate
+                {
+                    RemainingTime = Mathf.Max(0, _dashCooldownTimer),
+                    TotalCooldown = stats.dashCooldown
+                });
+            }
 
             if (_invincibleTimer > 0)
             {
@@ -328,6 +343,15 @@ namespace XianTu
 
             // 无论是否被打断，都要扣血（哈迪斯：霸体不等于无敌）
             float actual = stats.TakeDamage(damage);
+
+            // 发布伤害飘字事件
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = hitPoint != Vector3.zero ? hitPoint : transform.position,
+                Damage = actual,
+                IsCrit = false,
+                IsPlayerDamage = true
+            });
 
             GameEvents.Publish(new GameEvents.PlayerDamaged
             {

@@ -562,42 +562,42 @@ ModelImporter:
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
       events:
-      - time: 0.21
+      - time: 0.21000002
         functionName: OnHitWindowOpen
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.2625
+      - time: 0.26250002
         functionName: OnSlashVFX
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.525
+      - time: 0.52500004
         functionName: OnHitWindowClose
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.47249997
+      - time: 0.47250003
         functionName: OnComboWindowOpen
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.68249995
+      - time: 0.6825
         functionName: OnComboWindowClose
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.73499995
+      - time: 0.735
         functionName: OnAttackEnd
         data: 
         objectReferenceParameter: {instanceID: 0}

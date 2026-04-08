@@ -67,12 +67,26 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
 
             Debug.Log($"<color=orange>第 {_roomIndex + 1} 层开始！敌人数量：{enemyCount}</color>");
+
+            // 通知UI初始敌人计数
+            GameEvents.Publish(new GameEvents.EnemyCountChanged
+            {
+                RemainingCount = enemyCount,
+                TotalCount = enemyCount
+            });
         }
 
         private void OnEnemyKilled(GameEvents.EnemyKilled evt)
         {
             // 移除已死亡的敌人
             _enemies.RemoveAll(e => e == null || e.gameObject == evt.Enemy);
+
+            // 通知UI更新敌人计数
+            GameEvents.Publish(new GameEvents.EnemyCountChanged
+            {
+                RemainingCount = _enemies.Count,
+                TotalCount = enemyCount
+            });
 
             if (_enemies.Count == 0 && !_cleared)
             {

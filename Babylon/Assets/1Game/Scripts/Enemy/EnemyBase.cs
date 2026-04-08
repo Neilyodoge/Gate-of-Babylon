@@ -125,6 +125,15 @@ namespace XianTu
 
             float actual = stats.TakeDamage(damage);
 
+            // 发布伤害飘字事件
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = hitPoint != Vector3.zero ? hitPoint : transform.position,
+                Damage = actual,
+                IsCrit = actual > damage * 0.9f && damage > stats.attackDamage, // 简单判断是否暴击
+                IsPlayerDamage = false
+            });
+
             // 受击闪白
             if (_renderer != null)
             {

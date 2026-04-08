@@ -67,7 +67,7 @@ namespace XianTu
 
         // 安全超时（防止动画事件丢失导致状态卡死）
         private const float STATE_TIMEOUT = 3.0f;  // 普通动作超时
-        private const float SKILL_TIMEOUT = 8.0f;  // 技能动作超时（技能动画较长）
+        private const float SKILL_TIMEOUT = 4.0f;  // 技能动作超时（兜底保护）
 
         // ==================== 公开属性 ====================
 
@@ -118,6 +118,43 @@ namespace XianTu
                 {
                     Debug.LogWarning($"[PlayerAnimator] 状态超时强制重置！优先级={_currentPriority}");
                     ForceReturnToIdle();
+                }
+
+                // 额外安全检测：如果 Animator 已经不在对应状态了（动画播完自动过渡走了），
+                // 但代码层优先级还没重置，说明动画事件丢失了，立即修复
+                if (animator != null && _currentPriority >= AnimationPriority.Attack)
+                {
+                    var stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+                    bool inExpectedState = false;
+
+                    switch (_currentPriority)
+                    {
+                        case AnimationPriority.Attack:
+                            inExpectedState = stateInfo.IsName("Attack1") || stateInfo.IsName("Attack2") || stateInfo.IsName("Attack3");
+                            break;
+                        case AnimationPriority.Skill:
+                            inExpectedState = stateInfo.IsName("Skill");
+                            break;
+                        case AnimationPriority.Evade:
+                            inExpectedState = stateInfo.IsName("Evade");
+                            break;
+                        case AnimationPriority.LightHit:
+                        case AnimationPriority.HeavyHit:
+                            inExpectedState = stateInfo.IsName("Hit");
+                            break;
+                    }
+
+                    // 如果 Animator 已经不在预期状态（说明动画事件丢失了），强制重置
+                    if (!inExpectedState && !animator.IsInTransition(0))
+                    {
+                        Debug.LogWarning($"[PlayerAnimator] 检测到动画事件丢失！Animator已离开{_currentPriority}状态，强制重置");
+                        _currentPriority = AnimationPriority.None;
+                        _superArmor = false;
+                        _attackHitWindowOpen = false;
+                        if (_currentPriority == AnimationPriority.Attack)
+                            ResetComboInternal();
+                        TryConsumeInputBuffer();
+                    }
                 }
             }
 
@@ -274,6 +311,13 @@ namespace XianTu
 
             // 设置连招超时（如果玩家不继续攻击，超时后重置）
             _comboResetTimer = 1.5f;
+
+            // 发布连招段数变化事件
+            GameEvents.Publish(new GameEvents.ComboStepChanged
+            {
+                ComboStep = step,
+                IsAttacking = true
+            });
 
             // 哈迪斯/梦之行风格：每段攻击触发前冲位移脉冲
             float lungeSpeed = GetLungeSpeed(step);
@@ -462,6 +506,13 @@ namespace XianTu
 
             // 回到空闲状态
             _currentPriority = AnimationPriority.None;
+
+            // 发布连招结束事件
+            GameEvents.Publish(new GameEvents.ComboStepChanged
+            {
+                ComboStep = 0,
+                IsAttacking = false
+            });
 
             // 直接通过代码切换动画状态，不依赖 Animator 的 exitTime 过渡
             // 这样攻击结束后立即响应移动，不会卡在攻击动画尾帧

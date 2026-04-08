@@ -127,5 +127,38 @@ namespace XianTu
 
         /// <summary>连招窗口打开（用于短暂解锁朝向调整）</summary>
         public struct ComboWindowOpened { }
+
+        /// <summary>敌人数量变化（用于UI显示）</summary>
+        public struct EnemyCountChanged
+        {
+            public int RemainingCount;
+            public int TotalCount;
+        }
+
+        /// <summary>伤害数字显示请求</summary>
+        public struct DamageNumberRequested
+        {
+            public UnityEngine.Vector3 WorldPosition;
+            public float Damage;
+            public bool IsCrit;
+            public bool IsPlayerDamage; // true=玩家受伤（红色），false=敌人受伤（白/黄色）
+        }
+
+        /// <summary>游戏通关</summary>
+        public struct GameWon { }
+
+        /// <summary>闪避冷却更新</summary>
+        public struct DashCooldownUpdate
+        {
+            public float RemainingTime;
+            public float TotalCooldown;
+        }
+
+        /// <summary>连招段数变化</summary>
+        public struct ComboStepChanged
+        {
+            public int ComboStep;    // 当前段数 0/1/2
+            public bool IsAttacking; // 是否在攻击中
+        }
     }
 }

@@ -498,11 +498,39 @@ namespace XianTu.Editor
             {
                 var clipAnim = clipAnimations[i];
 
-                // 通过帧范围计算动画时长（与 AddAttackAnimationEvents 保持一致）
-                float clipDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / clip.frameRate;
+                // 计算实际动画时长：
+                // 关键问题：clip.frameRate 返回的是 Unity 的重采样率（通常 30fps），
+                // 而 FBX 原始帧率可能是 60fps。用 clip.frameRate 计算会导致时长翻倍。
+                // 
+                // 正确做法：使用 clip.length 获取 Unity 计算的实际播放时长，
+                // 但 clip.length 在某些情况下也可能不准确（尤其是 reimport 后）。
+                //
+                // 最可靠的方法：直接用 clipAnim 的帧范围除以 FBX 原始帧率。
+                // FBX 原始帧率可以通过 clipAnim.lastFrame / clip.length 反推。
+                // 但如果 clip.length 不准确，这也不行。
+                //
+                // 终极方案：直接设置事件时间为一个安全的绝对值，
+                // 基于 clip.length 但做严格的范围限制。
+                // 如果 clip.length 明显不合理（>10s），则用帧范围 / 60 作为备选。
+                float clipDuration = clip.length;
+                float frameDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / 60f; // 假设 60fps
 
-                // 动画 80% 处触发结束事件（必须早于 Animator exitTime=0.9，留出过渡时间）
+                // 如果 clip.length 远大于帧范围计算的时长，说明 clip.length 不可靠
+                if (clipDuration > frameDuration * 1.5f && frameDuration > 0)
+                {
+                    Debug.LogWarning($"  [AddSimpleEndEvent] {clip.name}: clip.length={clipDuration:F3}s 远大于帧范围时长={frameDuration:F3}s，使用帧范围时长");
+                    clipDuration = frameDuration;
+                }
+
+                // 动画 80% 处触发结束事件
                 float eventTime = clipDuration * 0.80f;
+
+                // 安全保护
+                if (eventTime < 0) eventTime = 0;
+
+                Debug.Log($"  [AddSimpleEndEvent] {clip.name}: clipDuration={clipDuration:F3}s, " +
+                          $"frameDuration={frameDuration:F3}s, clip.length={clip.length:F3}s, " +
+                          $"eventTime={eventTime:F3}s");
 
                 clipAnim.events = new AnimationEvent[]
                 {
@@ -521,8 +549,7 @@ namespace XianTu.Editor
             {
                 importer.clipAnimations = clipAnimations;
                 importer.SaveAndReimport();
-                float clipDur = clip.length;
-                Debug.Log($"  已为 {clip.name} 添加结束事件：{endEventName}（时间={clipDur * 0.80f:F3}s / {clipDur:F3}s）");
+                Debug.Log($"  已为 {clip.name} 添加结束事件：{endEventName}");
             }
         }
 
@@ -549,7 +576,12 @@ namespace XianTu.Editor
                 var clipAnim = clipAnimations[i];
 
                 // 动画时长（秒）
-                float clipDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / clip.frameRate;
+                // 注意：clip.frameRate 可能返回 Unity 重采样率（30fps）而非 FBX 原始帧率（60fps）
+                // 使用 clip.length 和帧范围/60fps 两种方式计算，取较小值
+                float frameDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / 60f;
+                float clipDuration = clip.length;
+                if (clipDuration > frameDuration * 1.5f && frameDuration > 0)
+                    clipDuration = frameDuration;
 
                 // 创建动画事件
                 // 注意：ModelImporterClipAnimation.events 的 time 是以秒为单位
