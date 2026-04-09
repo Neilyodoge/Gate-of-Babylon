@@ -12,11 +12,13 @@ namespace XianTu.Editor
     {
         private const string ITEM_PATH = "Assets/1Game/Data/Items/";
         private const string SKILL_PATH = "Assets/1Game/Data/Skills/";
-        private const string ANIM_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Animations/";
-        private const string ANIM_FBX_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Animations/FBX/";
-        private const string MESH_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Meshes/";
         private const string CONTROLLER_PATH = "Assets/1Game/Data/";
         private const string SCENE_PATH = "Assets/1Game/Scenes/";
+
+        // Frank_Katana 资源路径
+        private const string FRANK_ANIM_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Animations/";
+        private const string FRANK_ANIM_FBX_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Animations/FBX/";
+        private const string FRANK_MESH_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Meshes/";
 
         // ==================== 菜单项 ====================
 
@@ -40,11 +42,12 @@ namespace XianTu.Editor
             CreateRustySword();
             CreateHealPill();
             CreateFallingRock();
+            CreateGoldenBell();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 5 个灵物 + 1 个功法</color>");
+            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 5 个灵物 + 2 个功法</color>");
         }
 
         [MenuItem("仙途梦境/③ 创建 Animator Controller", false, 3)]
@@ -75,16 +78,16 @@ namespace XianTu.Editor
             // 获取基础层
             var rootStateMachine = controller.layers[0].stateMachine;
 
-            // ========== 加载动画剪辑 ==========
+            // ========== 加载 Frank_Katana 动画剪辑 ==========
             var idleClip = LoadAnimClip("Frank_RPG_Katana_Stance1_Idle");
             var runClip = LoadAnimClip("Frank_RPG_Katana_Run01");
-            var attack1Clip = LoadAnimClip("Frank_RPG_Katana_S1_Combo01_01");
-            var attack2Clip = LoadAnimClip("Frank_RPG_Katana_S1_Combo01_02");
-            var attack3Clip = LoadAnimClip("Frank_RPG_Katana_S1_Combo01_03");
+            var attack1Clip = LoadAnimClip("Frank_RPG_Katana_S1_Attack01");
+            var attack2Clip = LoadAnimClip("Frank_RPG_Katana_S1_Attack02");
+            var attack3Clip = LoadAnimClip("Frank_RPG_Katana_S1_Attack03");
             var evadeClip = LoadAnimClip("Frank_RPG_Katana_Evade_F");
             var hitClip = LoadAnimClip("Frank_RPG_Katana_Hit01");
             var dieClip = LoadAnimClip("Frank_RPG_Katana_Die01");
-            var skillClip = LoadAnimClip("Frank_RPG_Katana_S1_Skill02");
+            var skillClip = LoadAnimClip("Frank_RPG_Katana_S1_Skill01");
 
             // ========== 创建状态 ==========
 
@@ -361,14 +364,19 @@ namespace XianTu.Editor
             }
 
             // 加载技能
-            var skill = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "落石术.asset");
-            var skillProp = so.FindProperty("testSkill");
-            if (skillProp != null && skill != null)
-                skillProp.objectReferenceValue = skill;
+            var skillQ = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "落石术.asset");
+            var skillQProp = so.FindProperty("testSkillQ");
+            if (skillQProp != null && skillQ != null)
+                skillQProp.objectReferenceValue = skillQ;
 
-            // 加载角色模型（FBX 中的模型）
+            var skillE = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "金钟罩.asset");
+            var skillEProp = so.FindProperty("testSkillE");
+            if (skillEProp != null && skillE != null)
+                skillEProp.objectReferenceValue = skillE;
+
+            // 加载角色模型（Frank_Katana FBX）
             var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-                MESH_PATH + "Frank_RPG_Katana_Unity_Y_top.FBX");
+                FRANK_MESH_PATH + "Frank_RPG_Katana_Unity_Y_top.FBX");
             var modelProp = so.FindProperty("playerModelPrefab");
             if (modelProp != null && modelPrefab != null)
                 modelProp.objectReferenceValue = modelPrefab;
@@ -402,7 +410,8 @@ namespace XianTu.Editor
 
             Debug.Log("<color=green>✅ Demo1 场景配置完成！</color>");
             Debug.Log($"  灵物：{itemGuids.Length} 个");
-            Debug.Log($"  技能：{(skill != null ? "落石术 ✓" : "❌ 未找到")}");
+            Debug.Log($"  Q技能：{(skillQ != null ? "落石术 ✓" : "❌ 未找到")}");
+            Debug.Log($"  E技能：{(skillE != null ? "金钟罩 ✓" : "❌ 未找到")}");
             Debug.Log($"  模型：{(modelPrefab != null ? "Frank_Katana ✓" : "❌ 未找到（将使用胶囊体）")}");
             Debug.Log($"  动画控制器：{(animController != null ? "✓" : "❌ 请先执行步骤③")}");
             Debug.Log($"  刀光特效：{(slashVFX != null ? "✓" : "❌ 未找到")}");
@@ -436,11 +445,11 @@ namespace XianTu.Editor
 
         // ==================== 动画工具方法 ====================
 
-        /// <summary>从 FBX 文件中加载动画剪辑</summary>
+        /// <summary>从 Frank_Katana FBX 文件中加载动画剪辑</summary>
         private static AnimationClip LoadAnimClip(string clipName)
         {
             // 先尝试从 FBX 目录加载
-            string fbxPath = ANIM_FBX_PATH + clipName + ".FBX";
+            string fbxPath = FRANK_ANIM_FBX_PATH + clipName + ".FBX";
             var clips = AssetDatabase.LoadAllAssetsAtPath(fbxPath);
             foreach (var asset in clips)
             {
@@ -449,7 +458,7 @@ namespace XianTu.Editor
             }
 
             // 尝试从 Animations 根目录加载
-            string animPath = ANIM_PATH + clipName + ".FBX";
+            string animPath = FRANK_ANIM_PATH + clipName + ".FBX";
             clips = AssetDatabase.LoadAllAssetsAtPath(animPath);
             foreach (var asset in clips)
             {
@@ -498,34 +507,29 @@ namespace XianTu.Editor
             {
                 var clipAnim = clipAnimations[i];
 
-                // 计算实际动画时长：
-                // 关键问题：clip.frameRate 返回的是 Unity 的重采样率（通常 30fps），
-                // 而 FBX 原始帧率可能是 60fps。用 clip.frameRate 计算会导致时长翻倍。
-                // 
-                // 正确做法：使用 clip.length 获取 Unity 计算的实际播放时长，
-                // 但 clip.length 在某些情况下也可能不准确（尤其是 reimport 后）。
-                //
-                // 最可靠的方法：直接用 clipAnim 的帧范围除以 FBX 原始帧率。
-                // FBX 原始帧率可以通过 clipAnim.lastFrame / clip.length 反推。
-                // 但如果 clip.length 不准确，这也不行。
-                //
-                // 终极方案：直接设置事件时间为一个安全的绝对值，
-                // 基于 clip.length 但做严格的范围限制。
-                // 如果 clip.length 明显不合理（>10s），则用帧范围 / 60 作为备选。
-                float clipDuration = clip.length;
-                float frameDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / 60f; // 假设 60fps
+                // 强制所有clip锁定位移和旋转到原点（确保动画原地播放）
+                clipAnim.keepOriginalPositionXZ = true;
+                clipAnim.keepOriginalOrientation = true;
+                clipAnim.keepOriginalPositionY = true;
 
-                // 如果 clip.length 远大于帧范围计算的时长，说明 clip.length 不可靠
+// 只给目标clip添加事件（FBX中可能有多个clip，只给目标clip添加）
+                if (clipAnim.name != clip.name)
+                {
+                    clipAnimations[i] = clipAnim;
+                    modified = true;
+                    continue;
+                }
+
+                float clipDuration = clip.length;
+                float frameDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / 60f;
+
                 if (clipDuration > frameDuration * 1.5f && frameDuration > 0)
                 {
                     Debug.LogWarning($"  [AddSimpleEndEvent] {clip.name}: clip.length={clipDuration:F3}s 远大于帧范围时长={frameDuration:F3}s，使用帧范围时长");
                     clipDuration = frameDuration;
                 }
 
-                // 动画 80% 处触发结束事件
                 float eventTime = clipDuration * 0.80f;
-
-                // 安全保护
                 if (eventTime < 0) eventTime = 0;
 
                 Debug.Log($"  [AddSimpleEndEvent] {clip.name}: clipDuration={clipDuration:F3}s, " +
@@ -553,16 +557,15 @@ namespace XianTu.Editor
             }
         }
 
-        /// <summary>为攻击动画添加动画事件</summary>
+        /// <summary>为攻击动画添加动画事件（FBX 内嵌 clip）</summary>
         private static void AddAttackAnimationEvents(AnimationClip clip, int comboStep)
         {
             if (clip == null) return;
 
-            // 注意：FBX 中的动画剪辑是只读的，需要通过 ModelImporter 设置事件
-            // 这里我们通过 ModelImporter 来添加事件
             string assetPath = AssetDatabase.GetAssetPath(clip);
             if (string.IsNullOrEmpty(assetPath)) return;
 
+            // FBX 内嵌 clip 的处理方式（通过 ModelImporter）
             var importer = AssetImporter.GetAtPath(assetPath) as ModelImporter;
             if (importer == null) return;
 
@@ -575,54 +578,32 @@ namespace XianTu.Editor
             {
                 var clipAnim = clipAnimations[i];
 
-                // 动画时长（秒）
-                // 注意：clip.frameRate 可能返回 Unity 重采样率（30fps）而非 FBX 原始帧率（60fps）
-                // 使用 clip.length 和帧范围/60fps 两种方式计算，取较小值
-                float frameDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / 60f;
-                float clipDuration = clip.length;
-                if (clipDuration > frameDuration * 1.5f && frameDuration > 0)
-                    clipDuration = frameDuration;
+                // 强制所有clip锁定位移和旋转到原点（确保动画原地播放）
+                clipAnim.keepOriginalPositionXZ = true;
+                clipAnim.keepOriginalOrientation = true;
+                clipAnim.keepOriginalPositionY = true;
 
-                // 创建动画事件
-                // 注意：ModelImporterClipAnimation.events 的 time 是以秒为单位
+// 只给目标clip添加事件（FBX中可能有多个clip，只给目标clip添加）
+                if (clipAnim.name != clip.name)
+                {
+                    clipAnimations[i] = clipAnim;
+                    modified = true;
+                    continue;
+                }
+
+                float frameDuration = (clipAnim.lastFrame - clipAnim.firstFrame) / 60f;
+                float fbxClipDuration = clip.length;
+                if (fbxClipDuration > frameDuration * 1.5f && frameDuration > 0)
+                    fbxClipDuration = frameDuration;
+
                 var events = new AnimationEvent[]
                 {
-                    // 攻击判定开始（动画 20% 处）
-                    new AnimationEvent
-                    {
-                        functionName = "OnHitWindowOpen",
-                        time = clipDuration * 0.2f
-                    },
-                    // 刀光特效（动画 25% 处）
-                    new AnimationEvent
-                    {
-                        functionName = "OnSlashVFX",
-                        time = clipDuration * 0.25f
-                    },
-                    // 攻击判定结束（动画 50% 处）
-                    new AnimationEvent
-                    {
-                        functionName = "OnHitWindowClose",
-                        time = clipDuration * 0.5f
-                    },
-                    // 连招窗口开启（动画 45% 处，提前让玩家可以更早接连招）
-                    new AnimationEvent
-                    {
-                        functionName = "OnComboWindowOpen",
-                        time = clipDuration * 0.45f
-                    },
-                    // 连招窗口关闭（动画 65% 处）
-                    new AnimationEvent
-                    {
-                        functionName = "OnComboWindowClose",
-                        time = clipDuration * 0.65f
-                    },
-                    // 攻击结束（动画 70% 处，提前释放控制权，让玩家更快恢复移动）
-                    new AnimationEvent
-                    {
-                        functionName = "OnAttackEnd",
-                        time = clipDuration * 0.70f
-                    }
+                    new AnimationEvent { functionName = "OnHitWindowOpen", time = fbxClipDuration * 0.2f },
+                    new AnimationEvent { functionName = "OnSlashVFX", time = fbxClipDuration * 0.25f },
+                    new AnimationEvent { functionName = "OnHitWindowClose", time = fbxClipDuration * 0.5f },
+                    new AnimationEvent { functionName = "OnComboWindowOpen", time = fbxClipDuration * 0.45f },
+                    new AnimationEvent { functionName = "OnComboWindowClose", time = fbxClipDuration * 0.65f },
+                    new AnimationEvent { functionName = "OnAttackEnd", time = fbxClipDuration * 0.70f }
                 };
 
                 clipAnim.events = events;
@@ -724,6 +705,22 @@ namespace XianTu.Editor
             skill.aoeRadius = 3f;
             skill.vfxDuration = 1.5f;
             SaveAsset(skill, SKILL_PATH + "落石术.asset");
+        }
+
+        /// <summary>创建金钟罩技能（Buff类型）</summary>
+        private static void CreateGoldenBell()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "金钟罩";
+            skill.description = "凝聚灵力化为金色护罩，大幅提升减伤\n持续数秒后消散。";
+            skill.rarity = ItemRarity.Ling;
+            skill.skillType = SkillType.Buff;
+            skill.baseDamage = 0f;
+            skill.damageScaling = 0f;
+            skill.cooldown = 12f;
+            skill.aoeRadius = 0f;
+            skill.vfxDuration = 5f;
+            SaveAsset(skill, SKILL_PATH + "金钟罩.asset");
         }
 
         // ==================== 工具方法 ====================

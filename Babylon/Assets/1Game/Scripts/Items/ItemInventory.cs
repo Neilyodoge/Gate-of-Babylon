@@ -51,14 +51,24 @@ namespace XianTu
                 {
                     if (count == threshold)
                     {
-                        Debug.Log($"<color=yellow>✨ 质变触发！{item.itemName} x{count}</color>");
-                        // TODO: 质变效果（Demo1 先用日志提示）
+                        string effectDesc = ApplyQualitativeEffect(item, count);
+                        Debug.Log($"<color=yellow>✨ 质变触发！{item.itemName} x{count} — {effectDesc}</color>");
+
+                        GameEvents.Publish(new GameEvents.QualitativeTriggered
+                        {
+                            Item = item,
+                            Count = count,
+                            EffectDescription = effectDesc
+                        });
                     }
                 }
             }
 
             // 重新计算所有属性
             RecalculateStats();
+
+            // 检查 Synergy 组合
+            SynergySystem.CheckSynergies(_items, _playerStats);
 
             // 发布事件
             GameEvents.Publish(new GameEvents.ItemPickedUp
@@ -207,11 +217,84 @@ namespace XianTu
         }
 
         /// <summary>
+        /// 应用质变效果（根据灵物分类和数量触发特殊效果）
+        /// </summary>
+        private string ApplyQualitativeEffect(ItemData item, int count)
+        {
+            switch (item.category)
+            {
+                case ItemCategory.Attack:
+                    if (count == 3)
+                    {
+                        _playerStats.attackDamage *= 1.25f;
+                        _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + 0.1f);
+                        return "攻伐灵力共鸣！攻击力+25%，暴击率+10%";
+                    }
+                    else if (count == 5)
+                    {
+                        _playerStats.attackDamage *= 1.5f;
+                        _playerStats.critDamage += 0.5f;
+                        return "攻伐灵力大成！攻击力+50%，暴击伤害+50%";
+                    }
+                    break;
+
+                case ItemCategory.Defense:
+                    if (count == 3)
+                    {
+                        _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction + 0.15f);
+                        _playerStats.maxHp *= 1.15f;
+                        _playerStats.currentHp *= 1.15f;
+                        return "护体灵力共鸣！减伤+15%，生命+15%";
+                    }
+                    else if (count == 5)
+                    {
+                        _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction + 0.25f);
+                        return "护体灵力大成！减伤+25%，受击反弹伤害";
+                    }
+                    break;
+
+                case ItemCategory.Movement:
+                    if (count == 3)
+                    {
+                        _playerStats.moveSpeed *= 1.2f;
+                        _playerStats.dashCooldown *= 0.7f;
+                        return "身法灵力共鸣！移速+20%，闪避CD-30%";
+                    }
+                    else if (count == 5)
+                    {
+                        _playerStats.moveSpeed *= 1.3f;
+                        return "身法灵力大成！移速+30%，闪避无敌帧延长";
+                    }
+                    break;
+
+                case ItemCategory.Anomaly:
+                    if (count == 3)
+                    {
+                        _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + 0.15f);
+                        return "异变灵力共鸣！暴击率+15%，攻击附带灵力爆发";
+                    }
+                    break;
+
+                case ItemCategory.Pill:
+                    if (count == 3)
+                    {
+                        _playerStats.maxHp *= 1.3f;
+                        _playerStats.currentHp = _playerStats.maxHp;
+                        return "丹药灵力共鸣！生命+30%并全满！";
+                    }
+                    break;
+            }
+
+            return "灵力共鸣，属性提升";
+        }
+
+        /// <summary>
         /// 清空所有灵物（新一局开始时）
         /// </summary>
         public void Clear()
         {
             _items.Clear();
+            SynergySystem.Clear();
             RecalculateStats();
         }
     }

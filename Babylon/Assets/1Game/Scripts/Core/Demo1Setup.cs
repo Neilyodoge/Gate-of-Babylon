@@ -14,7 +14,8 @@ namespace XianTu
         [SerializeField] private ItemData[] itemPool;
 
         [Header("技能（可选）")]
-        [SerializeField] private SkillData testSkill;
+        [SerializeField] private SkillData testSkillQ;
+        [SerializeField] private SkillData testSkillE;
 
         [Header("角色模型 Prefab（可选，不配置则自动创建胶囊体）")]
         [SerializeField] private GameObject playerModelPrefab;
@@ -53,6 +54,15 @@ namespace XianTu
 
             // 7. 设置光照
             SetupLighting();
+
+            // 8. 创建顿帧系统
+            CreateHitStop();
+
+            // 9. 创建层间过渡
+            CreateLevelTransition();
+
+            // 10. 创建后处理效果
+            CreatePostProcess();
         }
 
         private void CreateObjectPool()
@@ -63,40 +73,21 @@ namespace XianTu
 
         private void CreateGround()
         {
-            // 主地面
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ground.name = "Ground";
-            ground.transform.position = Vector3.zero;
-            ground.transform.localScale = new Vector3(5, 1, 5);
-
-            var renderer = ground.GetComponent<Renderer>();
+            // 地面和墙壁现在由 BattleRoom + RoomBuilder 动态生成
+            // 这里只创建一个临时的小地面，防止玩家在房间生成前掉落
+            var tempGround = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            tempGround.name = "TempGround";
+            tempGround.transform.position = Vector3.zero;
+            tempGround.transform.localScale = new Vector3(1, 1, 1);
+            var renderer = tempGround.GetComponent<Renderer>();
             if (renderer != null)
             {
                 var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                mat.color = new Color(0.15f, 0.18f, 0.22f);
+                mat.color = new Color(0.12f, 0.14f, 0.18f);
                 renderer.material = mat;
             }
-
-            // 边界墙壁
-            CreateWall(new Vector3(0, 1, 25), new Vector3(50, 2, 1));
-            CreateWall(new Vector3(0, 1, -25), new Vector3(50, 2, 1));
-            CreateWall(new Vector3(25, 1, 0), new Vector3(1, 2, 50));
-            CreateWall(new Vector3(-25, 1, 0), new Vector3(1, 2, 50));
-        }
-
-        private void CreateWall(Vector3 pos, Vector3 scale)
-        {
-            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            wall.name = "Wall";
-            wall.transform.position = pos;
-            wall.transform.localScale = scale;
-            var renderer = wall.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                mat.color = new Color(0.3f, 0.25f, 0.35f);
-                renderer.material = mat;
-            }
+            // 房间生成后会覆盖这个临时地面
+            Destroy(tempGround, 1f);
         }
 
         private void CreatePlayer()
@@ -106,11 +97,11 @@ namespace XianTu
             playerGo.tag = "Player";
             playerGo.transform.position = new Vector3(0, 0, 0);
 
-            // CharacterController
+            // CharacterController（Frank_Katana 尺寸）
             var cc = playerGo.AddComponent<CharacterController>();
             cc.radius = 0.3f;
-            cc.height = 1.7f;
-            cc.center = new Vector3(0, 0.85f, 0);
+            cc.height = 1.8f;
+            cc.center = new Vector3(0, 0.9f, 0);
 
             // ========== 角色模型 ==========
             Transform modelTransform;
@@ -179,14 +170,14 @@ namespace XianTu
                 modelTransform = model.transform;
             }
 
-            // ========== 攻击原点 & 刀光生成点 ==========
+            // ========== 攻击原点 & 刀光生成点（适配 Frank_Katana 模型） ==========
             var attackOrigin = new GameObject("AttackOrigin");
             attackOrigin.transform.SetParent(playerGo.transform);
-            attackOrigin.transform.localPosition = new Vector3(0, 1f, 0.8f);
+            attackOrigin.transform.localPosition = new Vector3(0, 0.9f, 0.6f);
 
             var slashSpawnPoint = new GameObject("SlashVFXPoint");
             slashSpawnPoint.transform.SetParent(playerGo.transform);
-            slashSpawnPoint.transform.localPosition = new Vector3(0, 1.2f, 1f);
+            slashSpawnPoint.transform.localPosition = new Vector3(0, 1.0f, 0.8f);
 
             // ========== 添加组件 ==========
             var playerCtrl = playerGo.AddComponent<PlayerController>();
@@ -228,10 +219,43 @@ namespace XianTu
                 combat.SetHitVFX(hitVFXPrefab);
             }
 
-            // 设置测试技能
-            if (testSkill != null)
+            // 设置测试技能（如果 Inspector 中没有配置，运行时创建默认技能）
+            if (testSkillQ != null)
             {
-                combat.EquipSkillQ(testSkill);
+                combat.EquipSkillQ(testSkillQ);
+            }
+            else
+            {
+                // 兜底：运行时创建默认落石术
+                var fallbackQ = ScriptableObject.CreateInstance<SkillData>();
+                fallbackQ.skillName = "落石术";
+                fallbackQ.description = "召唤巨石砸落指定位置";
+                fallbackQ.skillType = SkillType.AreaDamage;
+                fallbackQ.baseDamage = 30f;
+                fallbackQ.damageScaling = 0.5f;
+                fallbackQ.cooldown = 8f;
+                fallbackQ.aoeRadius = 3f;
+                fallbackQ.vfxDuration = 1.5f;
+                combat.EquipSkillQ(fallbackQ);
+                Debug.Log("<color=yellow>[Demo1Setup] Q技能未配置，已使用内置落石术</color>");
+            }
+
+            if (testSkillE != null)
+            {
+                combat.EquipSkillE(testSkillE);
+            }
+            else
+            {
+                // 兜底：运行时创建默认金钟罩
+                var fallbackE = ScriptableObject.CreateInstance<SkillData>();
+                fallbackE.skillName = "金钟罩";
+                fallbackE.description = "凝聚灵力化为护罩，大幅提升减伤";
+                fallbackE.skillType = SkillType.Buff;
+                fallbackE.baseDamage = 0f;
+                fallbackE.cooldown = 12f;
+                fallbackE.vfxDuration = 5f;
+                combat.EquipSkillE(fallbackE);
+                Debug.Log("<color=yellow>[Demo1Setup] E技能未配置，已使用内置金钟罩</color>");
             }
 
             playerGo.AddComponent<ItemInventory>();
@@ -293,7 +317,7 @@ namespace XianTu
             // ========== 左上角：血条区域 ==========
             var hpPanel = CreateUIImage(canvasGo.transform, "HpPanel",
                 new Vector2(0, 1), new Vector2(0, 1),
-                new Vector2(20, -15), new Vector2(340, -65),
+                new Vector2(20, -65), new Vector2(340, -15),
                 new Color(0, 0, 0, 0)); // 透明容器
 
             // 血条背景（深色圆角感）
@@ -362,7 +386,7 @@ namespace XianTu
             // ========== 顶部中央：境界信息 ==========
             var realmPanel = CreateUIImage(canvasGo.transform, "RealmPanel",
                 new Vector2(0.5f, 1), new Vector2(0.5f, 1),
-                new Vector2(-100, -10), new Vector2(100, -55),
+                new Vector2(-100, -55), new Vector2(100, -10),
                 new Color(0, 0, 0, 0)); // 透明容器
 
             var realmText = CreateUIText(realmPanel.transform, "RealmText", "练气期", 26,
@@ -389,7 +413,7 @@ namespace XianTu
             // ========== 右上角：敌人计数 ==========
             var enemyPanel = CreateUIImage(canvasGo.transform, "EnemyPanel",
                 new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-180, -15), new Vector2(-20, -50),
+                new Vector2(-180, -50), new Vector2(-20, -15),
                 new Color(0.15f, 0.1f, 0.1f, 0.7f));
 
             // 骷髅图标（用文字代替）
@@ -410,18 +434,32 @@ namespace XianTu
             // ========== 底部中央：技能栏 ==========
             var skillBar = CreateUIImage(canvasGo.transform, "SkillBar",
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                new Vector2(-120, 15), new Vector2(120, 95),
+                new Vector2(-220, 15), new Vector2(220, 95),
                 new Color(0, 0, 0, 0)); // 透明容器
 
             // --- Q 技能槽 ---
-            var skillQSlot = CreateSkillSlot(skillBar.transform, "SkillQ", new Vector2(-55, 0), "Q",
+            var skillQSlot = CreateSkillSlot(skillBar.transform, "SkillQ", new Vector2(-110, 0), "Q",
                 new Color(0.3f, 0.5f, 1f, 0.8f));
             SetPrivateField(hud, "skillQCooldownFill", skillQSlot.cdFill);
             SetPrivateField(hud, "skillQCooldownText", skillQSlot.cdText);
             SetPrivateField(hud, "skillQIcon", skillQSlot.iconImage);
 
+            // --- E 技能槽 ---
+            var skillESlot = CreateSkillSlot(skillBar.transform, "SkillE", new Vector2(-40, 0), "E",
+                new Color(0.8f, 0.4f, 0.2f, 0.8f));
+            SetPrivateField(hud, "skillECooldownFill", skillESlot.cdFill);
+            SetPrivateField(hud, "skillECooldownText", skillESlot.cdText);
+            SetPrivateField(hud, "skillEIcon", skillESlot.iconImage);
+
+            // --- W(R键) 技能槽 ---
+            var skillWSlot = CreateSkillSlot(skillBar.transform, "SkillW", new Vector2(40, 0), "R",
+                new Color(0.6f, 0.3f, 0.8f, 0.8f));
+            SetPrivateField(hud, "skillWCooldownFill", skillWSlot.cdFill);
+            SetPrivateField(hud, "skillWCooldownText", skillWSlot.cdText);
+            SetPrivateField(hud, "skillWIcon", skillWSlot.iconImage);
+
             // --- 闪避槽 ---
-            var dashSlot = CreateSkillSlot(skillBar.transform, "Dash", new Vector2(55, 0), "闪避",
+            var dashSlot = CreateSkillSlot(skillBar.transform, "Dash", new Vector2(120, 0), "闪避",
                 new Color(0.2f, 0.8f, 0.6f, 0.8f));
             SetPrivateField(hud, "dashCooldownFill", dashSlot.cdFill);
             SetPrivateField(hud, "dashCooldownText", dashSlot.cdText);
@@ -477,7 +515,7 @@ namespace XianTu
 
             // ========== 底部：操作提示 ==========
             var controlsHint = CreateUIText(canvasGo.transform, "ControlsHint",
-                "WASD 移动  |  鼠标瞄准  |  左键挥刀  |  Q 技能  |  Space 闪避", 13,
+                "WASD 移动  |  鼠标瞄准  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避", 13,
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(-300, 2), new Vector2(300, 18));
             var hintTxt = controlsHint.GetComponent<Text>();
@@ -493,6 +531,161 @@ namespace XianTu
             // ========== 伤害飘字 ==========
             var dmgPopup = canvasGo.AddComponent<DamagePopup>();
             SetPrivateField(dmgPopup, "canvas", canvas);
+
+            // ========== 小地图 ==========
+            CreateMinimap(canvasGo.transform);
+
+            // ========== 背包UI ==========
+            CreateInventoryUI(canvasGo.transform);
+
+            // ========== 操作提示更新 ==========
+            hintTxt.text = "WASD 移动 | 左键挥刀 | Q/E/R 技能 | Space 闪避 | Tab 背包 | F 交互";
+        }
+
+        /// <summary>创建小地图</summary>
+        private void CreateMinimap(Transform canvasTransform)
+        {
+            // 小地图面板（右上角）
+            var mapPanel = CreateUIImage(canvasTransform, "MinimapPanel",
+                new Vector2(1, 1), new Vector2(1, 1),
+                new Vector2(-280, -50), new Vector2(-10, -10),
+                new Color(0, 0, 0, 0.5f));
+
+            var minimap = mapPanel.gameObject.AddComponent<Minimap>();
+            SetPrivateField(minimap, "mapPanel", mapPanel.GetComponent<RectTransform>());
+
+            // 玩家点
+            var playerDot = CreateUIImage(mapPanel.transform, "PlayerDot",
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(-5, 5), new Vector2(5, 15),
+                new Color(0.2f, 1f, 0.4f));
+            SetPrivateField(minimap, "playerDot", playerDot);
+
+            // 标题
+            var title = CreateUIText(mapPanel.transform, "MapTitle", "仙途", 12,
+                new Vector2(0, 1), new Vector2(1, 1),
+                new Vector2(2, -18), new Vector2(-2, -2));
+            title.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            title.GetComponent<Text>().color = new Color(0.8f, 0.7f, 0.5f);
+
+            // 注册到GameManager
+            if (GameManager.Instance != null)
+                GameManager.Instance.SetMinimap(minimap);
+        }
+
+        /// <summary>创建背包UI</summary>
+        private void CreateInventoryUI(Transform canvasTransform)
+        {
+            var invGo = new GameObject("InventoryUI");
+            invGo.transform.SetParent(canvasTransform, false);
+            var invRT = invGo.AddComponent<RectTransform>();
+            invRT.anchorMin = Vector2.zero;
+            invRT.anchorMax = Vector2.one;
+            invRT.offsetMin = Vector2.zero;
+            invRT.offsetMax = Vector2.zero;
+
+            var invUI = invGo.AddComponent<InventoryUI>();
+
+            // ===== 背包面板（全屏半透明遮罩） =====
+            var panel = CreateUIImage(invGo.transform, "InvPanel",
+                Vector2.zero, Vector2.one,
+                Vector2.zero, Vector2.zero,
+                new Color(0.03f, 0.03f, 0.08f, 0.85f));
+            panel.SetActive(false); // 默认隐藏
+
+            // ===== 标题 =====
+            var title = CreateUIText(panel.transform, "InvTitle", "灵物背包 (0)", 28,
+                new Vector2(0.5f, 1), new Vector2(0.5f, 1),
+                new Vector2(-200, -55), new Vector2(200, -15));
+            var titleTxt = title.GetComponent<Text>();
+            titleTxt.alignment = TextAnchor.MiddleCenter;
+            titleTxt.color = new Color(1f, 0.9f, 0.5f);
+            titleTxt.fontStyle = FontStyle.Bold;
+            var titleOutline = title.AddComponent<Outline>();
+            titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
+            titleOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            // ===== 关闭提示 =====
+            var closeHint = CreateUIText(panel.transform, "CloseHint", "按 Tab 关闭", 14,
+                new Vector2(0.5f, 1), new Vector2(0.5f, 1),
+                new Vector2(-60, -75), new Vector2(60, -58));
+            closeHint.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            closeHint.GetComponent<Text>().color = new Color(0.6f, 0.6f, 0.6f, 0.6f);
+
+            // ===== 左侧：灵物列表区域 =====
+            var itemSection = CreateUIImage(panel.transform, "ItemSection",
+                new Vector2(0.05f, 0.05f), new Vector2(0.55f, 0.88f),
+                Vector2.zero, Vector2.zero,
+                new Color(0.08f, 0.08f, 0.12f, 0.6f));
+
+            var itemSectionTitle = CreateUIText(itemSection.transform, "ItemSectionTitle", "持有灵物", 18,
+                new Vector2(0, 1), new Vector2(1, 1),
+                new Vector2(10, -30), new Vector2(-10, -5));
+            itemSectionTitle.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
+            itemSectionTitle.GetComponent<Text>().color = new Color(0.7f, 0.9f, 1f);
+
+            // 灵物列表内容区（带 VerticalLayoutGroup）
+            var itemListGo = new GameObject("ItemListContent");
+            itemListGo.transform.SetParent(itemSection.transform, false);
+            var itemListRT = itemListGo.AddComponent<RectTransform>();
+            itemListRT.anchorMin = new Vector2(0, 0);
+            itemListRT.anchorMax = new Vector2(1, 1);
+            itemListRT.offsetMin = new Vector2(5, 5);
+            itemListRT.offsetMax = new Vector2(-5, -35);
+            var itemListLayout = itemListGo.AddComponent<VerticalLayoutGroup>();
+            itemListLayout.spacing = 4;
+            itemListLayout.childAlignment = TextAnchor.UpperLeft;
+            itemListLayout.childForceExpandWidth = true;
+            itemListLayout.childForceExpandHeight = false;
+            itemListLayout.padding = new RectOffset(4, 4, 4, 4);
+            var itemListCSF = itemListGo.AddComponent<ContentSizeFitter>();
+            itemListCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // ===== 右侧：Synergy 组合区域 =====
+            var synergySection = CreateUIImage(panel.transform, "SynergySection",
+                new Vector2(0.58f, 0.05f), new Vector2(0.95f, 0.88f),
+                Vector2.zero, Vector2.zero,
+                new Color(0.08f, 0.08f, 0.12f, 0.6f));
+
+            var synergySectionTitle = CreateUIText(synergySection.transform, "SynergySectionTitle", "灵力组合", 18,
+                new Vector2(0, 1), new Vector2(1, 1),
+                new Vector2(10, -30), new Vector2(-10, -5));
+            synergySectionTitle.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
+            synergySectionTitle.GetComponent<Text>().color = new Color(1f, 0.85f, 0.5f);
+
+            // Synergy 列表内容区
+            var synergyListGo = new GameObject("SynergyListContent");
+            synergyListGo.transform.SetParent(synergySection.transform, false);
+            var synergyListRT = synergyListGo.AddComponent<RectTransform>();
+            synergyListRT.anchorMin = new Vector2(0, 0);
+            synergyListRT.anchorMax = new Vector2(1, 1);
+            synergyListRT.offsetMin = new Vector2(5, 5);
+            synergyListRT.offsetMax = new Vector2(-5, -35);
+            var synergyListLayout = synergyListGo.AddComponent<VerticalLayoutGroup>();
+            synergyListLayout.spacing = 4;
+            synergyListLayout.childAlignment = TextAnchor.UpperLeft;
+            synergyListLayout.childForceExpandWidth = true;
+            synergyListLayout.childForceExpandHeight = false;
+            synergyListLayout.padding = new RectOffset(4, 4, 4, 4);
+            var synergyListCSF = synergyListGo.AddComponent<ContentSizeFitter>();
+            synergyListCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // ===== 底部：属性总览 =====
+            var statsBar = CreateUIImage(panel.transform, "StatsBar",
+                new Vector2(0.05f, 0), new Vector2(0.95f, 0.04f),
+                new Vector2(0, 5), new Vector2(0, 5),
+                new Color(0, 0, 0, 0));
+            var statsText = CreateUIText(statsBar.transform, "StatsText",
+                "攻击力 | 生命 | 移速 | 暴击率 | 减伤", 12,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            statsText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            statsText.GetComponent<Text>().color = new Color(0.5f, 0.5f, 0.6f, 0.7f);
+
+            // ===== 绑定字段到 InventoryUI =====
+            SetPrivateField(invUI, "panel", panel);
+            SetPrivateField(invUI, "itemListContent", itemListGo.transform);
+            SetPrivateField(invUI, "synergyListContent", synergyListGo.transform);
+            SetPrivateField(invUI, "titleText", titleTxt);
         }
 
         /// <summary>创建技能槽位</summary>
@@ -675,6 +868,24 @@ namespace XianTu
                 light.intensity = 1.2f;
                 lightGo.transform.rotation = Quaternion.Euler(50, -30, 0);
             }
+        }
+
+        private void CreateHitStop()
+        {
+            var go = new GameObject("HitStop");
+            go.AddComponent<HitStop>();
+        }
+
+        private void CreateLevelTransition()
+        {
+            var go = new GameObject("LevelTransition");
+            go.AddComponent<LevelTransition>();
+        }
+
+        private void CreatePostProcess()
+        {
+            var go = new GameObject("PostProcess");
+            go.AddComponent<PostProcessSetup>();
         }
 
         // ========== UI 工具方法 ==========

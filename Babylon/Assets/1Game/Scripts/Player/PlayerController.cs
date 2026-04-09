@@ -52,8 +52,13 @@ namespace XianTu
         // 攻击朝向锁定（攻击瞬间锁定朝向，攻击过程中不跟随鼠标）
         private bool _aimLocked;
 
+        // 本帧是否有闪避请求（用于阻止同帧攻击输入）
+        private bool _dashRequestedThisFrame;
+
         // 属性接口
         public CombatStats Stats => stats;
+        /// <summary>本帧是否请求了闪避（供 PlayerCombat 检查，避免同帧攻击抢占闪避）</summary>
+        public bool DashRequestedThisFrame => _dashRequestedThisFrame;
         public ItemInventory Inventory => _inventory;
         public Vector3 AimDirection => _aimDirection;
         public bool IsDashing => _isDashing;
@@ -68,6 +73,15 @@ namespace XianTu
             _inventory = GetComponent<ItemInventory>();
             _combat = GetComponent<PlayerCombat>();
             _playerAnim = GetComponent<PlayerAnimator>();
+
+            // 从 GameConfig 读取属性
+            var config = GameConfig.Instance;
+            if (config != null)
+            {
+                config.ApplyToPlayerStats(stats);
+                dashDistance = config.dashDistance;
+                dashDuration = config.dashDuration;
+            }
 
             // 初始化背包系统
             _inventory.Initialize(stats, stats);
@@ -122,13 +136,17 @@ namespace XianTu
         {
             if (!stats.IsAlive) return;
 
+            // 每帧开始重置闪避请求标记
+            _dashRequestedThisFrame = false;
+
             // 当攻击/技能结束后自动解锁朝向
             if (_aimLocked && _playerAnim.CurrentPriority < AnimationPriority.Attack)
                 _aimLocked = false;
 
+            // 闪避输入最先检测（最高优先级，确保不被攻击输入抢占）
+            HandleDash();
             HandleMovementInput();
             HandleAiming();
-            HandleDash();
             UpdateTimers();
             ApplyMovement();
             UpdateAnimation();
@@ -195,6 +213,9 @@ namespace XianTu
             var kb = Keyboard.current;
             if (kb != null && kb.spaceKey.wasPressedThisFrame)
             {
+                // 标记本帧有闪避输入，阻止同帧的攻击输入（闪避优先级最高）
+                _dashRequestedThisFrame = true;
+
                 if (_dashCooldownTimer > 0)
                 {
                     // CD中，缓冲闪避输入
@@ -371,6 +392,10 @@ namespace XianTu
 
             // 受伤闪烁效果（无论是否被打断都闪烁，给玩家视觉反馈）
             StartCoroutine(DamageFlash());
+
+            // 受击后处理脉冲（屏幕边缘变红）
+            if (PostProcessSetup.Instance != null)
+                PostProcessSetup.Instance.PulseVignette();
 
             if (!stats.IsAlive)
                 OnDeath();

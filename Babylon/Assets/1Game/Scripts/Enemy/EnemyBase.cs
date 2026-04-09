@@ -26,6 +26,7 @@ namespace XianTu
         [Header("掉落")]
         [SerializeField] private ItemData[] possibleDrops;
         [SerializeField] private float dropChance = 0.3f;
+        [SerializeField] private int _roomLevel; // 当前房间层数，用于掉率计算
 
         [Header("受击特效")]
         [SerializeField] private GameObject hitVFXPrefab;
@@ -38,6 +39,16 @@ namespace XianTu
         private Renderer _renderer;
         private Color _originalColor;
         private float _hitFlashTimer;
+        private float _stunTimer; // 受击硬直计时器
+
+        // 攻击预警
+        private GameObject _attackWarning;
+        private float _attackPrepTimer;
+        private bool _isPreparing;
+        private float _warningDuration = 0.5f;
+
+        // 血条
+        private EnemyHealthBar _healthBar;
 
         public CombatStats Stats => stats;
 
@@ -51,7 +62,20 @@ namespace XianTu
 
         private void Start()
         {
+            // 应用 GameConfig 配置
+            var config = GameConfig.Instance;
+            if (config != null)
+            {
+                stats.moveSpeed = config.enemyMoveSpeed;
+                detectRange = config.enemyDetectRange;
+                attackRange = config.enemyAttackRange;
+                attackInterval = config.enemyAttackInterval;
+            }
+
             stats.ResetHp();
+
+            // 创建头顶血条
+            _healthBar = EnemyHealthBar.Create(gameObject);
 
             // 寻找玩家
             if (PlayerController.Instance != null)
@@ -71,7 +95,29 @@ namespace XianTu
                     _renderer.material.color = _originalColor;
             }
 
+            // 硬直中不行动
+            if (_stunTimer > 0)
+            {
+                _stunTimer -= Time.deltaTime;
+                return;
+            }
+
             float distToTarget = Vector3.Distance(transform.position, _target.position);
+
+            // 攻击预警阶段
+            if (_isPreparing)
+            {
+                _attackPrepTimer -= Time.deltaTime;
+                UpdateAttackWarning();
+                if (_attackPrepTimer <= 0)
+                {
+                    Attack();
+                    _isPreparing = false;
+                    DestroyAttackWarning();
+                    _attackTimer = attackInterval;
+                }
+                return;
+            }
 
             if (distToTarget <= attackRange)
             {
@@ -79,8 +125,7 @@ namespace XianTu
                 _attackTimer -= Time.deltaTime;
                 if (_attackTimer <= 0)
                 {
-                    Attack();
-                    _attackTimer = attackInterval;
+                    StartAttackPrep();
                 }
             }
             else if (distToTarget <= detectRange)
@@ -105,9 +150,72 @@ namespace XianTu
             _cc.Move(velocity * Time.deltaTime);
         }
 
+        private void StartAttackPrep()
+        {
+            _isPreparing = true;
+            _attackPrepTimer = _warningDuration;
+            CreateAttackWarning();
+
+            // 蓄力时变色
+            if (_renderer != null)
+                _renderer.material.color = new Color(1f, 0.4f, 0.2f);
+        }
+
+        private void CreateAttackWarning()
+        {
+            DestroyAttackWarning();
+            _attackWarning = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            _attackWarning.name = "[Warning] MeleeZone";
+            _attackWarning.transform.position = transform.position + Vector3.up * 0.05f;
+            _attackWarning.transform.localScale = new Vector3(attackRange * 2f, 0.05f, attackRange * 2f);
+
+            var col = _attackWarning.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var rend = _attackWarning.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(1f, 0.2f, 0.1f, 0.2f);
+                rend.material = mat;
+            }
+        }
+
+        private void UpdateAttackWarning()
+        {
+            if (_attackWarning == null) return;
+            _attackWarning.transform.position = transform.position + Vector3.up * 0.05f;
+
+            float progress = 1f - (_attackPrepTimer / _warningDuration);
+            var rend = _attackWarning.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                float alpha = Mathf.Lerp(0.15f, 0.45f, progress);
+                rend.material.color = new Color(1f, 0.2f, 0.1f, alpha);
+            }
+        }
+
+        private void DestroyAttackWarning()
+        {
+            if (_attackWarning != null)
+            {
+                Destroy(_attackWarning);
+                _attackWarning = null;
+            }
+        }
+
         private void Attack()
         {
             if (_target == null) return;
+
+            if (_renderer != null)
+                _renderer.material.color = _originalColor;
 
             var damageable = _target.GetComponent<IDamageable>();
             if (damageable != null)
@@ -134,6 +242,10 @@ namespace XianTu
                 IsPlayerDamage = false
             });
 
+            // 更新血条
+            if (_healthBar != null)
+                _healthBar.UpdateHealth(stats.currentHp, stats.maxHp);
+
             // 受击闪白
             if (_renderer != null)
             {
@@ -158,6 +270,11 @@ namespace XianTu
                 }
             }
 
+            // 硬直
+            _stunTimer = 0.3f;
+            _isPreparing = false;
+            DestroyAttackWarning();
+
             // 击退
             if (attacker != null)
             {
@@ -166,12 +283,18 @@ namespace XianTu
                 _cc.Move(knockback);
             }
 
+            // 顿帧
+            if (HitStop.Instance != null)
+                HitStop.Instance.TriggerNormal();
+
             if (!stats.IsAlive)
                 OnDeath();
         }
 
         public void OnDeath()
         {
+            DestroyAttackWarning();
+
             // 掉落灵物
             TryDropItem();
 
@@ -190,6 +313,10 @@ namespace XianTu
                     PlayerController.Instance.Stats.Heal(healAmount);
             }
 
+            // 击杀顿帧
+            if (HitStop.Instance != null)
+                HitStop.Instance.TriggerKill();
+
             // 死亡表现（简单缩小消失）
             StartCoroutine(DeathAnimation());
         }
@@ -197,12 +324,50 @@ namespace XianTu
         private void TryDropItem()
         {
             if (possibleDrops == null || possibleDrops.Length == 0) return;
-            if (Random.value > dropChance) return;
 
-            var item = possibleDrops[Random.Range(0, possibleDrops.Length)];
-            if (item != null)
+            // 使用 GameConfig 的掉率
+            var config = GameConfig.Instance;
+            float chance = dropChance;
+            if (config != null)
+                chance = config.enemyDropChance + _roomLevel * config.dropChancePerLevel;
+
+            if (Random.value > chance) return;
+
+            // 按品阶权重选择灵物
+            ItemData selectedItem = null;
+            if (config != null)
             {
-                ItemPickup.Spawn(item, transform.position);
+                // 先随机一个品阶，再从该品阶的灵物中选
+                ItemRarity targetRarity = config.RollRarity();
+
+                // 从可掉落列表中筛选该品阶的灵物
+                var candidates = new System.Collections.Generic.List<ItemData>();
+                foreach (var item in possibleDrops)
+                {
+                    if (item != null && item.rarity == targetRarity)
+                        candidates.Add(item);
+                }
+
+                // 如果该品阶没有灵物，降级选择
+                if (candidates.Count == 0)
+                {
+                    // 回退到随机选择
+                    selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
+                }
+                else
+                {
+                    selectedItem = candidates[Random.Range(0, candidates.Count)];
+                }
+            }
+            else
+            {
+                selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
+            }
+
+            if (selectedItem != null)
+            {
+                // 在敌人脚下掉落（当前位置）
+                ItemPickup.Spawn(selectedItem, transform.position);
             }
         }
 
@@ -228,7 +393,8 @@ namespace XianTu
         /// <summary>
         /// 工厂方法：生成一个基础敌人
         /// </summary>
-        public static EnemyBase Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
+        public static EnemyBase Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f,
+            int roomLevel = 0, ItemData[] drops = null)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             go.name = "Enemy";
@@ -253,9 +419,25 @@ namespace XianTu
             cc.height = 2f;
 
             var enemy = go.AddComponent<EnemyBase>();
-            enemy.stats.maxHp *= hpMultiplier;
+
+            // 应用 GameConfig 基础属性
+            var config = GameConfig.Instance;
+            if (config != null)
+            {
+                enemy.stats.maxHp = config.enemyBaseHp * hpMultiplier;
+                enemy.stats.attackDamage = config.enemyBaseAttack * dmgMultiplier;
+            }
+            else
+            {
+                enemy.stats.maxHp *= hpMultiplier;
+                enemy.stats.attackDamage *= dmgMultiplier;
+            }
             enemy.stats.currentHp = enemy.stats.maxHp;
-            enemy.stats.attackDamage *= dmgMultiplier;
+
+            // 设置房间层数和掉落池
+            enemy._roomLevel = roomLevel;
+            if (drops != null)
+                enemy.possibleDrops = drops;
 
             return enemy;
         }

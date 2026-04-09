@@ -514,7 +514,7 @@ ModelImporter:
       will be discarded.\n\t'upperarm_r' has translation animation that will be discarded.\n\t'lowerarm_r'
       has translation animation that will be discarded.\n\t'hand_r' has translation
       animation that will be discarded.\n\t'head' has translation animation that
-      will be discarded.\nEvent OnSkillEnd has a time (9.987843) outside the clip's
+      will be discarded.\nEvent OnSkillEnd has a time (20.375198) outside the clip's
       valid range (0.000000..2.400000). It will never be fired"
     animationRetargetingWarnings: 
     animationDoRetargetingWarnings: 0
@@ -545,15 +545,15 @@ ModelImporter:
       loopBlendOrientation: 1
       loopBlendPositionY: 1
       loopBlendPositionXZ: 1
-      keepOriginalOrientation: 0
+      keepOriginalOrientation: 1
       keepOriginalPositionY: 1
-      keepOriginalPositionXZ: 0
+      keepOriginalPositionXZ: 1
       heightFromFeet: 0
       mirror: 0
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
       events:
-      - time: 8.489666
+      - time: 1.9200001
         functionName: OnSkillEnd
         data: 
         objectReferenceParameter: {instanceID: 0}

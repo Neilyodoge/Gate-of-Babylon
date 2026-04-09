@@ -35,6 +35,9 @@ namespace XianTu
         public float damageScaling = 0.5f;
         /// <summary>冷却时间（秒）</summary>
         public float cooldown = 8f;
+        /// <summary>释放速度倍率（1.0 = 默认速度，越大越快）</summary>
+        [Range(0.5f, 3f)]
+        public float castSpeed = 1f;
 
         [Header("范围伤害参数")]
         public float aoeRadius = 3f;

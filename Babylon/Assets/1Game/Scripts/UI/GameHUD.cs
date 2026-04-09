@@ -26,6 +26,14 @@ namespace XianTu
         [SerializeField] private Text skillQCooldownText;
         [SerializeField] private Image skillQIcon;
 
+        [SerializeField] private Image skillECooldownFill;
+        [SerializeField] private Text skillECooldownText;
+        [SerializeField] private Image skillEIcon;
+
+        [SerializeField] private Image skillWCooldownFill;
+        [SerializeField] private Text skillWCooldownText;
+        [SerializeField] private Image skillWIcon;
+
         [Header("闪避CD")]
         [SerializeField] private Image dashCooldownFill;
         [SerializeField] private Text dashCooldownText;
@@ -62,6 +70,7 @@ namespace XianTu
         private float _damageBarDelay;
         private const float DAMAGE_BAR_DELAY = 0.5f;
         private const float DAMAGE_BAR_SPEED = 2f;
+        private bool _initialized;
 
         // 连招颜色
         private readonly Color _comboInactiveColor = new(0.3f, 0.3f, 0.3f, 0.5f);
@@ -90,6 +99,7 @@ namespace XianTu
             {
                 var stats = PlayerController.Instance.Stats;
                 UpdateHpDisplay(stats.currentHp, stats.maxHp);
+                _initialized = true;
             }
 
             // 隐藏面板
@@ -109,6 +119,14 @@ namespace XianTu
         private void Update()
         {
             float dt = Time.deltaTime;
+
+            // 延迟初始化：确保 PlayerController 准备好后立即初始化血条
+            if (!_initialized && PlayerController.Instance != null)
+            {
+                var stats = PlayerController.Instance.Stats;
+                UpdateHpDisplay(stats.currentHp, stats.maxHp);
+                _initialized = true;
+            }
 
             // 消息淡出
             if (_messageTimer > 0)
@@ -199,20 +217,48 @@ namespace XianTu
 
         private void OnSkillCooldownUpdate(GameEvents.SkillCooldownUpdate evt)
         {
-            if (evt.SlotIndex != 0) return;
-
-            if (skillQCooldownFill != null)
-                skillQCooldownFill.fillAmount = evt.TotalCooldown > 0 ? evt.RemainingTime / evt.TotalCooldown : 0;
-            if (skillQCooldownText != null)
+            if (evt.SlotIndex == 0)
             {
-                if (evt.RemainingTime > 0)
-                    skillQCooldownText.text = $"{evt.RemainingTime:F1}";
-                else
-                    skillQCooldownText.text = "Q";
+                if (skillQCooldownFill != null)
+                    skillQCooldownFill.fillAmount = evt.TotalCooldown > 0 ? evt.RemainingTime / evt.TotalCooldown : 0;
+                if (skillQCooldownText != null)
+                {
+                    if (evt.RemainingTime > 0)
+                        skillQCooldownText.text = $"{evt.RemainingTime:F1}";
+                    else
+                        skillQCooldownText.text = "Q";
+                }
+                if (skillQIcon != null)
+                    skillQIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
             }
-            // 图标变暗/恢复
-            if (skillQIcon != null)
-                skillQIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+            else if (evt.SlotIndex == 1)
+            {
+                if (skillECooldownFill != null)
+                    skillECooldownFill.fillAmount = evt.TotalCooldown > 0 ? evt.RemainingTime / evt.TotalCooldown : 0;
+                if (skillECooldownText != null)
+                {
+                    if (evt.RemainingTime > 0)
+                        skillECooldownText.text = $"{evt.RemainingTime:F1}";
+                    else
+                        skillECooldownText.text = "E";
+                }
+                if (skillEIcon != null)
+                    skillEIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+            }
+            else if (evt.SlotIndex == 2)
+            {
+                if (skillWCooldownFill != null)
+                    skillWCooldownFill.fillAmount = evt.TotalCooldown > 0 ? evt.RemainingTime / evt.TotalCooldown : 0;
+                if (skillWCooldownText != null)
+                {
+                    if (evt.RemainingTime > 0)
+                        skillWCooldownText.text = $"{evt.RemainingTime:F1}";
+                    else
+                        skillWCooldownText.text = "R";
+                }
+                if (skillWIcon != null)
+                    skillWIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+            }
         }
 
         // ==================== 闪避CD ====================

@@ -160,5 +160,20 @@ namespace XianTu
             public int ComboStep;    // 当前段数 0/1/2
             public bool IsAttacking; // 是否在攻击中
         }
+
+        /// <summary>Synergy 组合激活</summary>
+        public struct SynergyActivated
+        {
+            public string SynergyName;
+            public string Description;
+        }
+
+        /// <summary>灵物质变触发</summary>
+        public struct QualitativeTriggered
+        {
+            public ItemData Item;
+            public int Count;
+            public string EffectDescription;
+        }
     }
 }

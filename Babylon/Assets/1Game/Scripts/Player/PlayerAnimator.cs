@@ -148,10 +148,11 @@ namespace XianTu
                     if (!inExpectedState && !animator.IsInTransition(0))
                     {
                         Debug.LogWarning($"[PlayerAnimator] 检测到动画事件丢失！Animator已离开{_currentPriority}状态，强制重置");
+                        var lostPriority = _currentPriority;
                         _currentPriority = AnimationPriority.None;
                         _superArmor = false;
                         _attackHitWindowOpen = false;
-                        if (_currentPriority == AnimationPriority.Attack)
+                        if (lostPriority == AnimationPriority.Attack)
                             ResetComboInternal();
                         TryConsumeInputBuffer();
                     }
@@ -349,6 +350,7 @@ namespace XianTu
         /// <summary>
         /// 播放闪避动画
         /// 哈迪斯核心：闪避优先级最高（除死亡外），可以打断一切动作
+        /// 使用 CrossFade 强制切换，不依赖 Trigger（避免 Animator 过渡中吞掉 Trigger）
         /// </summary>
         public bool PlayEvade()
         {
@@ -371,7 +373,11 @@ namespace XianTu
             animator.ResetTrigger(AttackTrigger);
             animator.ResetTrigger(HitTrigger);
             animator.ResetTrigger(SkillTrigger);
-            animator.SetTrigger(EvadeTrigger);
+            animator.ResetTrigger(EvadeTrigger);
+
+            // 使用 CrossFade 强制切换到闪避动画
+            // 不依赖 Trigger 机制，因为 Animator 在过渡中可能吞掉 Trigger
+            animator.CrossFade("Evade", 0.05f, 0);
 
             return true;
         }
@@ -430,7 +436,8 @@ namespace XianTu
         // ==================== 技能 ====================
 
         /// <summary>播放技能动画</summary>
-        public bool PlaySkill()
+        /// <param name="castSpeed">技能动画播放速度倍率（1.0 = 默认速度）</param>
+        public bool PlaySkill(float castSpeed = 1f)
         {
             if (animator == null) return false;
 
@@ -454,6 +461,9 @@ namespace XianTu
             animator.ResetTrigger(SkillTrigger); // 先清除旧的，防止残留
             animator.SetBool(IsAttacking, false);
             animator.SetTrigger(SkillTrigger);
+
+            // 设置技能动画播放速度
+            animator.speed = Mathf.Clamp(castSpeed, 0.5f, 3f);
 
             return true;
         }
@@ -577,6 +587,9 @@ namespace XianTu
 
             if (animator != null)
             {
+                // 恢复动画播放速度（技能释放时可能修改过）
+                animator.speed = 1f;
+
                 // 清除可能残留的 Skill Trigger，防止误触发
                 animator.ResetTrigger(SkillTrigger);
 
@@ -674,6 +687,7 @@ namespace XianTu
                 animator.ResetTrigger(EvadeTrigger);
                 animator.ResetTrigger(SkillTrigger);
                 animator.SetBool(IsAttacking, false);
+                animator.speed = 1f; // 恢复动画播放速度
 
                 // 强制 Animator 切回 Idle/Run（通过 CrossFade 直接打断当前状态）
                 // 这解决了超时重置后 Animator 仍在播放旧动画的问题

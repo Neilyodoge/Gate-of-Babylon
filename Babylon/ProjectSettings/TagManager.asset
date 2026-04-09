@@ -8,6 +8,7 @@ TagManager:
   - CinemachineTarget
   - ScreenCamera
   - cockpit_capitalLaser
+  - Enemy
   layers:
   - Default
   - TransparentFX
@@ -22,11 +23,11 @@ TagManager:
   - Occluder
   - Camera
   - MainCameraOnly
+  - Enemy
   - 
   - 
-  - 
-  - 
-  - 
+  - Character_Hair
+  - Character
   - 
   - 
   - Cockpit
