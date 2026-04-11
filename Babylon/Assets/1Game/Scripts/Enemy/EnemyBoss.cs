@@ -55,8 +55,8 @@ namespace XianTu
         private Vector3 _aoeTargetPos;
 
         // 受击表现
-        private Renderer _renderer;
-        private Color _originalColor;
+        private Renderer[] _renderers;
+        private Color[] _originalColors;
         private float _hitFlashTimer;
         private bool _phase2Triggered;
 
@@ -72,9 +72,10 @@ namespace XianTu
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
-            _renderer = GetComponentInChildren<Renderer>();
-            if (_renderer != null)
-                _originalColor = _renderer.material.color;
+            _renderers = GetComponentsInChildren<Renderer>();
+            _originalColors = new Color[_renderers.Length];
+            for (int i = 0; i < _renderers.Length; i++)
+                _originalColors[i] = _renderers[i].material.color;
         }
 
         private void Start()
@@ -128,8 +129,8 @@ namespace XianTu
             if (_hitFlashTimer > 0)
             {
                 _hitFlashTimer -= Time.deltaTime;
-                if (_hitFlashTimer <= 0 && _renderer != null)
-                    _renderer.material.color = _originalColor;
+                if (_hitFlashTimer <= 0)
+                    RestoreColors();
             }
 
             if (_stunTimer > 0)
@@ -188,9 +189,9 @@ namespace XianTu
                 _phase = BossPhase.Phase2;
                 stats.moveSpeed *= 1.3f;
 
-                // 阶段转换视觉效果
-                if (_renderer != null)
-                    _originalColor = new Color(1f, 0.3f, 0.1f); // 变红
+                // 阶段转换视觉效果：所有Renderer变红
+                for (int i = 0; i < _originalColors.Length; i++)
+                    _originalColors[i] = new Color(1f, 0.3f, 0.1f);
 
                 Debug.Log("<color=red>★ Boss 进入狂暴阶段！★</color>");
 
@@ -270,8 +271,7 @@ namespace XianTu
             _chargeDirection.y = 0;
 
             CreateWarningIndicator(true);
-            if (_renderer != null)
-                _renderer.material.color = new Color(1f, 0.6f, 0.1f);
+            SetAllRenderersColor(new Color(1f, 0.6f, 0.1f));
         }
 
         private void UpdateChargePrepare()
@@ -289,8 +289,7 @@ namespace XianTu
                 _action = BossAction.Charging;
                 _actionTimer = chargeDuration;
                 DestroyWarningIndicator();
-                if (_renderer != null)
-                    _renderer.material.color = new Color(1f, 0.2f, 0.1f);
+                SetAllRenderersColor(new Color(1f, 0.2f, 0.1f));
             }
         }
 
@@ -322,8 +321,7 @@ namespace XianTu
             _aoeTargetPos = _target.position;
             CreateWarningIndicator(false);
 
-            if (_renderer != null)
-                _renderer.material.color = new Color(0.6f, 0.1f, 0.8f);
+            SetAllRenderersColor(new Color(0.6f, 0.1f, 0.8f));
         }
 
         private void UpdateAOECast()
@@ -335,8 +333,7 @@ namespace XianTu
             {
                 ExecuteAOE();
                 DestroyWarningIndicator();
-                if (_renderer != null)
-                    _renderer.material.color = _originalColor;
+                RestoreColors();
                 _aoeTimer = aoeInterval;
                 _action = BossAction.Tracking;
             }
@@ -355,7 +352,7 @@ namespace XianTu
             var rend = explosion.GetComponent<Renderer>();
             if (rend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.SetFloat("_Surface", 1);
                 mat.SetOverrideTag("RenderType", "Transparent");
                 mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
@@ -389,8 +386,7 @@ namespace XianTu
             _actionTimer = stunTime;
             _chargeTimer = chargeInterval;
             DestroyWarningIndicator();
-            if (_renderer != null)
-                _renderer.material.color = _originalColor;
+            RestoreColors();
         }
 
         private void MoveTowards(Vector3 targetPos)
@@ -424,7 +420,7 @@ namespace XianTu
             var wRend = _warningIndicator.GetComponent<Renderer>();
             if (wRend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.SetFloat("_Surface", 1);
                 mat.SetOverrideTag("RenderType", "Transparent");
                 mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
@@ -495,11 +491,8 @@ namespace XianTu
             if (_healthBar != null)
                 _healthBar.UpdateHealth(stats.currentHp, stats.maxHp);
 
-            if (_renderer != null)
-            {
-                _renderer.material.color = Color.white;
-                _hitFlashTimer = 0.1f;
-            }
+            SetAllRenderersColor(Color.white);
+            _hitFlashTimer = 0.1f;
 
             // Boss硬直较短
             _stunTimer = 0.15f;
@@ -517,6 +510,8 @@ namespace XianTu
 
         public void OnDeath()
         {
+            gameObject.tag = "Untagged";
+
             DestroyWarningIndicator();
             TryDropItem();
             GameEvents.Publish(new GameEvents.EnemyKilled
@@ -574,35 +569,48 @@ namespace XianTu
         public static EnemyBoss Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f,
             int roomLevel = 0, ItemData[] drops = null)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "Enemy_Boss";
+            var prefabs = MonsterPrefabs.Instance;
+            var prefab = prefabs != null ? prefabs.Boss敌人Prefab : null;
+            var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy_Boss");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");
             go.layer = enemyLayerIndex >= 0 ? enemyLayerIndex : LayerMask.NameToLayer("Default");
-            go.transform.position = position;
-            go.transform.localScale = new Vector3(1.8f, 1.8f, 1.8f); // Boss体型大
+            EnemyBase.SetLayerRecursively(go, go.layer);
 
-            var renderer = go.GetComponent<Renderer>();
-            if (renderer != null)
+            if (prefab == null)
             {
-                renderer.material.color = new Color(0.6f, 0.1f, 0.1f);
-                renderer.material.EnableKeyword("_EMISSION");
-                renderer.material.SetColor("_EmissionColor", new Color(0.4f, 0.05f, 0.05f));
+                go.transform.localScale = new Vector3(1.8f, 1.8f, 1.8f);
+                var renderer = go.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    renderer.material.color = new Color(0.6f, 0.1f, 0.1f);
+                    renderer.material.EnableKeyword("_EMISSION");
+                    renderer.material.SetColor("_EmissionColor", new Color(0.4f, 0.05f, 0.05f));
+                }
+            }
+            else
+            {
+                // Prefab模型的Boss适当放大
+                go.transform.localScale = Vector3.one * 2f;
             }
 
-            var defaultCol = go.GetComponent<Collider>();
-            if (defaultCol != null) Object.Destroy(defaultCol);
+            var existingCols = go.GetComponents<Collider>();
+            foreach (var c in existingCols) Object.Destroy(c);
+            // 也移除子物体上的碰撞体，避免冲突
+            var childCols = go.GetComponentsInChildren<Collider>();
+            foreach (var c in childCols) Object.Destroy(c);
 
             var cc = go.AddComponent<CharacterController>();
-            cc.radius = 0.6f;
-            cc.height = 2f;
+            cc.radius = 1.0f;   // 匹配大体型
+            cc.height = 3.6f;   // 匹配大体型
+            cc.center = new Vector3(0, 1.8f, 0);
 
             var boss = go.AddComponent<EnemyBoss>();
             var config = GameConfig.Instance;
             if (config != null)
             {
-                boss.stats.maxHp = config.enemyBaseHp * 8f * hpMultiplier;
-                boss.stats.attackDamage = config.enemyBaseAttack * 3f * dmgMultiplier;
+                boss.stats.maxHp = config.敌人基础血量 * 8f * hpMultiplier;
+                boss.stats.attackDamage = config.敌人基础攻击力 * 3f * dmgMultiplier;
             }
             else
             {
@@ -619,6 +627,23 @@ namespace XianTu
         private void OnDestroy()
         {
             DestroyWarningIndicator();
+        }
+
+        /// <summary>设置所有Renderer的颜色</summary>
+        private void SetAllRenderersColor(Color color)
+        {
+            if (_renderers == null) return;
+            foreach (var r in _renderers)
+                if (r != null) r.material.color = color;
+        }
+
+        /// <summary>恢复所有Renderer的原始颜色</summary>
+        private void RestoreColors()
+        {
+            if (_renderers == null || _originalColors == null) return;
+            for (int i = 0; i < _renderers.Length; i++)
+                if (_renderers[i] != null && i < _originalColors.Length)
+                    _renderers[i].material.color = _originalColors[i];
         }
     }
 }

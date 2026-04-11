@@ -30,9 +30,9 @@ namespace XianTu
         [SerializeField] private Text skillECooldownText;
         [SerializeField] private Image skillEIcon;
 
-        [SerializeField] private Image skillWCooldownFill;
-        [SerializeField] private Text skillWCooldownText;
-        [SerializeField] private Image skillWIcon;
+        [SerializeField] private Image skillRCooldownFill;
+        [SerializeField] private Text skillRCooldownText;
+        [SerializeField] private Image skillRIcon;
 
         [Header("闪避CD")]
         [SerializeField] private Image dashCooldownFill;
@@ -47,6 +47,9 @@ namespace XianTu
 
         [Header("灵物计数")]
         [SerializeField] private Text itemCountText;
+
+        [Header("资源显示")]
+        [SerializeField] private Text shardCountText;
 
         [Header("提示信息")]
         [SerializeField] private Text messageText;
@@ -93,6 +96,7 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.EnemyCountChanged>(OnEnemyCountChanged);
             GameEvents.Subscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
             GameEvents.Subscribe<GameEvents.GameWon>(OnGameWon);
+            GameEvents.Subscribe<GameEvents.ResourceChanged>(OnResourceChanged);
 
             // 初始化显示
             if (PlayerController.Instance != null)
@@ -247,17 +251,17 @@ namespace XianTu
             }
             else if (evt.SlotIndex == 2)
             {
-                if (skillWCooldownFill != null)
-                    skillWCooldownFill.fillAmount = evt.TotalCooldown > 0 ? evt.RemainingTime / evt.TotalCooldown : 0;
-                if (skillWCooldownText != null)
+                if (skillRCooldownFill != null)
+                    skillRCooldownFill.fillAmount = evt.TotalCooldown > 0 ? evt.RemainingTime / evt.TotalCooldown : 0;
+                if (skillRCooldownText != null)
                 {
                     if (evt.RemainingTime > 0)
-                        skillWCooldownText.text = $"{evt.RemainingTime:F1}";
+                        skillRCooldownText.text = $"{evt.RemainingTime:F1}";
                     else
-                        skillWCooldownText.text = "R";
+                        skillRCooldownText.text = "R";
                 }
-                if (skillWIcon != null)
-                    skillWIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+                if (skillRIcon != null)
+                    skillRIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
             }
         }
 
@@ -353,6 +357,18 @@ namespace XianTu
             itemCountText.text = $"{items.Count}";
         }
 
+        // ==================== 资源 ====================
+
+        private void OnResourceChanged(GameEvents.ResourceChanged evt)
+        {
+            if (shardCountText != null)
+                shardCountText.text = $"{evt.SpiritShards}";
+
+            // 获得碎片时显示提示
+            if (evt.Delta > 0)
+                ShowMessage($"<color=#88CCFF>获得灵力碎片 +{evt.Delta}</color>");
+        }
+
         // ==================== 房间清理 ====================
 
         private void OnRoomCleared(GameEvents.RoomCleared evt)
@@ -422,6 +438,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.EnemyCountChanged>(OnEnemyCountChanged);
             GameEvents.Unsubscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
             GameEvents.Unsubscribe<GameEvents.GameWon>(OnGameWon);
+            GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
         }
     }
 }

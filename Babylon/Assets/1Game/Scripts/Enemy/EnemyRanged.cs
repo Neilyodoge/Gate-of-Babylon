@@ -42,8 +42,8 @@ namespace XianTu
         private Vector3 _warningDirection;
 
         // 受击表现
-        private Renderer _renderer;
-        private Color _originalColor;
+        private Renderer[] _renderers;
+        private Color[] _originalColors;
         private float _hitFlashTimer;
         private float _stunTimer; // 硬直计时器
 
@@ -58,9 +58,10 @@ namespace XianTu
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
-            _renderer = GetComponentInChildren<Renderer>();
-            if (_renderer != null)
-                _originalColor = _renderer.material.color;
+            _renderers = GetComponentsInChildren<Renderer>();
+            _originalColors = new Color[_renderers.Length];
+            for (int i = 0; i < _renderers.Length; i++)
+                _originalColors[i] = _renderers[i].material.color;
         }
 
         private void Start()
@@ -97,8 +98,8 @@ namespace XianTu
             if (_hitFlashTimer > 0)
             {
                 _hitFlashTimer -= Time.deltaTime;
-                if (_hitFlashTimer <= 0 && _renderer != null)
-                    _renderer.material.color = _originalColor;
+                if (_hitFlashTimer <= 0)
+                    RestoreColors();
             }
 
             // 硬直中不行动
@@ -207,7 +208,7 @@ namespace XianTu
             var rend = projGo.GetComponent<Renderer>();
             if (rend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.color = new Color(1f, 0.3f, 0.1f);
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", new Color(1f, 0.3f, 0.1f) * 2f);
@@ -251,11 +252,8 @@ namespace XianTu
                 _healthBar.UpdateHealth(stats.currentHp, stats.maxHp);
 
             // 受击闪白
-            if (_renderer != null)
-            {
-                _renderer.material.color = Color.white;
-                _hitFlashTimer = 0.1f;
-            }
+            SetAllRenderersColor(Color.white);
+            _hitFlashTimer = 0.1f;
 
             // 硬直
             _stunTimer = 0.3f;
@@ -280,6 +278,8 @@ namespace XianTu
 
         public void OnDeath()
         {
+            gameObject.tag = "Untagged";
+
             TryDropItem();
             GameEvents.Publish(new GameEvents.EnemyKilled
             {
@@ -306,7 +306,7 @@ namespace XianTu
             var config = GameConfig.Instance;
             float chance = 0.3f;
             if (config != null)
-                chance = config.enemyDropChance + _roomLevel * config.dropChancePerLevel;
+                chance = config.敌人掉落概率 + _roomLevel * config.每层掉率增加;
             if (Random.value > chance) return;
 
             ItemData selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
@@ -333,31 +333,36 @@ namespace XianTu
         public static EnemyRanged Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f,
             int roomLevel = 0, ItemData[] drops = null)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "Enemy_Ranged";
+            var prefabs = MonsterPrefabs.Instance;
+            var prefab = prefabs != null ? prefabs.远程敌人Prefab : null;
+            var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy_Ranged");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");
             go.layer = enemyLayerIndex >= 0 ? enemyLayerIndex : LayerMask.NameToLayer("Default");
-            go.transform.position = position;
-            go.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f); // 比普通敌人小
+            EnemyBase.SetLayerRecursively(go, go.layer);
 
-            var renderer = go.GetComponent<Renderer>();
-            if (renderer != null)
-                renderer.material.color = new Color(0.2f, 0.6f, 0.2f); // 绿色
+            if (prefab == null)
+            {
+                go.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
+                var renderer = go.GetComponent<Renderer>();
+                if (renderer != null)
+                    renderer.material.color = new Color(0.2f, 0.6f, 0.2f);
+            }
 
-            var defaultCol = go.GetComponent<Collider>();
-            if (defaultCol != null) Object.Destroy(defaultCol);
+            var existingCols = go.GetComponentsInChildren<Collider>();
+            foreach (var c in existingCols) Object.Destroy(c);
 
             var cc = go.AddComponent<CharacterController>();
             cc.radius = 0.35f;
             cc.height = 1.8f;
+            cc.center = new Vector3(0, 0.9f, 0);
 
             var enemy = go.AddComponent<EnemyRanged>();
             var config = GameConfig.Instance;
             if (config != null)
             {
-                enemy.stats.maxHp = config.enemyBaseHp * 0.7f * hpMultiplier; // 远程血少
-                enemy.stats.attackDamage = config.enemyBaseAttack * 1.2f * dmgMultiplier; // 伤害高
+                enemy.stats.maxHp = config.敌人基础血量 * 0.7f * hpMultiplier; // 远程血少
+                enemy.stats.attackDamage = config.敌人基础攻击力 * 1.2f * dmgMultiplier; // 伤害高
             }
             else
             {
@@ -369,6 +374,23 @@ namespace XianTu
             if (drops != null) enemy.possibleDrops = drops;
 
             return enemy;
+        }
+
+        /// <summary>设置所有Renderer的颜色</summary>
+        private void SetAllRenderersColor(Color color)
+        {
+            if (_renderers == null) return;
+            foreach (var r in _renderers)
+                if (r != null) r.material.color = color;
+        }
+
+        /// <summary>恢复所有Renderer的原始颜色</summary>
+        private void RestoreColors()
+        {
+            if (_renderers == null || _originalColors == null) return;
+            for (int i = 0; i < _renderers.Length; i++)
+                if (_renderers[i] != null && i < _originalColors.Length)
+                    _renderers[i].material.color = _originalColors[i];
         }
     }
 }

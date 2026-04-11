@@ -89,6 +89,26 @@ namespace XianTu
         }
 
         /// <summary>
+        /// 移除指定数量的灵物（背包分解时调用）
+        /// </summary>
+        public void RemoveItem(ItemData item, int amount = 1)
+        {
+            if (item == null || !_items.ContainsKey(item)) return;
+
+            _items[item] -= amount;
+            if (_items[item] <= 0)
+                _items.Remove(item);
+
+            // 重新计算属性
+            RecalculateStats();
+
+            // 检查 Synergy
+            SynergySystem.CheckSynergies(_items, _playerStats);
+
+            Debug.Log($"<color=gray>移除灵物：{item.itemName} x{amount}</color>");
+        }
+
+        /// <summary>
         /// 重新计算所有属性（每次灵物变化时调用）
         /// 从基础值开始，叠加所有灵物效果
         /// </summary>

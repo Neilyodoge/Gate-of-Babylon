@@ -356,7 +356,7 @@ namespace XianTu
                 var renderer = glow.GetComponent<Renderer>();
                 if (renderer != null)
                 {
-                    var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                    var mat = new Material(MaterialHelper.GetLitShader());
                     mat.color = CORNER_GLOW_COLOR;
                     // 自发光
                     mat.EnableKeyword("_EMISSION");
@@ -394,7 +394,7 @@ namespace XianTu
             var renderer = go.GetComponent<Renderer>();
             if (renderer != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.color = color;
                 renderer.material = mat;
             }
@@ -491,7 +491,7 @@ namespace XianTu
             var baseRend = base_.GetComponent<Renderer>();
             if (baseRend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.color = new Color(0.3f, 0.15f, 0.05f);
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", new Color(0.5f, 0.2f, 0.05f));
@@ -510,7 +510,7 @@ namespace XianTu
             var flameRend = flame.GetComponent<Renderer>();
             if (flameRend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.SetFloat("_Surface", 1);
                 mat.SetOverrideTag("RenderType", "Transparent");
                 mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);

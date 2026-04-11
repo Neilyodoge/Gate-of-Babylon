@@ -20,6 +20,9 @@ namespace XianTu.Editor
         private const string FRANK_ANIM_FBX_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Animations/FBX/";
         private const string FRANK_MESH_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Meshes/";
 
+        // 怪物资源包路径
+        private const string MONSTER_PACK_PATH = "Assets/1Game/ArtRes/Package/Monsters Ultimate Pack 05 Cute Series/";
+
         // ==================== 菜单项 ====================
 
         [MenuItem("仙途梦境/① 配置 Tags 和 Layers", false, 1)]
@@ -441,6 +444,56 @@ namespace XianTu.Editor
 
             Debug.Log($"<color=green>✅ Demo1 场景已创建：{scenePath}</color>");
             Debug.Log("<color=yellow>请接着执行 ④ 自动配置 Demo1 场景</color>");
+        }
+
+        [MenuItem("仙途梦境/⑥ 创建怪物预制体配置", false, 6)]
+        public static void CreateMonsterPrefabsConfig()
+        {
+            string configPath = "Assets/1Game/Resources/MonsterPrefabs.asset";
+
+            // 加载各怪物Prefab
+            var creeper = AssetDatabase.LoadAssetAtPath<GameObject>(
+                MONSTER_PACK_PATH + "Creeper Cute Series/Prefabs/Creeper.prefab");
+            var haunt = AssetDatabase.LoadAssetAtPath<GameObject>(
+                MONSTER_PACK_PATH + "Haunt Cute Series/Prefabs/Haunt.prefab");
+            var lurker = AssetDatabase.LoadAssetAtPath<GameObject>(
+                MONSTER_PACK_PATH + "Lurker Cute Series/Prefabs/Lurker.prefab");
+            var soulMage = AssetDatabase.LoadAssetAtPath<GameObject>(
+                MONSTER_PACK_PATH + "Soul Mage Cute Series/Prefabs/Soul Mage.prefab");
+            var dragonDarkness = AssetDatabase.LoadAssetAtPath<GameObject>(
+                MONSTER_PACK_PATH + "Dragon Darkness Cute Series/Prefabs/Dragon Darkness.prefab");
+
+            // 创建或更新配置
+            var existing = AssetDatabase.LoadAssetAtPath<MonsterPrefabs>(configPath);
+            MonsterPrefabs config;
+            if (existing != null)
+            {
+                config = existing;
+            }
+            else
+            {
+                config = ScriptableObject.CreateInstance<MonsterPrefabs>();
+                AssetDatabase.CreateAsset(config, configPath);
+            }
+
+            config.普通小怪Prefab = creeper;
+            config.远程敌人Prefab = haunt;
+            config.冲锋敌人Prefab = lurker;
+            config.法师敌人Prefab = soulMage;
+            config.Boss敌人Prefab = dragonDarkness;
+
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            Debug.Log("<color=green>✅ 怪物预制体配置创建完成！</color>");
+            Debug.Log($"  普通小怪：{(creeper != null ? "Creeper ✓" : "❌ 未找到")}");
+            Debug.Log($"  远程敌人：{(haunt != null ? "Haunt ✓" : "❌ 未找到")}");
+            Debug.Log($"  冲锋敌人：{(lurker != null ? "Lurker ✓" : "❌ 未找到")}");
+            Debug.Log($"  法师敌人：{(soulMage != null ? "Soul Mage ✓" : "❌ 未找到")}");
+            Debug.Log($"  Boss敌人：{(dragonDarkness != null ? "Dragon Darkness ✓" : "❌ 未找到")}");
+
+            Selection.activeObject = config;
         }
 
         // ==================== 动画工具方法 ====================

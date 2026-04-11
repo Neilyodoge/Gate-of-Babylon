@@ -27,7 +27,7 @@ namespace XianTu
         [Header("技能槽位")]
         [SerializeField] private SkillData skillQ;
         [SerializeField] private SkillData skillE;
-        [SerializeField] private SkillData skillW;
+        [SerializeField] private SkillData skillR;
 
         [Header("Debug 可视化")]
         [SerializeField] private bool showDebugVisuals = true;
@@ -36,7 +36,7 @@ namespace XianTu
         private PlayerAnimator _playerAnim;
         private float _skillQCooldown;
         private float _skillECooldown;
-        private float _skillWCooldown;
+        private float _skillRCooldown;
 
         // 攻击判定：每段攻击只判定一次
         private bool _hasHitThisSwing;
@@ -79,7 +79,10 @@ namespace XianTu
                 // 哈迪斯风格：如果同帧按了闪避，闪避优先，跳过攻击输入
                 if (_player.DashRequestedThisFrame) return;
 
-                _playerAnim.RequestAttack();
+                // 鼠标在UI槽位上时不攻击（拖拽或点击槽位）
+                if (SkillBarUI.Instance != null && SkillBarUI.Instance.IsMouseOverSlot) return;
+
+                _playerAnim.RequestAttack(_player.Stats.attackSpeed);
             }
         }
 
@@ -149,9 +152,9 @@ namespace XianTu
             {
                 switch (comboStep)
                 {
-                    case 0: return config.combo1DamageMultiplier;
-                    case 1: return config.combo2DamageMultiplier;
-                    case 2: return config.combo3DamageMultiplier;
+                    case 0: return config.第一段伤害倍率;
+                    case 1: return config.第二段伤害倍率;
+                    case 2: return config.第三段伤害倍率;
                     default: return 1.0f;
                 }
             }
@@ -223,38 +226,46 @@ namespace XianTu
             // Q 技能
             if (kb.qKey.wasPressedThisFrame && skillQ != null && _skillQCooldown <= 0)
             {
-                UseSkill(skillQ, 0);
-                _skillQCooldown = skillQ.cooldown;
+                if (UseSkill(skillQ, 0))
+                    _skillQCooldown = skillQ.cooldown;
             }
 
             // E 技能
             if (kb.eKey.wasPressedThisFrame && skillE != null && _skillECooldown <= 0)
             {
-                UseSkill(skillE, 1);
-                _skillECooldown = skillE.cooldown;
+                if (UseSkill(skillE, 1))
+                    _skillECooldown = skillE.cooldown;
             }
 
-            // W 技能
-            if (kb.rKey.wasPressedThisFrame && skillW != null && _skillWCooldown <= 0)
+            // R 技能
+            if (kb.rKey.wasPressedThisFrame && skillR != null && _skillRCooldown <= 0)
             {
-                UseSkill(skillW, 2);
-                _skillWCooldown = skillW.cooldown;
+                if (UseSkill(skillR, 2))
+                    _skillRCooldown = skillR.cooldown;
             }
         }
 
-        /// <summary>使用技能</summary>
-        private void UseSkill(SkillData skill, int slotIndex)
+        /// <summary>使用技能（返回是否成功释放）</summary>
+        private bool UseSkill(SkillData skill, int slotIndex)
         {
-            if (skill == null) return;
+            if (skill == null) return false;
+
+            // Buff类技能立即生效，不需要播放技能动画
+            if (skill.skillType == SkillType.Buff)
+            {
+                Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
+                CastBuffSkill(skill);
+                return true;
+            }
 
             // 计算技能释放速度：优先使用技能自身配置，否则使用全局配置
             float castSpeed = skill.castSpeed > 0.01f ? skill.castSpeed : 1f;
             var config = GameConfig.Instance;
             if (config != null && Mathf.Approximately(castSpeed, 1f))
-                castSpeed = config.skillCastSpeed;
+                castSpeed = config.技能释放速度;
 
             // 尝试播放技能动画（遵循优先级系统）
-            if (!_playerAnim.PlaySkill(castSpeed)) return;
+            if (!_playerAnim.PlaySkill(castSpeed)) return false;
 
             Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
 
@@ -268,10 +279,9 @@ namespace XianTu
                     break;
                 case SkillType.Dash:
                     break;
-                case SkillType.Buff:
-                    CastBuffSkill(skill);
-                    break;
             }
+
+            return true;
         }
 
         /// <summary>范围伤害技能（如落石术）</summary>
@@ -419,16 +429,16 @@ namespace XianTu
                 }
             }
 
-            if (_skillWCooldown > 0)
+            if (_skillRCooldown > 0)
             {
-                _skillWCooldown -= Time.deltaTime;
-                if (skillW != null)
+                _skillRCooldown -= Time.deltaTime;
+                if (skillR != null)
                 {
                     GameEvents.Publish(new GameEvents.SkillCooldownUpdate
                     {
                         SlotIndex = 2,
-                        RemainingTime = Mathf.Max(0, _skillWCooldown),
-                        TotalCooldown = skillW.cooldown
+                        RemainingTime = Mathf.Max(0, _skillRCooldown),
+                        TotalCooldown = skillR.cooldown
                     });
                 }
             }
@@ -475,11 +485,64 @@ namespace XianTu
             enemyLayer = layer;
         }
 
-        /// <summary>装备技能到W槽位</summary>
-        public void EquipSkillW(SkillData skill)
+        /// <summary>装备技能到R槽位</summary>
+        public void EquipSkillR(SkillData skill)
         {
-            skillW = skill;
-            _skillWCooldown = 0;
+            skillR = skill;
+            _skillRCooldown = 0;
+        }
+
+        // ==================== 技能槽位管理 ====================
+
+        /// <summary>获取指定槽位的技能</summary>
+        public SkillData GetSkillInSlot(int slotIndex)
+        {
+            return slotIndex switch
+            {
+                0 => skillQ,
+                1 => skillE,
+                2 => skillR,
+                _ => null
+            };
+        }
+
+        /// <summary>装备技能到指定槽位（返回被替换的旧技能，可能为null）</summary>
+        public SkillData EquipSkillToSlot(SkillData skill, int slotIndex)
+        {
+            SkillData old = GetSkillInSlot(slotIndex);
+            switch (slotIndex)
+            {
+                case 0: EquipSkillQ(skill); break;
+                case 1: EquipSkillE(skill); break;
+                case 2: EquipSkillR(skill); break;
+            }
+            return old;
+        }
+
+        /// <summary>交换两个槽位的技能</summary>
+        public void SwapSkills(int slotA, int slotB)
+        {
+            if (slotA == slotB) return;
+            SkillData a = GetSkillInSlot(slotA);
+            SkillData b = GetSkillInSlot(slotB);
+            EquipSkillToSlot(b, slotA);
+            EquipSkillToSlot(a, slotB);
+            Debug.Log($"<color=cyan>技能交换：槽位{slotA} ↔ 槽位{slotB}</color>");
+        }
+
+        /// <summary>卸下指定槽位的技能（返回被卸下的技能）</summary>
+        public SkillData UnequipSkill(int slotIndex)
+        {
+            return EquipSkillToSlot(null, slotIndex);
+        }
+
+        /// <summary>找到第一个空闲槽位（-1表示没有空位）</summary>
+        public int FindEmptySlot()
+        {
+            if (skillQ == null) return 0;
+            if (skillE == null) return 1;
+            if (skillR == null) return 2;
+            return -1;
         }
 
         // ==================== Debug 可视化 ====================
@@ -502,7 +565,7 @@ namespace XianTu
             var rend = rock.GetComponent<Renderer>();
             if (rend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.SetFloat("_Surface", 1); // Transparent
                 mat.SetFloat("_Blend", 0);
                 mat.SetOverrideTag("RenderType", "Transparent");
@@ -526,7 +589,7 @@ namespace XianTu
             var circleRend = circle.GetComponent<Renderer>();
             if (circleRend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.SetFloat("_Surface", 1);
                 mat.SetOverrideTag("RenderType", "Transparent");
                 mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
@@ -619,7 +682,7 @@ namespace XianTu
             var rend = shield.GetComponent<Renderer>();
             if (rend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.SetFloat("_Surface", 1);
                 mat.SetOverrideTag("RenderType", "Transparent");
                 mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);

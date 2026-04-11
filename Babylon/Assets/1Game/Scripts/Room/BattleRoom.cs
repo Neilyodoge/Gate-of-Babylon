@@ -195,7 +195,7 @@ namespace XianTu
 
             // 通关额外奖励在房间中心附近掉落
             var config = GameConfig.Instance;
-            int count = config != null ? config.roomClearDropCount : rewardCount;
+            int count = config != null ? config.通关额外掉落数 : rewardCount;
 
             for (int i = 0; i < count; i++)
             {
@@ -221,7 +221,11 @@ namespace XianTu
 
                 if (item != null)
                 {
-                    Vector3 pos = transform.position + new Vector3(
+                    // 在玩家附近掉落（而非房间中心）
+                    Vector3 playerPos = PlayerController.Instance != null
+                        ? PlayerController.Instance.transform.position
+                        : transform.position;
+                    Vector3 pos = playerPos + new Vector3(
                         Random.Range(-2f, 2f), 0, Random.Range(-2f, 2f));
                     ItemPickup.Spawn(item, pos);
                 }

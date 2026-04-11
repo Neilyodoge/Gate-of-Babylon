@@ -44,7 +44,7 @@ namespace XianTu
             var bodyRend = body.GetComponent<Renderer>();
             if (bodyRend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.color = new Color(0.6f, 0.4f, 0.15f);
                 bodyRend.material = mat;
             }
@@ -60,7 +60,7 @@ namespace XianTu
             var lidRend = lid.GetComponent<Renderer>();
             if (lidRend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.color = new Color(0.7f, 0.5f, 0.1f);
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", new Color(0.3f, 0.2f, 0.05f));
@@ -78,7 +78,7 @@ namespace XianTu
             var lockRend = lockObj.GetComponent<Renderer>();
             if (lockRend != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var mat = new Material(MaterialHelper.GetLitShader());
                 mat.color = new Color(1f, 0.85f, 0.2f);
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", new Color(1f, 0.85f, 0.2f) * 2f);
@@ -116,12 +116,61 @@ namespace XianTu
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
             var text = textGo.AddComponent<Text>();
-            text.text = "宝箱 · 靠近开启 · 按F继续";
+            text.text = "宝箱 · 靠近开启";
             text.fontSize = 18;
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.color = new Color(1f, 0.85f, 0.3f);
             text.alignment = TextAnchor.MiddleCenter;
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+            // 出口触发器（房间北侧）
+            CreateExitTrigger();
+        }
+
+        /// <summary>在房间北侧创建出口触发器</summary>
+        private void CreateExitTrigger()
+        {
+            var exitGo = new GameObject("ExitTrigger");
+            exitGo.transform.SetParent(transform);
+            exitGo.transform.localPosition = new Vector3(0, 0, RoomDepth / 2f - 2f); // 房间北侧
+
+            var sc = exitGo.AddComponent<SphereCollider>();
+            sc.isTrigger = true;
+            sc.radius = 2.5f;
+            var rb = exitGo.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+
+            var exitTrigger = exitGo.AddComponent<RoomExitTrigger>();
+            exitTrigger.Initialize(() =>
+            {
+                if (!_opened) return; // 必须先开箱
+                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
+            });
+
+            // 出口视觉标记（发光柱）
+            var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pillar.name = "ExitPillar";
+            pillar.transform.SetParent(exitGo.transform);
+            pillar.transform.localPosition = new Vector3(0, 1.5f, 0);
+            pillar.transform.localScale = new Vector3(0.5f, 1.5f, 0.5f);
+            var pillarCol = pillar.GetComponent<Collider>();
+            if (pillarCol != null) Destroy(pillarCol);
+            var pillarRend = pillar.GetComponent<Renderer>();
+            if (pillarRend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(0.3f, 0.8f, 1f, 0.3f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.3f, 0.8f, 1f) * 1.5f);
+                pillarRend.material = mat;
+            }
         }
 
         public void OpenChest()
@@ -189,15 +238,6 @@ namespace XianTu
                 lid.localPosition = startPos + new Vector3(0, t * 2f, -t * 0.5f);
                 lid.localRotation = startRot * Quaternion.Euler(-t * 120f, 0, 0);
                 yield return null;
-            }
-        }
-
-        private void Update()
-        {
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.fKey.wasPressedThisFrame)
-            {
-                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
             }
         }
 

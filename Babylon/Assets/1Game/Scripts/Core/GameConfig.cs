@@ -24,156 +24,156 @@ namespace XianTu
 
         // ==================== 玩家属性 ====================
         [Header("═══ 玩家基础属性 ═══")]
-        [Tooltip("最大生命值")]
-        public float playerMaxHp = 100f;
+        [Tooltip("玩家的血量上限。受到伤害时从此值扣减，归零则死亡。灵物词条可额外增加。")]
+        public float 玩家最大生命值 = 100f;
 
-        [Tooltip("攻击力")]
-        public float playerAttackDamage = 10f;
+        [Tooltip("玩家普攻的基础伤害值。三段连招各段会乘以对应的伤害倍率。灵物词条可额外增加。")]
+        public float 玩家攻击力 = 10f;
 
-        [Tooltip("攻击速度倍率（1.0 = 基础速度）")]
+        [Tooltip("影响普攻动画播放速度。1.0=基础速度，2.0=两倍速。灵物攻速词条会在此基础上叠乘。")]
         [Range(0.5f, 3f)]
-        public float playerAttackSpeed = 1f;
+        public float 玩家攻击速度 = 1f;
 
-        [Tooltip("移动速度")]
+        [Tooltip("角色移动时的速度（单位/秒）。灵物词条可额外增加。")]
         [Range(2f, 15f)]
-        public float playerMoveSpeed = 6f;
+        public float 玩家移动速度 = 6f;
 
-        [Tooltip("暴击率")]
+        [Tooltip("普攻和技能触发暴击的概率。0.05=5%。暴击时伤害乘以暴击伤害倍率。")]
         [Range(0f, 1f)]
-        public float playerCritRate = 0.05f;
+        public float 玩家暴击率 = 0.05f;
 
-        [Tooltip("暴击伤害倍率")]
+        [Tooltip("暴击时的伤害倍率。1.5=暴击造成150%伤害。与暴击率配合生效。")]
         [Range(1f, 5f)]
-        public float playerCritDamage = 1.5f;
+        public float 玩家暴击伤害 = 1.5f;
 
-        [Tooltip("减伤比例")]
+        [Tooltip("受到伤害时的减免比例。0.2=减免20%伤害。灵物词条可额外增加，上限90%。")]
         [Range(0f, 0.9f)]
-        public float playerDamageReduction = 0f;
+        public float 玩家减伤比例 = 0f;
 
         // ==================== 闪避 ====================
         [Header("═══ 闪避 ═══")]
-        [Tooltip("闪避距离")]
+        [Tooltip("按下闪避键后角色位移的总距离（单位）。越大冲得越远。")]
         [Range(2f, 10f)]
-        public float dashDistance = 5f;
+        public float 闪避距离 = 5f;
 
-        [Tooltip("闪避持续时间（秒）")]
+        [Tooltip("闪避位移持续的时间（秒）。越短则冲刺越快、手感越灵敏。")]
         [Range(0.1f, 0.5f)]
-        public float dashDuration = 0.2f;
+        public float 闪避持续时间 = 0.2f;
 
-        [Tooltip("闪避冷却时间（秒）")]
+        [Tooltip("两次闪避之间的冷却时间（秒）。冷却中无法再次闪避。")]
         [Range(0.5f, 5f)]
-        public float dashCooldown = 1.5f;
+        public float 闪避冷却时间 = 1.5f;
 
         // ==================== 敌人属性 ====================
         [Header("═══ 敌人基础属性 ═══")]
-        [Tooltip("敌人基础血量")]
-        public float enemyBaseHp = 30f;
+        [Tooltip("普通小怪的基础血量。不同敌人类型会在此基础上乘以系数（如法师×0.8、冲锋×1.5、Boss×8）。")]
+        public float 敌人基础血量 = 30f;
 
-        [Tooltip("敌人基础攻击力")]
-        public float enemyBaseAttack = 5f;
+        [Tooltip("普通小怪的基础攻击力。不同敌人类型会在此基础上乘以系数（如法师×1.5、远程×1.2、Boss×3）。")]
+        public float 敌人基础攻击力 = 5f;
 
-        [Tooltip("敌人移动速度")]
+        [Tooltip("敌人的移动速度（单位/秒）。所有敌人类型共用此值。")]
         [Range(1f, 8f)]
-        public float enemyMoveSpeed = 3f;
+        public float 敌人移动速度 = 3f;
 
-        [Tooltip("敌人检测范围")]
+        [Tooltip("敌人发现玩家的最大距离（单位）。超出此范围敌人不会追击。")]
         [Range(5f, 25f)]
-        public float enemyDetectRange = 12f;
+        public float 敌人检测范围 = 12f;
 
-        [Tooltip("敌人攻击范围")]
+        [Tooltip("敌人发起攻击的距离（单位）。进入此范围后敌人开始攻击。")]
         [Range(1f, 5f)]
-        public float enemyAttackRange = 1.5f;
+        public float 敌人攻击范围 = 1.5f;
 
-        [Tooltip("敌人攻击间隔（秒）")]
+        [Tooltip("敌人两次攻击之间的间隔时间（秒）。越小攻击越频繁。")]
         [Range(0.5f, 5f)]
-        public float enemyAttackInterval = 1.5f;
+        public float 敌人攻击间隔 = 1.5f;
 
         // ==================== 难度曲线 ====================
         [Header("═══ 难度曲线 ═══")]
-        [Tooltip("基础敌人数量")]
-        public int baseEnemyCount = 3;
+        [Tooltip("第一层（练气期）战斗房间的敌人数量。")]
+        public int 基础敌人数量 = 3;
 
-        [Tooltip("每层增加的敌人数")]
-        public int enemyCountPerLevel = 2;
+        [Tooltip("每深入一层额外增加的敌人数。实际数量=基础数量+层数×此值。")]
+        public int 每层增加敌人数 = 2;
 
-        [Tooltip("每层血量倍率增长")]
+        [Tooltip("每层敌人血量的增长系数。0.3表示每层血量增加30%（第2层=1.3倍，第3层=1.6倍…）。")]
         [Range(0.1f, 1f)]
-        public float hpScalePerLevel = 0.3f;
+        public float 每层血量倍率 = 0.3f;
 
-        [Tooltip("每层伤害倍率增长")]
+        [Tooltip("每层敌人伤害的增长系数。0.2表示每层伤害增加20%。")]
         [Range(0.1f, 1f)]
-        public float dmgScalePerLevel = 0.2f;
+        public float 每层伤害倍率 = 0.2f;
 
         // ==================== 房间 ====================
         [Header("═══ 房间尺寸 ═══")]
-        [Tooltip("基础房间大小")]
+        [Tooltip("第一层战斗房间的边长（单位）。房间为正方形。")]
         [Range(20f, 50f)]
-        public float baseRoomSize = 30f;
+        public float 基础房间大小 = 30f;
 
-        [Tooltip("每层房间增大")]
+        [Tooltip("每深入一层房间边长增加的值。实际大小=基础大小+层数×此值，不超过最大值。")]
         [Range(0f, 10f)]
-        public float roomSizePerLevel = 5f;
+        public float 每层房间增大 = 5f;
 
-        [Tooltip("最大房间大小")]
+        [Tooltip("房间边长的上限值。无论层数多高都不会超过此值。")]
         [Range(30f, 80f)]
-        public float maxRoomSize = 55f;
+        public float 最大房间大小 = 55f;
 
         // ==================== 掉落 ====================
         [Header("═══ 掉落概率 ═══")]
-        [Tooltip("凡品掉率权重")]
-        public float dropWeight_Fan = 50f;
+        [Tooltip("凡品灵物的掉落权重。权重越高出现概率越大。所有品阶权重之和为100%。")]
+        public float 凡品掉率权重 = 50f;
 
-        [Tooltip("灵品掉率权重")]
-        public float dropWeight_Ling = 30f;
+        [Tooltip("灵品灵物的掉落权重。")]
+        public float 灵品掉率权重 = 30f;
 
-        [Tooltip("玄品掉率权重")]
-        public float dropWeight_Xuan = 15f;
+        [Tooltip("玄品灵物的掉落权重。")]
+        public float 玄品掉率权重 = 15f;
 
-        [Tooltip("地品掉率权重")]
-        public float dropWeight_Di = 4f;
+        [Tooltip("地品灵物的掉落权重。稀有度较高。")]
+        public float 地品掉率权重 = 4f;
 
-        [Tooltip("天品掉率权重")]
-        public float dropWeight_Tian = 1f;
+        [Tooltip("天品灵物的掉落权重。最稀有品阶。")]
+        public float 天品掉率权重 = 1f;
 
-        [Tooltip("敌人掉落灵物的基础概率")]
+        [Tooltip("每只敌人死亡时掉落灵物的基础概率。0.15=15%。")]
         [Range(0f, 1f)]
-        public float enemyDropChance = 0.3f;
+        public float 敌人掉落概率 = 0.15f;
 
-        [Tooltip("每层掉率增加")]
+        [Tooltip("每深入一层掉落概率增加的值。实际概率=基础概率+层数×此值。")]
         [Range(0f, 0.2f)]
-        public float dropChancePerLevel = 0.05f;
+        public float 每层掉率增加 = 0.03f;
 
-        [Tooltip("房间通关额外掉落数量")]
+        [Tooltip("通关战斗房间后额外掉落的灵物数量（在房间中心附近生成）。")]
         [Range(0, 5)]
-        public int roomClearDropCount = 1;
+        public int 通关额外掉落数 = 1;
 
         // ==================== 近战攻击 ====================
         [Header("═══ 近战攻击 ═══")]
-        [Tooltip("近战攻击范围")]
+        [Tooltip("普攻的判定半径（单位）。以玩家为圆心，此范围内的扇形区域为伤害区域。")]
         [Range(1f, 5f)]
-        public float meleeRange = 2.5f;
+        public float 近战攻击范围 = 2.5f;
 
-        [Tooltip("近战攻击角度")]
+        [Tooltip("普攻的判定扇形角度（度）。120=面前120°扇形。360=全方位攻击。")]
         [Range(30f, 360f)]
-        public float meleeAngle = 120f;
+        public float 近战攻击角度 = 120f;
 
-        [Tooltip("第1段伤害倍率")]
+        [Tooltip("三段连招第1段的伤害倍率。实际伤害=玩家攻击力×此倍率。")]
         [Range(0.5f, 3f)]
-        public float combo1DamageMultiplier = 1.0f;
+        public float 第一段伤害倍率 = 1.0f;
 
-        [Tooltip("第2段伤害倍率")]
+        [Tooltip("三段连招第2段的伤害倍率。通常略高于第1段。")]
         [Range(0.5f, 3f)]
-        public float combo2DamageMultiplier = 1.2f;
+        public float 第二段伤害倍率 = 1.2f;
 
-        [Tooltip("第3段伤害倍率")]
+        [Tooltip("三段连招第3段（终结技）的伤害倍率。通常最高，配合更大的前冲位移。")]
         [Range(0.5f, 3f)]
-        public float combo3DamageMultiplier = 1.5f;
+        public float 第三段伤害倍率 = 1.5f;
 
         // ==================== 技能释放 ====================
         [Header("═══ 技能释放 ═══")]
-        [Tooltip("技能动画播放速度倍率（1.0 = 默认速度，越大越快）\n此为全局默认值，每个技能可在 SkillData 中单独覆盖")]
+        [Tooltip("技能动画的播放速度倍率。1.0=默认速度，2.0=两倍速。此为全局默认值，每个技能可在SkillData中单独覆盖。")]
         [Range(0.5f, 3f)]
-        public float skillCastSpeed = 1f;
+        public float 技能释放速度 = 1f;
 
         // ==================== 工具方法 ====================
 
@@ -184,12 +184,12 @@ namespace XianTu
         {
             return rarity switch
             {
-                ItemRarity.Fan => dropWeight_Fan,
-                ItemRarity.Ling => dropWeight_Ling,
-                ItemRarity.Xuan => dropWeight_Xuan,
-                ItemRarity.Di => dropWeight_Di,
-                ItemRarity.Tian => dropWeight_Tian,
-                _ => dropWeight_Fan
+                ItemRarity.Fan => 凡品掉率权重,
+                ItemRarity.Ling => 灵品掉率权重,
+                ItemRarity.Xuan => 玄品掉率权重,
+                ItemRarity.Di => 地品掉率权重,
+                ItemRarity.Tian => 天品掉率权重,
+                _ => 凡品掉率权重
             };
         }
 
@@ -198,7 +198,7 @@ namespace XianTu
         /// </summary>
         public float GetTotalDropWeight()
         {
-            return dropWeight_Fan + dropWeight_Ling + dropWeight_Xuan + dropWeight_Di + dropWeight_Tian;
+            return 凡品掉率权重 + 灵品掉率权重 + 玄品掉率权重 + 地品掉率权重 + 天品掉率权重;
         }
 
         /// <summary>
@@ -210,16 +210,16 @@ namespace XianTu
             float roll = Random.Range(0f, total);
 
             float cumulative = 0f;
-            cumulative += dropWeight_Fan;
+            cumulative += 凡品掉率权重;
             if (roll < cumulative) return ItemRarity.Fan;
 
-            cumulative += dropWeight_Ling;
+            cumulative += 灵品掉率权重;
             if (roll < cumulative) return ItemRarity.Ling;
 
-            cumulative += dropWeight_Xuan;
+            cumulative += 玄品掉率权重;
             if (roll < cumulative) return ItemRarity.Xuan;
 
-            cumulative += dropWeight_Di;
+            cumulative += 地品掉率权重;
             if (roll < cumulative) return ItemRarity.Di;
 
             return ItemRarity.Tian;
@@ -230,15 +230,15 @@ namespace XianTu
         /// </summary>
         public void ApplyToPlayerStats(CombatStats stats)
         {
-            stats.maxHp = playerMaxHp;
-            stats.currentHp = playerMaxHp;
-            stats.attackDamage = playerAttackDamage;
-            stats.attackSpeed = playerAttackSpeed;
-            stats.moveSpeed = playerMoveSpeed;
-            stats.critRate = playerCritRate;
-            stats.critDamage = playerCritDamage;
-            stats.damageReduction = playerDamageReduction;
-            stats.dashCooldown = dashCooldown;
+            stats.maxHp = 玩家最大生命值;
+            stats.currentHp = 玩家最大生命值;
+            stats.attackDamage = 玩家攻击力;
+            stats.attackSpeed = 玩家攻击速度;
+            stats.moveSpeed = 玩家移动速度;
+            stats.critRate = 玩家暴击率;
+            stats.critDamage = 玩家暴击伤害;
+            stats.damageReduction = 玩家减伤比例;
+            stats.dashCooldown = 闪避冷却时间;
         }
 
         /// <summary>
@@ -246,10 +246,10 @@ namespace XianTu
         /// </summary>
         public void ApplyToEnemyStats(CombatStats stats)
         {
-            stats.maxHp = enemyBaseHp;
-            stats.currentHp = enemyBaseHp;
-            stats.attackDamage = enemyBaseAttack;
-            stats.moveSpeed = enemyMoveSpeed;
+            stats.maxHp = 敌人基础血量;
+            stats.currentHp = 敌人基础血量;
+            stats.attackDamage = 敌人基础攻击力;
+            stats.moveSpeed = 敌人移动速度;
         }
     }
 }

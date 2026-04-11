@@ -175,5 +175,33 @@ namespace XianTu
             public int Count;
             public string EffectDescription;
         }
+
+        /// <summary>功法装备到技能槽位</summary>
+        public struct SkillEquipped
+        {
+            public SkillData Skill;
+            public int SlotIndex;
+        }
+
+        /// <summary>功法被分解</summary>
+        public struct SkillDecomposed
+        {
+            public SkillData Skill;
+        }
+
+        /// <summary>灵物槽位变化</summary>
+        public struct SpiritSlotChanged
+        {
+            public int SlotIndex;
+            public ItemData NewItem;
+            public ItemData OldItem;
+        }
+
+        /// <summary>资源变化（灵力碎片等）</summary>
+        public struct ResourceChanged
+        {
+            public int SpiritShards;
+            public int Delta; // 变化量（正=获得，负=消耗）
+        }
     }
 }

@@ -65,9 +65,11 @@ namespace XianTu
         // 霸体（超级护甲）
         private bool _superArmor;  // 攻击/技能中是否拥有霸体
 
+        // 攻击速度（影响攻击动画播放速度）
+        private float _attackSpeed = 1f;
+
         // 安全超时（防止动画事件丢失导致状态卡死）
-        private const float STATE_TIMEOUT = 3.0f;  // 普通动作超时
-        private const float SKILL_TIMEOUT = 2.0f;  // 技能动作超时（兜底保护）
+        private const float STATE_TIMEOUT = 3.0f;        private const float SKILL_TIMEOUT = 2.0f;  // 技能动作超时（兜底保护）
 
         // ==================== 公开属性 ====================
 
@@ -259,9 +261,12 @@ namespace XianTu
         /// 请求攻击（鼠标左键）
         /// 返回 true 表示成功触发攻击或缓冲了输入
         /// </summary>
-        public bool RequestAttack()
+        public bool RequestAttack(float attackSpeed = 1f)
         {
             if (animator == null) return false;
+
+            // 缓存攻击速度，用于 StartAttack 中设置动画播放速度
+            _attackSpeed = Mathf.Clamp(attackSpeed, 0.5f, 3f);
 
             // 如果当前不能被攻击打断，缓冲输入
             if (!CanInterrupt(AnimationPriority.Attack))
@@ -313,6 +318,9 @@ namespace XianTu
             animator.ResetTrigger(AttackTrigger);
             animator.SetTrigger(AttackTrigger);
             animator.SetBool(IsAttacking, true);
+
+            // 设置攻击动画播放速度（受玩家攻击速度属性影响）
+            animator.speed = _attackSpeed;
 
             // 设置连招超时（如果玩家不继续攻击，超时后重置）
             _comboResetTimer = 1.5f;
@@ -367,6 +375,7 @@ namespace XianTu
             if (_currentPriority == AnimationPriority.Attack)
             {
                 ResetComboInternal();
+                animator.speed = 1f; // 恢复攻击时修改的动画速度
             }
 
             _currentPriority = AnimationPriority.Evade;
@@ -408,6 +417,7 @@ namespace XianTu
             if (_currentPriority == AnimationPriority.Attack)
             {
                 ResetComboInternal();
+                animator.speed = 1f; // 恢复攻击时修改的动画速度
             }
 
             _currentPriority = hitPriority;
@@ -428,6 +438,7 @@ namespace XianTu
             ResetComboInternal();
             _currentPriority = AnimationPriority.Die;
             _superArmor = false;
+            animator.speed = 1f; // 恢复动画播放速度
             _stateTimer = float.MaxValue; // 死亡不超时
 
             animator.ResetTrigger(AttackTrigger);
@@ -519,6 +530,9 @@ namespace XianTu
             _canCombo = false;
             _superArmor = false;
             animator.SetBool(IsAttacking, false);
+
+            // 恢复动画播放速度
+            animator.speed = 1f;
 
             // 给一小段时间让玩家可以继续连招
             _comboResetTimer = 0.4f;
@@ -643,11 +657,11 @@ namespace XianTu
                 return;
             }
 
-            // 攻击缓冲
+            // 攻击缓冲（使用已缓存的攻击速度）
             if (_attackBufferTimer > 0)
             {
                 _attackBufferTimer = 0;
-                RequestAttack();
+                RequestAttack(_attackSpeed);
             }
         }
 

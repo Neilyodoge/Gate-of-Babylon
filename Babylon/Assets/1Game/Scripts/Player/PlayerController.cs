@@ -11,6 +11,7 @@ namespace XianTu
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(ItemInventory))]
     [RequireComponent(typeof(PlayerAnimator))]
+    [RequireComponent(typeof(SpiritSlotSystem))]
     public class PlayerController : MonoBehaviour, IDamageable
     {
         [Header("属性")]
@@ -28,6 +29,7 @@ namespace XianTu
         private ItemInventory _inventory;
         private PlayerCombat _combat;
         private PlayerAnimator _playerAnim;
+        private SpiritSlotSystem _spiritSlots;
 
         // 移动状态
         private Vector3 _moveInput;
@@ -60,6 +62,7 @@ namespace XianTu
         /// <summary>本帧是否请求了闪避（供 PlayerCombat 检查，避免同帧攻击抢占闪避）</summary>
         public bool DashRequestedThisFrame => _dashRequestedThisFrame;
         public ItemInventory Inventory => _inventory;
+        public SpiritSlotSystem SpiritSlots => _spiritSlots;
         public Vector3 AimDirection => _aimDirection;
         public bool IsDashing => _isDashing;
 
@@ -73,18 +76,22 @@ namespace XianTu
             _inventory = GetComponent<ItemInventory>();
             _combat = GetComponent<PlayerCombat>();
             _playerAnim = GetComponent<PlayerAnimator>();
+            _spiritSlots = GetComponent<SpiritSlotSystem>();
 
             // 从 GameConfig 读取属性
             var config = GameConfig.Instance;
             if (config != null)
             {
                 config.ApplyToPlayerStats(stats);
-                dashDistance = config.dashDistance;
-                dashDuration = config.dashDuration;
+                dashDistance = config.闪避距离;
+                dashDuration = config.闪避持续时间;
             }
 
             // 初始化背包系统
             _inventory.Initialize(stats, stats);
+
+            // 初始化灵物槽位系统
+            _spiritSlots.Initialize(stats.Clone(), stats);
         }
 
         private void OnEnable()

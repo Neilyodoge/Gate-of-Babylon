@@ -78,6 +78,16 @@ namespace XianTu
         /// <summary>击杀回复生命</summary>
         public float healOnKill = 0f;
 
+        [Header("功法关联（仅功法类灵物）")]
+        /// <summary>关联的功法数据（拾取后可装备到技能槽位）</summary>
+        public SkillData linkedSkill;
+
+        [Header("灵物槽位效果")]
+        /// <summary>是否仅在装入灵物槽时生效（false=拾取即生效，true=需要放入槽位）</summary>
+        public bool requiresSlot = false;
+        /// <summary>是否针对特定技能生效（true=针对同槽位技能，false=全局生效）</summary>
+        public bool isSkillSpecific = false;
+
         [Header("拾取表现")]
         public GameObject pickupVfxPrefab;
         // TODO: 拾取音效

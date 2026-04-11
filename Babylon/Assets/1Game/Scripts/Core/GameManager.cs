@@ -64,17 +64,18 @@ namespace XianTu
             var config = GameConfig.Instance;
             if (config != null)
             {
-                baseEnemyCount = config.baseEnemyCount;
-                enemyCountPerLevel = config.enemyCountPerLevel;
-                hpScalePerLevel = config.hpScalePerLevel;
-                dmgScalePerLevel = config.dmgScalePerLevel;
-                baseRoomSize = config.baseRoomSize;
-                roomSizePerLevel = config.roomSizePerLevel;
-                maxRoomSize = config.maxRoomSize;
+                baseEnemyCount = config.基础敌人数量;
+                enemyCountPerLevel = config.每层增加敌人数;
+                hpScalePerLevel = config.每层血量倍率;
+                dmgScalePerLevel = config.每层伤害倍率;
+                baseRoomSize = config.基础房间大小;
+                roomSizePerLevel = config.每层房间增大;
+                maxRoomSize = config.最大房间大小;
             }
 
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
+            GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
 
             StartNewRun();
         }
@@ -150,6 +151,8 @@ namespace XianTu
         /// <summary>生成当前房间</summary>
         private void SpawnCurrentRoom()
         {
+            _transitioning = false; // 重置过渡标记
+
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
 
@@ -278,9 +281,13 @@ namespace XianTu
             }
         }
 
+        // 防止连续触发RoomCleared导致跳层
+        private bool _transitioning;
+
         private void OnRoomCleared(GameEvents.RoomCleared evt)
         {
-            if (_gameOver) return;
+            if (_gameOver || _transitioning) return;
+            _transitioning = true;
 
             _currentLevel++;
 
@@ -337,10 +344,24 @@ namespace XianTu
             Debug.Log("<color=red>梦境破碎... 惊醒回到现实</color>");
         }
 
+        /// <summary>敌人被击杀时奖励灵力碎片</summary>
+        private void OnEnemyKilled(GameEvents.EnemyKilled evt)
+        {
+            if (PlayerResources.Instance == null) return;
+
+            // 基础奖励：每个敌人给2-5碎片，随层数增加
+            int baseShards = Random.Range(2, 6);
+            int levelBonus = _currentLevel; // 每层+1
+            int totalShards = baseShards + levelBonus;
+
+            PlayerResources.Instance.AddShards(totalShards);
+        }
+
         private void OnDestroy()
         {
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
+            GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
         }
 
         /// <summary>设置小地图引用</summary>
@@ -361,12 +382,76 @@ namespace XianTu
             if (PlayerController.Instance != null)
             {
                 PlayerController.Instance.Inventory.Clear();
+                PlayerController.Instance.SpiritSlots.Clear();
                 PlayerController.Instance.Stats.ResetHp();
             }
+
+            if (PlayerResources.Instance != null)
+                PlayerResources.Instance.Clear();
 
             GameEvents.Clear();
             UnityEngine.SceneManagement.SceneManager.LoadScene(
                 UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+        }
+
+        // ==================== Debug 接口 ====================
+
+        /// <summary>Debug：直接跳转到指定类型的房间</summary>
+        public void DebugGotoRoom(Minimap.RoomType roomType)
+        {
+            _gameOver = false;
+            _transitioning = false;
+
+            // 销毁当前房间
+            if (_currentRoomGo != null)
+                Destroy(_currentRoomGo);
+
+            // 销毁传送门
+            if (LevelTransition.Instance != null)
+                LevelTransition.Instance.DestroyPortal();
+
+            // 清除所有残留敌人
+            var enemies = GameObject.FindGameObjectsWithTag("Enemy");
+            foreach (var e in enemies)
+                Destroy(e);
+
+            Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
+
+            // 更新后处理氛围
+            if (PostProcessSetup.Instance != null)
+                PostProcessSetup.Instance.UpdateAtmosphere(_currentLevel, _realmNames.Length);
+
+            switch (roomType)
+            {
+                case Minimap.RoomType.Battle:
+                    SpawnBattleRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Shop:
+                    SpawnShopRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Rest:
+                    SpawnRestRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Treasure:
+                    SpawnTreasureRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Boss:
+                    SpawnBossRoom(spawnPos);
+                    break;
+            }
+
+            // 传送玩家
+            TeleportPlayer(spawnPos);
+
+            Debug.Log($"<color=magenta>[Debug] 跳转到 {roomType} 房间</color>");
+        }
+
+        /// <summary>Debug：设置当前层数</summary>
+        public void DebugSetLevel(int level)
+        {
+            _currentLevel = Mathf.Clamp(level, 0, _realmNames.Length - 1);
+            _gameOver = false;
+            Debug.Log($"<color=magenta>[Debug] 设置层数为 {_currentLevel}（{CurrentRealmName}）</color>");
         }
     }
 }

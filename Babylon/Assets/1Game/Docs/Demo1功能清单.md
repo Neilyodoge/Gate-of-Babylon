@@ -22,8 +22,9 @@
 
 | 功能 | 文件 | 说明 |
 |------|------|------|
-| Q/E/R 三技能槽位 | `PlayerCombat.cs` | Q=落石术（范围伤害），E=金钟罩（增益Buff），R=预留槽位 |
+| Q/E/R 三技能槽位 | `PlayerCombat.cs` | Q=落石术（范围伤害），E=金钟罩（增益Buff），R=天雷引（范围伤害） |
 | 技能 CD 系统 | `PlayerCombat.cs` + `GameHUD.cs` | 每个技能独立 CD，UI 实时显示剩余时间 |
+| 技能槽位管理 | `PlayerCombat.cs` | 装备/卸下/交换技能槽位，查找空闲槽位 |
 | 技能释放速度配置 | `SkillData.cs` + `GameConfig.cs` | 两级配置：全局默认 + 单技能覆盖（详见 `技能播放速度配置方案.md`） |
 | 技能 Debug 可视化 | `PlayerCombat.cs` | 无 VFX 时自动创建 Debug 视觉效果（落石=Cube下落+范围圈，金钟罩=金色球体护盾） |
 | 近战攻击范围 Debug 绘制 | `PlayerCombat.cs` | Debug.DrawLine 绘制扇形攻击范围 + Editor Gizmos |
@@ -56,9 +57,11 @@
 
 | 功能 | 文件 | 说明 |
 |------|------|------|
-| 灵物数据定义 | `ItemData.cs` | 5种品阶（凡品→仙品），5种分类（攻击/防御/速度/暴击/生命） |
-| 灵物拾取 | `ItemPickup.cs` | 拾取即生效，属性叠加计算 |
+| 灵物数据定义 | `ItemData.cs` | 5种品阶（凡品→仙品），5种分类（攻击/防御/速度/暴击/生命），功法关联 |
+| 灵物拾取 | `ItemPickup.cs` | 普通灵物自动拾取，需要槽位的灵物按F拾取，长按F分解 |
+| 功法拾取 | `SkillPickup.cs` | 功法掉落地上，靠近显示提示，按F装备到技能槽位，长按F分解 |
 | 灵物背包 | `ItemInventory.cs` | 持有灵物管理，属性加成计算 |
+| 灵物槽位 | `SpiritSlotSystem.cs` | 技能栏下方3个灵物槽，部分针对技能生效，部分全局生效 |
 | 质变效果 | `ItemInventory.cs` | 同类灵物达到阈值触发质变（3个=小质变，5个=大质变），每种分类有独特效果 |
 | 灵物组合（Synergy） | `SynergySystem.cs` | 特定组合触发额外效果（风火轮/金刚不坏/天人合一/嗜血狂魔） |
 | 灵物背包 UI | `InventoryUI.cs` + `Demo1Setup.cs` | Tab 键打开/关闭，显示持有灵物、Synergy 状态、属性总览 |
@@ -144,7 +147,12 @@
 - [ ] 攻击前摇取消（闪避可取消攻击前摇）
 - [ ] 攻击拖尾（武器运动模糊/拖尾效果）
 - [ ] 通关后灵物 3 选 1（Roguelike 核心循环）
-- [ ] R 键技能配置（第三个技能槽位已预留，需要创建技能数据）
+- [x] R 键技能配置（天雷引，范围伤害）
+- [ ] 技能槽位选择UI（替换技能时让玩家选择替换哪个槽位）
+- [x] 分解系统（分解获得灵力碎片）
+- [x] 灵力碎片资源UI（左下角显示）
+- [x] 房间F键防护（防止连续按F跳层通关）
+- [ ] 商店购买系统（用灵力碎片购买灵物）
 
 ### 3.3 技能系统演进
 
@@ -173,6 +181,7 @@ Assets/1Game/
 │   │   ├── GameEvents.cs
 │   │   ├── GameManager.cs
 │   │   ├── ObjectPool.cs
+│   │   ├── PlayerResources.cs
 │   │   ├── PostProcessSetup.cs
 │   │   └── TopDownCamera.cs
 │   ├── Editor/          # 编辑器工具
@@ -189,6 +198,8 @@ Assets/1Game/
 │   │   ├── ItemData.cs
 │   │   ├── ItemInventory.cs
 │   │   ├── ItemPickup.cs
+│   │   ├── SkillPickup.cs
+│   │   ├── SpiritSlotSystem.cs
 │   │   └── SynergySystem.cs
 │   ├── Player/          # 玩家
 │   │   ├── AnimationEventRelay.cs
@@ -261,6 +272,7 @@ Assets/1Game/
 | 鼠标左键 | 近战攻击（三段连招） |
 | Q | 技能1（落石术 — 范围伤害） |
 | E | 技能2（金钟罩 — 增益Buff） |
-| R | 技能3（预留槽位） |
+| R | 技能3（天雷引 — 范围伤害） |
 | Space | 闪避（带无敌帧） |
+| F | 拾取/交互（短按拾取，长按分解） |
 | Tab | 打开/关闭灵物背包 |

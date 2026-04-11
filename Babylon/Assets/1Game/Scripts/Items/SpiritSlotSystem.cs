@@ -1,0 +1,263 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace XianTu
+{
+    /// <summary>
+    /// 灵物槽位系统 —— 梦之形风格
+    /// 每个技能（Q/E/R）下方2个灵物槽位，共6个
+    /// 灵物拾取后放入槽中，可长按拖拽交换位置
+    /// </summary>
+    public class SpiritSlotSystem : MonoBehaviour
+    {
+        /// <summary>灵物槽位数据</summary>
+        public class SpiritSlot
+        {
+            public ItemData item;       // 槽位中的灵物（null=空）
+            public int linkedSkillSlot; // 对应的技能槽位索引（0=Q, 1=E, 2=R）
+
+            public bool IsEmpty => item == null;
+        }
+
+        /// <summary>6个灵物槽位，每个技能下方2个（Q:0-1, E:2-3, R:4-5）</summary>
+        private readonly SpiritSlot[] _slots = new SpiritSlot[6];
+
+        /// <summary>每个技能下方的灵物槽位数</summary>
+        public const int SLOTS_PER_SKILL = 2;
+
+        /// <summary>玩家战斗属性引用</summary>
+        private CombatStats _playerStats;
+        private CombatStats _baseStats;
+
+        public IReadOnlyList<SpiritSlot> Slots => _slots;
+
+        private void Awake()
+        {
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                _slots[i] = new SpiritSlot
+                {
+                    item = null,
+                    linkedSkillSlot = i / SLOTS_PER_SKILL // 0,0,1,1,2,2
+                };
+            }
+        }
+
+        /// <summary>初始化，绑定玩家属性</summary>
+        public void Initialize(CombatStats baseStats, CombatStats playerStats)
+        {
+            _baseStats = baseStats;
+            _playerStats = playerStats;
+        }
+
+        /// <summary>
+        /// 将灵物放入指定槽位（返回被替换的旧灵物，可能为null）
+        /// </summary>
+        public ItemData SetSlot(int slotIndex, ItemData item)
+        {
+            if (slotIndex < 0 || slotIndex >= _slots.Length) return null;
+
+            ItemData old = _slots[slotIndex].item;
+
+            // 移除旧灵物效果
+            if (old != null)
+                RemoveItemEffect(old, slotIndex);
+
+            _slots[slotIndex].item = item;
+
+            // 应用新灵物效果
+            if (item != null)
+                ApplyItemEffect(item, slotIndex);
+
+            // 发布事件
+            GameEvents.Publish(new GameEvents.SpiritSlotChanged
+            {
+                SlotIndex = slotIndex,
+                NewItem = item,
+                OldItem = old
+            });
+
+            string slotName = GetSlotKeyName(slotIndex);
+            if (item != null)
+                Debug.Log($"<color=green>灵物 {item.itemName} 放入 {slotName} 槽位</color>");
+            else if (old != null)
+                Debug.Log($"<color=gray>灵物 {old.itemName} 从 {slotName} 槽位移除</color>");
+
+            return old;
+        }
+
+        /// <summary>获取指定槽位的灵物</summary>
+        public ItemData GetSlot(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= _slots.Length) return null;
+            return _slots[slotIndex].item;
+        }
+
+        /// <summary>找到第一个空闲灵物槽位（-1表示没有空位）</summary>
+        public int FindEmptySlot()
+        {
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                if (_slots[i].IsEmpty) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>交换两个灵物槽位</summary>
+        public void SwapSlots(int slotA, int slotB)
+        {
+            if (slotA == slotB) return;
+            if (slotA < 0 || slotA >= _slots.Length) return;
+            if (slotB < 0 || slotB >= _slots.Length) return;
+
+            // 先移除两个槽位的效果
+            if (_slots[slotA].item != null)
+                RemoveItemEffect(_slots[slotA].item, slotA);
+            if (_slots[slotB].item != null)
+                RemoveItemEffect(_slots[slotB].item, slotB);
+
+            // 交换
+            (_slots[slotA].item, _slots[slotB].item) = (_slots[slotB].item, _slots[slotA].item);
+
+            // 重新应用效果
+            if (_slots[slotA].item != null)
+                ApplyItemEffect(_slots[slotA].item, slotA);
+            if (_slots[slotB].item != null)
+                ApplyItemEffect(_slots[slotB].item, slotB);
+
+            Debug.Log($"<color=cyan>灵物槽位交换：{GetSlotKeyName(slotA)} ↔ {GetSlotKeyName(slotB)}</color>");
+        }
+
+        /// <summary>移除指定槽位的灵物（返回被移除的灵物）</summary>
+        public ItemData RemoveFromSlot(int slotIndex)
+        {
+            return SetSlot(slotIndex, null);
+        }
+
+        /// <summary>清空所有灵物槽位</summary>
+        public void Clear()
+        {
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                SetSlot(i, null);
+            }
+        }
+
+        // ==================== 效果应用 ====================
+
+        /// <summary>应用灵物效果到玩家属性</summary>
+        private void ApplyItemEffect(ItemData item, int slotIndex)
+        {
+            if (item == null || _playerStats == null) return;
+
+            // 全局效果：直接加到玩家属性上
+            _playerStats.attackDamage += item.attackBonus;
+            _playerStats.maxHp += item.maxHpBonus;
+            _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction + item.damageReductionBonus);
+            _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + item.critRateBonus);
+            _playerStats.pierceCount += item.pierceBonus;
+
+            // 百分比加成
+            if (item.attackBonusPercent > 0)
+                _playerStats.attackDamage *= (1f + item.attackBonusPercent);
+            if (item.maxHpBonusPercent > 0)
+            {
+                float hpRatio = _playerStats.maxHp > 0 ? _playerStats.currentHp / _playerStats.maxHp : 1f;
+                _playerStats.maxHp *= (1f + item.maxHpBonusPercent);
+                _playerStats.currentHp = _playerStats.maxHp * hpRatio;
+            }
+            if (item.moveSpeedBonusPercent > 0)
+                _playerStats.moveSpeed *= (1f + item.moveSpeedBonusPercent);
+            if (item.attackSpeedBonusPercent > 0)
+                _playerStats.attackSpeed *= (1f + item.attackSpeedBonusPercent);
+            if (item.projectileSpeedBonusPercent > 0)
+                _playerStats.projectileSpeed *= (1f + item.projectileSpeedBonusPercent);
+
+            // 通知UI更新
+            GameEvents.Publish(new GameEvents.HealthChanged
+            {
+                CurrentHp = _playerStats.currentHp,
+                MaxHp = _playerStats.maxHp
+            });
+        }
+
+        /// <summary>移除灵物效果</summary>
+        private void RemoveItemEffect(ItemData item, int slotIndex)
+        {
+            if (item == null || _playerStats == null) return;
+
+            // 移除全局效果
+            _playerStats.attackDamage -= item.attackBonus;
+            _playerStats.maxHp -= item.maxHpBonus;
+            _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction - item.damageReductionBonus);
+            _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate - item.critRateBonus);
+            _playerStats.pierceCount -= item.pierceBonus;
+
+            // 百分比加成（反向）
+            if (item.attackBonusPercent > 0)
+                _playerStats.attackDamage /= (1f + item.attackBonusPercent);
+            if (item.maxHpBonusPercent > 0)
+            {
+                float hpRatio = _playerStats.maxHp > 0 ? _playerStats.currentHp / _playerStats.maxHp : 1f;
+                _playerStats.maxHp /= (1f + item.maxHpBonusPercent);
+                _playerStats.currentHp = _playerStats.maxHp * hpRatio;
+            }
+            if (item.moveSpeedBonusPercent > 0)
+                _playerStats.moveSpeed /= (1f + item.moveSpeedBonusPercent);
+            if (item.attackSpeedBonusPercent > 0)
+                _playerStats.attackSpeed /= (1f + item.attackSpeedBonusPercent);
+            if (item.projectileSpeedBonusPercent > 0)
+                _playerStats.projectileSpeed /= (1f + item.projectileSpeedBonusPercent);
+
+            GameEvents.Publish(new GameEvents.HealthChanged
+            {
+                CurrentHp = _playerStats.currentHp,
+                MaxHp = _playerStats.maxHp
+            });
+        }
+
+        /// <summary>
+        /// 获取指定槽位灵物的灼烧DPS（针对该槽位对应的技能）
+        /// </summary>
+        public float GetSlotBurnDPS(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= _slots.Length) return 0f;
+            var item = _slots[slotIndex].item;
+            return item != null ? item.burnDamagePerSecond : 0f;
+        }
+
+        /// <summary>获取所有槽位灵物的总灼烧DPS</summary>
+        public float GetTotalBurnDPS()
+        {
+            float total = 0f;
+            foreach (var slot in _slots)
+            {
+                if (slot.item != null)
+                    total += slot.item.burnDamagePerSecond;
+            }
+            return total;
+        }
+
+        /// <summary>获取指定槽位灵物的冻结概率</summary>
+        public float GetSlotFreezeChance(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= _slots.Length) return 0f;
+            var item = _slots[slotIndex].item;
+            return item != null ? item.freezeChance : 0f;
+        }
+
+        private string GetSlotKeyName(int slotIndex)
+        {
+            int skillIdx = slotIndex / SLOTS_PER_SKILL;
+            int subIdx = slotIndex % SLOTS_PER_SKILL;
+            string skillName = skillIdx switch
+            {
+                0 => "Q",
+                1 => "E",
+                2 => "R",
+                _ => "?"
+            };
+            return $"{skillName}-{subIdx + 1}";
+        }
+    }
+}
