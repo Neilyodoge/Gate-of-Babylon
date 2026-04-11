@@ -46,71 +46,109 @@ namespace XianTu
             _fadeOverlay.SetActive(false);
         }
 
-        /// <summary>在指定位置创建传送门</summary>
+        /// <summary>在指定位置创建传送门（大型发光门，非常醒目）</summary>
         public void SpawnPortal(Vector3 position, System.Action onEnter)
         {
             if (_portal != null) Destroy(_portal);
 
-            _portal = new GameObject("Portal");
+            _portal = new GameObject("Portal_Door");
             _portal.transform.position = position;
 
-            // 传送门视觉：旋转的环形（用多个Cube组成）
-            for (int i = 0; i < 8; i++)
+            // 使用非常醒目的颜色
+            Color frameColor = new Color(0.6f, 0.5f, 0.8f);   // 亮紫色门框
+            Color glowColor = new Color(0.2f, 0.8f, 1f);       // 青蓝色发光
+
+            // ===== 左门柱（大而亮） =====
+            var leftPillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            leftPillar.name = "DoorFrame_Left";
+            leftPillar.transform.SetParent(_portal.transform);
+            leftPillar.transform.localPosition = new Vector3(-2f, 2.5f, 0);
+            leftPillar.transform.localScale = new Vector3(0.6f, 5f, 0.6f);
+            var leftCol = leftPillar.GetComponent<Collider>();
+            if (leftCol != null) Destroy(leftCol);
+            SetGlowMaterial(leftPillar, frameColor, frameColor * 1.5f);
+
+            // ===== 右门柱 =====
+            var rightPillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rightPillar.name = "DoorFrame_Right";
+            rightPillar.transform.SetParent(_portal.transform);
+            rightPillar.transform.localPosition = new Vector3(2f, 2.5f, 0);
+            rightPillar.transform.localScale = new Vector3(0.6f, 5f, 0.6f);
+            var rightCol = rightPillar.GetComponent<Collider>();
+            if (rightCol != null) Destroy(rightCol);
+            SetGlowMaterial(rightPillar, frameColor, frameColor * 1.5f);
+
+            // ===== 门楣（横梁） =====
+            var lintel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            lintel.name = "DoorFrame_Top";
+            lintel.transform.SetParent(_portal.transform);
+            lintel.transform.localPosition = new Vector3(0, 5.2f, 0);
+            lintel.transform.localScale = new Vector3(4.6f, 0.5f, 0.7f);
+            var lintelCol = lintel.GetComponent<Collider>();
+            if (lintelCol != null) Destroy(lintelCol);
+            SetGlowMaterial(lintel, frameColor, frameColor * 1.5f);
+
+            // ===== 门内发光面板（非常亮的自发光，不依赖透明度） =====
+            var portalFace = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            portalFace.name = "PortalFace";
+            portalFace.transform.SetParent(_portal.transform);
+            portalFace.transform.localPosition = new Vector3(0, 2.5f, 0);
+            portalFace.transform.localScale = new Vector3(3.4f, 4.8f, 0.15f);
+            var faceCol = portalFace.GetComponent<Collider>();
+            if (faceCol != null) Destroy(faceCol);
+            SetGlowMaterial(portalFace, glowColor, glowColor * 5f);
+
+            // ===== 门顶大发光球（远处也能看到的信标） =====
+            var topOrb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            topOrb.name = "PortalOrb";
+            topOrb.transform.SetParent(_portal.transform);
+            topOrb.transform.localPosition = new Vector3(0, 6.2f, 0);
+            topOrb.transform.localScale = Vector3.one * 1.2f;
+            var orbCol = topOrb.GetComponent<Collider>();
+            if (orbCol != null) Destroy(orbCol);
+            SetGlowMaterial(topOrb, glowColor, glowColor * 8f);
+
+            // ===== 左柱顶球 =====
+            var leftOrb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            leftOrb.name = "LeftOrb";
+            leftOrb.transform.SetParent(_portal.transform);
+            leftOrb.transform.localPosition = new Vector3(-2f, 5.3f, 0);
+            leftOrb.transform.localScale = Vector3.one * 0.7f;
+            var loCol = leftOrb.GetComponent<Collider>();
+            if (loCol != null) Destroy(loCol);
+            SetGlowMaterial(leftOrb, glowColor, glowColor * 6f);
+
+            // ===== 右柱顶球 =====
+            var rightOrb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            rightOrb.name = "RightOrb";
+            rightOrb.transform.SetParent(_portal.transform);
+            rightOrb.transform.localPosition = new Vector3(2f, 5.3f, 0);
+            rightOrb.transform.localScale = Vector3.one * 0.7f;
+            var roCol = rightOrb.GetComponent<Collider>();
+            if (roCol != null) Destroy(roCol);
+            SetGlowMaterial(rightOrb, glowColor, glowColor * 6f);
+
+            // ===== 地面发光引导条（从房间中心指向门） =====
+            for (int i = 0; i < 5; i++)
             {
-                float angle = i * 45f;
-                var piece = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                piece.name = $"PortalPiece_{i}";
-                piece.transform.SetParent(_portal.transform);
-                float rad = angle * Mathf.Deg2Rad;
-                piece.transform.localPosition = new Vector3(Mathf.Cos(rad) * 1.5f, 1f + Mathf.Sin(rad * 2f) * 0.3f, Mathf.Sin(rad) * 1.5f);
-                piece.transform.localScale = new Vector3(0.3f, 0.6f, 0.3f);
-                piece.transform.localRotation = Quaternion.Euler(0, angle, 0);
-
-                var col = piece.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-
-                var rend = piece.GetComponent<Renderer>();
-                if (rend != null)
-                {
-                    var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                    mat.color = new Color(0.3f, 0.6f, 1f, 0.8f);
-                    mat.EnableKeyword("_EMISSION");
-                    mat.SetColor("_EmissionColor", new Color(0.3f, 0.6f, 1f) * 3f);
-                    rend.material = mat;
-                }
+                var guide = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                guide.name = $"GuideStrip_{i}";
+                guide.transform.SetParent(_portal.transform);
+                guide.transform.localPosition = new Vector3(0, 0.06f, -(i + 1) * 2f);
+                guide.transform.localScale = new Vector3(1.2f - i * 0.1f, 0.08f, 1.2f);
+                var gCol = guide.GetComponent<Collider>();
+                if (gCol != null) Destroy(gCol);
+                float intensity = 3f - i * 0.4f;
+                SetGlowMaterial(guide, glowColor * 0.7f, glowColor * intensity);
             }
 
-            // 中心光柱
-            var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            pillar.name = "PortalPillar";
-            pillar.transform.SetParent(_portal.transform);
-            pillar.transform.localPosition = new Vector3(0, 2f, 0);
-            pillar.transform.localScale = new Vector3(0.5f, 3f, 0.5f);
-            var pillarCol = pillar.GetComponent<Collider>();
-            if (pillarCol != null) Destroy(pillarCol);
-            var pillarRend = pillar.GetComponent<Renderer>();
-            if (pillarRend != null)
-            {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                mat.SetFloat("_Surface", 1);
-                mat.SetOverrideTag("RenderType", "Transparent");
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetInt("_ZWrite", 0);
-                mat.renderQueue = 3000;
-                mat.color = new Color(0.4f, 0.7f, 1f, 0.3f);
-                mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", new Color(0.3f, 0.5f, 1f) * 2f);
-                pillarRend.material = mat;
-            }
-
-            // 触发器
+            // ===== 触发器（Box形状，覆盖门洞区域，范围更大） =====
             var triggerGo = new GameObject("PortalTrigger");
             triggerGo.transform.SetParent(_portal.transform);
-            triggerGo.transform.localPosition = Vector3.zero;
-            var sc = triggerGo.AddComponent<SphereCollider>();
-            sc.isTrigger = true;
-            sc.radius = 2f;
+            triggerGo.transform.localPosition = new Vector3(0, 2f, -1f);
+            var bc = triggerGo.AddComponent<BoxCollider>();
+            bc.isTrigger = true;
+            bc.size = new Vector3(5f, 5f, 4f);
             var rb = triggerGo.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
@@ -122,25 +160,55 @@ namespace XianTu
                     StartCoroutine(TransitionCoroutine(onEnter));
             });
 
-            // 旋转动画
-            StartCoroutine(PortalRotation());
+            // 门面板 + 发光球呼吸动画
+            StartCoroutine(PortalGlowAnimation(portalFace, topOrb, glowColor));
+
+            Debug.Log($"<color=cyan>★ 传送门已生成在 {position}，走入即可进入下一层 ★</color>");
         }
 
-        private IEnumerator PortalRotation()
+        /// <summary>设置自发光材质（不透明，靠 Emission 发光）</summary>
+        private void SetGlowMaterial(GameObject go, Color baseColor, Color emissionColor)
         {
-            while (_portal != null)
+            var rend = go.GetComponent<Renderer>();
+            if (rend != null)
             {
-                _portal.transform.Rotate(Vector3.up * 30f * Time.deltaTime, Space.World);
-                // 上下浮动
-                foreach (Transform child in _portal.transform)
+                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                mat.color = baseColor;
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", emissionColor);
+                rend.material = mat;
+            }
+        }
+
+        /// <summary>门面板和发光球呼吸动画</summary>
+        private IEnumerator PortalGlowAnimation(GameObject portalFace, GameObject topOrb, Color baseColor)
+        {
+            while (_portal != null && portalFace != null)
+            {
+                float pulse = (Mathf.Sin(Time.time * 2.5f) + 1f) * 0.5f; // 0~1
+                float emissionIntensity = Mathf.Lerp(3f, 7f, pulse);
+
+                // 门面板呼吸
+                var faceRend = portalFace.GetComponent<Renderer>();
+                if (faceRend != null)
                 {
-                    if (child.name.StartsWith("PortalPiece"))
-                    {
-                        var pos = child.localPosition;
-                        pos.y = 1f + Mathf.Sin(Time.time * 2f + child.GetSiblingIndex()) * 0.2f;
-                        child.localPosition = pos;
-                    }
+                    faceRend.material.SetColor("_EmissionColor", baseColor * emissionIntensity);
                 }
+
+                // 顶部球呼吸（更强烈）
+                if (topOrb != null)
+                {
+                    var orbRend = topOrb.GetComponent<Renderer>();
+                    if (orbRend != null)
+                    {
+                        orbRend.material.SetColor("_EmissionColor", baseColor * (emissionIntensity * 1.5f));
+                    }
+                    // 球体上下浮动
+                    var pos = topOrb.transform.localPosition;
+                    pos.y = 6.2f + Mathf.Sin(Time.time * 1.5f) * 0.3f;
+                    topOrb.transform.localPosition = pos;
+                }
+
                 yield return null;
             }
         }
@@ -194,16 +262,35 @@ namespace XianTu
     public class PortalTrigger : MonoBehaviour
     {
         private System.Action _onPlayerEnter;
+        private bool _triggered;
 
         public void Initialize(System.Action onEnter)
         {
             _onPlayerEnter = onEnter;
+            _triggered = false;
         }
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.CompareTag("Player"))
+            TryTrigger(other);
+        }
+
+        // 备用：如果 OnTriggerEnter 没触发（CharacterController 有时只触发 Stay）
+        private void OnTriggerStay(Collider other)
+        {
+            TryTrigger(other);
+        }
+
+        private void TryTrigger(Collider other)
+        {
+            if (_triggered) return;
+            // 同时支持 tag 检测和组件检测
+            if (other.CompareTag("Player") || other.GetComponent<PlayerController>() != null)
+            {
+                _triggered = true;
+                Debug.Log("<color=green>★ 玩家进入传送门！★</color>");
                 _onPlayerEnter?.Invoke();
+            }
         }
     }
 }

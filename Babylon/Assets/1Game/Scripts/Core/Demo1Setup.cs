@@ -559,7 +559,7 @@ namespace XianTu
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(-5, 5), new Vector2(5, 15),
                 new Color(0.2f, 1f, 0.4f));
-            SetPrivateField(minimap, "playerDot", playerDot);
+            SetPrivateField(minimap, "playerDot", playerDot.GetComponent<Image>());
 
             // 标题
             var title = CreateUIText(mapPanel.transform, "MapTitle", "仙途", 12,

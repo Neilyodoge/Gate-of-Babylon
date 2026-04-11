@@ -67,7 +67,7 @@ namespace XianTu
 
         // 安全超时（防止动画事件丢失导致状态卡死）
         private const float STATE_TIMEOUT = 3.0f;  // 普通动作超时
-        private const float SKILL_TIMEOUT = 4.0f;  // 技能动作超时（兜底保护）
+        private const float SKILL_TIMEOUT = 2.0f;  // 技能动作超时（兜底保护）
 
         // ==================== 公开属性 ====================
 
@@ -152,6 +152,10 @@ namespace XianTu
                         _currentPriority = AnimationPriority.None;
                         _superArmor = false;
                         _attackHitWindowOpen = false;
+
+                        // 恢复动画播放速度（技能释放时可能修改过）
+                        animator.speed = 1f;
+
                         if (lostPriority == AnimationPriority.Attack)
                             ResetComboInternal();
                         TryConsumeInputBuffer();
@@ -457,13 +461,18 @@ namespace XianTu
             _superArmor = true;  // 技能中也有霸体
             _stateTimer = SKILL_TIMEOUT;  // 技能用更长的超时
 
+            // 清除所有待处理的 Trigger，防止技能结束后误触发
             animator.ResetTrigger(AttackTrigger);
-            animator.ResetTrigger(SkillTrigger); // 先清除旧的，防止残留
+            animator.ResetTrigger(SkillTrigger);
+            animator.ResetTrigger(HitTrigger);
             animator.SetBool(IsAttacking, false);
-            animator.SetTrigger(SkillTrigger);
 
             // 设置技能动画播放速度
             animator.speed = Mathf.Clamp(castSpeed, 0.5f, 3f);
+
+            // 使用 CrossFade 强制切换到技能动画（和闪避一样，不依赖 Trigger）
+            // Trigger 在 Animator 过渡中可能被吞掉，CrossFade 更可靠
+            animator.CrossFade("Skill", 0.05f, 0);
 
             return true;
         }

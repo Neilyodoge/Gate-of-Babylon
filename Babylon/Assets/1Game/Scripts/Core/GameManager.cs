@@ -293,12 +293,14 @@ namespace XianTu
                 return;
             }
 
-            // 使用传送门过渡
+            // 在房间北侧生成传送门（固定位置，更容易找到）
             if (LevelTransition.Instance != null)
             {
-                Vector3 portalPos = PlayerController.Instance != null
-                    ? PlayerController.Instance.transform.position + PlayerController.Instance.AimDirection * 3f
-                    : Vector3.zero;
+                // 获取当前房间的尺寸，将门放在房间北侧1/3处（不贴墙，确保可见）
+                float roomHalfDepth = GetCurrentRoomHalfDepth();
+                Vector3 roomCenter = _currentRoomGo != null ? _currentRoomGo.transform.position : Vector3.zero;
+                // 门放在房间中心偏北的位置（距中心 halfDepth * 0.5），远离墙壁，容易看到
+                Vector3 portalPos = roomCenter + new Vector3(0, 0, roomHalfDepth * 0.5f);
 
                 LevelTransition.Instance.SpawnPortal(portalPos, () => SpawnCurrentRoom());
             }
@@ -307,6 +309,26 @@ namespace XianTu
                 // 兜底：直接切换
                 Invoke(nameof(SpawnCurrentRoom), 2f);
             }
+        }
+
+        /// <summary>获取当前房间的半深度（用于定位传送门）</summary>
+        private float GetCurrentRoomHalfDepth()
+        {
+            if (_currentRoomGo == null) return 10f;
+
+            var battleRoom = _currentRoomGo.GetComponent<BattleRoom>();
+            if (battleRoom != null) return battleRoom.RoomDepth / 2f;
+
+            var shopRoom = _currentRoomGo.GetComponent<ShopRoom>();
+            if (shopRoom != null) return shopRoom.RoomDepth / 2f;
+
+            var restRoom = _currentRoomGo.GetComponent<RestRoom>();
+            if (restRoom != null) return restRoom.RoomDepth / 2f;
+
+            var treasureRoom = _currentRoomGo.GetComponent<TreasureRoom>();
+            if (treasureRoom != null) return treasureRoom.RoomDepth / 2f;
+
+            return 10f;
         }
 
         private void OnPlayerDied(GameEvents.PlayerDied evt)
