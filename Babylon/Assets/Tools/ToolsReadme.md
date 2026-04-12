@@ -17,6 +17,7 @@ Tools/Editor/
 │   └── TextureNormalizer.cs        # 贴图规范化
 ├── TATools/                # TA 工具
 │   ├── ChannelRemapper.cs          # 通道重映射
+│   ├── SRPBatcherChecker.cs        # SRP Batcher 兼容性检查
 │   ├── TextureDebug.shader         # 贴图调试 Shader
 │   └── TextureDebugShaderGUI.cs    # 贴图调试 ShaderGUI
 └── OptimizeTool/           # 性能优化工具
@@ -36,6 +37,7 @@ Tools/Editor/
 | `nTools/美术工具/Bent Normal Baker` | BentNormalBakeTool | 美术工具 |
 | `nTools/美术工具/Prefab资源快速复制` | PrefabAssetExtractor | 美术工具 |
 | `nTools/TA工具/通道重映射` | ChannelRemapper | TA工具 |
+| `nTools/TA工具/SRP Batcher Checker` | SRPBatcherChecker | TA工具 |
 | `nTools/性能优化/场景优化` | SceneOptimizeTool | 性能优化 |
 
 ---
@@ -135,7 +137,17 @@ Tools/Editor/
   5. 为输出的 R/G/B/A 各通道指定来源通道
   6. 点击"重映射并保存"
 
-#### 2. 贴图调试 Shader (TextureDebug)
+#### 2. SRP Batcher 兼容性检查 (SRPBatcherChecker)
+
+- **菜单路径**：`nTools/TA工具/SRP Batcher Checker`
+- **功能**：批量检查 Shader 是否兼容 SRP Batcher，并输出不兼容的原因
+- **使用方法**：
+  1. 打开工具窗口
+  2. 将需要检查的 Shader 拖入列表（或点击"添加场景中使用的 Shader"批量添加）
+  3. 点击"检查"按钮
+  4. 查看结果列表：✅ 兼容 / ❌ 不兼容（附原因说明）
+
+#### 3. 贴图调试 Shader (TextureDebug)
 
 - **功能**：通用贴图调试 Shader（Unlit），以可视化方式单独查看各通道数据
 - **支持的调试模式**：

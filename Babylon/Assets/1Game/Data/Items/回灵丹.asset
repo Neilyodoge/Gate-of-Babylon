@@ -32,4 +32,7 @@ MonoBehaviour:
   burnDamagePerSecond: 0
   freezeChance: 0
   healOnKill: 3
+  linkedSkill: {fileID: 0}
+  requiresSlot: 0
+  isSkillSpecific: 0
   pickupVfxPrefab: {fileID: 0}

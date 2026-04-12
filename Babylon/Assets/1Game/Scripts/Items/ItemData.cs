@@ -90,7 +90,8 @@ namespace XianTu
 
         [Header("拾取表现")]
         public GameObject pickupVfxPrefab;
-        // TODO: 拾取音效
+        /// <summary>拾取音效（为空则使用 AudioConfig 中按品阶的通用拾取音效）</summary>
+        public AudioClip pickupSFX;
 
         /// <summary>
         /// 获取品阶对应的颜色

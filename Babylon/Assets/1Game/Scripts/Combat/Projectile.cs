@@ -57,6 +57,7 @@ namespace XianTu
 
             // 忽略其他投射物
             if (other.GetComponent<Projectile>() != null) return;
+            if (other.GetComponent<EnemyProjectile>() != null) return;
 
             var damageable = other.GetComponent<IDamageable>();
             if (damageable != null)
@@ -80,6 +81,7 @@ namespace XianTu
                 }
             }
 
+            // 碰到墙壁、障碍物等环境物体也回收
             Recycle();
         }
 

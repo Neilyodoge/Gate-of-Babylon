@@ -49,6 +49,11 @@ namespace XianTu
         [Header("表现")]
         public GameObject vfxPrefab;
         public float vfxDuration = 1.5f;
-        // TODO: 音效
+
+        [Header("音效")]
+        /// <summary>技能释放音效（为空则使用 AudioConfig 中的通用技能音效）</summary>
+        public AudioClip castSFX;
+        /// <summary>技能命中音效（为空则使用 AudioConfig 中的通用命中音效）</summary>
+        public AudioClip hitSFX;
     }
 }

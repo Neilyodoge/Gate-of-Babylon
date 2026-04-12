@@ -67,6 +67,9 @@ namespace XianTu
 
             // 11. 创建 EventSystem（UI交互必需）
             CreateEventSystem();
+
+            // 12. 创建音效管理器
+            CreateAudioManager();
         }
 
         private void CreateEventSystem()
@@ -78,6 +81,15 @@ namespace XianTu
             esGo.AddComponent<UnityEngine.EventSystems.EventSystem>();
             // 使用 InputSystem 的 UI 输入模块
             esGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        }
+
+        private void CreateAudioManager()
+        {
+            // 检查场景中是否已有 AudioManager
+            if (AudioManager.Instance != null) return;
+
+            var audioGo = new GameObject("AudioManager");
+            audioGo.AddComponent<AudioManager>();
         }
 
         private void CreateObjectPool()

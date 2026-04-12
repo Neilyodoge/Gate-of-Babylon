@@ -111,6 +111,8 @@
 | 编辑器工具 | `Demo1DataCreator.cs` | 菜单命令一键创建测试数据 / 配置场景 |
 | 自定义 Bloom | URP Package 修改 | nBloom（Kawase 模糊）+ Kill Fireflies（详见 `PostProcess_README.md`） |
 | 自定义 Tonemapping | URP Package 修改 | GT / ACESSimple / UE4 三种额外算法（详见 `PostProcess_README.md`） |
+| 音效配置 | `AudioConfig.cs` | ScriptableObject 集中管理所有音效资源引用，按分类配置槽位 |
+| 音效管理器 | `AudioManager.cs` | 全局单例，SFX 对象池（16路），事件自动播放，防重叠，BGM 管理 |
 
 ---
 
@@ -122,7 +124,7 @@
 |------|------|
 | 攻击前摇取消 | 暂不需要 |
 | 攻击拖尾 | 暂不需要 |
-| 音效系统 | 暂不需要（AudioManager / 攻击音效 / BGM / UI音效） |
+| ~~音效系统~~ | ✅ 已实现框架（AudioConfig + AudioManager + 事件自动播放），待导入音频资源 |
 | 视觉模型替换 | 后续手动导入美术资源替换 |
 | 震屏（Camera Shake） | 暂不需要 |
 | 通关后灵物 3 选 1 | 暂不需要（Roguelike 经典设计，后续可加） |
@@ -140,9 +142,9 @@
 
 ### 3.2 可选的后续功能
 
-- [ ] 音效系统（AudioManager 单例 + 音效池）
-- [ ] 攻击/受击/闪避音效
-- [ ] BGM（战斗 BGM，随层数/Boss 切换）
+- [x] 音效系统框架（AudioConfig 配置 + AudioManager 单例 + SFX 对象池 + 事件自动播放）
+- [ ] 导入音频资源并配置到 AudioConfig 对应槽位
+- [ ] BGM 淡入淡出过渡
 - [ ] 震屏（Camera Shake / Cinemachine Impulse）
 - [ ] 攻击前摇取消（闪避可取消攻击前摇）
 - [ ] 攻击拖尾（武器运动模糊/拖尾效果）
@@ -152,7 +154,7 @@
 - [x] 分解系统（分解获得灵力碎片）
 - [x] 灵力碎片资源UI（左下角显示）
 - [x] 房间F键防护（防止连续按F跳层通关）
-- [ ] 商店购买系统（用灵力碎片购买灵物）
+- [x] 商店购买系统（用灵力碎片购买灵物）
 
 ### 3.3 技能系统演进
 
@@ -177,6 +179,8 @@ Assets/1Game/
 │   │   └── SkillData.cs
 │   ├── Core/            # 核心系统
 │   │   ├── Demo1Setup.cs
+│   │   ├── AudioConfig.cs
+│   │   ├── AudioManager.cs
 │   │   ├── GameConfig.cs
 │   │   ├── GameEvents.cs
 │   │   ├── GameManager.cs
@@ -220,8 +224,14 @@ Assets/1Game/
 │       ├── InventoryUI.cs
 │       └── Minimap.cs
 ├── Docs/                # 文档
-│   ├── Demo1功能清单.md          ← 本文档
-│   └── 技能播放速度配置方案.md
+│   ├── README.md                     ← 文档索引（总入口）
+│   ├── Demo1功能清单.md              ← 本文档
+│   ├── 工具搜索面板使用说明.md        ← F1 工具搜索面板
+│   ├── 技能播放速度配置方案.md        ← 技能速度配置演进
+│   ├── 配置_GameConfig说明.md        ← 全局配置字段说明
+│   ├── 资源_灵物配置指南.md          ← 灵物 SO 创建指南
+│   ├── 资源_功法配置指南.md          ← 功法 SO 创建指南
+│   └── 资源_数据创建工具说明.md      ← 编辑器工具使用说明
 └── Data/                # 数据资产（由 Demo1DataCreator 生成）
     ├── Skills/
     ├── Items/

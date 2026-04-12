@@ -31,7 +31,7 @@ namespace TATools
             public string Message;
         }
 
-        [MenuItem("Tools/TA Tools/SRP Batcher Checker", false, 100)]
+        [MenuItem("nTools/TA工具/SRP Batcher Checker", false, 100)]
         public static void ShowWindow()
         {
             var window = GetWindow<SRPBatcherChecker>("SRP Batcher Checker");

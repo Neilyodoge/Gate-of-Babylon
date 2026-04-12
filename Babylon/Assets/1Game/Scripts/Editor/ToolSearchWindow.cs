@@ -136,7 +136,7 @@ namespace XianTu
             {
                 Name = "SRP Batcher Checker",
                 Category = "TATools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("Tools/TA Tools/SRP Batcher Checker"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/TA工具/SRP Batcher Checker"),
                 ScriptPath = "Assets/Tools/Editor/TATools/SRPBatcherChecker.cs"
             });
 
@@ -221,6 +221,36 @@ namespace XianTu
                 Description = "在 Inspector 中选中并高亮 GameConfig 资产，方便快速修改数值",
                 OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/⑥ 选中游戏配置"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/GameConfigEditor.cs",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
+                Name = "选中音效配置",
+                Category = "Core",
+                Description = "在 Inspector 中选中 AudioConfig 资产，拖入音频文件到对应槽位即可",
+                OnClick = () => SelectAsset("Assets/1Game/Resources/AudioConfig.asset"),
+                ScriptPath = "Assets/1Game/Scripts/Core/AudioConfig.cs",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
+                Name = "选中怪物预制体配置",
+                Category = "Core",
+                Description = "在 Inspector 中选中 MonsterPrefabs 资产，拖入怪物模型 Prefab",
+                OnClick = () => SelectAsset("Assets/1Game/Resources/MonsterPrefabs.asset"),
+                ScriptPath = "Assets/1Game/Scripts/Core/MonsterPrefabs.cs",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
+                Name = "⚡ 配置速查面板",
+                Category = "Core",
+                Description = "打开配置速查面板，一站式查看和跳转所有配置文件",
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/⑦ 配置速查"),
+                ScriptPath = "Assets/1Game/Scripts/Editor/ConfigDashboard.cs",
                 IsSpecialized = true
             });
 
@@ -350,6 +380,26 @@ namespace XianTu
             // ---- 文档 (Docs) ----
             list.Add(new ToolEntry
             {
+                Name = "⚡ 配置速查表",
+                Category = "Docs",
+                OnClick = () => PingScript("Assets/1Game/Docs/配置速查表.md"),
+                ScriptPath = "Assets/1Game/Docs/配置速查表.md",
+                Description = "一页纸看清所有配置文件：位置、用途、字段速查、快速上手流程",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
+                Name = "📚 文档索引",
+                Category = "Docs",
+                OnClick = () => PingScript("Assets/1Game/Docs/README.md"),
+                ScriptPath = "Assets/1Game/Docs/README.md",
+                Description = "所有文档的总索引，分为配置、资源、系统三大类",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
                 Name = "打开 Demo1 功能清单",
                 Category = "Docs",
                 OnClick = () => PingScript("Assets/1Game/Docs/Demo1功能清单.md"),
@@ -372,6 +422,48 @@ namespace XianTu
                 Category = "Docs",
                 OnClick = () => PingScript("Packages/com.unity.render-pipelines.universal/PostProcess_README.md"),
                 ScriptPath = "Packages/com.unity.render-pipelines.universal/PostProcess_README.md",
+                IsSpecialized = true
+            });
+
+            // ---- 配置文档 ----
+            list.Add(new ToolEntry
+            {
+                Name = "GameConfig 配置说明",
+                Category = "Docs",
+                OnClick = () => PingScript("Assets/1Game/Docs/配置_GameConfig说明.md"),
+                ScriptPath = "Assets/1Game/Docs/配置_GameConfig说明.md",
+                Description = "全局游戏配置字段说明与调参指南",
+                IsSpecialized = true
+            });
+
+            // ---- 资源文档 ----
+            list.Add(new ToolEntry
+            {
+                Name = "灵物配置指南",
+                Category = "Docs",
+                OnClick = () => PingScript("Assets/1Game/Docs/资源_灵物配置指南.md"),
+                ScriptPath = "Assets/1Game/Docs/资源_灵物配置指南.md",
+                Description = "如何创建灵物 SO 数据，字段说明、品阶/分类规则、质变阈值配置",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
+                Name = "功法配置指南",
+                Category = "Docs",
+                OnClick = () => PingScript("Assets/1Game/Docs/资源_功法配置指南.md"),
+                ScriptPath = "Assets/1Game/Docs/资源_功法配置指南.md",
+                Description = "如何创建功法 SO 数据，技能类型、数值配置、VFX 关联",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
+                Name = "数据创建工具说明",
+                Category = "Docs",
+                OnClick = () => PingScript("Assets/1Game/Docs/资源_数据创建工具说明.md"),
+                ScriptPath = "Assets/1Game/Docs/资源_数据创建工具说明.md",
+                Description = "Demo1DataCreator 编辑器工具的使用方法，一键创建/更新所有测试数据",
                 IsSpecialized = true
             });
 

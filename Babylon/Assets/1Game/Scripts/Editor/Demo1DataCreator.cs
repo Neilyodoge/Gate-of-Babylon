@@ -46,11 +46,12 @@ namespace XianTu.Editor
             CreateHealPill();
             CreateFallingRock();
             CreateGoldenBell();
+            CreateAudioConfig();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 5 个灵物 + 2 个功法</color>");
+            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 5 个灵物 + 2 个功法 + 1 个音效配置</color>");
         }
 
         [MenuItem("仙途梦境/③ 创建 Animator Controller", false, 3)]
@@ -842,6 +843,43 @@ namespace XianTu.Editor
             }
 
             Debug.LogWarning($"  无法添加 Layer '{layerName}'：没有空闲的 User Layer");
+        }
+
+        // ==================== 音效配置 ====================
+
+        private static void CreateAudioConfig()
+        {
+            string configPath = "Assets/1Game/Resources/AudioConfig.asset";
+
+            // 如果已存在则跳过
+            if (AssetDatabase.LoadAssetAtPath<AudioConfig>(configPath) != null)
+            {
+                Debug.Log("  AudioConfig 已存在，跳过创建");
+                return;
+            }
+
+            EnsureDirectory("Assets/1Game/Resources/");
+
+            var config = ScriptableObject.CreateInstance<AudioConfig>();
+
+            // 设置默认音量
+            config.masterVolume = 1f;
+            config.sfxVolume = 0.8f;
+            config.bgmVolume = 0.5f;
+            config.uiVolume = 0.7f;
+
+            // 初始化数组（空槽位，后续在 Inspector 中拖入音频资源）
+            config.meleeAttacks = new UnityEngine.AudioClip[3];
+            config.meleeHits = new UnityEngine.AudioClip[3];
+            config.playerHurt = new UnityEngine.AudioClip[3];
+            config.enemyHurt = new UnityEngine.AudioClip[3];
+            config.enemyDeath = new UnityEngine.AudioClip[2];
+            config.itemPickup = new UnityEngine.AudioClip[5]; // 凡/灵/玄/地/天
+            config.bgmBattle = new UnityEngine.AudioClip[3];  // 前/中/后期
+
+            AssetDatabase.CreateAsset(config, configPath);
+            Debug.Log($"  ✅ 已创建音效配置：{configPath}");
+            Debug.Log("  💡 提示：在 Inspector 中打开 AudioConfig，将音频文件拖入对应槽位即可");
         }
     }
 }
