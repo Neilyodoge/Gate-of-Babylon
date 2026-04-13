@@ -142,6 +142,7 @@ namespace XianTu
             public float Damage;
             public bool IsCrit;
             public bool IsPlayerDamage; // true=玩家受伤（红色），false=敌人受伤（白/黄色）
+            public bool IsBurn; // true=灼烧持续伤害（橙色+🔥）
         }
 
         /// <summary>游戏通关</summary>

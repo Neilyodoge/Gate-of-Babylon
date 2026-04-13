@@ -85,6 +85,12 @@ namespace XianTu
                 popup.Text.fontSize = 28;
                 popup.Text.color = new Color(1f, 0.85f, 0f); // 金色暴击
             }
+            else if (evt.IsBurn)
+            {
+                popup.Text.text = $"🔥{dmgInt}";
+                popup.Text.fontSize = 18;
+                popup.Text.color = new Color(1f, 0.55f, 0.1f); // 橙色灼烧
+            }
             else if (evt.IsPlayerDamage)
             {
                 popup.Text.text = $"-{dmgInt}";

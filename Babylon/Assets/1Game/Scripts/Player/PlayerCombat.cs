@@ -130,6 +130,16 @@ namespace XianTu
                         Vector3 hitPoint = col.ClosestPoint(origin);
                         damageable.OnDamage(damage, hitPoint, gameObject);
 
+                        // 近战攻击也触发灼烧效果（火灵珠等灵物）
+                        float burnDPS = _player.Inventory.GetTotalBurnDPS();
+                        if (burnDPS > 0)
+                        {
+                            var burn = col.GetComponent<BurnEffect>();
+                            if (burn == null)
+                                burn = col.gameObject.AddComponent<BurnEffect>();
+                            burn.Apply(burnDPS, 3f); // 灼烧3秒
+                        }
+
                         // 播放打击特效
                         SpawnHitVFX(hitPoint);
                         hitAny = true;

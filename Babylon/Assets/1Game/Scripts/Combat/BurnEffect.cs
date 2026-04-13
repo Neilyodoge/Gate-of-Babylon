@@ -16,12 +16,13 @@ namespace XianTu
         private IDamageable _target;
 
         /// <summary>
-        /// 应用灼烧效果（可叠加刷新持续时间）
+        /// 应用灼烧效果（每次攻击刷新DPS和持续时间）
+        /// 调用方传入的dps已经是所有灼烧灵物的总DPS，直接覆盖即可
         /// </summary>
         public void Apply(float dps, float duration)
         {
-            _dps = Mathf.Max(_dps, dps); // 取较高伤害
-            _remainingTime = Mathf.Max(_remainingTime, duration); // 刷新持续时间
+            _dps = dps; // 直接使用最新的总DPS（调用方已累加所有灼烧灵物）
+            _remainingTime = duration; // 刷新持续时间
 
             if (_target == null)
                 _target = GetComponent<IDamageable>();
@@ -51,7 +52,23 @@ namespace XianTu
         {
             if (_target == null) return;
             float damage = _dps * TICK_INTERVAL;
-            _target.OnDamage(damage, transform.position, null);
+
+            // 直接扣血，不走OnDamage（避免触发硬直/击退等受击表现）
+            float actual = _target.Stats.TakeDamage(damage);
+
+            // 发布灼烧专用飘字（橙色+🔥）
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 1.2f,
+                Damage = actual,
+                IsCrit = false,
+                IsPlayerDamage = false,
+                IsBurn = true
+            });
+
+            // 检查死亡
+            if (!_target.Stats.IsAlive)
+                _target.OnDeath();
         }
     }
 }
