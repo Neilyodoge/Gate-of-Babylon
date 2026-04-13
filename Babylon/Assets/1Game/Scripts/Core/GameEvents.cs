@@ -143,6 +143,8 @@ namespace XianTu
             public bool IsCrit;
             public bool IsPlayerDamage; // true=玩家受伤（红色），false=敌人受伤（白/黄色）
             public bool IsBurn; // true=灼烧持续伤害（橙色+🔥）
+            /// <summary>特殊伤害类型标签（焚天/剑阵/御风/火墙/元素爆发/格挡/嗜血等）</summary>
+            public string SpecialTag;
         }
 
         /// <summary>游戏通关</summary>
@@ -175,6 +177,14 @@ namespace XianTu
             public ItemData Item;
             public int Count;
             public string EffectDescription;
+        }
+
+        /// <summary>灵物收集进度变化（用于UI显示质变进度条）</summary>
+        public struct ItemProgressChanged
+        {
+            public ItemData Item;
+            public int CurrentCount;
+            public int NextThreshold; // 下一个质变阈值（0=已全部触发）
         }
 
         /// <summary>功法装备到技能槽位</summary>

@@ -6,6 +6,7 @@ namespace XianTu
     /// <summary>
     /// 灵物组合（Synergy）系统
     /// 持有特定组合的灵物时触发额外效果
+    /// 改造后：提高触发门槛，效果从纯数值变为机制性玩法
     /// </summary>
     public static class SynergySystem
     {
@@ -31,91 +32,107 @@ namespace XianTu
 
         private static void RegisterDefaultSynergies()
         {
-            // 风火轮：2个攻伐 + 1个身法 → 攻击力+30%，移速+20%
+            // 风火轮：3个攻伐 + 2个身法 → 冲刺时身后留下火墙，持续灼烧经过的敌人
             _synergies.Add(new SynergyDef
             {
                 name = "风火轮",
-                description = "攻伐x2 + 身法x1 → 攻击力+30%，移速+20%",
+                description = "攻伐x3 + 身法x2 → 冲刺留下火墙，灼烧经过的敌人",
                 requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Movement },
-                requiredCounts = new[] { 2, 1 },
+                requiredCounts = new[] { 3, 2 },
                 applyEffect = stats =>
                 {
-                    stats.attackDamage *= 1.3f;
-                    stats.moveSpeed *= 1.2f;
+                    // 机制性效果：冲刺留火墙（由 QualitativeEffectRunner 处理）
+                    var runner = QualitativeEffectRunner.Instance;
+                    if (runner != null)
+                        runner.FireTrailSynergyActive = true;
+                    // 附带少量数值加成
+                    stats.moveSpeed *= 1.1f;
                 },
                 removeEffect = stats =>
                 {
-                    stats.attackDamage /= 1.3f;
-                    stats.moveSpeed /= 1.2f;
+                    var runner = QualitativeEffectRunner.Instance;
+                    if (runner != null)
+                        runner.FireTrailSynergyActive = false;
+                    stats.moveSpeed /= 1.1f;
                 },
                 displayColor = new Color(1f, 0.5f, 0.1f)
             });
 
-            // 金刚不坏：3个护体 → 减伤+25%，最大生命+20%
+            // 金刚不坏：5个护体 → 受击时有30%概率完全格挡，并反弹50%伤害
             _synergies.Add(new SynergyDef
             {
                 name = "金刚不坏",
-                description = "护体x3 → 减伤+25%，最大生命+20%",
+                description = "护体x5 → 受击30%概率完全格挡并反弹伤害",
                 requiredCategories = new[] { ItemCategory.Defense },
-                requiredCounts = new[] { 3 },
+                requiredCounts = new[] { 5 },
                 applyEffect = stats =>
                 {
-                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction + 0.25f);
-                    stats.maxHp *= 1.2f;
-                    stats.currentHp *= 1.2f;
+                    // 格挡机制由 PlayerController 检查 Synergy 状态实现
+                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction + 0.15f);
+                    stats.maxHp *= 1.1f;
+                    stats.currentHp *= 1.1f;
                 },
                 removeEffect = stats =>
                 {
-                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction - 0.25f);
-                    stats.maxHp /= 1.2f;
+                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction - 0.15f);
+                    stats.maxHp /= 1.1f;
                     stats.currentHp = Mathf.Min(stats.currentHp, stats.maxHp);
                 },
                 displayColor = new Color(1f, 0.85f, 0.2f)
             });
 
-            // 天人合一：5种不同分类各1个 → 全属性+15%
+            // 天人合一：5种不同分类各2个 → 每30秒随机触发一个元素爆发（火/冰/风/雷）
             _synergies.Add(new SynergyDef
             {
                 name = "天人合一",
-                description = "集齐5种分类 → 全属性+15%",
+                description = "5种分类各x2 → 每30秒随机元素爆发（火/冰/风/雷）",
                 requiredCategories = new[] {
                     ItemCategory.Attack, ItemCategory.Defense,
                     ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Pill
                 },
-                requiredCounts = new[] { 1, 1, 1, 1, 1 },
+                requiredCounts = new[] { 2, 2, 2, 2, 2 },
                 applyEffect = stats =>
                 {
-                    stats.attackDamage *= 1.15f;
-                    stats.maxHp *= 1.15f;
-                    stats.currentHp *= 1.15f;
-                    stats.moveSpeed *= 1.15f;
-                    stats.critRate = Mathf.Clamp01(stats.critRate + 0.1f);
+                    var runner = QualitativeEffectRunner.Instance;
+                    if (runner != null)
+                        runner.ActivateElementBurst();
+                    // 附带少量全属性加成
+                    stats.attackDamage *= 1.08f;
+                    stats.maxHp *= 1.08f;
+                    stats.currentHp *= 1.08f;
+                    stats.moveSpeed *= 1.08f;
                 },
                 removeEffect = stats =>
                 {
-                    stats.attackDamage /= 1.15f;
-                    stats.maxHp /= 1.15f;
+                    var runner = QualitativeEffectRunner.Instance;
+                    if (runner != null)
+                        runner.DeactivateElementBurst();
+                    stats.attackDamage /= 1.08f;
+                    stats.maxHp /= 1.08f;
                     stats.currentHp = Mathf.Min(stats.currentHp, stats.maxHp);
-                    stats.moveSpeed /= 1.15f;
-                    stats.critRate = Mathf.Clamp01(stats.critRate - 0.1f);
+                    stats.moveSpeed /= 1.08f;
                 },
                 displayColor = new Color(1f, 0.95f, 0.5f)
             });
 
-            // 嗜血狂魔：2个攻伐 + 1个丹药 → 暴击率+15%，击杀回复+5
+            // 嗜血狂魔：3个攻伐 + 2个丹药 → 击杀后进入嗜血状态5秒，攻速翻倍但持续掉血
             _synergies.Add(new SynergyDef
             {
                 name = "嗜血狂魔",
-                description = "攻伐x2 + 丹药x1 → 暴击率+15%，击杀回复+5",
+                description = "攻伐x3 + 丹药x2 → 击杀后嗜血5秒：攻速翻倍，持续掉血",
                 requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Pill },
-                requiredCounts = new[] { 2, 1 },
+                requiredCounts = new[] { 3, 2 },
                 applyEffect = stats =>
                 {
-                    stats.critRate = Mathf.Clamp01(stats.critRate + 0.15f);
+                    var runner = QualitativeEffectRunner.Instance;
+                    if (runner != null)
+                        runner.BloodlustSynergyActive = true;
                 },
                 removeEffect = stats =>
                 {
-                    stats.critRate = Mathf.Clamp01(stats.critRate - 0.15f);
+                    var runner = QualitativeEffectRunner.Instance;
+                    if (runner != null)
+                        runner.BloodlustSynergyActive = false;
                 },
                 displayColor = new Color(0.9f, 0.1f, 0.2f)
             });
@@ -175,6 +192,9 @@ namespace XianTu
                 }
             }
         }
+
+        /// <summary>检查金刚不坏是否激活（用于格挡判定）</summary>
+        public static bool IsVajraActive => _activeSynergies.Contains("金刚不坏");
 
         /// <summary>获取所有已激活的 Synergy 名称</summary>
         public static IReadOnlyCollection<string> GetActiveSynergies() => _activeSynergies;

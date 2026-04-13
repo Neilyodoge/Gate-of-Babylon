@@ -237,66 +237,93 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 应用质变效果（根据灵物分类和数量触发特殊效果）
+        /// 应用质变效果（根据灵物名称和数量触发特殊机制效果）
+        /// 质变不再是纯数值加成，而是解锁全新的战斗机制
         /// </summary>
         private string ApplyQualitativeEffect(ItemData item, int count)
         {
-            switch (item.category)
+            var runner = QualitativeEffectRunner.Instance;
+
+            // 根据灵物名称触发对应的机制性效果
+            switch (item.itemName)
             {
-                case ItemCategory.Attack:
-                    if (count == 3)
+                case "火灵珠":
+                    if (count == 5)
                     {
-                        _playerStats.attackDamage *= 1.25f;
-                        _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + 0.1f);
-                        return "攻伐灵力共鸣！攻击力+25%，暴击率+10%";
+                        runner?.ActivateEffect("焚天");
+                        return "焚天！每5次攻击释放火焰冲击波，灼烧周围敌人";
                     }
-                    else if (count == 5)
+                    else if (count == 8)
                     {
                         _playerStats.attackDamage *= 1.5f;
                         _playerStats.critDamage += 0.5f;
-                        return "攻伐灵力大成！攻击力+50%，暴击伤害+50%";
+                        return "焚天大成！攻击力+50%，暴击伤害+50%，冲击波伤害翻倍";
                     }
                     break;
 
+                case "玉佩":
+                    if (count == 5)
+                    {
+                        runner?.ActivateEffect("玉碎");
+                        return "玉碎！受到致命伤害时碎裂免疫，击退周围敌人（CD 60秒）";
+                    }
+                    break;
+
+                case "风灵珠":
+                    if (count == 5)
+                    {
+                        runner?.ActivateEffect("御风");
+                        return "御风！闪避后留下风之残影，残影自动攻击附近敌人";
+                    }
+                    break;
+
+                case "锈铁飞剑":
+                    if (count == 5)
+                    {
+                        runner?.ActivateEffect("剑阵");
+                        return "剑阵！飞剑环绕护体，自动攻击靠近的敌人";
+                    }
+                    else if (count == 8)
+                    {
+                        _playerStats.attackDamage *= 1.3f;
+                        _playerStats.pierceCount += 3;
+                        return "万剑归宗！攻击力+30%，穿透+3，剑阵伤害翻倍";
+                    }
+                    break;
+
+                case "回灵丹":
+                    if (count == 5)
+                    {
+                        runner?.ActivateEffect("涅槃");
+                        return "涅槃！死亡时消耗回灵丹原地复活，复活后3秒无敌";
+                    }
+                    break;
+            }
+
+            // 通用分类质变（作为后备，当灵物没有专属质变时）
+            switch (item.category)
+            {
+                case ItemCategory.Attack:
+                    if (count == 5)
+                        return "攻伐灵力共鸣，攻击附带灵力余波";
+                    break;
                 case ItemCategory.Defense:
-                    if (count == 3)
-                    {
-                        _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction + 0.15f);
-                        _playerStats.maxHp *= 1.15f;
-                        _playerStats.currentHp *= 1.15f;
-                        return "护体灵力共鸣！减伤+15%，生命+15%";
-                    }
-                    else if (count == 5)
-                    {
-                        _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction + 0.25f);
-                        return "护体灵力大成！减伤+25%，受击反弹伤害";
-                    }
+                    if (count == 5)
+                        return "护体灵力共鸣，受击时有概率格挡";
                     break;
-
                 case ItemCategory.Movement:
-                    if (count == 3)
-                    {
-                        _playerStats.moveSpeed *= 1.2f;
-                        _playerStats.dashCooldown *= 0.7f;
-                        return "身法灵力共鸣！移速+20%，闪避CD-30%";
-                    }
-                    else if (count == 5)
-                    {
-                        _playerStats.moveSpeed *= 1.3f;
-                        return "身法灵力大成！移速+30%，闪避无敌帧延长";
-                    }
+                    if (count == 5)
+                        return "身法灵力共鸣，移动留下残影";
                     break;
-
                 case ItemCategory.Anomaly:
-                    if (count == 3)
+                    if (count == 5)
                     {
                         _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + 0.15f);
                         return "异变灵力共鸣！暴击率+15%，攻击附带灵力爆发";
                     }
                     break;
-
                 case ItemCategory.Pill:
-                    if (count == 3)
+                    if (count == 5)
                     {
                         _playerStats.maxHp *= 1.3f;
                         _playerStats.currentHp = _playerStats.maxHp;
@@ -315,6 +342,8 @@ namespace XianTu
         {
             _items.Clear();
             SynergySystem.Clear();
+            if (QualitativeEffectRunner.Instance != null)
+                QualitativeEffectRunner.Instance.Clear();
             RecalculateStats();
         }
     }

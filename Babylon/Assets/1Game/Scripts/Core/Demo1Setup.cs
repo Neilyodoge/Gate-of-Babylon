@@ -307,6 +307,7 @@ namespace XianTu
             playerGo.AddComponent<ItemInventory>();
             playerGo.AddComponent<SpiritSlotSystem>();
             playerGo.AddComponent<PlayerResources>();
+            playerGo.AddComponent<QualitativeEffectRunner>();
         }
 
         private void SetupCamera()
@@ -678,6 +679,31 @@ namespace XianTu
             itemCountText.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
             itemCountText.GetComponent<Text>().color = new Color(0.7f, 0.9f, 1f);
             SetPrivateField(hud, "itemCountText", itemCountText.GetComponent<Text>());
+
+            // ========== 左侧：灵物质变进度面板 ==========
+            var itemProgressPanel = new GameObject("ItemProgressPanel");
+            itemProgressPanel.transform.SetParent(canvasGo.transform, false);
+            var ipRt = itemProgressPanel.AddComponent<RectTransform>();
+            ipRt.anchorMin = new Vector2(0, 0.3f);
+            ipRt.anchorMax = new Vector2(0, 0.3f);
+            ipRt.pivot = new Vector2(0, 1);
+            ipRt.anchoredPosition = new Vector2(15, 100);
+            ipRt.sizeDelta = new Vector2(190, 280);
+            SetPrivateField(hud, "itemProgressPanel", ipRt);
+
+            // ========== 中央偏上：质变触发大字提示 ==========
+            var qualText = CreateUIText(canvasGo.transform, "QualitativeText", "", 26,
+                new Vector2(0.5f, 0.7f), new Vector2(0.5f, 0.7f),
+                new Vector2(-300, -20), new Vector2(300, 20));
+            var qualTxt = qualText.GetComponent<Text>();
+            qualTxt.alignment = TextAnchor.MiddleCenter;
+            qualTxt.color = new Color(1f, 0.85f, 0.2f);
+            qualTxt.supportRichText = true;
+            var qualOutline = qualText.AddComponent<Outline>();
+            qualOutline.effectColor = new Color(0, 0, 0, 0.9f);
+            qualOutline.effectDistance = new Vector2(2, -2);
+            qualText.SetActive(false);
+            SetPrivateField(hud, "qualitativeText", qualTxt);
 
             // ========== 左下角：灵力碎片计数 ==========
             var shardPanel = CreateUIImage(canvasGo.transform, "ShardPanel",

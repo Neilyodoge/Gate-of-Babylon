@@ -79,7 +79,83 @@ namespace XianTu
 
             // 文字内容和样式
             int dmgInt = Mathf.CeilToInt(evt.Damage);
-            if (evt.IsCrit)
+            string tag = evt.SpecialTag;
+
+            if (!string.IsNullOrEmpty(tag))
+            {
+                // 特殊伤害类型飘字
+                switch (tag)
+                {
+                    case "焚天":
+                        popup.Text.text = $"🔥焚天 {dmgInt}";
+                        popup.Text.fontSize = 24;
+                        popup.Text.color = new Color(1f, 0.35f, 0f); // 深橙色
+                        popup.Duration = 1.0f;
+                        popup.Timer = 1.0f;
+                        break;
+                    case "剑阵":
+                        popup.Text.text = $"⚔️{dmgInt}";
+                        popup.Text.fontSize = 18;
+                        popup.Text.color = new Color(0.5f, 0.7f, 1f); // 淡蓝色
+                        break;
+                    case "御风":
+                        popup.Text.text = $"🌀{dmgInt}";
+                        popup.Text.fontSize = 18;
+                        popup.Text.color = new Color(0.3f, 0.9f, 0.7f); // 青绿色
+                        break;
+                    case "火墙":
+                        popup.Text.text = $"🔥{dmgInt}";
+                        popup.Text.fontSize = 18;
+                        popup.Text.color = new Color(1f, 0.4f, 0.1f); // 火红色
+                        break;
+                    case "元素爆发":
+                        popup.Text.text = $"⚡{dmgInt}";
+                        popup.Text.fontSize = 26;
+                        popup.Text.color = new Color(0.9f, 0.8f, 1f); // 淡紫色
+                        popup.Duration = 1.0f;
+                        popup.Timer = 1.0f;
+                        break;
+                    case "格挡":
+                        popup.Text.text = "🛡️格挡!";
+                        popup.Text.fontSize = 24;
+                        popup.Text.color = new Color(1f, 0.85f, 0.2f); // 金色
+                        popup.Duration = 1.0f;
+                        popup.Timer = 1.0f;
+                        break;
+                    case "反弹":
+                        popup.Text.text = $"↩️反弹 {dmgInt}";
+                        popup.Text.fontSize = 22;
+                        popup.Text.color = new Color(1f, 0.9f, 0.3f); // 金黄色
+                        popup.Duration = 1.0f;
+                        popup.Timer = 1.0f;
+                        break;
+                    case "玉碎":
+                        popup.Text.text = "💎玉碎免疫!";
+                        popup.Text.fontSize = 28;
+                        popup.Text.color = new Color(0.6f, 1f, 0.85f); // 翡翠色
+                        popup.Duration = 1.5f;
+                        popup.Timer = 1.5f;
+                        break;
+                    case "涅槃":
+                        popup.Text.text = "🔥涅槃复活!";
+                        popup.Text.fontSize = 30;
+                        popup.Text.color = new Color(1f, 0.85f, 0.2f); // 金色
+                        popup.Duration = 2.0f;
+                        popup.Timer = 2.0f;
+                        break;
+                    case "嗜血":
+                        popup.Text.text = $"🩸{dmgInt}";
+                        popup.Text.fontSize = 18;
+                        popup.Text.color = new Color(0.8f, 0.1f, 0.2f); // 暗红色
+                        break;
+                    default:
+                        popup.Text.text = $"✦{dmgInt}";
+                        popup.Text.fontSize = 20;
+                        popup.Text.color = new Color(0.8f, 0.8f, 1f);
+                        break;
+                }
+            }
+            else if (evt.IsCrit)
             {
                 popup.Text.text = $"暴击 {dmgInt}!";
                 popup.Text.fontSize = 28;

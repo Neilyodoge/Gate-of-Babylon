@@ -240,6 +240,8 @@ namespace XianTu
             // 尝试播放闪避动画（会自动打断当前动作）
             if (!_playerAnim.PlayEvade()) return;
 
+            Vector3 dashStartPos = transform.position; // 记录起点（火墙用）
+
             _isDashing = true;
             _dashTimer = dashDuration;
             _dashDirection = _moveInput.sqrMagnitude > 0.01f ? _moveInput : _aimDirection;
@@ -255,6 +257,16 @@ namespace XianTu
             // 开启无敌帧（哈迪斯风格：闪避全程无敌）
             _invincible = true;
             _invincibleTimer = DASH_INVINCIBLE_TIME;
+
+            // 质变效果：御风（闪避后留下残影）
+            var runner = QualitativeEffectRunner.Instance;
+            if (runner != null)
+            {
+                runner.OnPlayerDash();
+                // 协同效果：风火轮（冲刺留火墙）
+                Vector3 dashEndPos = dashStartPos + _dashDirection * dashDistance;
+                runner.OnPlayerDashForFireTrail(dashStartPos, dashEndPos);
+            }
         }
 
         /// <summary>更新各种计时器</summary>
@@ -369,6 +381,40 @@ namespace XianTu
         {
             if (_invincible || !stats.IsAlive) return;
 
+            // 金刚不坏协同：30%概率完全格挡并反弹伤害
+            if (SynergySystem.IsVajraActive && Random.value < 0.3f)
+            {
+                Debug.Log("<color=yellow>🛡️ 金刚不坏格挡！反弹伤害！</color>");
+
+                // 飘字：格挡
+                GameEvents.Publish(new GameEvents.DamageNumberRequested
+                {
+                    WorldPosition = transform.position + Vector3.up * 2f,
+                    Damage = 0,
+                    SpecialTag = "格挡"
+                });
+
+                // 反弹50%伤害给攻击者
+                if (attacker != null)
+                {
+                    var attackerDamageable = attacker.GetComponent<IDamageable>();
+                    if (attackerDamageable != null)
+                    {
+                        float reflectDmg = damage * 0.5f;
+                        attackerDamageable.OnDamage(reflectDmg, attacker.transform.position, gameObject);
+
+                        // 飘字：反弹伤害
+                        GameEvents.Publish(new GameEvents.DamageNumberRequested
+                        {
+                            WorldPosition = attacker.transform.position + Vector3.up * 1.5f,
+                            Damage = reflectDmg,
+                            SpecialTag = "反弹"
+                        });
+                    }
+                }
+                return; // 完全格挡，不受伤
+            }
+
             // 无论是否被打断，都要扣血（哈迪斯：霸体不等于无敌）
             float actual = stats.TakeDamage(damage);
 
@@ -405,11 +451,29 @@ namespace XianTu
                 PostProcessSetup.Instance.PulseVignette();
 
             if (!stats.IsAlive)
+            {
+                // 尝试玉碎免死
+                var runner = QualitativeEffectRunner.Instance;
+                if (runner != null && runner.TryJadeShield())
+                {
+                    // 玉碎触发，免疫致命伤害
+                    return;
+                }
+
                 OnDeath();
+            }
         }
 
         public void OnDeath()
         {
+            // 尝试涅槃复活
+            var runner = QualitativeEffectRunner.Instance;
+            if (runner != null && runner.TryNirvana())
+            {
+                Debug.Log("<color=yellow>🔥 涅槃复活！</color>");
+                return; // 复活成功，不触发死亡
+            }
+
             Debug.Log("<color=red>玩家死亡！梦境破碎...</color>");
             _playerAnim.PlayDie();
             GameEvents.Publish(new GameEvents.PlayerDied());

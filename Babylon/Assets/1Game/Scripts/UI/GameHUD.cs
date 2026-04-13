@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace XianTu
 {
@@ -47,6 +48,15 @@ namespace XianTu
 
         [Header("灵物计数")]
         [SerializeField] private Text itemCountText;
+
+        [Header("灵物质变进度")]
+        [SerializeField] private RectTransform itemProgressPanel; // 灵物进度区域父节点
+        private readonly List<ItemProgressSlot> _itemProgressSlots = new();
+        private const int MAX_ITEM_PROGRESS_SLOTS = 8; // 最多显示8种灵物的进度
+
+        [Header("质变触发提示")]
+        [SerializeField] private Text qualitativeText; // 质变触发时的大字提示
+        private float _qualitativeTimer;
 
         [Header("资源显示")]
         [SerializeField] private Text shardCountText;
@@ -97,6 +107,7 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
             GameEvents.Subscribe<GameEvents.GameWon>(OnGameWon);
             GameEvents.Subscribe<GameEvents.ResourceChanged>(OnResourceChanged);
+            GameEvents.Subscribe<GameEvents.QualitativeTriggered>(OnQualitativeTriggered);
 
             // 初始化显示
             if (PlayerController.Instance != null)
@@ -112,6 +123,13 @@ namespace XianTu
 
             // 初始化连招指示器
             ResetComboIndicators();
+
+            // 初始化灵物进度槽位
+            InitItemProgressSlots();
+
+            // 隐藏质变提示
+            if (qualitativeText != null)
+                qualitativeText.gameObject.SetActive(false);
 
             // 绑定按钮
             if (restartButton != null)
@@ -150,6 +168,25 @@ namespace XianTu
 
             // 血条受伤延迟条动画
             UpdateDamageBar(dt);
+
+            // 质变提示淡出
+            if (_qualitativeTimer > 0)
+            {
+                _qualitativeTimer -= dt;
+                if (_qualitativeTimer <= 0 && qualitativeText != null)
+                    qualitativeText.gameObject.SetActive(false);
+                else if (qualitativeText != null)
+                {
+                    // 最后1秒淡出
+                    float alpha = Mathf.Clamp01(_qualitativeTimer / 1f);
+                    var c = qualitativeText.color;
+                    c.a = alpha;
+                    qualitativeText.color = c;
+                }
+            }
+
+            // 灵物进度槽位发光动画
+            UpdateItemProgressGlow();
         }
 
         // ==================== 血条 ====================
@@ -348,6 +385,7 @@ namespace XianTu
         {
             ShowMessage($"获得灵物：<color=#{ColorUtility.ToHtmlStringRGB(evt.Item.GetRarityColor())}>{evt.Item.itemName}</color>");
             UpdateItemCount();
+            UpdateItemProgress();
         }
 
         private void UpdateItemCount()
@@ -355,6 +393,266 @@ namespace XianTu
             if (itemCountText == null || PlayerController.Instance == null) return;
             var items = PlayerController.Instance.Inventory.GetAllItems();
             itemCountText.text = $"{items.Count}";
+        }
+
+        // ==================== 灵物质变进度 ====================
+
+        /// <summary>灵物进度槽位数据</summary>
+        private class ItemProgressSlot
+        {
+            public GameObject Root;
+            public Text NameText;
+            public Image ProgressFill;
+            public Image GlowImage;
+            public Text CountText;
+            public Image[] ThresholdDots; // 质变阈值小圆点
+            public ItemData BoundItem;
+            public int NextThreshold;
+            public float GlowPhase; // 发光动画相位
+        }
+
+        private void InitItemProgressSlots()
+        {
+            if (itemProgressPanel == null) return;
+
+            for (int i = 0; i < MAX_ITEM_PROGRESS_SLOTS; i++)
+            {
+                var slot = CreateItemProgressSlot(i);
+                slot.Root.SetActive(false);
+                _itemProgressSlots.Add(slot);
+            }
+        }
+
+        private ItemProgressSlot CreateItemProgressSlot(int index)
+        {
+            float slotHeight = 28f;
+            float slotWidth = 180f;
+            float yOffset = -index * (slotHeight + 4f);
+
+            // 根节点
+            var root = new GameObject($"ItemProgress_{index}");
+            root.transform.SetParent(itemProgressPanel, false);
+            var rootRt = root.AddComponent<RectTransform>();
+            rootRt.anchorMin = new Vector2(0, 1);
+            rootRt.anchorMax = new Vector2(0, 1);
+            rootRt.pivot = new Vector2(0, 1);
+            rootRt.anchoredPosition = new Vector2(0, yOffset);
+            rootRt.sizeDelta = new Vector2(slotWidth, slotHeight);
+
+            // 背景条
+            var bgGo = new GameObject("BG");
+            bgGo.transform.SetParent(root.transform, false);
+            var bgRt = bgGo.AddComponent<RectTransform>();
+            bgRt.anchorMin = Vector2.zero;
+            bgRt.anchorMax = Vector2.one;
+            bgRt.sizeDelta = Vector2.zero;
+            var bgImg = bgGo.AddComponent<Image>();
+            bgImg.color = new Color(0.1f, 0.1f, 0.15f, 0.7f);
+
+            // 进度填充条
+            var fillGo = new GameObject("Fill");
+            fillGo.transform.SetParent(root.transform, false);
+            var fillRt = fillGo.AddComponent<RectTransform>();
+            fillRt.anchorMin = Vector2.zero;
+            fillRt.anchorMax = new Vector2(0, 1); // 初始宽度为0
+            fillRt.sizeDelta = Vector2.zero;
+            var fillImg = fillGo.AddComponent<Image>();
+            fillImg.color = new Color(0.3f, 0.6f, 0.9f, 0.6f);
+
+            // 发光覆盖层（越接近质变越亮）
+            var glowGo = new GameObject("Glow");
+            glowGo.transform.SetParent(root.transform, false);
+            var glowRt = glowGo.AddComponent<RectTransform>();
+            glowRt.anchorMin = Vector2.zero;
+            glowRt.anchorMax = Vector2.one;
+            glowRt.sizeDelta = Vector2.zero;
+            var glowImg = glowGo.AddComponent<Image>();
+            glowImg.color = new Color(1f, 1f, 1f, 0f);
+
+            // 灵物名称
+            var nameGo = new GameObject("Name");
+            nameGo.transform.SetParent(root.transform, false);
+            var nameRt = nameGo.AddComponent<RectTransform>();
+            nameRt.anchorMin = new Vector2(0, 0);
+            nameRt.anchorMax = new Vector2(0.55f, 1);
+            nameRt.sizeDelta = Vector2.zero;
+            nameRt.offsetMin = new Vector2(4, 0);
+            var nameText = nameGo.AddComponent<Text>();
+            nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            nameText.fontSize = 14;
+            nameText.alignment = TextAnchor.MiddleLeft;
+            nameText.color = Color.white;
+            nameText.raycastTarget = false;
+
+            // 计数文字
+            var countGo = new GameObject("Count");
+            countGo.transform.SetParent(root.transform, false);
+            var countRt = countGo.AddComponent<RectTransform>();
+            countRt.anchorMin = new Vector2(0.6f, 0);
+            countRt.anchorMax = new Vector2(1f, 1);
+            countRt.sizeDelta = Vector2.zero;
+            var countText = countGo.AddComponent<Text>();
+            countText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            countText.fontSize = 14;
+            countText.alignment = TextAnchor.MiddleRight;
+            countText.color = new Color(0.8f, 0.8f, 0.8f);
+            countText.raycastTarget = false;
+
+            // 描边
+            var outline = nameGo.AddComponent<Outline>();
+            outline.effectColor = new Color(0, 0, 0, 0.8f);
+            outline.effectDistance = new Vector2(1, -1);
+            var outline2 = countGo.AddComponent<Outline>();
+            outline2.effectColor = new Color(0, 0, 0, 0.8f);
+            outline2.effectDistance = new Vector2(1, -1);
+
+            return new ItemProgressSlot
+            {
+                Root = root,
+                NameText = nameText,
+                ProgressFill = fillImg,
+                GlowImage = glowImg,
+                CountText = countText,
+                GlowPhase = Random.Range(0f, Mathf.PI * 2f)
+            };
+        }
+
+        /// <summary>更新灵物进度显示</summary>
+        private void UpdateItemProgress()
+        {
+            if (itemProgressPanel == null || PlayerController.Instance == null) return;
+
+            var allItems = PlayerController.Instance.Inventory.GetAllItems();
+
+            // 只显示有质变阈值的灵物
+            int slotIndex = 0;
+            foreach (var (item, count) in allItems)
+            {
+                if (slotIndex >= MAX_ITEM_PROGRESS_SLOTS) break;
+                if (item.qualitativeThresholds == null || item.qualitativeThresholds.Length == 0) continue;
+
+                // 找到下一个未触发的质变阈值
+                int nextThreshold = 0;
+                int prevThreshold = 0;
+                foreach (int t in item.qualitativeThresholds)
+                {
+                    if (count < t)
+                    {
+                        nextThreshold = t;
+                        break;
+                    }
+                    prevThreshold = t;
+                }
+
+                var slot = _itemProgressSlots[slotIndex];
+                slot.Root.SetActive(true);
+                slot.BoundItem = item;
+                slot.NextThreshold = nextThreshold;
+
+                // 名称颜色按品阶
+                slot.NameText.text = item.itemName;
+                slot.NameText.color = item.GetRarityColor();
+
+                if (nextThreshold > 0)
+                {
+                    // 未全部触发：显示进度
+                    float progress = (float)(count - prevThreshold) / (nextThreshold - prevThreshold);
+                    progress = Mathf.Clamp01(progress);
+
+                    // 进度条填充
+                    var fillRt = slot.ProgressFill.rectTransform;
+                    fillRt.anchorMax = new Vector2(progress, 1);
+
+                    // 进度条颜色：越接近越亮
+                    Color fillColor;
+                    if (progress < 0.5f)
+                        fillColor = Color.Lerp(new Color(0.3f, 0.4f, 0.5f, 0.5f), new Color(0.4f, 0.7f, 1f, 0.7f), progress * 2f);
+                    else
+                        fillColor = Color.Lerp(new Color(0.4f, 0.7f, 1f, 0.7f), new Color(1f, 0.85f, 0.3f, 0.9f), (progress - 0.5f) * 2f);
+                    slot.ProgressFill.color = fillColor;
+
+                    slot.CountText.text = $"{count}/{nextThreshold}";
+                    slot.CountText.color = progress >= 0.8f ? new Color(1f, 0.85f, 0.2f) : new Color(0.8f, 0.8f, 0.8f);
+                }
+                else
+                {
+                    // 全部触发：满进度 + 金色
+                    var fillRt = slot.ProgressFill.rectTransform;
+                    fillRt.anchorMax = new Vector2(1, 1);
+                    slot.ProgressFill.color = new Color(1f, 0.85f, 0.2f, 0.8f);
+                    slot.CountText.text = $"✔ {count}";
+                    slot.CountText.color = new Color(1f, 0.85f, 0.2f);
+                }
+
+                slotIndex++;
+            }
+
+            // 隐藏多余槽位
+            for (int i = slotIndex; i < MAX_ITEM_PROGRESS_SLOTS; i++)
+            {
+                _itemProgressSlots[i].Root.SetActive(false);
+                _itemProgressSlots[i].BoundItem = null;
+            }
+        }
+
+        /// <summary>灵物进度槽位发光动画（越接近质变越亮）</summary>
+        private void UpdateItemProgressGlow()
+        {
+            if (PlayerController.Instance == null) return;
+
+            foreach (var slot in _itemProgressSlots)
+            {
+                if (!slot.Root.activeSelf || slot.BoundItem == null || slot.GlowImage == null) continue;
+
+                if (slot.NextThreshold <= 0)
+                {
+                    // 已全部触发：稳定金色微光
+                    float glow = 0.15f + Mathf.Sin(Time.time * 2f + slot.GlowPhase) * 0.05f;
+                    slot.GlowImage.color = new Color(1f, 0.85f, 0.2f, glow);
+                }
+                else
+                {
+                    int count = PlayerController.Instance.Inventory.GetItemCount(slot.BoundItem);
+                    float progress = (float)count / slot.NextThreshold;
+
+                    if (progress >= 0.6f)
+                    {
+                        // 接近质变：脉冲发光，越接近越快越亮
+                        float speed = Mathf.Lerp(2f, 6f, (progress - 0.6f) / 0.4f);
+                        float intensity = Mathf.Lerp(0.05f, 0.3f, (progress - 0.6f) / 0.4f);
+                        float glow = intensity * (0.5f + 0.5f * Mathf.Sin(Time.time * speed + slot.GlowPhase));
+                        Color glowColor = Color.Lerp(new Color(0.5f, 0.7f, 1f), new Color(1f, 0.85f, 0.2f), (progress - 0.6f) / 0.4f);
+                        slot.GlowImage.color = new Color(glowColor.r, glowColor.g, glowColor.b, glow);
+                    }
+                    else
+                    {
+                        slot.GlowImage.color = new Color(1f, 1f, 1f, 0f);
+                    }
+                }
+            }
+        }
+
+        // ==================== 质变触发提示 ====================
+
+        private void OnQualitativeTriggered(GameEvents.QualitativeTriggered evt)
+        {
+            // 大字提示
+            if (qualitativeText != null)
+            {
+                qualitativeText.gameObject.SetActive(true);
+                qualitativeText.text = $"✨ {evt.EffectDescription}";
+                qualitativeText.color = new Color(1f, 0.85f, 0.2f, 1f);
+                _qualitativeTimer = 4f;
+
+                // 缩放动画
+                StartCoroutine(PunchScale(qualitativeText.rectTransform, 1.3f, 0.3f));
+            }
+
+            // 同时显示在消息栏
+            ShowMessage($"<color=#FFD700>✨ {evt.Item.itemName} x{evt.Count} — {evt.EffectDescription}</color>");
+
+            // 更新进度显示
+            UpdateItemProgress();
         }
 
         // ==================== 资源 ====================
@@ -439,6 +737,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
             GameEvents.Unsubscribe<GameEvents.GameWon>(OnGameWon);
             GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
+            GameEvents.Unsubscribe<GameEvents.QualitativeTriggered>(OnQualitativeTriggered);
         }
     }
 }

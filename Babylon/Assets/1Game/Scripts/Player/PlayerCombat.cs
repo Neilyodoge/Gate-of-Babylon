@@ -151,6 +151,11 @@ namespace XianTu
             {
                 _hasHitThisSwing = true;
                 _lastHitComboStep = _playerAnim.ComboStep;
+
+                // 通知质变效果运行器（焚天：每N次攻击释放火焰冲击波）
+                var runner = QualitativeEffectRunner.Instance;
+                if (runner != null)
+                    runner.OnPlayerAttackHit();
             }
         }
 

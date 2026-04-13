@@ -679,11 +679,11 @@ namespace XianTu.Editor
         {
             var item = ScriptableObject.CreateInstance<ItemData>();
             item.itemName = "火灵珠";
-            item.description = "蕴含火灵之力的珠子，攻击附带灼烧效果。\n叠加可增强灼烧伤害，集齐三颗可引发灼烧扩散。";
+            item.description = "蕴含火灵之力的珠子，攻击附带灼烧效果。\n叠加可增强灼烧伤害，集齐五颗可引发焚天冲击波。";
             item.rarity = ItemRarity.Fan;
             item.category = ItemCategory.Attack;
             item.stackable = true;
-            item.qualitativeThresholds = new int[] { 3, 5 };
+            item.qualitativeThresholds = new int[] { 5, 8 };
             item.burnDamagePerSecond = 5f;
             item.attackBonus = 2f;
             SaveAsset(item, ITEM_PATH + "火灵珠.asset");
@@ -693,11 +693,11 @@ namespace XianTu.Editor
         {
             var item = ScriptableObject.CreateInstance<ItemData>();
             item.itemName = "风灵珠";
-            item.description = "凝聚风灵之力，持有者身轻如燕。\n叠加可进一步提升移速，集齐三颗闪避距离翻倍。";
+            item.description = "凝聚风灵之力，持有者身轻如燕。\n叠加可进一步提升移速，集齐五颗闪避后留下风之残影。";
             item.rarity = ItemRarity.Fan;
             item.category = ItemCategory.Movement;
             item.stackable = true;
-            item.qualitativeThresholds = new int[] { 3 };
+            item.qualitativeThresholds = new int[] { 5 };
             item.moveSpeedBonusPercent = 0.1f;
             SaveAsset(item, ITEM_PATH + "风灵珠.asset");
         }
@@ -706,11 +706,11 @@ namespace XianTu.Editor
         {
             var item = ScriptableObject.CreateInstance<ItemData>();
             item.itemName = "玉佩";
-            item.description = "温润的灵玉所制，可抵御部分伤害。\n叠加增强减伤效果，集齐三块可震慑来犯之敌。";
+            item.description = "温润的灵玉所制，可抵御部分伤害。\n叠加增强减伤效果，集齐五块可触发玉碎免死。";
             item.rarity = ItemRarity.Fan;
             item.category = ItemCategory.Defense;
             item.stackable = true;
-            item.qualitativeThresholds = new int[] { 3 };
+            item.qualitativeThresholds = new int[] { 5 };
             item.damageReductionBonus = 0.05f;
             item.maxHpBonus = 10f;
             SaveAsset(item, ITEM_PATH + "玉佩.asset");
@@ -720,11 +720,11 @@ namespace XianTu.Editor
         {
             var item = ScriptableObject.CreateInstance<ItemData>();
             item.itemName = "锈铁飞剑";
-            item.description = "一柄锈迹斑斑的飞剑，此剑虽锈，剑意犹存。\n叠加增加攻击力和穿透，集齐三柄可自动护体。";
+            item.description = "一柄锈迹斑斑的飞剑，此剑虽锈，剑意犹存。\n叠加增加攻击力和穿透，集齐五柄可召唤剑阵护体。";
             item.rarity = ItemRarity.Fan;
             item.category = ItemCategory.Attack;
             item.stackable = true;
-            item.qualitativeThresholds = new int[] { 3, 5 };
+            item.qualitativeThresholds = new int[] { 5, 8 };
             item.attackBonus = 3f;
             item.pierceBonus = 1;
             item.attackSpeedBonusPercent = 0.05f;
@@ -735,11 +735,11 @@ namespace XianTu.Editor
         {
             var item = ScriptableObject.CreateInstance<ItemData>();
             item.itemName = "回灵丹";
-            item.description = "服用后灵力充盈，生命力大增。\n击杀敌人时可回复少量生命。";
+            item.description = "服用后灵力充盈，生命力大增。\n击杀敌人时可回复少量生命，集齐五颗可触发涅槃复活。";
             item.rarity = ItemRarity.Fan;
             item.category = ItemCategory.Pill;
             item.stackable = true;
-            item.qualitativeThresholds = new int[] { 3 };
+            item.qualitativeThresholds = new int[] { 5 };
             item.maxHpBonus = 20f;
             item.maxHpBonusPercent = 0.05f;
             item.healOnKill = 3f;

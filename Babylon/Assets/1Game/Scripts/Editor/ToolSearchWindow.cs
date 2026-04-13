@@ -339,6 +339,15 @@ namespace XianTu
                 IsSpecialized = true
             });
 
+            list.Add(new ToolEntry
+            {
+                Name = "定位 QualitativeEffectRunner 脚本",
+                Category = "Items",
+                OnClick = () => PingScript("Assets/1Game/Scripts/Items/QualitativeEffectRunner.cs"),
+                ScriptPath = "Assets/1Game/Scripts/Items/QualitativeEffectRunner.cs",
+                IsSpecialized = true
+            });
+
             // ---- 房间与关卡 (Room) ----
             list.Add(new ToolEntry
             {
