@@ -25,7 +25,8 @@ namespace XianTu
 
         [Header("掉落")]
         [SerializeField] private ItemData[] possibleDrops;
-        [SerializeField] private float dropChance = 0.3f;
+        [SerializeField] private SkillData[] possibleSkillDrops;
+        [SerializeField] private float dropChance = 0.05f;
         [SerializeField] private int _roomLevel; // 当前房间层数，用于掉率计算
 
         [Header("受击特效")]
@@ -297,6 +298,9 @@ namespace XianTu
             // 掉落灵物
             TryDropItem();
 
+            // 掉落功法
+            TryDropSkill();
+
             // 发布事件
             GameEvents.Publish(new GameEvents.EnemyKilled
             {
@@ -324,22 +328,22 @@ namespace XianTu
         {
             if (possibleDrops == null || possibleDrops.Length == 0) return;
 
-            // 使用 GameConfig 的掉率
+            // 使用 GameConfig 的固定掉率（不随层数增加）
             var config = GameConfig.Instance;
             float chance = dropChance;
             if (config != null)
-                chance = config.敌人掉落概率 + _roomLevel * config.每层掉率增加;
+            {
+                chance = config.debugMaxDropRate ? 1f : config.敌人掉落概率;
+            }
 
             if (Random.value > chance) return;
 
-            // 按品阶权重选择灵物
+            // 按品阶权重选择灵物（层数越高高品质比重越大）
             ItemData selectedItem = null;
             if (config != null)
             {
-                // 先随机一个品阶，再从该品阶的灵物中选
-                ItemRarity targetRarity = config.RollRarity();
+                ItemRarity targetRarity = config.RollRarity(_roomLevel);
 
-                // 从可掉落列表中筛选该品阶的灵物
                 var candidates = new System.Collections.Generic.List<ItemData>();
                 foreach (var item in possibleDrops)
                 {
@@ -347,10 +351,8 @@ namespace XianTu
                         candidates.Add(item);
                 }
 
-                // 如果该品阶没有灵物，降级选择
                 if (candidates.Count == 0)
                 {
-                    // 回退到随机选择
                     selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
                 }
                 else
@@ -367,6 +369,28 @@ namespace XianTu
             {
                 // 在敌人脚下掉落（当前位置）
                 ItemPickup.Spawn(selectedItem, transform.position);
+            }
+        }
+
+        /// <summary>尝试掉落功法</summary>
+        private void TryDropSkill()
+        {
+            if (possibleSkillDrops == null || possibleSkillDrops.Length == 0) return;
+
+            var config = GameConfig.Instance;
+            float chance = 0.03f;
+            if (config != null)
+            {
+                chance = config.debugMaxDropRate ? 1f : config.功法掉落概率;
+            }
+
+            if (Random.value > chance) return;
+
+            var skill = possibleSkillDrops[Random.Range(0, possibleSkillDrops.Length)];
+            if (skill != null)
+            {
+                SkillPickup.Spawn(skill, transform.position + new Vector3(Random.Range(-0.5f, 0.5f), 0, Random.Range(-0.5f, 0.5f)));
+                Debug.Log($"<color=cyan>敌人掉落功法：{skill.skillName}</color>");
             }
         }
 
@@ -443,6 +467,12 @@ namespace XianTu
                 enemy.possibleDrops = drops;
 
             return enemy;
+        }
+
+        /// <summary>设置功法掉落池</summary>
+        public void SetSkillDrops(SkillData[] skills)
+        {
+            possibleSkillDrops = skills;
         }
 
         /// <summary>设置受击特效 Prefab</summary>

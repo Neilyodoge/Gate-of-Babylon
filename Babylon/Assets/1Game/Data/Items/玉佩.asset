@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: "\u7389\u4F69"
   m_EditorClassIdentifier: 
   itemName: "\u7389\u4F69"
-  description: "\u6E29\u6DA6\u7684\u7075\u7389\u6240\u5236\uFF0C\u53EF\u62B5\u5FA1\u90E8\u5206\u4F24\u5BB3\u3002\n\u53E0\u52A0\u589E\u5F3A\u51CF\u4F24\u6548\u679C\uFF0C\u96C6\u9F50\u4E09\u5757\u53EF\u9707\u6151\u6765\u72AF\u4E4B\u654C\u3002"
+  description: "\u6E29\u6DA6\u7684\u7075\u7389\u6240\u5236\uFF0C\u53EF\u62B5\u5FA1\u90E8\u5206\u4F24\u5BB3\u3002\n\u53E0\u52A0\u589E\u5F3A\u51CF\u4F24\u6548\u679C\uFF0C\u96C6\u9F50\u4E94\u5757\u53EF\u89E6\u53D1\u7389\u788E\u514D\u6B7B\u3002"
   icon: {fileID: 0}
   rarity: 0
   category: 1
   stackable: 1
-  qualitativeThresholds: 03000000
+  qualitativeThresholds: 05000000
   attackBonus: 0
   attackBonusPercent: 0
   maxHpBonus: 10
@@ -36,3 +36,4 @@ MonoBehaviour:
   requiresSlot: 0
   isSkillSpecific: 0
   pickupVfxPrefab: {fileID: 0}
+  pickupSFX: {fileID: 0}

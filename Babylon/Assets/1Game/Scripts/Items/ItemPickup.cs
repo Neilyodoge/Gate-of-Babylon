@@ -15,7 +15,7 @@ namespace XianTu
 
         [Header("表现")]
         [SerializeField] private float bobSpeed = 2f;
-        [SerializeField] private float bobHeight = 0.3f;
+        [SerializeField] private float bobHeight = 0.15f;
         [SerializeField] private float rotateSpeed = 90f;
         [SerializeField] private float pickupRadius = 2.5f;
 
@@ -60,12 +60,18 @@ namespace XianTu
         {
             if (_pickedUp) return;
 
-            // 上下浮动
+            // 上下浮动（仅模型浮动，提示UI保持固定高度）
             float newY = _startPos.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
             transform.position = new Vector3(_startPos.x, newY, _startPos.z);
 
             // 旋转
             transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
+
+            // 提示UI跟随XZ但Y轴固定，不受浮动影响
+            if (_promptUI != null)
+            {
+                _promptUI.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
+            }
 
             // 玩家在范围内：处理交互（按F拾取 / 长按F分解）
             if (_playerInRange && _nearbyPlayer != null)
@@ -216,7 +222,7 @@ namespace XianTu
             _pickedUp = true;
             HidePrompt();
 
-            if (itemData.pickupVfxPrefab != null && ObjectPool.Instance != null)
+            if (itemData != null && itemData.pickupVfxPrefab != null && ObjectPool.Instance != null)
             {
                 var vfx = ObjectPool.Instance.Get(itemData.pickupVfxPrefab, transform.position, Quaternion.identity);
                 ObjectPool.Instance.Return(vfx, 2f);
@@ -255,8 +261,8 @@ namespace XianTu
             float panelHeight = hasEffect ? 160 : 100;
 
             var canvasGo = new GameObject("ItemPromptCanvas");
-            canvasGo.transform.SetParent(transform);
-            canvasGo.transform.localPosition = new Vector3(0, 2.8f, 0);
+            // 不作为掉落物子物体，避免跟随浮动
+            canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
 
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
@@ -420,7 +426,11 @@ namespace XianTu
             }
         }
 
-        /// <summary>
+        private void OnDestroy()
+        {
+            // 提示UI是独立根级对象，需要手动清理
+            HidePrompt();
+        }
         /// 工厂方法：在指定位置生成灵物拾取物
         /// </summary>
         public static ItemPickup Spawn(ItemData data, Vector3 position)
@@ -428,7 +438,7 @@ namespace XianTu
             // 创建一个简单的几何体作为灵物表现
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = $"ItemPickup_{data.itemName}";
-            go.transform.position = position + Vector3.up * 0.5f;
+            go.transform.position = position + Vector3.up * 0.15f;
             go.transform.localScale = Vector3.one * 0.4f;
             go.layer = LayerMask.NameToLayer("Default");
 

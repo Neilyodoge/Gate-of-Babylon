@@ -148,6 +148,14 @@ namespace XianTu
                         popup.Text.fontSize = 18;
                         popup.Text.color = new Color(0.8f, 0.1f, 0.2f); // 暗红色
                         break;
+                    case "治疗":
+                        popup.Text.text = $"💚+{dmgInt}";
+                        popup.Text.fontSize = 22;
+                        popup.Text.color = new Color(0.2f, 1f, 0.4f); // 翠绿色
+                        popup.Velocity = new Vector3(0, 100f, 0); // 治疗飘字向上飘更快
+                        popup.Duration = 1.0f;
+                        popup.Timer = 1.0f;
+                        break;
                     default:
                         popup.Text.text = $"✦{dmgInt}";
                         popup.Text.fontSize = 20;

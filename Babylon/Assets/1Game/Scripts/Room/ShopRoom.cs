@@ -12,6 +12,7 @@ namespace XianTu
     public class ShopRoom : MonoBehaviour
     {
         private ItemData[] _shopItems;
+        private SkillData[] _shopSkills;
         private int _roomIndex;
         private GameObject _roomVisuals;
 
@@ -32,6 +33,7 @@ namespace XianTu
         private struct ShopSlot
         {
             public ItemData item;
+            public SkillData skill; // 功法商品
             public int price;
             public bool sold;
             public GameObject cardGo;
@@ -50,10 +52,11 @@ namespace XianTu
         private bool _playerInRange;
         private GameObject _interactHint; // 靠近商人时的提示UI
 
-        public void Initialize(int roomIndex, ItemData[] itemPool)
+        public void Initialize(int roomIndex, ItemData[] itemPool, SkillData[] skillPool = null)
         {
             _roomIndex = roomIndex;
             _shopItems = itemPool;
+            _shopSkills = skillPool;
             BuildRoom();
             CreateShopUI();
             // 商店初始隐藏，靠近商人按F才打开
@@ -233,7 +236,7 @@ namespace XianTu
             panelRT.anchorMin = new Vector2(0.5f, 0.5f);
             panelRT.anchorMax = new Vector2(0.5f, 0.5f);
             panelRT.pivot = new Vector2(0.5f, 0.5f);
-            panelRT.sizeDelta = new Vector2(700, 480);
+            panelRT.sizeDelta = new Vector2(820, 480);
             var panelImg = _shopPanel.AddComponent<Image>();
             panelImg.color = new Color(0.08f, 0.06f, 0.12f, 0.95f);
 
@@ -290,39 +293,75 @@ namespace XianTu
 
         private void GenerateShopItems()
         {
-            if (_shopItems == null || _shopItems.Length == 0) return;
-
-            int count = Mathf.Min(3, _shopItems.Length);
-            float cardWidth = 190f;
-            float spacing = 20f;
-            float totalWidth = count * cardWidth + (count - 1) * spacing;
+            // 商品总数：5个（灵物 + 功法混合）
+            int totalSlots = 5;
+            float cardWidth = 130f;
+            float spacing = 12f;
+            float totalWidth = totalSlots * cardWidth + (totalSlots - 1) * spacing;
             float startX = -totalWidth / 2f + cardWidth / 2f;
 
-            for (int i = 0; i < count; i++)
+            int slotIdx = 0;
+
+            // 前3个槽位：灵物
+            int itemSlots = Mathf.Min(3, totalSlots);
+            if (_shopItems != null && _shopItems.Length > 0)
             {
-                // 按品阶权重随机选择
-                ItemData item;
-                var config = GameConfig.Instance;
-                if (config != null)
+                for (int i = 0; i < itemSlots && slotIdx < totalSlots; i++)
                 {
-                    ItemRarity rarity = config.RollRarity();
-                    var candidates = new List<ItemData>();
-                    foreach (var d in _shopItems)
-                        if (d != null && d.rarity == rarity) candidates.Add(d);
-                    item = candidates.Count > 0
-                        ? candidates[Random.Range(0, candidates.Count)]
-                        : _shopItems[Random.Range(0, _shopItems.Length)];
+                    ItemData item;
+                    var config = GameConfig.Instance;
+                    if (config != null)
+                    {
+                        ItemRarity rarity = config.RollRarity();
+                        var candidates = new System.Collections.Generic.List<ItemData>();
+                        foreach (var d in _shopItems)
+                            if (d != null && d.rarity == rarity) candidates.Add(d);
+                        item = candidates.Count > 0
+                            ? candidates[Random.Range(0, candidates.Count)]
+                            : _shopItems[Random.Range(0, _shopItems.Length)];
+                    }
+                    else
+                    {
+                        item = _shopItems[Random.Range(0, _shopItems.Length)];
+                    }
+
+                    int price = CalculatePrice(item);
+                    float xPos = startX + slotIdx * (cardWidth + spacing);
+                    var slot = CreateItemCard(item, price, xPos, slotIdx);
+                    _shopSlots.Add(slot);
+                    slotIdx++;
                 }
-                else
+            }
+
+            // 后2个槽位：功法
+            if (_shopSkills != null && _shopSkills.Length > 0)
+            {
+                int skillSlots = totalSlots - slotIdx;
+                for (int i = 0; i < skillSlots && slotIdx < totalSlots; i++)
                 {
-                    item = _shopItems[Random.Range(0, _shopItems.Length)];
+                    var skill = _shopSkills[Random.Range(0, _shopSkills.Length)];
+                    if (skill == null) continue;
+
+                    int price = CalculateSkillPrice(skill);
+                    float xPos = startX + slotIdx * (cardWidth + spacing);
+                    var slot = CreateSkillCard(skill, price, xPos, slotIdx);
+                    _shopSlots.Add(slot);
+                    slotIdx++;
                 }
+            }
 
-                int price = CalculatePrice(item);
-                float xPos = startX + i * (cardWidth + spacing);
-
-                var slot = CreateItemCard(item, price, xPos, i);
-                _shopSlots.Add(slot);
+            // 如果功法池为空，剩余槽位用灵物填充
+            if (_shopItems != null && _shopItems.Length > 0)
+            {
+                while (slotIdx < totalSlots)
+                {
+                    var item = _shopItems[Random.Range(0, _shopItems.Length)];
+                    int price = CalculatePrice(item);
+                    float xPos = startX + slotIdx * (cardWidth + spacing);
+                    var slot = CreateItemCard(item, price, xPos, slotIdx);
+                    _shopSlots.Add(slot);
+                    slotIdx++;
+                }
             }
         }
 
@@ -331,6 +370,13 @@ namespace XianTu
             // 价格 = 分解价值 × 2.5（买比卖贵）
             int basePrice = PlayerResources.GetDecomposeShards(item.rarity);
             return Mathf.RoundToInt(basePrice * 2.5f);
+        }
+
+        private int CalculateSkillPrice(SkillData skill)
+        {
+            // 功法价格比灵物更贵
+            int basePrice = PlayerResources.GetDecomposeShards(skill.rarity);
+            return Mathf.RoundToInt(basePrice * 3.5f);
         }
 
         private ShopSlot CreateItemCard(ItemData item, int price, float xPos, int index)
@@ -457,6 +503,153 @@ namespace XianTu
             return slot;
         }
 
+        /// <summary>创建功法商品卡片</summary>
+        private ShopSlot CreateSkillCard(SkillData skill, int price, float xPos, int index)
+        {
+            var slot = new ShopSlot { skill = skill, price = price, sold = false };
+
+            // 卡片容器
+            var cardGo = new GameObject($"SkillCard_{index}");
+            cardGo.transform.SetParent(_shopPanel.transform, false);
+            var cardRT = cardGo.AddComponent<RectTransform>();
+            cardRT.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRT.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRT.pivot = new Vector2(0.5f, 0.5f);
+            cardRT.anchoredPosition = new Vector2(xPos, -15f);
+            cardRT.sizeDelta = new Vector2(130, 280);
+            slot.cardGo = cardGo;
+
+            // 卡片背景（功法用深蓝色调）
+            slot.cardBg = cardGo.AddComponent<Image>();
+            slot.cardBg.color = new Color(0.08f, 0.1f, 0.2f, 0.9f);
+
+            // 品阶色条（顶部）
+            Color rarityColor = skill.rarity switch
+            {
+                ItemRarity.Fan => Color.white,
+                ItemRarity.Ling => Color.green,
+                ItemRarity.Xuan => new Color(0.3f, 0.5f, 1f),
+                ItemRarity.Di => new Color(0.7f, 0.3f, 1f),
+                ItemRarity.Tian => new Color(1f, 0.85f, 0f),
+                _ => Color.white
+            };
+            var barGo = new GameObject("RarityBar");
+            barGo.transform.SetParent(cardGo.transform, false);
+            var barRT = barGo.AddComponent<RectTransform>();
+            barRT.anchorMin = new Vector2(0, 0.95f);
+            barRT.anchorMax = new Vector2(1, 1);
+            barRT.offsetMin = new Vector2(2, 0);
+            barRT.offsetMax = new Vector2(-2, -2);
+            slot.rarityBar = barGo.AddComponent<Image>();
+            slot.rarityBar.color = rarityColor;
+            slot.rarityBar.raycastTarget = false;
+
+            // 功法图标区域（用📜书卷图标）
+            var iconGo = new GameObject("Icon");
+            iconGo.transform.SetParent(cardGo.transform, false);
+            var iconRT = iconGo.AddComponent<RectTransform>();
+            iconRT.anchorMin = new Vector2(0.15f, 0.6f);
+            iconRT.anchorMax = new Vector2(0.85f, 0.9f);
+            iconRT.offsetMin = Vector2.zero;
+            iconRT.offsetMax = Vector2.zero;
+            var iconImg = iconGo.AddComponent<Image>();
+            iconImg.color = new Color(0.15f, 0.2f, 0.35f, 0.8f);
+            iconImg.raycastTarget = false;
+
+            // 图标中心文字（功法类型符号）
+            string typeSymbol = skill.skillType switch
+            {
+                SkillType.AreaDamage => "💥",
+                SkillType.Projectile => "⚔",
+                SkillType.Dash => "🌀",
+                SkillType.Buff => "🛡",
+                SkillType.Heal => "💚",
+                SkillType.Summon => "👻",
+                _ => "📜"
+            };
+            var iconLabel = CreateText(iconGo.transform, "Label", typeSymbol,
+                Vector2.zero, Vector2.one, 24, rarityColor, FontStyle.Bold);
+            iconLabel.raycastTarget = false;
+
+            // 名称
+            slot.nameText = CreateText(cardGo.transform, "Name", skill.skillName,
+                new Vector2(0, 0.45f), new Vector2(1, 0.6f),
+                14, rarityColor, FontStyle.Bold);
+            slot.nameText.raycastTarget = false;
+
+            // 类型标签
+            string typeStr = skill.skillType switch
+            {
+                SkillType.AreaDamage => "范围伤害",
+                SkillType.Projectile => "投射物",
+                SkillType.Dash => "位移",
+                SkillType.Buff => "增益",
+                SkillType.Heal => "治疗",
+                SkillType.Summon => "召唤",
+                _ => "未知"
+            };
+            var typeText = CreateText(cardGo.transform, "Type", $"[功法·{typeStr}]",
+                new Vector2(0, 0.38f), new Vector2(1, 0.45f),
+                10, new Color(0.5f, 0.7f, 1f, 0.8f), FontStyle.Normal);
+            typeText.raycastTarget = false;
+
+            // 简要效果
+            string effectBrief = $"伤害 {skill.baseDamage}\nCD {skill.cooldown}s";
+            if (skill.skillType == SkillType.Heal)
+                effectBrief = $"治疗 {skill.healAmount}\nCD {skill.cooldown}s";
+            var effectText = CreateText(cardGo.transform, "Effect", effectBrief,
+                new Vector2(0, 0.22f), new Vector2(1, 0.38f),
+                10, new Color(0.6f, 0.9f, 0.6f, 0.8f), FontStyle.Normal);
+            effectText.raycastTarget = false;
+
+            // 价格
+            slot.priceText = CreateText(cardGo.transform, "Price", $"✦ {price}",
+                new Vector2(0, 0.12f), new Vector2(1, 0.22f),
+                13, new Color(0.5f, 0.8f, 1f), FontStyle.Bold);
+            slot.priceText.raycastTarget = false;
+
+            // 购买按钮
+            var btnGo = new GameObject("BuyBtn");
+            btnGo.transform.SetParent(cardGo.transform, false);
+            var btnRT = btnGo.AddComponent<RectTransform>();
+            btnRT.anchorMin = new Vector2(0.1f, 0.02f);
+            btnRT.anchorMax = new Vector2(0.9f, 0.12f);
+            btnRT.offsetMin = Vector2.zero;
+            btnRT.offsetMax = Vector2.zero;
+            var btnImg = btnGo.AddComponent<Image>();
+            bool canAfford = PlayerResources.Instance != null && PlayerResources.Instance.HasShards(price);
+            btnImg.color = canAfford ? new Color(0.2f, 0.3f, 0.6f, 0.9f) : new Color(0.2f, 0.2f, 0.3f, 0.6f);
+            slot.buyButton = btnGo.AddComponent<Button>();
+            slot.buyButton.targetGraphic = btnImg;
+
+            slot.buttonText = CreateText(btnGo.transform, "BtnText", canAfford ? "购 买" : "碎片不足",
+                Vector2.zero, Vector2.one, 12, Color.white, FontStyle.Bold);
+            slot.buttonText.raycastTarget = false;
+
+            // 购买事件
+            int slotIndex = index;
+            slot.buyButton.onClick.AddListener(() => OnBuyClicked(slotIndex));
+
+            // 悬停事件
+            var trigger = cardGo.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            var enterEntry = new UnityEngine.EventSystems.EventTrigger.Entry
+            {
+                eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter
+            };
+            int idx = index;
+            enterEntry.callback.AddListener((_) => ShowItemTooltip(idx));
+            trigger.triggers.Add(enterEntry);
+
+            var exitEntry = new UnityEngine.EventSystems.EventTrigger.Entry
+            {
+                eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit
+            };
+            exitEntry.callback.AddListener((_) => HideItemTooltip());
+            trigger.triggers.Add(exitEntry);
+
+            return slot;
+        }
+
         private void OnBuyClicked(int slotIndex)
         {
             if (slotIndex < 0 || slotIndex >= _shopSlots.Count) return;
@@ -469,8 +662,57 @@ namespace XianTu
                 return;
             }
 
-            // 购买成功 → 加入背包
-            if (PlayerController.Instance != null)
+            // 功法商品购买
+            if (slot.skill != null)
+            {
+                if (PlayerController.Instance != null)
+                {
+                    var combat = PlayerController.Instance.GetComponent<PlayerCombat>();
+                    if (combat != null)
+                    {
+                        int emptySlot = combat.FindEmptySlot();
+                        if (emptySlot >= 0)
+                        {
+                            combat.EquipSkillToSlot(slot.skill, emptySlot);
+                            GameEvents.Publish(new GameEvents.SkillEquipped
+                            {
+                                Skill = slot.skill,
+                                SlotIndex = emptySlot
+                            });
+                        }
+                        else
+                        {
+                            var oldSkill = combat.EquipSkillToSlot(slot.skill, 2);
+                            GameEvents.Publish(new GameEvents.SkillEquipped
+                            {
+                                Skill = slot.skill,
+                                SlotIndex = 2
+                            });
+                            if (oldSkill != null)
+                            {
+                                Vector3 dropPos = PlayerController.Instance.transform.position + new Vector3(Random.Range(-2f, 2f), 0, Random.Range(-2f, 2f));
+                                SkillPickup.Spawn(oldSkill, dropPos);
+                            }
+                        }
+                    }
+                }
+
+                slot.sold = true;
+                _shopSlots[slotIndex] = slot;
+                if (slot.cardBg != null) slot.cardBg.color = new Color(0.08f, 0.08f, 0.08f, 0.5f);
+                if (slot.buttonText != null) slot.buttonText.text = "已售出";
+                if (slot.buyButton != null) slot.buyButton.interactable = false;
+                var skillBtnImg = slot.buyButton?.GetComponent<Image>();
+                if (skillBtnImg != null) skillBtnImg.color = new Color(0.2f, 0.2f, 0.2f, 0.4f);
+
+                Debug.Log($"<color=green>购买功法成功：{slot.skill.skillName}（花费 {slot.price} 灵力碎片）</color>");
+                RefreshShardsDisplay();
+                RefreshAllCards();
+                return;
+            }
+
+            // 灵物商品购买
+            if (slot.item != null && PlayerController.Instance != null)
             {
                 PlayerController.Instance.Inventory.AddItem(slot.item);
 
@@ -612,9 +854,68 @@ namespace XianTu
         {
             if (slotIndex < 0 || slotIndex >= _shopSlots.Count) return;
             var slot = _shopSlots[slotIndex];
+
+            // 功法商品提示
+            if (slot.skill != null)
+            {
+                string rarityName = slot.skill.rarity switch
+                {
+                    ItemRarity.Fan => "凡品",
+                    ItemRarity.Ling => "灵品",
+                    ItemRarity.Xuan => "玄品",
+                    ItemRarity.Di => "地品",
+                    ItemRarity.Tian => "天品",
+                    _ => "凡品"
+                };
+                string typeStr = slot.skill.skillType switch
+                {
+                    SkillType.AreaDamage => "范围伤害",
+                    SkillType.Projectile => "投射物",
+                    SkillType.Dash => "位移",
+                    SkillType.Buff => "增益",
+                    SkillType.Heal => "治疗",
+                    SkillType.Summon => "召唤",
+                    _ => "未知"
+                };
+                Color rarityColor = slot.skill.rarity switch
+                {
+                    ItemRarity.Fan => Color.white,
+                    ItemRarity.Ling => Color.green,
+                    ItemRarity.Xuan => new Color(0.3f, 0.5f, 1f),
+                    ItemRarity.Di => new Color(0.7f, 0.3f, 1f),
+                    ItemRarity.Tian => new Color(1f, 0.85f, 0f),
+                    _ => Color.white
+                };
+
+                _tooltipTitle.text = $"📜 {slot.skill.skillName}（{rarityName}）";
+                _tooltipTitle.color = rarityColor;
+                _tooltipDesc.text = slot.skill.description;
+                string effectStr = $"类型：{typeStr}\n伤害：{slot.skill.baseDamage} (+{slot.skill.damageScaling * 100:0}%攻)\nCD：{slot.skill.cooldown}s";
+                if (slot.skill.skillType == SkillType.Heal)
+                    effectStr = $"类型：{typeStr}\n治疗：{slot.skill.healAmount} (+{slot.skill.healScaling * 100:0}%攻)\nCD：{slot.skill.cooldown}s";
+                _tooltipEffect.text = effectStr;
+                _tooltipPrice.text = slot.sold ? "已售出" : $"价格：✦ {slot.price} 灵力碎片";
+
+                if (slot.cardGo != null)
+                {
+                    var cardRT = slot.cardGo.GetComponent<RectTransform>();
+                    Vector3 cardWorldPos = cardRT.position;
+                    Vector2 screenPos;
+                    RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                        (RectTransform)_shopCanvas.transform,
+                        RectTransformUtility.WorldToScreenPoint(null, cardWorldPos),
+                        null, out screenPos);
+                    _tooltipRT.anchoredPosition = screenPos + new Vector2(80, 0);
+                }
+
+                _tooltipPanel.SetActive(true);
+                return;
+            }
+
+            // 灵物商品提示
             if (slot.item == null) return;
 
-            string rarityName = slot.item.rarity switch
+            string itemRarityName = slot.item.rarity switch
             {
                 ItemRarity.Fan => "凡品",
                 ItemRarity.Ling => "灵品",
@@ -624,7 +925,7 @@ namespace XianTu
                 _ => "凡品"
             };
 
-            _tooltipTitle.text = $"{slot.item.itemName}（{rarityName}）";
+            _tooltipTitle.text = $"{slot.item.itemName}（{itemRarityName}）";
             _tooltipTitle.color = slot.item.GetRarityColor();
             _tooltipDesc.text = slot.item.description;
             _tooltipEffect.text = GetDetailedEffect(slot.item);
@@ -822,10 +1123,12 @@ namespace XianTu
                 var sk = item.linkedSkill;
                 string typeStr = sk.skillType switch
                 {
-                    SkillType.AreaDamage => "范围伤害",
-                    SkillType.Projectile => "投射物",
-                    SkillType.Dash => "位移",
-                    SkillType.Buff => "增益",
+                SkillType.AreaDamage => "范围伤害",
+                SkillType.Projectile => "投射物",
+                SkillType.Dash => "位移",
+                SkillType.Buff => "增益",
+                SkillType.Heal => "治疗",
+                SkillType.Summon => "召唤",
                     _ => "未知"
                 };
                 parts.Add($"📜 功法：{sk.skillName}（{typeStr}）");

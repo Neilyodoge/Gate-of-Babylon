@@ -520,10 +520,12 @@ namespace XianTu
                     {
                         string typeStr = skill.skillType switch
                         {
-                            SkillType.AreaDamage => "范围伤害",
-                            SkillType.Projectile => "投射物",
-                            SkillType.Dash => "位移",
-                            SkillType.Buff => "增益",
+                SkillType.AreaDamage => "范围伤害",
+                SkillType.Projectile => "投射物",
+                SkillType.Dash => "位移",
+                SkillType.Buff => "增益",
+                SkillType.Heal => "治疗",
+                SkillType.Summon => "召唤",
                             _ => "未知"
                         };
                         _tooltipTitle.text = $"[{keys[_hoverSkillSlot]}] {skill.skillName}";

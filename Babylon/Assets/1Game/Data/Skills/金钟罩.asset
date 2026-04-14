@@ -24,5 +24,15 @@ MonoBehaviour:
   aoeRadius: 0
   projectilePrefab: {fileID: 0}
   projectileSpeed: 12
+  projectileCount: 1
+  spreadAngle: 0
+  dashDistance: 8
+  leaveTrail: 0
+  healAmount: 30
+  healScaling: 0.3
+  summonDuration: 8
+  summonDamage: 10
   vfxPrefab: {fileID: 0}
   vfxDuration: 5
+  castSFX: {fileID: 0}
+  hitSFX: {fileID: 0}

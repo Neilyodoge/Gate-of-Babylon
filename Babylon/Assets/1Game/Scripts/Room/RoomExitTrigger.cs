@@ -93,7 +93,7 @@ namespace XianTu
             textRt.offsetMin = Vector2.zero;
             textRt.offsetMax = Vector2.zero;
             var text = textGo.AddComponent<Text>();
-            text.text = "按 [F] 前往下一层";
+            text.text = "按 [F] 继续前进";
             text.fontSize = 16;
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.color = new Color(0.5f, 0.9f, 1f);

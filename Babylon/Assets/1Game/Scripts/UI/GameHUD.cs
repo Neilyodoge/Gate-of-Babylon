@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.InputSystem;
 
 namespace XianTu
 {
@@ -58,6 +59,15 @@ namespace XianTu
         [SerializeField] private Text qualitativeText; // 质变触发时的大字提示
         private float _qualitativeTimer;
 
+        // 灵物进度悬浮提示
+        private GameObject _progressTooltipPanel;
+        private Text _progressTooltipTitle;
+        private Text _progressTooltipDesc;
+        private Text _progressTooltipEffect;
+        private RectTransform _progressTooltipRT;
+        private int _hoverProgressSlot = -1;
+        private Canvas _hudCanvas;
+
         [Header("资源显示")]
         [SerializeField] private Text shardCountText;
 
@@ -108,6 +118,10 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.GameWon>(OnGameWon);
             GameEvents.Subscribe<GameEvents.ResourceChanged>(OnResourceChanged);
             GameEvents.Subscribe<GameEvents.QualitativeTriggered>(OnQualitativeTriggered);
+            GameEvents.Subscribe<GameEvents.SynergyActivated>(OnSynergyActivated);
+
+            // 获取Canvas引用
+            _hudCanvas = GetComponentInParent<Canvas>();
 
             // 初始化显示
             if (PlayerController.Instance != null)
@@ -126,6 +140,9 @@ namespace XianTu
 
             // 初始化灵物进度槽位
             InitItemProgressSlots();
+
+            // 创建灵物进度悬浮提示
+            CreateProgressTooltip();
 
             // 隐藏质变提示
             if (qualitativeText != null)
@@ -187,6 +204,9 @@ namespace XianTu
 
             // 灵物进度槽位发光动画
             UpdateItemProgressGlow();
+
+            // 灵物进度悬浮提示检测
+            HandleProgressHover();
         }
 
         // ==================== 血条 ====================
@@ -632,6 +652,269 @@ namespace XianTu
             }
         }
 
+        // ==================== 灵物进度悬浮提示 ====================
+
+        /// <summary>创建灵物进度悬浮提示面板</summary>
+        private void CreateProgressTooltip()
+        {
+            var canvasRoot = _hudCanvas != null ? _hudCanvas.transform : transform;
+
+            _progressTooltipPanel = new GameObject("ProgressTooltip");
+            _progressTooltipPanel.transform.SetParent(canvasRoot, false);
+            _progressTooltipRT = _progressTooltipPanel.AddComponent<RectTransform>();
+            _progressTooltipRT.sizeDelta = new Vector2(300, 160);
+            _progressTooltipRT.pivot = new Vector2(0, 0.5f);
+
+            var bg = _progressTooltipPanel.AddComponent<Image>();
+            bg.color = new Color(0.05f, 0.05f, 0.12f, 0.95f);
+            bg.raycastTarget = false;
+
+            // 边框
+            var borderGo = new GameObject("Border");
+            borderGo.transform.SetParent(_progressTooltipPanel.transform, false);
+            var borderRT = borderGo.AddComponent<RectTransform>();
+            borderRT.anchorMin = Vector2.zero;
+            borderRT.anchorMax = Vector2.one;
+            borderRT.offsetMin = new Vector2(-1, -1);
+            borderRT.offsetMax = new Vector2(1, 1);
+            var borderImg = borderGo.AddComponent<Image>();
+            borderImg.color = new Color(0.4f, 0.4f, 0.5f, 0.5f);
+            borderImg.raycastTarget = false;
+            borderGo.transform.SetAsFirstSibling();
+
+            // 标题（灵物名称 + 品阶）
+            var titleGo = new GameObject("Title");
+            titleGo.transform.SetParent(_progressTooltipPanel.transform, false);
+            var titleRT = titleGo.AddComponent<RectTransform>();
+            titleRT.anchorMin = new Vector2(0, 0.7f);
+            titleRT.anchorMax = new Vector2(1, 1);
+            titleRT.offsetMin = new Vector2(8, 0);
+            titleRT.offsetMax = new Vector2(-8, -4);
+            _progressTooltipTitle = titleGo.AddComponent<Text>();
+            _progressTooltipTitle.fontSize = 18;
+            _progressTooltipTitle.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _progressTooltipTitle.alignment = TextAnchor.MiddleCenter;
+            _progressTooltipTitle.fontStyle = FontStyle.Bold;
+            _progressTooltipTitle.raycastTarget = false;
+            _progressTooltipTitle.supportRichText = true;
+            var titleOutline = titleGo.AddComponent<Outline>();
+            titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
+            titleOutline.effectDistance = new Vector2(1, -1);
+
+            // 描述（灵物描述 + 效果）
+            var descGo = new GameObject("Desc");
+            descGo.transform.SetParent(_progressTooltipPanel.transform, false);
+            var descRT = descGo.AddComponent<RectTransform>();
+            descRT.anchorMin = new Vector2(0, 0.35f);
+            descRT.anchorMax = new Vector2(1, 0.7f);
+            descRT.offsetMin = new Vector2(8, 0);
+            descRT.offsetMax = new Vector2(-8, 0);
+            _progressTooltipDesc = descGo.AddComponent<Text>();
+            _progressTooltipDesc.fontSize = 13;
+            _progressTooltipDesc.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _progressTooltipDesc.alignment = TextAnchor.MiddleCenter;
+            _progressTooltipDesc.color = new Color(0.8f, 0.8f, 0.8f, 0.9f);
+            _progressTooltipDesc.raycastTarget = false;
+            _progressTooltipDesc.supportRichText = true;
+
+            // 质变进度信息
+            var effectGo = new GameObject("Effect");
+            effectGo.transform.SetParent(_progressTooltipPanel.transform, false);
+            var effectRT = effectGo.AddComponent<RectTransform>();
+            effectRT.anchorMin = new Vector2(0, 0);
+            effectRT.anchorMax = new Vector2(1, 0.35f);
+            effectRT.offsetMin = new Vector2(8, 4);
+            effectRT.offsetMax = new Vector2(-8, 0);
+            _progressTooltipEffect = effectGo.AddComponent<Text>();
+            _progressTooltipEffect.fontSize = 12;
+            _progressTooltipEffect.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _progressTooltipEffect.alignment = TextAnchor.MiddleCenter;
+            _progressTooltipEffect.color = new Color(0.6f, 0.9f, 0.6f, 0.8f);
+            _progressTooltipEffect.raycastTarget = false;
+            _progressTooltipEffect.supportRichText = true;
+
+            _progressTooltipPanel.SetActive(false);
+        }
+
+        /// <summary>处理灵物进度面板的鼠标悬浮</summary>
+        private void HandleProgressHover()
+        {
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+
+            Vector2 mousePos = mouse.position.ReadValue();
+            int newHover = -1;
+
+            // 检测鼠标是否在某个进度槽位上
+            for (int i = 0; i < _itemProgressSlots.Count; i++)
+            {
+                var slot = _itemProgressSlots[i];
+                if (!slot.Root.activeSelf || slot.BoundItem == null) continue;
+
+                var rt = slot.Root.GetComponent<RectTransform>();
+                if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, mousePos, null))
+                {
+                    newHover = i;
+                    break;
+                }
+            }
+
+            if (newHover != _hoverProgressSlot)
+            {
+                _hoverProgressSlot = newHover;
+                if (newHover >= 0)
+                    ShowProgressTooltip(newHover, mousePos);
+                else
+                    HideProgressTooltip();
+            }
+
+            // 跟随鼠标位置
+            if (_hoverProgressSlot >= 0 && _progressTooltipPanel != null && _progressTooltipPanel.activeSelf)
+                PositionProgressTooltip(mousePos);
+        }
+
+        /// <summary>显示灵物进度悬浮提示</summary>
+        private void ShowProgressTooltip(int slotIndex, Vector2 mousePos)
+        {
+            if (_progressTooltipPanel == null) return;
+            if (slotIndex < 0 || slotIndex >= _itemProgressSlots.Count) return;
+
+            var slot = _itemProgressSlots[slotIndex];
+            var item = slot.BoundItem;
+            if (item == null) return;
+
+            int count = PlayerController.Instance != null
+                ? PlayerController.Instance.Inventory.GetItemCount(item) : 0;
+
+            // 品阶名称
+            string rarityName = item.rarity switch
+            {
+                ItemRarity.Fan => "凡品",
+                ItemRarity.Ling => "灵品",
+                ItemRarity.Xuan => "玄品",
+                ItemRarity.Di => "地品",
+                ItemRarity.Tian => "天品",
+                _ => "凡品"
+            };
+
+            _progressTooltipTitle.text = $"{item.itemName}（{rarityName}）x{count}";
+            _progressTooltipTitle.color = item.GetRarityColor();
+
+            // 描述 + 属性效果
+            var effectParts = new List<string>();
+            if (item.attackBonus > 0) effectParts.Add($"攻击+{item.attackBonus}");
+            if (item.attackBonusPercent > 0) effectParts.Add($"攻击+{item.attackBonusPercent * 100}%");
+            if (item.maxHpBonus > 0) effectParts.Add($"生命+{item.maxHpBonus}");
+            if (item.maxHpBonusPercent > 0) effectParts.Add($"生命+{item.maxHpBonusPercent * 100}%");
+            if (item.moveSpeedBonusPercent > 0) effectParts.Add($"移速+{item.moveSpeedBonusPercent * 100}%");
+            if (item.damageReductionBonus > 0) effectParts.Add($"减伤+{item.damageReductionBonus * 100}%");
+            if (item.critRateBonus > 0) effectParts.Add($"暴击+{item.critRateBonus * 100}%");
+            if (item.healOnKill > 0) effectParts.Add($"击杀回复{item.healOnKill}");
+            if (item.burnDamagePerSecond > 0) effectParts.Add($"灼烧{item.burnDamagePerSecond}/s");
+            if (item.freezeChance > 0) effectParts.Add($"冻结{item.freezeChance * 100}%");
+
+            string effectStr = effectParts.Count > 0 ? string.Join("  ", effectParts) : "";
+            _progressTooltipDesc.text = item.description + (effectStr.Length > 0 ? $"\n<color=#AFA>{effectStr}</color>" : "");
+
+            // 质变进度信息
+            string qualInfo = "";
+            if (item.qualitativeThresholds != null && item.qualitativeThresholds.Length > 0)
+            {
+                qualInfo = "<color=#FFD700>质变阈值：</color>";
+                foreach (int t in item.qualitativeThresholds)
+                {
+                    bool reached = count >= t;
+                    qualInfo += reached
+                        ? $"<color=#FFD700>✔{t}</color>  "
+                        : $"<color=#888>{t}</color>  ";
+                }
+
+                // 显示下一个质变的效果预览
+                string nextEffect = GetQualitativePreview(item, count);
+                if (!string.IsNullOrEmpty(nextEffect))
+                    qualInfo += $"\n{nextEffect}";
+            }
+            _progressTooltipEffect.text = qualInfo;
+
+            _progressTooltipPanel.SetActive(true);
+            _progressTooltipPanel.transform.SetAsLastSibling();
+            PositionProgressTooltip(mousePos);
+        }
+
+        /// <summary>获取下一个质变效果的预览文字</summary>
+        private string GetQualitativePreview(ItemData item, int currentCount)
+        {
+            if (item.qualitativeThresholds == null) return "";
+
+            // 找到下一个未触发的阈值
+            int nextThreshold = 0;
+            foreach (int t in item.qualitativeThresholds)
+            {
+                if (currentCount < t)
+                {
+                    nextThreshold = t;
+                    break;
+                }
+            }
+
+            if (nextThreshold == 0)
+                return "<color=#FFD700>✨ 已全部质变完成</color>";
+
+            // 根据灵物名称预览效果
+            string preview = item.itemName switch
+            {
+                "火灵珠" when nextThreshold == 5 => "焚天！每5次攻击释放火焰冲击波",
+                "火灵珠" when nextThreshold == 8 => "焚天大成！攻击力+50%，暴击伤害+50%",
+                "玉佩" when nextThreshold == 5 => "玉碎！致命伤害免疫（CD 60秒）",
+                "风灵珠" when nextThreshold == 5 => "御风！闪避后留下攻击残影",
+                "锈铁飞剑" when nextThreshold == 5 => "剑阵！飞剑环绕护体",
+                "锈铁飞剑" when nextThreshold == 8 => "万剑归宗！攻击力+30%，穿透+3",
+                "回灵丹" when nextThreshold == 5 => "涅槃！死亡时原地复活",
+                _ => "灵力共鸣，属性提升"
+            };
+
+            return $"<color=#AAF>下一阶（x{nextThreshold}）：{preview}</color>";
+        }
+
+        private void HideProgressTooltip()
+        {
+            if (_progressTooltipPanel != null)
+                _progressTooltipPanel.SetActive(false);
+        }
+
+        private void PositionProgressTooltip(Vector2 screenPos)
+        {
+            if (_progressTooltipRT == null || _hudCanvas == null) return;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                (RectTransform)_hudCanvas.transform, screenPos, null, out Vector2 localPos);
+
+            // 在鼠标右侧显示
+            Vector2 offset = new Vector2(20, 0);
+            Vector2 pos = localPos + offset;
+
+            // 确保不超出屏幕边界
+            var canvasRT = (RectTransform)_hudCanvas.transform;
+            float tooltipW = _progressTooltipRT.sizeDelta.x;
+            float tooltipH = _progressTooltipRT.sizeDelta.y;
+            float canvasHalfW = canvasRT.sizeDelta.x / 2f;
+            float canvasHalfH = canvasRT.sizeDelta.y / 2f;
+
+            // 右边界溢出则改为左侧显示
+            if (pos.x + tooltipW > canvasHalfW)
+                pos.x = localPos.x - tooltipW - 10;
+            // 上下边界
+            pos.y = Mathf.Clamp(pos.y, -canvasHalfH + tooltipH / 2f + 5, canvasHalfH - tooltipH / 2f - 5);
+
+            _progressTooltipRT.anchoredPosition = pos;
+        }
+
+        // ==================== Synergy 组合激活提示 ====================
+
+        private void OnSynergyActivated(GameEvents.SynergyActivated evt)
+        {
+            ShowMessage($"<color=#FFD700>✨ 组合激活：{evt.SynergyName} — {evt.Description}</color>");
+        }
+
         // ==================== 质变触发提示 ====================
 
         private void OnQualitativeTriggered(GameEvents.QualitativeTriggered evt)
@@ -671,7 +954,7 @@ namespace XianTu
 
         private void OnRoomCleared(GameEvents.RoomCleared evt)
         {
-            ShowMessage("房间清理完成！准备进入下一层...");
+            ShowMessage("房间清理完成！寻找传送门继续前进...");
         }
 
         // ==================== 死亡/通关 ====================
@@ -738,6 +1021,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.GameWon>(OnGameWon);
             GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
             GameEvents.Unsubscribe<GameEvents.QualitativeTriggered>(OnQualitativeTriggered);
+            GameEvents.Unsubscribe<GameEvents.SynergyActivated>(OnSynergyActivated);
         }
     }
 }

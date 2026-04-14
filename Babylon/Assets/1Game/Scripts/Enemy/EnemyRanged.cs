@@ -304,9 +304,9 @@ namespace XianTu
         {
             if (possibleDrops == null || possibleDrops.Length == 0) return;
             var config = GameConfig.Instance;
-            float chance = 0.3f;
+            float chance = 0.08f;
             if (config != null)
-                chance = config.敌人掉落概率 + _roomLevel * config.每层掉率增加;
+                chance = config.debugMaxDropRate ? 1f : config.敌人掉落概率;
             if (Random.value > chance) return;
 
             ItemData selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];

@@ -17,6 +17,7 @@ namespace XianTu
 
         [Header("掉落奖励")]
         [SerializeField] private ItemData[] rewardPool;
+        [SerializeField] private SkillData[] skillRewardPool;
         [SerializeField] private int rewardCount = 1;
 
         [Header("难度缩放")]
@@ -105,6 +106,7 @@ namespace XianTu
                 spawnPos.y = 0;
                 var enemy = EnemyBase.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
                 if (_enemyHitVFXPrefab != null) enemy.SetHitVFXPrefab(_enemyHitVFXPrefab);
+                if (skillRewardPool != null) enemy.SetSkillDrops(skillRewardPool);
                 _enemies.Add(enemy);
             }
 
@@ -185,6 +187,9 @@ namespace XianTu
             // 掉落奖励灵物
             SpawnRewards();
 
+            // 掉落奖励功法
+            SpawnSkillReward();
+
             // 发布事件
             GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
         }
@@ -193,18 +198,24 @@ namespace XianTu
         {
             if (rewardPool == null || rewardPool.Length == 0) return;
 
-            // 通关额外奖励在房间中心附近掉落
+            // 通关额外奖励：先判定概率，再掉落
             var config = GameConfig.Instance;
             int count = config != null ? config.通关额外掉落数 : rewardCount;
+
+            // 通关掉落概率判定（debug爆率拉满时跳过判定）
+            if (config != null && !config.debugMaxDropRate)
+            {
+                if (Random.value > config.通关掉落概率) return; // 未通过概率判定，不掉落
+            }
 
             for (int i = 0; i < count; i++)
             {
                 ItemData item;
                 if (config != null)
                 {
-                    // 按品阶权重选择
-                    ItemRarity targetRarity = config.RollRarity();
-                    var candidates = new List<ItemData>();
+                    // 按品阶权重选择（层数越高，高品质比重越大）
+                    ItemRarity targetRarity = config.RollRarity(_roomIndex);
+                    var candidates = new System.Collections.Generic.List<ItemData>();
                     foreach (var d in rewardPool)
                     {
                         if (d != null && d.rarity == targetRarity)
@@ -229,6 +240,32 @@ namespace XianTu
                         Random.Range(-2f, 2f), 0, Random.Range(-2f, 2f));
                     ItemPickup.Spawn(item, pos);
                 }
+            }
+        }
+
+        /// <summary>通关后掉落功法奖励</summary>
+        private void SpawnSkillReward()
+        {
+            if (skillRewardPool == null || skillRewardPool.Length == 0) return;
+
+            var config = GameConfig.Instance;
+            if (config == null) return;
+
+            // 功法掉落概率判定
+            float chance = config.debugMaxDropRate ? 1f : config.通关功法掉落概率;
+            if (Random.value > chance) return;
+
+            // 随机选择一个功法
+            var skill = skillRewardPool[Random.Range(0, skillRewardPool.Length)];
+            if (skill != null)
+            {
+                Vector3 playerPos = PlayerController.Instance != null
+                    ? PlayerController.Instance.transform.position
+                    : transform.position;
+                Vector3 pos = playerPos + new Vector3(
+                    Random.Range(-2f, 2f), 0, Random.Range(1f, 3f));
+                SkillPickup.Spawn(skill, pos);
+                Debug.Log($"<color=cyan>功法掉落：{skill.skillName}</color>");
             }
         }
 
@@ -259,6 +296,12 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
             if (_roomVisuals != null)
                 Destroy(_roomVisuals);
+        }
+
+        /// <summary>设置功法掉落池</summary>
+        public void SetSkillPool(SkillData[] skills)
+        {
+            skillRewardPool = skills;
         }
 
         /// <summary>设置敌人受击特效</summary>

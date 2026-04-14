@@ -44,14 +44,29 @@ namespace XianTu.Editor
             CreateJadePendant();
             CreateRustySword();
             CreateHealPill();
+            // 灵品灵物
+            CreateThunderBead();
+            CreateShadowCloak();
+            // 玄品灵物
+            CreateDragonScale();
+            CreatePhoenixFeather();
+            // 地品灵物
+            CreateVoidStone();
+            // 天品灵物
+            CreateCelestialOrb();
             CreateFallingRock();
             CreateGoldenBell();
+            CreateThunderStrike();
+            CreateSwordProjectile();
+            CreateEarthDash();
+            CreateFrostBlast();
+            CreateHealSpring();
             CreateAudioConfig();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 5 个灵物 + 2 个功法 + 1 个音效配置</color>");
+            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 11 个灵物 + 7 个功法 + 1 个音效配置</color>");
         }
 
         [MenuItem("仙途梦境/③ 创建 Animator Controller", false, 3)]
@@ -378,6 +393,11 @@ namespace XianTu.Editor
             if (skillEProp != null && skillE != null)
                 skillEProp.objectReferenceValue = skillE;
 
+            var skillR = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "天雷引.asset");
+            var skillRProp = so.FindProperty("testSkillR");
+            if (skillRProp != null && skillR != null)
+                skillRProp.objectReferenceValue = skillR;
+
             // 加载角色模型（Frank_Katana FBX）
             var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                 FRANK_MESH_PATH + "Frank_RPG_Katana_Unity_Y_top.FBX");
@@ -414,8 +434,27 @@ namespace XianTu.Editor
 
             Debug.Log("<color=green>✅ Demo1 场景配置完成！</color>");
             Debug.Log($"  灵物：{itemGuids.Length} 个");
+
+            // 加载功法数据到skillPool
+            string[] skillGuids = AssetDatabase.FindAssets("t:SkillData", new[] { "Assets/1Game/Data/Skills" });
+            var skillPoolProp = so.FindProperty("skillPool");
+            if (skillPoolProp != null)
+            {
+                skillPoolProp.arraySize = skillGuids.Length;
+                for (int i = 0; i < skillGuids.Length; i++)
+                {
+                    string assetPath = AssetDatabase.GUIDToAssetPath(skillGuids[i]);
+                    skillPoolProp.GetArrayElementAtIndex(i).objectReferenceValue =
+                        AssetDatabase.LoadAssetAtPath<SkillData>(assetPath);
+                }
+            }
+            Debug.Log($"  功法：{skillGuids.Length} 个");
+
+            // 加载功法数据到skillPool（通过反射设置，因为Demo1Setup没有skillPool字段，
+            // 功法池在运行时由Demo1Setup.CreateGameManager动态收集）
             Debug.Log($"  Q技能：{(skillQ != null ? "落石术 ✓" : "❌ 未找到")}");
             Debug.Log($"  E技能：{(skillE != null ? "金钟罩 ✓" : "❌ 未找到")}");
+            Debug.Log($"  R技能：{(skillR != null ? "天雷引 ✓" : "❌ 未找到")}");
             Debug.Log($"  模型：{(modelPrefab != null ? "Frank_Katana ✓" : "❌ 未找到（将使用胶囊体）")}");
             Debug.Log($"  动画控制器：{(animController != null ? "✓" : "❌ 请先执行步骤③")}");
             Debug.Log($"  刀光特效：{(slashVFX != null ? "✓" : "❌ 未找到")}");
@@ -746,6 +785,108 @@ namespace XianTu.Editor
             SaveAsset(item, ITEM_PATH + "回灵丹.asset");
         }
 
+        // ==================== 灵品灵物 ====================
+
+        private static void CreateThunderBead()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "雷灵珠";
+            item.description = "蕴含雷霆之力的灵珠，攻击时有概率触发雷击。\n叠加增强暴击率和暴击伤害。";
+            item.rarity = ItemRarity.Ling;
+            item.category = ItemCategory.Attack;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 4, 7 };
+            item.attackBonus = 5f;
+            item.critRateBonus = 0.08f;
+            SaveAsset(item, ITEM_PATH + "雷灵珠.asset");
+        }
+
+        private static void CreateShadowCloak()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "影遁衣";
+            item.description = "以暗影之力编织的灵衣，穿戴后身形飘忽。\n大幅提升移速和攻速，闪避后短暂隐身。";
+            item.rarity = ItemRarity.Ling;
+            item.category = ItemCategory.Movement;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 4 };
+            item.moveSpeedBonusPercent = 0.15f;
+            item.attackSpeedBonusPercent = 0.1f;
+            SaveAsset(item, ITEM_PATH + "影遁衣.asset");
+        }
+
+        // ==================== 玄品灵物 ====================
+
+        private static void CreateDragonScale()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "龙鳞甲";
+            item.description = "取自上古真龙的鳞片，坚不可摧。\n大幅提升减伤和生命上限，受击时反弹伤害。";
+            item.rarity = ItemRarity.Xuan;
+            item.category = ItemCategory.Defense;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 3, 5 };
+            item.damageReductionBonus = 0.12f;
+            item.maxHpBonus = 40f;
+            item.maxHpBonusPercent = 0.1f;
+            SaveAsset(item, ITEM_PATH + "龙鳞甲.asset");
+        }
+
+        private static void CreatePhoenixFeather()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "凤凰羽";
+            item.description = "凤凰涅槃后遗落的神羽，蕴含重生之力。\n大幅提升攻击力，击杀回复大量生命。";
+            item.rarity = ItemRarity.Xuan;
+            item.category = ItemCategory.Attack;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 3 };
+            item.attackBonus = 8f;
+            item.attackBonusPercent = 0.15f;
+            item.healOnKill = 8f;
+            SaveAsset(item, ITEM_PATH + "凤凰羽.asset");
+        }
+
+        // ==================== 地品灵物 ====================
+
+        private static void CreateVoidStone()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "虚空石";
+            item.description = "来自虚空裂隙的神秘矿石，扭曲时空之力。\n全属性大幅提升，攻击附带虚空侵蚀。";
+            item.rarity = ItemRarity.Di;
+            item.category = ItemCategory.Attack;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 2, 4 };
+            item.attackBonus = 12f;
+            item.attackBonusPercent = 0.1f;
+            item.maxHpBonus = 30f;
+            item.critRateBonus = 0.1f;
+            item.burnDamagePerSecond = 8f;
+            SaveAsset(item, ITEM_PATH + "虚空石.asset");
+        }
+
+        // ==================== 天品灵物 ====================
+
+        private static void CreateCelestialOrb()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "天道珠";
+            item.description = "蕴含天道法则的至宝，持有者如有神助。\n全属性极大提升，攻击附带天雷制裁。";
+            item.rarity = ItemRarity.Tian;
+            item.category = ItemCategory.Attack;
+            item.stackable = false;
+            item.attackBonus = 20f;
+            item.attackBonusPercent = 0.25f;
+            item.maxHpBonus = 50f;
+            item.maxHpBonusPercent = 0.2f;
+            item.critRateBonus = 0.15f;
+            item.damageReductionBonus = 0.1f;
+            item.burnDamagePerSecond = 15f;
+            item.healOnKill = 10f;
+            SaveAsset(item, ITEM_PATH + "天道珠.asset");
+        }
+
         private static void CreateFallingRock()
         {
             var skill = ScriptableObject.CreateInstance<SkillData>();
@@ -775,6 +916,90 @@ namespace XianTu.Editor
             skill.aoeRadius = 0f;
             skill.vfxDuration = 5f;
             SaveAsset(skill, SKILL_PATH + "金钟罩.asset");
+        }
+
+        /// <summary>创建天雷引技能（范围伤害，R槽位默认）</summary>
+        private static void CreateThunderStrike()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "天雷引";
+            skill.description = "引天雷轰击指定区域，造成大量雷电伤害。\n范围更大，伤害更高，但冷却也更长。";
+            skill.rarity = ItemRarity.Ling;
+            skill.skillType = SkillType.AreaDamage;
+            skill.baseDamage = 50f;
+            skill.damageScaling = 0.8f;
+            skill.cooldown = 15f;
+            skill.aoeRadius = 4f;
+            skill.vfxDuration = 2f;
+            SaveAsset(skill, SKILL_PATH + "天雷引.asset");
+        }
+
+        /// <summary>创建御剑术技能（投射物类型）</summary>
+        private static void CreateSwordProjectile()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "御剑术";
+            skill.description = "御使灵剑向前方飞射，贯穿敌人。\n可同时发射三柄飞剑，扣形散射。";
+            skill.rarity = ItemRarity.Fan;
+            skill.skillType = SkillType.Projectile;
+            skill.baseDamage = 20f;
+            skill.damageScaling = 0.4f;
+            skill.cooldown = 5f;
+            skill.projectileSpeed = 18f;
+            skill.projectileCount = 3;
+            skill.spreadAngle = 30f;
+            skill.vfxDuration = 1f;
+            SaveAsset(skill, SKILL_PATH + "御剑术.asset");
+        }
+
+        /// <summary>创建土遁术技能（位移类型）</summary>
+        private static void CreateEarthDash()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "土遁术";
+            skill.description = "遁入地下瞬间移动至前方远处。\n路径上的敌人会被地刺伤害。";
+            skill.rarity = ItemRarity.Fan;
+            skill.skillType = SkillType.Dash;
+            skill.baseDamage = 15f;
+            skill.damageScaling = 0.3f;
+            skill.cooldown = 6f;
+            skill.dashDistance = 10f;
+            skill.leaveTrail = true;
+            skill.vfxDuration = 1f;
+            SaveAsset(skill, SKILL_PATH + "土遁术.asset");
+        }
+
+        /// <summary>创建寒冰诀技能（范围伤害类型）</summary>
+        private static void CreateFrostBlast()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "寒冰诀";
+            skill.description = "以自身为中心释放冰霜冲击波。\n冻结周围敌人，造成冰霜伤害。";
+            skill.rarity = ItemRarity.Ling;
+            skill.skillType = SkillType.AreaDamage;
+            skill.baseDamage = 25f;
+            skill.damageScaling = 0.6f;
+            skill.cooldown = 10f;
+            skill.aoeRadius = 5f;
+            skill.vfxDuration = 1.5f;
+            SaveAsset(skill, SKILL_PATH + "寒冰诀.asset");
+        }
+
+        /// <summary>创建回春术技能（治疗类型）</summary>
+        private static void CreateHealSpring()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "回春术";
+            skill.description = "运转灵力治疗自身伤势。\n恢复生命值，治疗量随攻击力提升。";
+            skill.rarity = ItemRarity.Ling;
+            skill.skillType = SkillType.Heal;
+            skill.baseDamage = 0f;
+            skill.damageScaling = 0f;
+            skill.cooldown = 18f;
+            skill.healAmount = 40f;
+            skill.healScaling = 0.5f;
+            skill.vfxDuration = 1.5f;
+            SaveAsset(skill, SKILL_PATH + "回春术.asset");
         }
 
         // ==================== 工具方法 ====================

@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a86b5853cfb4fb2479915b5e3d01bc22, type: 3}
-  m_Name: "\u843D\u77F3\u672F"
+  m_Name: "\u5929\u96F7\u5F15"
   m_EditorClassIdentifier: 
-  skillName: "\u843D\u77F3\u672F"
-  description: "\u51DD\u805A\u7075\u529B\u4E8E\u9AD8\u7A7A\uFF0C\u53EC\u5524\u5DE8\u77F3\u7838\u843D\u6307\u5B9A\u4F4D\u7F6E\u3002\n\u5BF9\u8303\u56F4\u5185\u654C\u4EBA\u9020\u6210\u5927\u91CF\u4F24\u5BB3\u3002"
+  skillName: "\u5929\u96F7\u5F15"
+  description: "\u5F15\u5929\u96F7\u8F70\u51FB\u6307\u5B9A\u533A\u57DF\uFF0C\u9020\u6210\u5927\u91CF\u96F7\u7535\u4F24\u5BB3\u3002\n\u8303\u56F4\u66F4\u5927\uFF0C\u4F24\u5BB3\u66F4\u9AD8\uFF0C\u4F46\u51B7\u5374\u4E5F\u66F4\u957F\u3002"
   icon: {fileID: 0}
-  rarity: 0
+  rarity: 1
   skillType: 0
-  baseDamage: 30
-  damageScaling: 0.5
-  cooldown: 8
+  baseDamage: 50
+  damageScaling: 0.8
+  cooldown: 15
   castSpeed: 1
-  aoeRadius: 3
+  aoeRadius: 4
   projectilePrefab: {fileID: 0}
   projectileSpeed: 12
   projectileCount: 1
@@ -33,6 +33,6 @@ MonoBehaviour:
   summonDuration: 8
   summonDamage: 10
   vfxPrefab: {fileID: 0}
-  vfxDuration: 1.5
+  vfxDuration: 2
   castSFX: {fileID: 0}
   hitSFX: {fileID: 0}

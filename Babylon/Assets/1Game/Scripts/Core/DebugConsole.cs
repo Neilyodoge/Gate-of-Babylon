@@ -30,6 +30,7 @@ namespace XianTu
         private float _originalAttack;  // 原始攻击力（用于恢复）
         private bool _speedBoost;       // 加速模式
         private float _originalSpeed;   // 原始移速
+        private bool _maxDropRate;      // 爆率拉满模式
 
         // 日志
         private List<string> _logMessages = new();
@@ -280,6 +281,17 @@ namespace XianTu
             AddLog("<color=magenta>↺ 重新开始</color>");
         }
 
+        /// <summary>爆率拉满模式（每个敌人必掉灵物）</summary>
+        private void ToggleMaxDropRate()
+        {
+            _maxDropRate = !_maxDropRate;
+            var config = GameConfig.Instance;
+            if (config != null)
+                config.debugMaxDropRate = _maxDropRate;
+            AddLog(_maxDropRate ? "<color=yellow>💎 爆率拉满 开启（100%掉落）</color>" : "<color=gray>💎 爆率拉满 关闭</color>");
+            RefreshStatus();
+        }
+
         // ==================== UI 创建 ====================
 
         /// <summary>创建屏幕左上角的Debug开关小按钮（始终可见）</summary>
@@ -424,6 +436,7 @@ namespace XianTu
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
             CreateButton(contentGo.transform, "♥ 最大生命 +100", new Color(0.2f, 0.45f, 0.25f), BoostMaxHp);
             CreateButton(contentGo.transform, "✦ 灵力碎片 +500", new Color(0.2f, 0.35f, 0.5f), AddShards);
+            CreateButton(contentGo.transform, "💎 爆率拉满 (100%)", new Color(0.5f, 0.4f, 0.1f), ToggleMaxDropRate);
 
             // --- 房间控制 ---
             CreateSectionHeader(contentGo.transform, "【 房间跳转 】");
@@ -575,6 +588,7 @@ namespace XianTu
                 status += "\n";
                 status += $"无敌：{BoolStr(_godMode)}  锁血：{BoolStr(_lockHp)}\n";
                 status += $"秒杀：{BoolStr(_oneHitKill)}  加速：{BoolStr(_speedBoost)}\n";
+                status += $"爆率拉满：{BoolStr(_maxDropRate)}\n";
                 status += $"时间缩放：{Time.timeScale}x";
             }
             else

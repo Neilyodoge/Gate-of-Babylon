@@ -17,7 +17,7 @@ namespace XianTu
 
         [Header("表现")]
         [SerializeField] private float bobSpeed = 1.5f;
-        [SerializeField] private float bobHeight = 0.4f;
+        [SerializeField] private float bobHeight = 0.15f;
         [SerializeField] private float rotateSpeed = 60f;
         [SerializeField] private float interactRadius = 2.5f;
 
@@ -52,10 +52,16 @@ namespace XianTu
         {
             if (_pickedUp) return;
 
-            // 浮动动画
+            // 浮动动画（仅模型浮动，提示UI保持固定高度）
             float newY = _startPos.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
             transform.position = new Vector3(_startPos.x, newY, _startPos.z);
             transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
+
+            // 提示UI跟随XZ但Y轴固定，不受浮动影响
+            if (_promptUI != null)
+            {
+                _promptUI.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
+            }
 
             // 交互逻辑
             if (_playerInRange && _nearbyPlayerCombat != null)
@@ -210,8 +216,8 @@ namespace XianTu
 
             // 创建世界空间提示UI
             var canvasGo = new GameObject("SkillPromptCanvas");
-            canvasGo.transform.SetParent(transform);
-            canvasGo.transform.localPosition = new Vector3(0, 3.0f, 0);
+            // 不作为掉落物子物体，避免跟随浮动
+            canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
 
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
@@ -259,6 +265,8 @@ namespace XianTu
                 SkillType.Projectile => "投射物",
                 SkillType.Dash => "位移",
                 SkillType.Buff => "增益",
+                SkillType.Heal => "治疗",
+                SkillType.Summon => "召唤",
                 _ => "未知"
             };
             var typeGo = new GameObject("Type");
@@ -346,7 +354,11 @@ namespace XianTu
             }
         }
 
-        // ==================== 视觉表现 ====================
+        private void OnDestroy()
+        {
+            // 提示UI是独立根级对象，需要手动清理
+            HidePrompt();
+        }
 
         private void SetupVisual()
         {
@@ -402,7 +414,7 @@ namespace XianTu
             // 用扁平的Cube表示书卷/功法
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"SkillPickup_{data.skillName}";
-            go.transform.position = position + Vector3.up * 0.5f;
+            go.transform.position = position + Vector3.up * 0.15f;
             go.transform.localScale = new Vector3(0.5f, 0.1f, 0.35f);
             go.layer = LayerMask.NameToLayer("Default");
 

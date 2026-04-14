@@ -7,10 +7,12 @@ namespace XianTu
     /// </summary>
     public enum SkillType
     {
-        AreaDamage,     // 范围伤害（落石术）
-        Projectile,     // 投射物（御剑术）
+        AreaDamage,     // 范围伤害（落石术、天雷引、寒冰诀）
+        Projectile,     // 投射物（御剑术、烈焰掌）
         Dash,           // 位移（土遁术、缩地成寸）
-        Buff            // 增益（金钟罩）
+        Buff,           // 增益（金钟罩）
+        Heal,           // 治疗（回春术）
+        Summon          // 召唤（傀儡术）
     }
 
     /// <summary>
@@ -45,6 +47,28 @@ namespace XianTu
         [Header("投射物参数")]
         public GameObject projectilePrefab;
         public float projectileSpeed = 12f;
+        /// <summary>投射物数量（多发投射，如散射飞剑）</summary>
+        public int projectileCount = 1;
+        /// <summary>多发投射时的扩散角度</summary>
+        public float spreadAngle = 0f;
+
+        [Header("位移参数")]
+        /// <summary>位移距离</summary>
+        public float dashDistance = 8f;
+        /// <summary>位移后是否留下伤害区域</summary>
+        public bool leaveTrail = false;
+
+        [Header("治疗参数")]
+        /// <summary>治疗量</summary>
+        public float healAmount = 30f;
+        /// <summary>治疗量攻击力缩放</summary>
+        public float healScaling = 0.3f;
+
+        [Header("召唤参数")]
+        /// <summary>召唤物持续时间</summary>
+        public float summonDuration = 8f;
+        /// <summary>召唤物攻击力</summary>
+        public float summonDamage = 10f;
 
         [Header("表现")]
         public GameObject vfxPrefab;

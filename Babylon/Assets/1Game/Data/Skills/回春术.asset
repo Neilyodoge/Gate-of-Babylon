@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a86b5853cfb4fb2479915b5e3d01bc22, type: 3}
-  m_Name: "\u843D\u77F3\u672F"
+  m_Name: "\u56DE\u6625\u672F"
   m_EditorClassIdentifier: 
-  skillName: "\u843D\u77F3\u672F"
-  description: "\u51DD\u805A\u7075\u529B\u4E8E\u9AD8\u7A7A\uFF0C\u53EC\u5524\u5DE8\u77F3\u7838\u843D\u6307\u5B9A\u4F4D\u7F6E\u3002\n\u5BF9\u8303\u56F4\u5185\u654C\u4EBA\u9020\u6210\u5927\u91CF\u4F24\u5BB3\u3002"
+  skillName: "\u56DE\u6625\u672F"
+  description: "\u8FD0\u8F6C\u7075\u529B\u6CBB\u7597\u81EA\u8EAB\u4F24\u52BF\u3002\n\u6062\u590D\u751F\u547D\u503C\uFF0C\u6CBB\u7597\u91CF\u968F\u653B\u51FB\u529B\u63D0\u5347\u3002"
   icon: {fileID: 0}
-  rarity: 0
-  skillType: 0
-  baseDamage: 30
-  damageScaling: 0.5
-  cooldown: 8
+  rarity: 1
+  skillType: 4
+  baseDamage: 0
+  damageScaling: 0
+  cooldown: 18
   castSpeed: 1
   aoeRadius: 3
   projectilePrefab: {fileID: 0}
@@ -28,8 +28,8 @@ MonoBehaviour:
   spreadAngle: 0
   dashDistance: 8
   leaveTrail: 0
-  healAmount: 30
-  healScaling: 0.3
+  healAmount: 40
+  healScaling: 0.5
   summonDuration: 8
   summonDamage: 10
   vfxPrefab: {fileID: 0}

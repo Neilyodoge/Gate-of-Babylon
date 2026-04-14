@@ -6,7 +6,7 @@ namespace XianTu
     /// <summary>
     /// 游戏管理器 —— 控制整局游戏流程
     /// 线性推进 6 层（练气→筑基→金丹→元婴→化神→渡劫）
-    /// 每层随机分配房间类型：战斗/商店/休息/宝箱/Boss
+    /// 每层包含多个房间（2~3个），通关所有房间后进入下一层
     /// </summary>
     public class GameManager : MonoBehaviour
     {
@@ -29,6 +29,9 @@ namespace XianTu
         [Header("灵物池（在 Inspector 中配置）")]
         [SerializeField] private ItemData[] itemPool;
 
+        [Header("功法池（在 Inspector 中配置）")]
+        [SerializeField] private SkillData[] skillPool;
+
         [Header("敌人受击特效")]
         [SerializeField] private GameObject enemyHitVFXPrefab;
 
@@ -41,11 +44,15 @@ namespace XianTu
         private GameObject _currentRoomGo; // 当前房间的 GameObject
         private bool _gameOver;
 
-        // 房间布局
-        private List<Minimap.RoomType> _levelLayout;
+        // 房间布局（二维：每层包含多个房间）
+        private List<List<Minimap.RoomType>> _levelRooms; // [层][房间索引]
+        private List<Minimap.RoomType> _levelLayout; // 扁平化布局（兼容小地图）
         private Minimap _minimap;
+        private int _flatRoomIndex; // 扁平化的房间索引（用于小地图）
 
         public int CurrentLevel => _currentLevel;
+        public int CurrentRoomInLevel => _currentRoomInLevel;
+        public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
         public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "飞升";
 
         private void Awake()
@@ -85,6 +92,7 @@ namespace XianTu
         {
             _currentLevel = 0;
             _currentRoomInLevel = 0;
+            _flatRoomIndex = 0;
             _gameOver = false;
 
             Debug.Log("<color=magenta>═══════════════════════════</color>");
@@ -101,50 +109,83 @@ namespace XianTu
             SpawnCurrentRoom();
         }
 
-        /// <summary>生成整局的房间布局</summary>
+        /// <summary>生成整局的房间布局（每层2~3个房间）</summary>
         private void GenerateLevelLayout()
         {
-            _levelLayout = new List<Minimap.RoomType>();
+            _levelRooms = new List<List<Minimap.RoomType>>();
+            _levelLayout = new List<Minimap.RoomType>(); // 扁平化，兼容小地图
 
             for (int i = 0; i < _realmNames.Length; i++)
             {
+                var rooms = new List<Minimap.RoomType>();
+
                 if (i == _realmNames.Length - 1)
                 {
-                    // 最后一层固定为Boss
-                    _levelLayout.Add(Minimap.RoomType.Boss);
+                    // 最后一层：1个战斗 + Boss
+                    rooms.Add(Minimap.RoomType.Battle);
+                    rooms.Add(Minimap.RoomType.Boss);
                 }
                 else if (i == 0)
                 {
-                    // 第一层固定为战斗
-                    _levelLayout.Add(Minimap.RoomType.Battle);
+                    // 第一层：2个战斗房间（教学/热身）
+                    rooms.Add(Minimap.RoomType.Battle);
+                    rooms.Add(Minimap.RoomType.Battle);
                 }
                 else
                 {
-                    // 中间层随机分配
+                    // 中间层：2~3个房间，第一个固定战斗，后面随机
+                    rooms.Add(Minimap.RoomType.Battle);
+
+                    // 第二个房间随机
                     float roll = Random.value;
-                    if (roll < 0.5f)
-                        _levelLayout.Add(Minimap.RoomType.Battle);
-                    else if (roll < 0.7f)
-                        _levelLayout.Add(Minimap.RoomType.Shop);
-                    else if (roll < 0.85f)
-                        _levelLayout.Add(Minimap.RoomType.Rest);
+                    if (roll < 0.35f)
+                        rooms.Add(Minimap.RoomType.Battle);
+                    else if (roll < 0.55f)
+                        rooms.Add(Minimap.RoomType.Shop);
+                    else if (roll < 0.75f)
+                        rooms.Add(Minimap.RoomType.Treasure);
                     else
-                        _levelLayout.Add(Minimap.RoomType.Treasure);
+                        rooms.Add(Minimap.RoomType.Rest);
+
+                    // 50%概率有第三个房间（战斗）
+                    if (Random.value < 0.5f)
+                        rooms.Add(Minimap.RoomType.Battle);
                 }
+
+                _levelRooms.Add(rooms);
+                _levelLayout.AddRange(rooms);
             }
 
-            // 确保至少有一个商店和一个休息房间
-            bool hasShop = _levelLayout.Contains(Minimap.RoomType.Shop);
-            bool hasRest = _levelLayout.Contains(Minimap.RoomType.Rest);
+            // 确保整局至少有一个商店和一个休息房间
+            bool hasShop = false, hasRest = false;
+            foreach (var rooms in _levelRooms)
+                foreach (var rt in rooms)
+                {
+                    if (rt == Minimap.RoomType.Shop) hasShop = true;
+                    if (rt == Minimap.RoomType.Rest) hasRest = true;
+                }
 
-            if (!hasShop && _levelLayout.Count > 3)
-                _levelLayout[2] = Minimap.RoomType.Shop;
-            if (!hasRest && _levelLayout.Count > 4)
-                _levelLayout[3] = Minimap.RoomType.Rest;
+            // 如果缺少商店，在第2层第2个房间插入
+            if (!hasShop && _levelRooms.Count > 2 && _levelRooms[2].Count > 1)
+                _levelRooms[2][1] = Minimap.RoomType.Shop;
+            // 如果缺少休息，在第3层第2个房间插入
+            if (!hasRest && _levelRooms.Count > 3 && _levelRooms[3].Count > 1)
+                _levelRooms[3][1] = Minimap.RoomType.Rest;
 
+            // 重建扁平化布局
+            _levelLayout.Clear();
+            foreach (var rooms in _levelRooms)
+                _levelLayout.AddRange(rooms);
+
+            // 打印布局
             string layoutStr = "";
-            foreach (var rt in _levelLayout)
-                layoutStr += rt.ToString() + " → ";
+            for (int i = 0; i < _levelRooms.Count; i++)
+            {
+                layoutStr += $"[{_realmNames[i]}:";
+                foreach (var rt in _levelRooms[i])
+                    layoutStr += $" {rt}";
+                layoutStr += "] → ";
+            }
             Debug.Log($"<color=cyan>房间布局：{layoutStr}</color>");
         }
 
@@ -156,9 +197,13 @@ namespace XianTu
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
 
+            // 清理上一关残留的掉落物（灵物和功法拾取物）
+            CleanupLeftoverPickups();
+
             Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
 
-            var roomType = _levelLayout[_currentLevel];
+            // 获取当前层当前房间的类型
+            var roomType = _levelRooms[_currentLevel][_currentRoomInLevel];
 
             // 更新后处理氛围
             if (PostProcessSetup.Instance != null)
@@ -166,7 +211,7 @@ namespace XianTu
 
             // 更新小地图
             if (_minimap != null)
-                _minimap.UpdateCurrentRoom(_currentLevel);
+                _minimap.UpdateCurrentRoom(_flatRoomIndex);
 
             // 发布境界信息
             GameEvents.Publish(new GameEvents.RealmBreakthrough
@@ -174,6 +219,8 @@ namespace XianTu
                 NewRealmLevel = _currentLevel,
                 RealmName = CurrentRealmName
             });
+
+            Debug.Log($"<color=cyan>【{CurrentRealmName}】房间 {_currentRoomInLevel + 1}/{_levelRooms[_currentLevel].Count} — {roomType}</color>");
 
             switch (roomType)
             {
@@ -210,6 +257,7 @@ namespace XianTu
             float roomSize = Mathf.Min(baseRoomSize + _currentLevel * roomSizePerLevel, maxRoomSize);
 
             room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, itemPool, roomSize, roomSize);
+            room.SetSkillPool(skillPool);
 
             if (enemyHitVFXPrefab != null)
                 room.SetEnemyHitVFX(enemyHitVFXPrefab);
@@ -231,6 +279,7 @@ namespace XianTu
             // Boss房间：少量普通敌人 + 1个Boss
             int normalEnemyCount = 2;
             room.Initialize(_currentLevel, normalEnemyCount, hpMul, dmgMul, itemPool, roomSize, roomSize);
+            room.SetSkillPool(skillPool);
 
             if (enemyHitVFXPrefab != null)
                 room.SetEnemyHitVFX(enemyHitVFXPrefab);
@@ -248,7 +297,7 @@ namespace XianTu
             _currentRoomGo = new GameObject($"ShopRoom_Lv{_currentLevel}_{CurrentRealmName}");
             _currentRoomGo.transform.position = spawnPos;
             var room = _currentRoomGo.AddComponent<ShopRoom>();
-            room.Initialize(_currentLevel, itemPool);
+            room.Initialize(_currentLevel, itemPool, skillPool);
             Debug.Log($"<color=yellow>【{CurrentRealmName}】商店房间 — 按F离开</color>");
         }
 
@@ -289,31 +338,45 @@ namespace XianTu
             if (_gameOver || _transitioning) return;
             _transitioning = true;
 
-            _currentLevel++;
+            _currentRoomInLevel++;
+            _flatRoomIndex++;
 
-            if (_currentLevel >= _realmNames.Length)
+            // 检查当前层是否还有下一个房间
+            bool levelComplete = _currentRoomInLevel >= _levelRooms[_currentLevel].Count;
+
+            if (levelComplete)
             {
-                // 通关！
-                Debug.Log("<color=yellow>✨✨✨ 渡劫成功！飞升成仙！✨✨✨</color>");
-                _gameOver = true;
-                GameEvents.Publish(new GameEvents.GameWon());
-                return;
+                // 当前层所有房间通关，进入下一层
+                _currentLevel++;
+                _currentRoomInLevel = 0;
+
+                if (_currentLevel >= _realmNames.Length)
+                {
+                    // 通关！
+                    Debug.Log("<color=yellow>✨✨✨ 渡劫成功！飞升成仙！✨✨✨</color>");
+                    _gameOver = true;
+                    GameEvents.Publish(new GameEvents.GameWon());
+                    return;
+                }
+
+                Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
+            }
+            else
+            {
+                Debug.Log($"<color=cyan>进入下一个房间：{CurrentRealmName} 房间 {_currentRoomInLevel + 1}/{_levelRooms[_currentLevel].Count}</color>");
             }
 
-            // 在房间北侧生成传送门（固定位置，更容易找到）
+            // 在房间北侧生成传送门
             if (LevelTransition.Instance != null)
             {
-                // 获取当前房间的尺寸，将门放在房间北侧1/3处（不贴墙，确保可见）
                 float roomHalfDepth = GetCurrentRoomHalfDepth();
                 Vector3 roomCenter = _currentRoomGo != null ? _currentRoomGo.transform.position : Vector3.zero;
-                // 门放在房间中心偏北的位置（距中心 halfDepth * 0.5），远离墙壁，容易看到
                 Vector3 portalPos = roomCenter + new Vector3(0, 0, roomHalfDepth * 0.5f);
 
                 LevelTransition.Instance.SpawnPortal(portalPos, () => SpawnCurrentRoom());
             }
             else
             {
-                // 兜底：直接切换
                 Invoke(nameof(SpawnCurrentRoom), 2f);
             }
         }
@@ -355,6 +418,34 @@ namespace XianTu
             int totalShards = baseShards + levelBonus;
 
             PlayerResources.Instance.AddShards(totalShards);
+        }
+
+        /// <summary>清理场景中残留的掉落物（上一关未拾取的灵物和功法）</summary>
+        private void CleanupLeftoverPickups()
+        {
+            // 清理灵物拾取物
+            var itemPickups = Object.FindObjectsOfType<ItemPickup>();
+            foreach (var pickup in itemPickups)
+            {
+                if (pickup != null)
+                    Destroy(pickup.gameObject);
+            }
+
+            // 清理功法拾取物
+            var skillPickups = Object.FindObjectsOfType<SkillPickup>();
+            foreach (var pickup in skillPickups)
+            {
+                if (pickup != null)
+                    Destroy(pickup.gameObject);
+            }
+
+            // 清理残留的敌人（防止上一关的敌人遗留）
+            var enemies = GameObject.FindGameObjectsWithTag("Enemy");
+            foreach (var e in enemies)
+            {
+                if (e != null)
+                    Destroy(e);
+            }
         }
 
         private void OnDestroy()

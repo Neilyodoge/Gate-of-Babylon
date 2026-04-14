@@ -312,7 +312,7 @@ namespace XianTu
         // ==================== 焚天：每N次攻击释放火焰冲击波 ====================
 
         /// <summary>
-        /// 记录一次攻击命中（由 PlayerCombat 调用）
+        /// 记录一次攻击动作（由 PlayerCombat 在每次攻击时调用，不需要命中）
         /// </summary>
         public void OnPlayerAttackHit()
         {

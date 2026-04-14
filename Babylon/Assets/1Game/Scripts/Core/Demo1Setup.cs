@@ -13,6 +13,9 @@ namespace XianTu
         [Header("灵物池（可选，不配置则使用内置测试数据）")]
         [SerializeField] private ItemData[] itemPool;
 
+        [Header("功法池（可选，自动配置会填充）")]
+        [SerializeField] private SkillData[] skillPool;
+
         [Header("技能（可选）")]
         [SerializeField] private SkillData testSkillQ;
         [SerializeField] private SkillData testSkillE;
@@ -337,6 +340,48 @@ namespace XianTu
                 var poolField = typeof(GameManager).GetField("itemPool",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 poolField?.SetValue(gm, itemPool);
+            }
+
+            // 设置功法池
+            {
+                var skillList = new System.Collections.Generic.List<SkillData>();
+
+                // 优先使用 Inspector 配置的 skillPool
+                if (skillPool != null && skillPool.Length > 0)
+                {
+                    foreach (var sk in skillPool)
+                    {
+                        if (sk != null && !skillList.Contains(sk))
+                            skillList.Add(sk);
+                    }
+                }
+
+                // 补充从 testSkill 字段收集
+                if (testSkillQ != null && !skillList.Contains(testSkillQ)) skillList.Add(testSkillQ);
+                if (testSkillE != null && !skillList.Contains(testSkillE)) skillList.Add(testSkillE);
+                if (testSkillR != null && !skillList.Contains(testSkillR)) skillList.Add(testSkillR);
+
+                // 从 itemPool 中提取 linkedSkill
+                if (itemPool != null)
+                {
+                    foreach (var item in itemPool)
+                    {
+                        if (item != null && item.linkedSkill != null && !skillList.Contains(item.linkedSkill))
+                            skillList.Add(item.linkedSkill);
+                    }
+                }
+
+                var skillPoolField = typeof(GameManager).GetField("skillPool",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (skillPoolField != null && skillList.Count > 0)
+                {
+                    skillPoolField.SetValue(gm, skillList.ToArray());
+                    Debug.Log($"<color=cyan>[Demo1Setup] 功法池：{skillList.Count} 个功法</color>");
+                }
+                else if (skillList.Count == 0)
+                {
+                    Debug.Log("<color=yellow>[Demo1Setup] 未找到功法数据，功法池为空</color>");
+                }
             }
 
             // 设置打击特效给 GameManager，让它传递给生成的敌人

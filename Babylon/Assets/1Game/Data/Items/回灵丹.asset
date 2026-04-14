@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: "\u56DE\u7075\u4E39"
   m_EditorClassIdentifier: 
   itemName: "\u56DE\u7075\u4E39"
-  description: "\u670D\u7528\u540E\u7075\u529B\u5145\u76C8\uFF0C\u751F\u547D\u529B\u5927\u589E\u3002\n\u51FB\u6740\u654C\u4EBA\u65F6\u53EF\u56DE\u590D\u5C11\u91CF\u751F\u547D\u3002"
+  description: "\u670D\u7528\u540E\u7075\u529B\u5145\u76C8\uFF0C\u751F\u547D\u529B\u5927\u589E\u3002\n\u51FB\u6740\u654C\u4EBA\u65F6\u53EF\u56DE\u590D\u5C11\u91CF\u751F\u547D\uFF0C\u96C6\u9F50\u4E94\u9897\u53EF\u89E6\u53D1\u6D85\u69C3\u590D\u6D3B\u3002"
   icon: {fileID: 0}
   rarity: 0
   category: 4
   stackable: 1
-  qualitativeThresholds: 03000000
+  qualitativeThresholds: 05000000
   attackBonus: 0
   attackBonusPercent: 0
   maxHpBonus: 20
@@ -36,3 +36,4 @@ MonoBehaviour:
   requiresSlot: 0
   isSkillSpecific: 0
   pickupVfxPrefab: {fileID: 0}
+  pickupSFX: {fileID: 0}

@@ -151,11 +151,6 @@ namespace XianTu
             {
                 _hasHitThisSwing = true;
                 _lastHitComboStep = _playerAnim.ComboStep;
-
-                // 通知质变效果运行器（焚天：每N次攻击释放火焰冲击波）
-                var runner = QualitativeEffectRunner.Instance;
-                if (runner != null)
-                    runner.OnPlayerAttackHit();
             }
         }
 
@@ -190,6 +185,11 @@ namespace XianTu
         {
             // 重置判定状态（新的一段攻击开始）
             _hasHitThisSwing = false;
+
+            // 通知质变效果运行器（焚天：每N次攻击释放火焰冲击波，不需要命中）
+            var runner = QualitativeEffectRunner.Instance;
+            if (runner != null)
+                runner.OnPlayerAttackHit();
 
             if (slashVFXPrefab == null) return;
 
@@ -273,6 +273,14 @@ namespace XianTu
                 return true;
             }
 
+            // Heal类技能也立即生效
+            if (skill.skillType == SkillType.Heal)
+            {
+                Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
+                CastHealSkill(skill);
+                return true;
+            }
+
             // 计算技能释放速度：优先使用技能自身配置，否则使用全局配置
             float castSpeed = skill.castSpeed > 0.01f ? skill.castSpeed : 1f;
             var config = GameConfig.Instance;
@@ -293,6 +301,13 @@ namespace XianTu
                     CastProjectileSkill(skill);
                     break;
                 case SkillType.Dash:
+                    CastDashSkill(skill);
+                    break;
+                case SkillType.Heal:
+                    CastHealSkill(skill);
+                    return true; // Heal不需要动画
+                case SkillType.Summon:
+                    CastSummonSkill(skill);
                     break;
             }
 
@@ -349,25 +364,43 @@ namespace XianTu
             }
         }
 
-        /// <summary>投射物技能</summary>
+        /// <summary>投射物技能（支持多发散射）</summary>
         private void CastProjectileSkill(SkillData skill)
         {
-            if (skill.projectilePrefab == null) return;
-
             Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
             Vector3 dir = _player.AimDirection;
+            float damage = skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling;
 
-            GameObject proj;
-            if (ObjectPool.Instance != null)
-                proj = ObjectPool.Instance.Get(skill.projectilePrefab, spawnPos, Quaternion.LookRotation(dir));
-            else
-                proj = Instantiate(skill.projectilePrefab, spawnPos, Quaternion.LookRotation(dir));
+            int count = Mathf.Max(1, skill.projectileCount);
+            float halfSpread = skill.spreadAngle * 0.5f;
 
-            var projectile = proj.GetComponent<Projectile>();
-            if (projectile != null)
+            for (int i = 0; i < count; i++)
             {
-                float damage = skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling;
-                projectile.Initialize(damage, dir, skill.projectileSpeed, 0, 0);
+                // 计算每发投射物的方向
+                Vector3 projDir = dir;
+                if (count > 1)
+                {
+                    float angle = Mathf.Lerp(-halfSpread, halfSpread, (float)i / (count - 1));
+                    projDir = Quaternion.Euler(0, angle, 0) * dir;
+                }
+
+                if (skill.projectilePrefab != null)
+                {
+                    GameObject proj;
+                    if (ObjectPool.Instance != null)
+                        proj = ObjectPool.Instance.Get(skill.projectilePrefab, spawnPos, Quaternion.LookRotation(projDir));
+                    else
+                        proj = Instantiate(skill.projectilePrefab, spawnPos, Quaternion.LookRotation(projDir));
+
+                    var projectile = proj.GetComponent<Projectile>();
+                    if (projectile != null)
+                        projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0);
+                }
+                else if (showDebugVisuals)
+                {
+                    // 没有Prefab时创建Debug投射物
+                    CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration);
+                }
             }
         }
 
@@ -739,6 +772,375 @@ namespace XianTu
             }
 
             if (shield != null) Destroy(shield);
+        }
+
+        /// <summary>位移技能（如土遁术、缩地成寸）</summary>
+        private void CastDashSkill(SkillData skill)
+        {
+            Vector3 dir = _player.AimDirection;
+            float distance = skill.dashDistance > 0 ? skill.dashDistance : 8f;
+            Vector3 startPos = transform.position;
+            Vector3 targetPos = startPos + dir * distance;
+
+            // 射线检测避免穿墙
+            if (Physics.Raycast(startPos + Vector3.up * 0.5f, dir, out RaycastHit wallHit, distance))
+            {
+                targetPos = wallHit.point - dir * 0.5f;
+            }
+
+            // 起点特效
+            if (showDebugVisuals)
+            {
+                CreateDebugDashTrail(startPos, targetPos, new Color(0.6f, 0.4f, 0.2f, 0.5f));
+            }
+
+            // 瞬移
+            var cc = GetComponent<CharacterController>();
+            if (cc != null)
+            {
+                cc.enabled = false;
+                transform.position = targetPos;
+                cc.enabled = true;
+            }
+            else
+            {
+                transform.position = targetPos;
+            }
+
+            // 如果留下伤害区域，对路径上的敌人造成伤害
+            if (skill.leaveTrail)
+            {
+                float damage = skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling;
+                var hits = Physics.OverlapCapsule(startPos + Vector3.up * 0.5f,
+                    targetPos + Vector3.up * 0.5f, 1.5f, enemyLayer);
+                foreach (var hit in hits)
+                {
+                    var damageable = hit.GetComponent<IDamageable>();
+                    if (damageable != null)
+                        damageable.OnDamage(damage, hit.transform.position, gameObject);
+                }
+            }
+
+            // VFX
+            if (skill.vfxPrefab != null)
+            {
+                GameObject vfx;
+                if (ObjectPool.Instance != null)
+                {
+                    vfx = ObjectPool.Instance.Get(skill.vfxPrefab, targetPos, Quaternion.identity);
+                    ObjectPool.Instance.Return(vfx, skill.vfxDuration);
+                }
+                else
+                {
+                    vfx = Instantiate(skill.vfxPrefab, targetPos, Quaternion.identity);
+                    Destroy(vfx, skill.vfxDuration);
+                }
+            }
+
+            Debug.Log($"<color=cyan>土遁！位移 {Vector3.Distance(startPos, targetPos):F1} 米</color>");
+        }
+
+        /// <summary>治疗技能（如回春术）</summary>
+        private void CastHealSkill(SkillData skill)
+        {
+            float healAmount = skill.healAmount + _player.Stats.attackDamage * skill.healScaling;
+            float oldHp = _player.Stats.currentHp;
+            _player.Stats.currentHp = Mathf.Min(_player.Stats.currentHp + healAmount, _player.Stats.maxHp);
+            float actualHeal = _player.Stats.currentHp - oldHp;
+
+            // 发布血量变化事件
+            GameEvents.Publish(new GameEvents.HealthChanged
+            {
+                CurrentHp = _player.Stats.currentHp,
+                MaxHp = _player.Stats.maxHp
+            });
+
+            // 治疗飘字（绿色）
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2f,
+                Damage = actualHeal,
+                SpecialTag = "治疗"
+            });
+
+            // VFX
+            if (skill.vfxPrefab != null)
+            {
+                GameObject vfx;
+                if (ObjectPool.Instance != null)
+                {
+                    vfx = ObjectPool.Instance.Get(skill.vfxPrefab, transform.position, Quaternion.identity);
+                    ObjectPool.Instance.Return(vfx, skill.vfxDuration);
+                }
+                else
+                {
+                    vfx = Instantiate(skill.vfxPrefab, transform.position, Quaternion.identity);
+                    Destroy(vfx, skill.vfxDuration);
+                }
+            }
+            else if (showDebugVisuals)
+            {
+                CreateDebugHealIndicator(skill.vfxDuration);
+            }
+
+            Debug.Log($"<color=green>回春术！恢复 {actualHeal:F0} 生命值</color>");
+        }
+
+        /// <summary>召唤技能（如傀儡术）</summary>
+        private void CastSummonSkill(SkillData skill)
+        {
+            Vector3 spawnPos = transform.position + _player.AimDirection * 2f;
+            float damage = skill.summonDamage + _player.Stats.attackDamage * skill.damageScaling;
+            float duration = skill.summonDuration;
+
+            // 创建召唤物
+            if (skill.vfxPrefab != null)
+            {
+                var summon = Instantiate(skill.vfxPrefab, spawnPos, Quaternion.identity);
+                Destroy(summon, duration);
+            }
+            else if (showDebugVisuals)
+            {
+                // Debug召唤物：一个旋转的球体，会自动攻击附近敌人
+                StartCoroutine(DebugSummonCoroutine(spawnPos, damage, duration));
+            }
+
+            Debug.Log($"<color=cyan>召唤！持续 {duration:F0} 秒，每次攻击 {damage:F0} 伤害</color>");
+        }
+
+        /// <summary>创建Debug投射物（无Prefab时的可视化）</summary>
+        private void CreateDebugProjectile(Vector3 spawnPos, Vector3 direction, float speed, float damage, float lifetime)
+        {
+            var proj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            proj.name = "[Debug] 投射物";
+            proj.transform.position = spawnPos;
+            proj.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+            proj.layer = 0; // Default层，避免自伤
+
+            // 设置材质
+            var rend = proj.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.color = new Color(0.3f, 0.7f, 1f, 0.9f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.2f, 0.5f, 1f) * 2f);
+                rend.material = mat;
+            }
+
+            // 添加Projectile组件
+            var projComp = proj.AddComponent<Projectile>();
+            projComp.Initialize(damage, direction, speed, 0, 0);
+
+            // 确保有触发器碰撞体
+            var col = proj.GetComponent<Collider>();
+            if (col != null)
+            {
+                col.isTrigger = true;
+            }
+
+            // 添加Rigidbody（Projectile需要触发OnTriggerEnter）
+            var rb = proj.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
+        /// <summary>创建Debug位移轨迹</summary>
+        private void CreateDebugDashTrail(Vector3 start, Vector3 end, Color color)
+        {
+            // 起点烟雾
+            var startSmoke = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            startSmoke.name = "[Debug] 土遁起点";
+            startSmoke.transform.position = start + Vector3.up * 0.5f;
+            startSmoke.transform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
+            var startCol = startSmoke.GetComponent<Collider>();
+            if (startCol != null) Destroy(startCol);
+            var startRend = startSmoke.GetComponent<Renderer>();
+            if (startRend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = color;
+                startRend.material = mat;
+            }
+            Destroy(startSmoke, 1f);
+
+            // 终点闪光
+            var endFlash = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            endFlash.name = "[Debug] 土遁终点";
+            endFlash.transform.position = end + Vector3.up * 0.5f;
+            endFlash.transform.localScale = new Vector3(2f, 2f, 2f);
+            var endCol = endFlash.GetComponent<Collider>();
+            if (endCol != null) Destroy(endCol);
+            var endRend = endFlash.GetComponent<Renderer>();
+            if (endRend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(0.8f, 0.6f, 0.2f, 0.6f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.8f, 0.6f, 0.2f) * 1.5f);
+                endRend.material = mat;
+            }
+            Destroy(endFlash, 0.8f);
+
+            // 轨迹线（用Debug.DrawLine持续绘制）
+            StartCoroutine(DrawTrailCoroutine(start, end, 1f));
+        }
+
+        private System.Collections.IEnumerator DrawTrailCoroutine(Vector3 start, Vector3 end, float duration)
+        {
+            float timer = 0f;
+            while (timer < duration)
+            {
+                timer += Time.deltaTime;
+                float alpha = 1f - timer / duration;
+                Debug.DrawLine(start + Vector3.up * 0.5f, end + Vector3.up * 0.5f,
+                    new Color(0.8f, 0.6f, 0.2f, alpha));
+                yield return null;
+            }
+        }
+
+        /// <summary>创建Debug治疗指示器</summary>
+        private void CreateDebugHealIndicator(float duration)
+        {
+            // 绿色上升光柱
+            var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pillar.name = "[Debug] 治疗";
+            pillar.transform.SetParent(transform);
+            pillar.transform.localPosition = new Vector3(0, 1.5f, 0);
+            pillar.transform.localScale = new Vector3(1.5f, 2f, 1.5f);
+
+            var col = pillar.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var rend = pillar.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(0.2f, 1f, 0.3f, 0.3f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.1f, 0.8f, 0.2f) * 1.5f);
+                rend.material = mat;
+            }
+
+            StartCoroutine(HealAnimation(pillar, duration > 0 ? duration : 1.5f));
+        }
+
+        private System.Collections.IEnumerator HealAnimation(GameObject pillar, float duration)
+        {
+            float timer = 0f;
+            while (timer < duration && pillar != null)
+            {
+                timer += Time.deltaTime;
+                // 上升 + 淡出
+                pillar.transform.localPosition += Vector3.up * 0.5f * Time.deltaTime;
+                var rend = pillar.GetComponent<Renderer>();
+                if (rend != null)
+                {
+                    var c = rend.material.color;
+                    c.a = (1f - timer / duration) * 0.3f;
+                    rend.material.color = c;
+                }
+                yield return null;
+            }
+            if (pillar != null) Destroy(pillar);
+        }
+
+        /// <summary>Debug召唤物协程（自动攻击附近敌人）</summary>
+        private System.Collections.IEnumerator DebugSummonCoroutine(Vector3 pos, float damage, float duration)
+        {
+            var summon = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            summon.name = "[Debug] 召唤物";
+            summon.transform.position = pos + Vector3.up * 1f;
+            summon.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
+
+            var col = summon.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            var rend = summon.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.color = new Color(0.6f, 0.3f, 0.9f, 0.8f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.5f, 0.2f, 0.8f) * 2f);
+                rend.material = mat;
+            }
+
+            float timer = 0f;
+            float attackInterval = 1.5f;
+            float attackTimer = 0f;
+
+            while (timer < duration && summon != null)
+            {
+                timer += Time.deltaTime;
+                attackTimer += Time.deltaTime;
+
+                // 悬浮旋转
+                summon.transform.Rotate(Vector3.up * 120f * Time.deltaTime);
+                summon.transform.position = pos + Vector3.up * (1f + Mathf.Sin(timer * 2f) * 0.3f);
+
+                // 定时攻击附近敌人
+                if (attackTimer >= attackInterval)
+                {
+                    attackTimer = 0f;
+                    var hits = Physics.OverlapSphere(summon.transform.position, 5f, enemyLayer);
+                    if (hits.Length > 0)
+                    {
+                        // 攻击最近的敌人
+                        var nearest = hits[0];
+                        float minDist = float.MaxValue;
+                        foreach (var hit in hits)
+                        {
+                            float dist = Vector3.Distance(summon.transform.position, hit.transform.position);
+                            if (dist < minDist)
+                            {
+                                minDist = dist;
+                                nearest = hit;
+                            }
+                        }
+
+                        var damageable = nearest.GetComponent<IDamageable>();
+                        if (damageable != null)
+                        {
+                            damageable.OnDamage(damage, nearest.transform.position, gameObject);
+                            // 攻击特效线
+                            Debug.DrawLine(summon.transform.position, nearest.transform.position,
+                                new Color(0.6f, 0.3f, 0.9f), 0.3f);
+                        }
+                    }
+                }
+
+                // 最后1秒淡出
+                float remaining = duration - timer;
+                if (remaining < 1f && rend != null)
+                {
+                    var c = rend.material.color;
+                    c.a = remaining * 0.8f;
+                    rend.material.color = c;
+                }
+
+                yield return null;
+            }
+
+            if (summon != null) Destroy(summon);
         }
 
         /// <summary>运行时绘制攻击扇形范围（Debug.DrawLine，Game视图可见）</summary>

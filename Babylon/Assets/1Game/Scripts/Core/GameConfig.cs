@@ -135,17 +135,34 @@ namespace XianTu
         [Tooltip("天品灵物的掉落权重。最稀有品阶。")]
         public float 天品掉率权重 = 1f;
 
-        [Tooltip("每只敌人死亡时掉落灵物的基础概率。0.15=15%。")]
+        [Tooltip("每只敌人死亡时掉落灵物的固定概率。0.08=8%。掉率不随层数变化，除非有灵物增幅。")]
         [Range(0f, 1f)]
-        public float 敌人掉落概率 = 0.15f;
+        public float 敌人掉落概率 = 0.08f;
 
-        [Tooltip("每深入一层掉落概率增加的值。实际概率=基础概率+层数×此值。")]
+        [Tooltip("（已废弃，掉率现在固定不变）每深入一层掉落概率增加的值。设为0表示不增加。")]
         [Range(0f, 0.2f)]
-        public float 每层掉率增加 = 0.03f;
+        public float 每层掉率增加 = 0f;
 
-        [Tooltip("通关战斗房间后额外掉落的灵物数量（在房间中心附近生成）。")]
+        [Tooltip("通关战斗房间后额外掉落灵物的概率。0.35=35%概率掉1个。设为0则通关不额外掉落。")]
+        [Range(0f, 1f)]
+        public float 通关掉落概率 = 0.35f;
+
+        [Tooltip("通关战斗房间后额外掉落的灵物数量（在玩家附近生成，需先通过通关掉落概率判定）。")]
         [Range(0, 5)]
         public int 通关额外掉落数 = 1;
+
+        [Header("═══ 功法掉落 ═══")]
+        [Tooltip("敌人死亡时掉落功法的概率。0.03=3%。功法比灵物更稀有。")]
+        [Range(0f, 1f)]
+        public float 功法掉落概率 = 0.03f;
+
+        [Tooltip("通关战斗房间后额外掉落功法的概率。0.25=25%。")]
+        [Range(0f, 1f)]
+        public float 通关功法掉落概率 = 0.25f;
+
+        // ==================== Debug 爆率覆盖 ====================
+        /// <summary>Debug模式下是否拉满爆率（运行时设置，不序列化）</summary>
+        [System.NonSerialized] public bool debugMaxDropRate = false;
 
         // ==================== 近战攻击 ====================
         [Header("═══ 近战攻击 ═══")]
@@ -202,24 +219,40 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 按权重随机选择一个品阶
+        /// 按权重随机选择一个品阶（不考虑层数）
         /// </summary>
         public ItemRarity RollRarity()
         {
-            float total = GetTotalDropWeight();
+            return RollRarity(0);
+        }
+
+        /// <summary>
+        /// 按权重随机选择一个品阶（考虑层数，层数越高高品质权重越大）
+        /// 每层高品质权重提升：灵品+5, 玄品+3, 地品+1.5, 天品+0.5，凡品-10（最低5）
+        /// </summary>
+        public ItemRarity RollRarity(int floorLevel)
+        {
+            // 基于层数动态调整权重
+            float fanW = Mathf.Max(5f, 凡品掉率权重 - floorLevel * 10f);
+            float lingW = 灵品掉率权重 + floorLevel * 5f;
+            float xuanW = 玄品掉率权重 + floorLevel * 3f;
+            float diW = 地品掉率权重 + floorLevel * 1.5f;
+            float tianW = 天品掉率权重 + floorLevel * 0.5f;
+
+            float total = fanW + lingW + xuanW + diW + tianW;
             float roll = Random.Range(0f, total);
 
             float cumulative = 0f;
-            cumulative += 凡品掉率权重;
+            cumulative += fanW;
             if (roll < cumulative) return ItemRarity.Fan;
 
-            cumulative += 灵品掉率权重;
+            cumulative += lingW;
             if (roll < cumulative) return ItemRarity.Ling;
 
-            cumulative += 玄品掉率权重;
+            cumulative += xuanW;
             if (roll < cumulative) return ItemRarity.Xuan;
 
-            cumulative += 地品掉率权重;
+            cumulative += diW;
             if (roll < cumulative) return ItemRarity.Di;
 
             return ItemRarity.Tian;
