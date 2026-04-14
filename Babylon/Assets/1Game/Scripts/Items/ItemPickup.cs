@@ -152,19 +152,9 @@ namespace XianTu
                     }
                     else
                     {
-                        // 满了 → 替换R槽位，旧技能掉落
-                        SkillData oldSkill = combat.EquipSkillToSlot(itemData.linkedSkill, 2);
-                        GameEvents.Publish(new GameEvents.SkillEquipped
-                        {
-                            Skill = itemData.linkedSkill,
-                            SlotIndex = 2
-                        });
-                        if (oldSkill != null)
-                        {
-                            Vector3 dropPos = transform.position + Random.insideUnitSphere * 1.5f;
-                            dropPos.y = _startPos.y;
-                            SkillPickup.Spawn(oldSkill, dropPos);
-                        }
+                        // 槽位满了 → 生成SkillPickup让玩家通过选择面板替换
+                        Vector3 dropPos = transform.position + Vector3.up * 0.1f;
+                        SkillPickup.Spawn(itemData.linkedSkill, dropPos);
                     }
                 }
             }
@@ -270,7 +260,7 @@ namespace XianTu
 
             var rt = canvasGo.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(480, panelHeight);
-            rt.localScale = Vector3.one * 0.035f;
+            rt.localScale = Vector3.one * 0.00875f;
 
             // 背景
             var bgGo = new GameObject("Bg");
@@ -396,7 +386,6 @@ namespace XianTu
             _holdProgressFill.fillAmount = 0f;
 
             _promptUI = canvasGo;
-            canvasGo.AddComponent<BillboardUI>();
         }
 
         /// <summary>获取灵物效果文本</summary>

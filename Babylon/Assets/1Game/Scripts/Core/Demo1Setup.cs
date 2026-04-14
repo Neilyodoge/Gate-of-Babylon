@@ -270,42 +270,24 @@ namespace XianTu
                 Debug.Log("<color=yellow>[Demo1Setup] Q技能未配置，已使用内置落石术</color>");
             }
 
+            // E槽位：开局留空，等玩家自己捡取功法
             if (testSkillE != null)
             {
                 combat.EquipSkillE(testSkillE);
             }
             else
             {
-                // 兆底：运行时创建默认金钟罩
-                var fallbackE = ScriptableObject.CreateInstance<SkillData>();
-                fallbackE.skillName = "金钟罩";
-                fallbackE.description = "凝聚灵力化为护罩，大幅提升减伤";
-                fallbackE.skillType = SkillType.Buff;
-                fallbackE.baseDamage = 0f;
-                fallbackE.cooldown = 12f;
-                fallbackE.vfxDuration = 5f;
-                combat.EquipSkillE(fallbackE);
-                Debug.Log("<color=yellow>[Demo1Setup] E技能未配置，已使用内置金钟罩</color>");
+                Debug.Log("<color=yellow>[Demo1Setup] E技能槽位留空，等待玩家探索获取</color>");
             }
 
+            // R槽位：开局留空，等玩家自己捡取功法
             if (testSkillR != null)
             {
                 combat.EquipSkillR(testSkillR);
             }
             else
             {
-                // 兆底：运行时创建默认天雷引
-                var fallbackR = ScriptableObject.CreateInstance<SkillData>();
-                fallbackR.skillName = "天雷引";
-                fallbackR.description = "引天雷轰击指定区域，造成大量伤害";
-                fallbackR.skillType = SkillType.AreaDamage;
-                fallbackR.baseDamage = 50f;
-                fallbackR.damageScaling = 0.8f;
-                fallbackR.cooldown = 15f;
-                fallbackR.aoeRadius = 4f;
-                fallbackR.vfxDuration = 2f;
-                combat.EquipSkillR(fallbackR);
-                Debug.Log("<color=yellow>[Demo1Setup] R技能未配置，已使用内置天雷引</color>");
+                Debug.Log("<color=yellow>[Demo1Setup] R技能槽位留空，等待玩家探索获取</color>");
             }
             playerGo.AddComponent<ItemInventory>();
             playerGo.AddComponent<SpiritSlotSystem>();

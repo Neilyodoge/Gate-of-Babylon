@@ -157,8 +157,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c3f2c71d4b8185b4b8376411d9df1240, type: 2}
   - {fileID: 11400000, guid: 3dbcf8a31a85fd44b899f9247ba24ca2, type: 2}
   - {fileID: 11400000, guid: b1d42f3dbfbba964eb7f6f77456044f8, type: 2}
-  testSkillQ: {fileID: 0}
+  skillPool: []
+  testSkillQ: {fileID: 11400000, guid: bd7d89251f3301c4d90c979c81e88f26, type: 2}
   testSkillE: {fileID: 0}
+  testSkillR: {fileID: 0}
   playerModelPrefab: {fileID: 100024, guid: c544be3651b5d0442a6ed780add0aa36, type: 3}
   animatorController: {fileID: 9100000, guid: 456b313ff274ef9449fab7f6d8785cfb, type: 2}
   slashVFXPrefab: {fileID: 5948494248154193938, guid: 062d173fc63166c4b899e5f6f8a69aaa, type: 3}

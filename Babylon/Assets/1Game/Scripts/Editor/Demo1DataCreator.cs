@@ -388,15 +388,17 @@ namespace XianTu.Editor
             if (skillQProp != null && skillQ != null)
                 skillQProp.objectReferenceValue = skillQ;
 
-            var skillE = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "金钟罩.asset");
+            // E/R槽位开局留空，让玩家自己探索获取
             var skillEProp = so.FindProperty("testSkillE");
-            if (skillEProp != null && skillE != null)
-                skillEProp.objectReferenceValue = skillE;
+            if (skillEProp != null)
+                skillEProp.objectReferenceValue = null;
 
-            var skillR = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "天雷引.asset");
             var skillRProp = so.FindProperty("testSkillR");
-            if (skillRProp != null && skillR != null)
-                skillRProp.objectReferenceValue = skillR;
+            if (skillRProp != null)
+                skillRProp.objectReferenceValue = null;
+
+            var skillE = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "金钟罩.asset");
+            var skillR = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "天雷引.asset");
 
             // 加载角色模型（Frank_Katana FBX）
             var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -453,8 +455,8 @@ namespace XianTu.Editor
             // 加载功法数据到skillPool（通过反射设置，因为Demo1Setup没有skillPool字段，
             // 功法池在运行时由Demo1Setup.CreateGameManager动态收集）
             Debug.Log($"  Q技能：{(skillQ != null ? "落石术 ✓" : "❌ 未找到")}");
-            Debug.Log($"  E技能：{(skillE != null ? "金钟罩 ✓" : "❌ 未找到")}");
-            Debug.Log($"  R技能：{(skillR != null ? "天雷引 ✓" : "❌ 未找到")}");
+            Debug.Log($"  E技能：留空（探索获取）");
+            Debug.Log($"  R技能：留空（探索获取）");
             Debug.Log($"  模型：{(modelPrefab != null ? "Frank_Katana ✓" : "❌ 未找到（将使用胶囊体）")}");
             Debug.Log($"  动画控制器：{(animController != null ? "✓" : "❌ 请先执行步骤③")}");
             Debug.Log($"  刀光特效：{(slashVFX != null ? "✓" : "❌ 未找到")}");

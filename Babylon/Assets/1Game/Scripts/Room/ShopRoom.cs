@@ -682,17 +682,9 @@ namespace XianTu
                         }
                         else
                         {
-                            var oldSkill = combat.EquipSkillToSlot(slot.skill, 2);
-                            GameEvents.Publish(new GameEvents.SkillEquipped
-                            {
-                                Skill = slot.skill,
-                                SlotIndex = 2
-                            });
-                            if (oldSkill != null)
-                            {
-                                Vector3 dropPos = PlayerController.Instance.transform.position + new Vector3(Random.Range(-2f, 2f), 0, Random.Range(-2f, 2f));
-                                SkillPickup.Spawn(oldSkill, dropPos);
-                            }
+                            // 槽位满了 → 生成SkillPickup让玩家通过选择面板替换
+                            Vector3 dropPos = PlayerController.Instance.transform.position + new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f));
+                            SkillPickup.Spawn(slot.skill, dropPos);
                         }
                     }
                 }

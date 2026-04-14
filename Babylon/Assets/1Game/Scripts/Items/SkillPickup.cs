@@ -100,7 +100,7 @@ namespace XianTu
             }
         }
 
-        /// <summary>尝试拾取功法 → 自动装备到第一个空位</summary>
+        /// <summary>尝试拾取功法 → 自动装备到第一个空位，满了则替换最后一个槽位（旧技能掉落）</summary>
         private void TryPickup()
         {
             if (skillData == null || _nearbyPlayerCombat == null) return;
@@ -123,19 +123,19 @@ namespace XianTu
             }
             else
             {
-                // 满了 → 替换R槽位，旧技能掉落
-                int replaceSlot = 2;
-                SkillData oldSkill = _nearbyPlayerCombat.EquipSkillToSlot(skillData, replaceSlot);
-
-                string slotName = GetSlotKeyName(replaceSlot);
-                Debug.Log($"<color=cyan>替换功法：{skillData.skillName} → {slotName}槽位（{oldSkill?.skillName ?? "空"} 被替换）</color>");
+                // 槽位满了 → 替换最后一个槽位（R），旧技能掉落到地面
+                int lastSlot = 2; // R槽位
+                SkillData oldSkill = _nearbyPlayerCombat.EquipSkillToSlot(skillData, lastSlot);
+                string slotName = GetSlotKeyName(lastSlot);
+                Debug.Log($"<color=cyan>替换功法：{skillData.skillName} → {slotName}槽位（旧：{oldSkill?.skillName ?? "空"}）</color>");
 
                 GameEvents.Publish(new GameEvents.SkillEquipped
                 {
                     Skill = skillData,
-                    SlotIndex = replaceSlot
+                    SlotIndex = lastSlot
                 });
 
+                // 旧技能掉落到地面
                 if (oldSkill != null)
                 {
                     Vector3 dropPos = transform.position + Random.insideUnitSphere * 1.5f;
@@ -225,7 +225,7 @@ namespace XianTu
 
             var rt = canvasGo.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(500, 220);
-            rt.localScale = Vector3.one * 0.035f;
+            rt.localScale = Vector3.one * 0.00875f;
 
             // 背景
             var bgGo = new GameObject("Bg");
@@ -340,9 +340,6 @@ namespace XianTu
             _holdProgressFill.fillAmount = 0f;
 
             _promptUI = canvasGo;
-
-            // 让提示面板始终面向相机
-            canvasGo.AddComponent<BillboardUI>();
         }
 
         private void HidePrompt()
