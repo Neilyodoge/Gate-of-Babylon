@@ -150,11 +150,19 @@ namespace XianTu
         /// <summary>游戏通关</summary>
         public struct GameWon { }
 
-        /// <summary>闪避冷却更新</summary>
+        /// <summary>闪避冷却更新（已废弃，保留兼容）</summary>
         public struct DashCooldownUpdate
         {
             public float RemainingTime;
             public float TotalCooldown;
+        }
+
+        /// <summary>闪避充能更新（新系统：多层充能）</summary>
+        public struct DashChargeUpdate
+        {
+            public int CurrentCharges;
+            public int MaxCharges;
+            public float RechargeProgress; // 当前充能层的恢复进度 0~1
         }
 
         /// <summary>连招段数变化</summary>

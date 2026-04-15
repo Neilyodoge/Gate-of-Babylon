@@ -298,6 +298,57 @@ namespace XianTu
                         return "涅槃！死亡时消耗回灵丹原地复活，复活后3秒无敌";
                     }
                     break;
+
+                // ==================== 新增灵物质变 ====================
+
+                case "寒冰玉髓":
+                    if (count == 4)
+                    {
+                        return "冰封领域！攻击冻结概率翻倍，被冻结的敌人受到额外50%伤害";
+                    }
+                    break;
+
+                case "血珊瑚":
+                    if (count == 5)
+                    {
+                        return "血祭！击杀敌人时回复10%最大生命值，灼烧伤害翻倍";
+                    }
+                    break;
+
+                case "破镜碎片":
+                    if (count == 3)
+                    {
+                        _playerStats.critDamage += 0.5f;
+                        return "照妖真眼！暴击伤害+50%，暴击时对周围敌人造成溅射伤害";
+                    }
+                    break;
+
+                case "灵藤草":
+                    if (count == 4)
+                    {
+                        _playerStats.maxHp *= 1.2f;
+                        _playerStats.currentHp = _playerStats.maxHp;
+                        return "灵藤缠身！生命+20%并全满，击杀回复量翻倍";
+                    }
+                    break;
+
+                case "星辰尘":
+                    if (count == 2)
+                    {
+                        _playerStats.moveSpeed *= 1.15f;
+                        _playerStats.attackSpeed *= 1.15f;
+                        return "星移斗转！移速和攻速额外+15%，闪避距离增加";
+                    }
+                    break;
+
+                case "引魂灯":
+                    if (count == 2)
+                    {
+                        _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + 0.15f);
+                        _playerStats.attackDamage *= 1.2f;
+                        return "摄魂夺魄！暴击率+15%，攻击力+20%，击杀回复翻倍";
+                    }
+                    break;
             }
 
             // 通用分类质变（作为后备，当灵物没有专属质变时）

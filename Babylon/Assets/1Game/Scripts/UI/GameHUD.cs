@@ -110,6 +110,7 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
             GameEvents.Subscribe<GameEvents.SkillCooldownUpdate>(OnSkillCooldownUpdate);
             GameEvents.Subscribe<GameEvents.DashCooldownUpdate>(OnDashCooldownUpdate);
+            GameEvents.Subscribe<GameEvents.DashChargeUpdate>(OnDashChargeUpdate);
             GameEvents.Subscribe<GameEvents.ItemPickedUp>(OnItemPickedUp);
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
@@ -334,6 +335,25 @@ namespace XianTu
                     dashCooldownText.text = $"{evt.RemainingTime:F1}";
                 else
                     dashCooldownText.text = "闪避";
+            }
+        }
+
+        private void OnDashChargeUpdate(GameEvents.DashChargeUpdate evt)
+        {
+            // 充能式闪避显示：层数 + 恢复进度
+            if (dashCooldownFill != null)
+            {
+                if (evt.CurrentCharges < evt.MaxCharges)
+                    dashCooldownFill.fillAmount = evt.RechargeProgress;
+                else
+                    dashCooldownFill.fillAmount = 1f;
+            }
+            if (dashCooldownText != null)
+            {
+                if (evt.MaxCharges > 1)
+                    dashCooldownText.text = $"闪避 {evt.CurrentCharges}/{evt.MaxCharges}";
+                else
+                    dashCooldownText.text = evt.CurrentCharges > 0 ? "闪避" : "充能中";
             }
         }
 
@@ -1013,6 +1033,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
             GameEvents.Unsubscribe<GameEvents.SkillCooldownUpdate>(OnSkillCooldownUpdate);
             GameEvents.Unsubscribe<GameEvents.DashCooldownUpdate>(OnDashCooldownUpdate);
+            GameEvents.Unsubscribe<GameEvents.DashChargeUpdate>(OnDashChargeUpdate);
             GameEvents.Unsubscribe<GameEvents.ItemPickedUp>(OnItemPickedUp);
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);

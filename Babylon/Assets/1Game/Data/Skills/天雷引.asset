@@ -21,6 +21,8 @@ MonoBehaviour:
   damageScaling: 0.8
   cooldown: 15
   castSpeed: 1
+  maxCharges: 1
+  chargeTime: 0
   aoeRadius: 4
   projectilePrefab: {fileID: 0}
   projectileSpeed: 12

@@ -45,6 +45,13 @@ namespace XianTu
         private void Start()
         {
             CreateToggleButton();
+
+            // 从 GameConfig 同步 debug 状态（场景重新加载后 static 字段可能仍为 true）
+            var config = GameConfig.Instance;
+            if (config != null)
+            {
+                _maxDropRate = config.debugMaxDropRate;
+            }
         }
 
         private void Update()
@@ -287,7 +294,26 @@ namespace XianTu
             _maxDropRate = !_maxDropRate;
             var config = GameConfig.Instance;
             if (config != null)
+            {
                 config.debugMaxDropRate = _maxDropRate;
+                Debug.Log($"[DebugConsole] debugMaxDropRate = {config.debugMaxDropRate}");
+
+                // 验证：检查 GameManager 的灵物池是否为空
+                if (_maxDropRate && GameManager.Instance != null)
+                {
+                    var poolField = typeof(GameManager).GetField("itemPool",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var pool = poolField?.GetValue(GameManager.Instance) as ItemData[];
+                    if (pool == null || pool.Length == 0)
+                        Debug.LogError("[DebugConsole] ⚠ 警告：GameManager.itemPool 为空！敌人无法掉落灵物！请检查 Demo1Setup 的灵物池配置。");
+                    else
+                        Debug.Log($"[DebugConsole] ✓ GameManager.itemPool 有 {pool.Length} 个灵物");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[DebugConsole] GameConfig.Instance 为 null，爆率拉满设置失败！");
+            }
             AddLog(_maxDropRate ? "<color=yellow>💎 爆率拉满 开启（100%掉落）</color>" : "<color=gray>💎 爆率拉满 关闭</color>");
             RefreshStatus();
         }

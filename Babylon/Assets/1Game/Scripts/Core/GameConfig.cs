@@ -60,9 +60,13 @@ namespace XianTu
         [Range(0.1f, 0.5f)]
         public float 闪避持续时间 = 0.2f;
 
-        [Tooltip("两次闪避之间的冷却时间（秒）。冷却中无法再次闪避。")]
+        [Tooltip("每层闪避充能的恢复时间（秒）。充能耗尽后按此时间逐层恢复。")]
         [Range(0.5f, 5f)]
         public float 闪避冷却时间 = 1.5f;
+
+        [Tooltip("闪避最大充能层数。2=可以连续闪避两次。充能耗尽后按冷却时间逐层恢复。")]
+        [Range(1, 4)]
+        public int 闪避充能层数 = 2;
 
         // ==================== 敌人属性 ====================
         [Header("═══ 敌人基础属性 ═══")]
@@ -106,17 +110,37 @@ namespace XianTu
 
         // ==================== 房间 ====================
         [Header("═══ 房间尺寸 ═══")]
-        [Tooltip("第一层战斗房间的边长（单位）。房间为正方形。")]
-        [Range(20f, 50f)]
-        public float 基础房间大小 = 30f;
+        [Tooltip("所有层战斗房间的固定边长（单位）。房间为正方形，不随层数变化。")]
+        [Range(20f, 60f)]
+        public float 房间大小 = 35f;
 
-        [Tooltip("每深入一层房间边长增加的值。实际大小=基础大小+层数×此值，不超过最大值。")]
-        [Range(0f, 10f)]
-        public float 每层房间增大 = 5f;
+        // ==================== 精英怪 ====================
+        [Header("═══ 精英怪 ═══")]
+        [Tooltip("精英怪出现的最低层数（0=第1层就可能出现）。")]
+        [Range(0, 5)]
+        public int 精英怪最低层数 = 2;
 
-        [Tooltip("房间边长的上限值。无论层数多高都不会超过此值。")]
-        [Range(30f, 80f)]
-        public float 最大房间大小 = 55f;
+        [Tooltip("每个战斗房间出现精英怪的概率。0.3=30%。")]
+        [Range(0f, 1f)]
+        public float 精英怪出现概率 = 0.3f;
+
+        [Tooltip("精英怪血量倍率（相对于普通敌人）。3=三倍血量。")]
+        [Range(1.5f, 10f)]
+        public float 精英怪血量倍率 = 3f;
+
+        [Tooltip("精英怪伤害倍率（相对于普通敌人）。1.5=1.5倍伤害。")]
+        [Range(1f, 5f)]
+        public float 精英怪伤害倍率 = 1.5f;
+
+        // ==================== 可破坏物 ====================
+        [Header("═══ 可破坏物 ═══")]
+        [Tooltip("每个战斗房间生成的可破坏物数量。")]
+        [Range(0, 10)]
+        public int 可破坏物数量 = 3;
+
+        [Tooltip("可破坏物被摧毁时掉落灵力碎片的概率。")]
+        [Range(0f, 1f)]
+        public float 可破坏物掉落概率 = 0.4f;
 
         // ==================== 掉落 ====================
         [Header("═══ 掉落概率 ═══")]
@@ -161,7 +185,12 @@ namespace XianTu
 
         // ==================== Debug 爆率覆盖 ====================
         /// <summary>Debug模式下是否拉满爆率（运行时设置，不序列化）</summary>
-        [System.NonSerialized] public bool debugMaxDropRate = false;
+        private static bool _debugMaxDropRate = false;
+        public bool debugMaxDropRate
+        {
+            get => _debugMaxDropRate;
+            set => _debugMaxDropRate = value;
+        }
 
         // ==================== 近战攻击 ====================
         [Header("═══ 近战攻击 ═══")]

@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 512999663dc401d4cb9ad6068a974b70, type: 3}
+  m_Name: "\u7075\u85E4\u8349"
+  m_EditorClassIdentifier: 
+  itemName: "\u7075\u85E4\u8349"
+  description: "\u7075\u5C71\u6DF1\u5904\u7684\u85E4\u8513\u7CBE\u534E\uFF0C\u670D\u7528\u540E\u8EAB\u8F7B\u4F53\u5065\u3002\n\u63D0\u5347\u751F\u547D\u4E0A\u9650\u548C\u79FB\u901F\uFF0C\u51FB\u6740\u56DE\u590D\u5C11\u91CF\u751F\u547D\u3002"
+  icon: {fileID: 0}
+  rarity: 1
+  category: 4
+  stackable: 1
+  qualitativeThresholds: 04000000
+  attackBonus: 0
+  attackBonusPercent: 0
+  maxHpBonus: 25
+  maxHpBonusPercent: 0
+  moveSpeedBonusPercent: 0.08
+  damageReductionBonus: 0
+  critRateBonus: 0
+  attackSpeedBonusPercent: 0
+  pierceBonus: 0
+  projectileSpeedBonusPercent: 0
+  burnDamagePerSecond: 0
+  freezeChance: 0
+  healOnKill: 5
+  linkedSkill: {fileID: 0}
+  requiresSlot: 0
+  isSkillSpecific: 0
+  pickupVfxPrefab: {fileID: 0}
+  pickupSFX: {fileID: 0}

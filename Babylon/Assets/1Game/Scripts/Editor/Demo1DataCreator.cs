@@ -54,6 +54,14 @@ namespace XianTu.Editor
             CreateVoidStone();
             // 天品灵物
             CreateCelestialOrb();
+            // 新增灵物
+            CreateIceJade();
+            CreateBloodCoral();
+            CreateMirrorShard();
+            CreateSpiritVine();
+            CreateStarDust();
+            CreateSoulLantern();
+            CreateChaosCore();
             CreateFallingRock();
             CreateGoldenBell();
             CreateThunderStrike();
@@ -61,12 +69,18 @@ namespace XianTu.Editor
             CreateEarthDash();
             CreateFrostBlast();
             CreateHealSpring();
+            // 新增功法
+            CreatePuppetSummon();
+            CreateFlameWave();
+            CreateMirrorShield();
+            CreateThunderChain();
+            CreateShadowStep();
             CreateAudioConfig();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 11 个灵物 + 7 个功法 + 1 个音效配置</color>");
+            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 18 个灵物 + 12 个功法 + 1 个音效配置</color>");
         }
 
         [MenuItem("仙途梦境/③ 创建 Animator Controller", false, 3)]
@@ -870,6 +884,119 @@ namespace XianTu.Editor
 
         // ==================== 天品灵物 ====================
 
+        // ==================== 新增灵物 ====================
+
+        /// <summary>灵品·异变类：寒冰玉髓，攻击附带冻结</summary>
+        private static void CreateIceJade()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "寒冰玉髓";
+            item.description = "万年寒冰凝结的玉髓，触之刺骨。\n攻击有概率冻结敌人，叠加增强冻结概率。";
+            item.rarity = ItemRarity.Ling;
+            item.category = ItemCategory.Anomaly;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 4 };
+            item.freezeChance = 0.1f;
+            item.attackBonus = 3f;
+            SaveAsset(item, ITEM_PATH + "寒冰玉髓.asset");
+        }
+
+        /// <summary>凡品·异变类：血珊瑚，击杀回血+灼烧</summary>
+        private static void CreateBloodCoral()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "血珊瑚";
+            item.description = "深海血色珊瑚，蕴含嗜血之力。\n击杀回复生命，攻击附带微弱灼烧。";
+            item.rarity = ItemRarity.Fan;
+            item.category = ItemCategory.Anomaly;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 5 };
+            item.healOnKill = 4f;
+            item.burnDamagePerSecond = 2f;
+            SaveAsset(item, ITEM_PATH + "血珊瑚.asset");
+        }
+
+        /// <summary>玄品·异变类：破镜碎片，暴击率+暴击伤害</summary>
+        private static void CreateMirrorShard()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "破镜碎片";
+            item.description = "破碎的照妖镜残片，映射出敌人的弱点。\n大幅提升暴击率和暴击伤害。";
+            item.rarity = ItemRarity.Xuan;
+            item.category = ItemCategory.Anomaly;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 3 };
+            item.critRateBonus = 0.12f;
+            item.attackBonusPercent = 0.08f;
+            SaveAsset(item, ITEM_PATH + "破镜碎片.asset");
+        }
+
+        /// <summary>灵品·丹药类：灵藤草，持续回复+移速</summary>
+        private static void CreateSpiritVine()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "灵藤草";
+            item.description = "灵山深处的藤蔓精华，服用后身轻体健。\n提升生命上限和移速，击杀回复少量生命。";
+            item.rarity = ItemRarity.Ling;
+            item.category = ItemCategory.Pill;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 4 };
+            item.maxHpBonus = 25f;
+            item.moveSpeedBonusPercent = 0.08f;
+            item.healOnKill = 5f;
+            SaveAsset(item, ITEM_PATH + "灵藤草.asset");
+        }
+
+        /// <summary>地品·身法类：星辰尘，极大提升移速和攻速</summary>
+        private static void CreateStarDust()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "星辰尘";
+            item.description = "坠落的星辰碎屑，蕴含时空加速之力。\n极大提升移速和攻速，闪避距离增加。";
+            item.rarity = ItemRarity.Di;
+            item.category = ItemCategory.Movement;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 2 };
+            item.moveSpeedBonusPercent = 0.25f;
+            item.attackSpeedBonusPercent = 0.2f;
+            SaveAsset(item, ITEM_PATH + "星辰尘.asset");
+        }
+
+        /// <summary>地品·异变类：魂灯，全属性提升+特殊效果</summary>
+        private static void CreateSoulLantern()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "引魂灯";
+            item.description = "引渡亡魂的古灯，击杀敌人时吸收残魂。\n大幅提升暴击和击杀回复，攻击附带灼烧。";
+            item.rarity = ItemRarity.Di;
+            item.category = ItemCategory.Anomaly;
+            item.stackable = true;
+            item.qualitativeThresholds = new int[] { 2 };
+            item.critRateBonus = 0.12f;
+            item.healOnKill = 10f;
+            item.burnDamagePerSecond = 6f;
+            item.attackBonus = 8f;
+            SaveAsset(item, ITEM_PATH + "引魂灯.asset");
+        }
+
+        /// <summary>天品·防御类：混沌核心，全属性极大提升</summary>
+        private static void CreateChaosCore()
+        {
+            var item = ScriptableObject.CreateInstance<ItemData>();
+            item.itemName = "混沌核心";
+            item.description = "混沌初开时遗留的本源之力，持有者攻守兼备。\n全属性极大提升，受击反弹伤害。";
+            item.rarity = ItemRarity.Tian;
+            item.category = ItemCategory.Defense;
+            item.stackable = false;
+            item.damageReductionBonus = 0.2f;
+            item.maxHpBonus = 80f;
+            item.maxHpBonusPercent = 0.25f;
+            item.attackBonus = 15f;
+            item.attackBonusPercent = 0.15f;
+            item.healOnKill = 8f;
+            SaveAsset(item, ITEM_PATH + "混沌核心.asset");
+        }
+
         private static void CreateCelestialOrb()
         {
             var item = ScriptableObject.CreateInstance<ItemData>();
@@ -1002,6 +1129,93 @@ namespace XianTu.Editor
             skill.healScaling = 0.5f;
             skill.vfxDuration = 1.5f;
             SaveAsset(skill, SKILL_PATH + "回春术.asset");
+        }
+
+        // ==================== 新增功法 ====================
+
+        /// <summary>创建傀儡术技能（召唤类型）</summary>
+        private static void CreatePuppetSummon()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "傀儡术";
+            skill.description = "召唤一具灵力傀儡为你作战。\n傀儡会自动攻击附近敌人，持续一段时间后消散。";
+            skill.rarity = ItemRarity.Xuan;
+            skill.skillType = SkillType.Summon;
+            skill.baseDamage = 0f;
+            skill.damageScaling = 0f;
+            skill.cooldown = 20f;
+            skill.summonDuration = 10f;
+            skill.summonDamage = 12f;
+            skill.vfxDuration = 1f;
+            SaveAsset(skill, SKILL_PATH + "傀儡术.asset");
+        }
+
+        /// <summary>创建烈焰掌技能（投射物类型，扇形火焰）</summary>
+        private static void CreateFlameWave()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "烈焰掌";
+            skill.description = "掌心喷射扇形火焰，灼烧前方敌人。\n多段火焰覆盖大范围，附带灼烧效果。";
+            skill.rarity = ItemRarity.Ling;
+            skill.skillType = SkillType.Projectile;
+            skill.baseDamage = 15f;
+            skill.damageScaling = 0.35f;
+            skill.cooldown = 7f;
+            skill.projectileSpeed = 14f;
+            skill.projectileCount = 5;
+            skill.spreadAngle = 60f;
+            skill.vfxDuration = 1f;
+            SaveAsset(skill, SKILL_PATH + "烈焰掌.asset");
+        }
+
+        /// <summary>创建镜花水月技能（Buff类型，反伤护盾）</summary>
+        private static void CreateMirrorShield()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "镜花水月";
+            skill.description = "凝聚灵力化为镜面护盾，反弹受到的伤害。\n持续数秒，期间受到的伤害反弹给攻击者。";
+            skill.rarity = ItemRarity.Xuan;
+            skill.skillType = SkillType.Buff;
+            skill.baseDamage = 0f;
+            skill.damageScaling = 0f;
+            skill.cooldown = 16f;
+            skill.vfxDuration = 4f;
+            SaveAsset(skill, SKILL_PATH + "镜花水月.asset");
+        }
+
+        /// <summary>创建雷锁链技能（范围伤害，链式闪电）</summary>
+        private static void CreateThunderChain()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "雷锁链";
+            skill.description = "释放雷电锁链连接多个敌人。\n闪电在敌人之间跳跃，每次跳跃伤害递减。";
+            skill.rarity = ItemRarity.Xuan;
+            skill.skillType = SkillType.AreaDamage;
+            skill.baseDamage = 35f;
+            skill.damageScaling = 0.6f;
+            skill.cooldown = 12f;
+            skill.aoeRadius = 6f;
+            skill.vfxDuration = 1.5f;
+            SaveAsset(skill, SKILL_PATH + "雷锁链.asset");
+        }
+
+        /// <summary>创建影步技能（位移类型，2层充能）</summary>
+        private static void CreateShadowStep()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillName = "影步";
+            skill.description = "化为暗影瞬移至目标位置。\n拥有两层充能，可连续使用两次。";
+            skill.rarity = ItemRarity.Ling;
+            skill.skillType = SkillType.Dash;
+            skill.baseDamage = 10f;
+            skill.damageScaling = 0.2f;
+            skill.cooldown = 4f;
+            skill.maxCharges = 2;
+            skill.chargeTime = 4f;
+            skill.dashDistance = 7f;
+            skill.leaveTrail = false;
+            skill.vfxDuration = 0.5f;
+            SaveAsset(skill, SKILL_PATH + "影步.asset");
         }
 
         // ==================== 工具方法 ====================

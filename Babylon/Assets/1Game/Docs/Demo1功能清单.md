@@ -1,7 +1,7 @@
 # Demo1 功能清单
 
 > 本文档记录 Demo1（仙途梦境 Roguelike 原型）的功能完成状态。
-> 最后更新：2026-04-09
+> 最后更新：2026-04-15
 
 ---
 
@@ -13,7 +13,7 @@
 |------|------|------|
 | WASD 移动 + 鼠标朝向 | `PlayerController.cs` | 俯视角移动，鼠标控制朝向 |
 | 近战三段连招 | `PlayerCombat.cs` + `PlayerAnimator.cs` | 鼠标左键三段连招，带扇形判定、伤害倍率、刀光/打击特效 |
-| 闪避 | `PlayerController.cs` | Space 闪避，带 CD、无敌帧、输入优先级 |
+| 闪避（2层充能） | `PlayerController.cs` | Space 闪避，2层充能（可连续闪避两次），每层独立恢复CD，带无敌帧、输入优先级 |
 | 动画优先级系统 | `PlayerAnimator.cs` | Idle < Attack < Skill < Hit < Evade，高优先级可打断低优先级 |
 | 受伤闪烁 | `PlayerController.cs` | 受击时模型闪白反馈 |
 | 受击后处理脉冲 | `PlayerController.cs` + `PostProcessSetup.cs` | 受击时屏幕边缘变红（Vignette 脉冲） |
@@ -49,6 +49,7 @@
 | 冲锋型敌人 | `EnemyCharger.cs` | 第3层开始出现，蓄力冲锋 |
 | AOE 法师 | `EnemyMage.cs` | 第4层开始出现，范围魔法攻击 |
 | Boss | `EnemyBoss.cs` | 最后一层 Boss 房间，多阶段行为模式 |
+| 精英怪 | `EnemyElite.cs` | 第2层起30%概率出现，3倍血量1.5倍伤害，金色外观，随机2个词缀（狂暴/铁壁/分裂/雷电/吸血/冰霜） |
 | 攻击预警 | `EnemyBase.cs` | 攻击前显示红色范围指示器（渐变圆柱） |
 | 敌人受击硬直 | `EnemyBase.cs` | 被攻击时短暂停止行动（`_stunTimer = 0.3f`） |
 | 敌人血条 | `EnemyHealthBar.cs` | 头顶血条 UI |
@@ -58,8 +59,8 @@
 | 功能 | 文件 | 说明 |
 |------|------|------|
 | 灵物数据定义 | `ItemData.cs` | 5种品阶（凡品→仙品），5种分类（攻击/防御/速度/暴击/生命），功法关联 |
-| 灵物拾取 | `ItemPickup.cs` | 普通灵物自动拾取，需要槽位的灵物按F拾取，长按F分解 |
-| 功法拾取 | `SkillPickup.cs` | 功法掉落地上，靠近显示提示，按F装备到技能槽位，长按F分解 |
+| 灵物拾取 | `ItemPickup.cs` | 按F拾取，长按F分解；提示UI缩小（1/4尺寸）、BillboardUI部分朝向相机（lerpFactor=0.5） |
+| 功法拾取 | `SkillPickup.cs` | 功法掉落地上，靠近显示提示，按F装备到技能槽位，长按F分解；提示UI缩小（1/4尺寸）、BillboardUI部分朝向相机 |
 | 灵物背包 | `ItemInventory.cs` | 持有灵物管理，属性加成计算 |
 | 灵物槽位 | `SpiritSlotSystem.cs` | 技能栏下方3个灵物槽，部分针对技能生效，部分全局生效 |
 | 质变效果 | `ItemInventory.cs` | 同类灵物达到阈值触发质变（3个=小质变，5个=大质变），每种分类有独特效果 |
@@ -75,6 +76,7 @@
 | 商店房间 | `ShopRoom.cs` | 散修商人 + 灵物展示 |
 | 休息房间 | `RestRoom.cs` | 灵泉恢复 50% 生命 |
 | 宝箱房间 | `TreasureRoom.cs` | 开箱动画 + 品阶提升 |
+| 可破坏物 | `Destructible.cs` | 木箱/石柱/灵石堆，受伤→碎裂动画→40%概率掉灵力碎片 |
 | 房间内陷阱 | `RoomBuilder.cs` | 地刺 + 火焰陷阱 |
 | 6层关卡推进 | `GameManager.cs` | 练气→化神，难度曲线递增 |
 | 层间传送门过渡 | `LevelTransition.cs` | 旋转光柱 + 淡入淡出动画 |
@@ -109,6 +111,9 @@
 | 配置系统 | `GameConfig.cs` | ScriptableObject 集中管理所有数值 |
 | 场景自动搭建 | `Demo1Setup.cs` | 运行时动态创建所有 GameObject、UI、Animator 等 |
 | 编辑器工具 | `Demo1DataCreator.cs` | 菜单命令一键创建测试数据 / 配置场景 |
+| Debug控制台 | `DebugConsole.cs` | Tab键打开，无敌/锁血/一击必杀/爆率拉满/房间跳转/时间缩放等 |
+| 材质辅助工具 | `MaterialHelper.cs` | 自动处理URP/Standard/Legacy Shader兼容 |
+| 怪物模型配置 | `MonsterPrefabs.cs` | 5种敌人类型的Prefab引用（为空用胶囊体） |
 | 自定义 Bloom | URP Package 修改 | nBloom（Kawase 模糊）+ Kill Fireflies（详见 `PostProcess_README.md`） |
 | 自定义 Tonemapping | URP Package 修改 | GT / ACESSimple / UE4 三种额外算法（详见 `PostProcess_README.md`） |
 | 音效配置 | `AudioConfig.cs` | ScriptableObject 集中管理所有音效资源引用，按分类配置槽位 |
@@ -177,24 +182,30 @@ Assets/1Game/
 │   │   ├── IDamageable.cs
 │   │   ├── Projectile.cs
 │   │   └── SkillData.cs
-│   ├── Core/            # 核心系统
+│   │   ├── DebugConsole.cs
 │   │   ├── Demo1Setup.cs
 │   │   ├── AudioConfig.cs
 │   │   ├── AudioManager.cs
 │   │   ├── GameConfig.cs
 │   │   ├── GameEvents.cs
 │   │   ├── GameManager.cs
+│   │   ├── MaterialHelper.cs
+│   │   ├── MonsterPrefabs.cs
 │   │   ├── ObjectPool.cs
 │   │   ├── PlayerResources.cs
 │   │   ├── PostProcessSetup.cs
 │   │   └── TopDownCamera.cs
 │   ├── Editor/          # 编辑器工具
+│   │   ├── ConfigDashboard.cs
 │   │   ├── Demo1DataCreator.cs
-│   │   └── GameConfigEditor.cs
+│   │   ├── FixPinkMaterials.cs
+│   │   ├── GameConfigEditor.cs
+│   │   └── ToolSearchWindow.cs
 │   ├── Enemy/           # 敌人 AI
 │   │   ├── EnemyBase.cs
 │   │   ├── EnemyBoss.cs
 │   │   ├── EnemyCharger.cs
+│   │   ├── EnemyElite.cs
 │   │   ├── EnemyMage.cs
 │   │   ├── EnemyProjectile.cs
 │   │   └── EnemyRanged.cs
@@ -202,9 +213,10 @@ Assets/1Game/
 │   │   ├── ItemData.cs
 │   │   ├── ItemInventory.cs
 │   │   ├── ItemPickup.cs
-│   │   ├── SkillPickup.cs
+│   │   ├── SkillPickup.cs       # 也包含 BillboardUI 类
 │   │   ├── SpiritSlotSystem.cs
-│   │   └── SynergySystem.cs
+│   │   ├── SynergySystem.cs
+│   │   └── QualitativeEffectRunner.cs
 │   ├── Player/          # 玩家
 │   │   ├── AnimationEventRelay.cs
 │   │   ├── PlayerAnimator.cs
@@ -212,9 +224,11 @@ Assets/1Game/
 │   │   └── PlayerController.cs
 │   ├── Room/            # 房间与关卡
 │   │   ├── BattleRoom.cs
+│   │   ├── Destructible.cs
 │   │   ├── LevelTransition.cs
 │   │   ├── RestRoom.cs
 │   │   ├── RoomBuilder.cs
+│   │   ├── RoomExitTrigger.cs
 │   │   ├── ShopRoom.cs
 │   │   └── TreasureRoom.cs
 │   └── UI/              # UI 系统
@@ -222,13 +236,18 @@ Assets/1Game/
 │       ├── EnemyHealthBar.cs
 │       ├── GameHUD.cs
 │       ├── InventoryUI.cs
-│       └── Minimap.cs
+│       ├── Minimap.cs
+│       └── SkillBarUI.cs
 ├── Docs/                # 文档
 │   ├── README.md                     ← 文档索引（总入口）
 │   ├── Demo1功能清单.md              ← 本文档
 │   ├── 工具搜索面板使用说明.md        ← F1 工具搜索面板
 │   ├── 技能播放速度配置方案.md        ← 技能速度配置演进
 │   ├── 配置_GameConfig说明.md        ← 全局配置字段说明
+│   ├── 配置速查表.md                 ← 一页纸配置总览
+│   ├── 程序_架构说明.md              ← 代码架构（面向程序/AI）
+│   ├── 程序_Debug与工具说明.md       ← Debug控制台+编辑器工具
+│   ├── 程序_数据流与生命周期.md      ← 启动/运行/清理流程
 │   ├── 资源_灵物配置指南.md          ← 灵物 SO 创建指南
 │   ├── 资源_功法配置指南.md          ← 功法 SO 创建指南
 │   └── 资源_数据创建工具说明.md      ← 编辑器工具使用说明
@@ -283,6 +302,6 @@ Assets/1Game/
 | Q | 技能1（落石术 — 范围伤害） |
 | E | 技能2（金钟罩 — 增益Buff） |
 | R | 技能3（天雷引 — 范围伤害） |
-| Space | 闪避（带无敌帧） |
+| Space | 闪避（2层充能，带无敌帧） |
 | F | 拾取/交互（短按拾取，长按分解） |
 | Tab | 打开/关闭灵物背包 |

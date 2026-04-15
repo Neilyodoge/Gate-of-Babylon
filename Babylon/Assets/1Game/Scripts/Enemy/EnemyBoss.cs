@@ -47,12 +47,24 @@ namespace XianTu
 
         // 状态
         private enum BossPhase { Phase1, Phase2 }
-        private enum BossAction { Idle, Tracking, MeleeAttack, ChargePrepare, Charging, AOECast, Stunned }
+        private enum BossAction { Idle, Tracking, MeleeAttack, ChargePrepare, Charging, AOECast, Stunned, LeapPrepare, Leaping, ShockwaveCast }
         private BossPhase _phase = BossPhase.Phase1;
         private BossAction _action = BossAction.Idle;
         private float _actionTimer;
         private Vector3 _chargeDirection;
         private Vector3 _aoeTargetPos;
+
+        // 跳跃攻击
+        private Vector3 _leapTargetPos;
+        private float _leapTimer;
+        private const float LEAP_PREP_TIME = 0.8f;
+        private const float LEAP_DURATION = 0.4f;
+        private float _leapInterval = 8f;
+        private float _leapCooldown;
+
+        // 震荡波
+        private float _shockwaveInterval = 7f;
+        private float _shockwaveCooldown;
 
         // 受击表现
         private Renderer[] _renderers;
@@ -164,6 +176,15 @@ namespace XianTu
                 case BossAction.AOECast:
                     UpdateAOECast();
                     break;
+                case BossAction.LeapPrepare:
+                    UpdateLeapPrepare();
+                    break;
+                case BossAction.Leaping:
+                    UpdateLeaping();
+                    break;
+                case BossAction.ShockwaveCast:
+                    UpdateShockwave();
+                    break;
                 case BossAction.Stunned:
                     _actionTimer -= Time.deltaTime;
                     if (_actionTimer <= 0)
@@ -219,16 +240,35 @@ namespace XianTu
         {
             // 更新计时器
             _chargeTimer -= Time.deltaTime;
+            _leapCooldown -= Time.deltaTime;
+            _shockwaveCooldown -= Time.deltaTime;
             if (_phase == BossPhase.Phase2)
                 _aoeTimer -= Time.deltaTime;
 
-            // 优先级：冲锋 > AOE > 近战
+            // 优先级：跳跃 > 冲锋 > 震荡波 > AOE > 近战
+
+            // 跳跃攻击（距离较远时跳向玩家）
+            if (_leapCooldown <= 0 && distToTarget > meleeRange * 2f && distToTarget <= detectRange)
+            {
+                StartLeapPrepare();
+                return;
+            }
+
+            // 冲锋
             if (_chargeTimer <= 0 && distToTarget > meleeRange && distToTarget <= detectRange)
             {
                 StartChargePrepare();
                 return;
             }
 
+            // 震荡波（近距离时释放）
+            if (_shockwaveCooldown <= 0 && distToTarget <= meleeRange * 2f)
+            {
+                StartShockwave();
+                return;
+            }
+
+            // AOE（仅第二阶段）
             if (_phase == BossPhase.Phase2 && _aoeTimer <= 0)
             {
                 StartAOECast();
@@ -376,6 +416,236 @@ namespace XianTu
                         damageable.OnDamage(stats.attackDamage * 1.2f, _aoeTargetPos, gameObject);
                 }
             }
+        }
+
+        // ========== 跳跃攻击 ==========
+
+        private void StartLeapPrepare()
+        {
+            _action = BossAction.LeapPrepare;
+            _actionTimer = LEAP_PREP_TIME;
+            _leapTargetPos = _target.position;
+
+            // 蓄力跳跃：身体上下抖动
+            SetAllRenderersColor(new Color(1f, 0.4f, 0.1f));
+
+            // 创建落点预警圈
+            CreateWarningIndicator(false);
+            if (_warningIndicator != null)
+            {
+                _warningIndicator.transform.position = _leapTargetPos + Vector3.up * 0.05f;
+                float scale = aoeRadius * 2.5f;
+                _warningIndicator.transform.localScale = new Vector3(scale, 0.05f, scale);
+            }
+        }
+
+        private void UpdateLeapPrepare()
+        {
+            _actionTimer -= Time.deltaTime;
+            // 持续追踪目标位置
+            _leapTargetPos = _target.position;
+
+            // 更新预警圈位置
+            if (_warningIndicator != null)
+            {
+                _warningIndicator.transform.position = _leapTargetPos + Vector3.up * 0.05f;
+                float progress = 1f - (_actionTimer / LEAP_PREP_TIME);
+                var rend = _warningIndicator.GetComponent<Renderer>();
+                if (rend != null)
+                {
+                    float alpha = Mathf.Lerp(0.15f, 0.5f, progress);
+                    rend.material.color = new Color(1f, 0.3f, 0.1f, alpha);
+                }
+            }
+
+            // 蓄力抖动
+            float shake = Mathf.Sin(Time.time * 30f) * 0.08f;
+            transform.position += new Vector3(0, shake, 0);
+
+            if (_actionTimer <= 0)
+            {
+                _action = BossAction.Leaping;
+                _actionTimer = LEAP_DURATION;
+                DestroyWarningIndicator();
+                SetAllRenderersColor(new Color(1f, 0.2f, 0.1f));
+            }
+        }
+
+        private void UpdateLeaping()
+        {
+            _actionTimer -= Time.deltaTime;
+            float progress = 1f - (_actionTimer / LEAP_DURATION);
+
+            // 抛物线跳跃
+            Vector3 startPos = transform.position;
+            Vector3 targetPos = _leapTargetPos;
+            float height = 6f;
+            float y = Mathf.Sin(progress * Mathf.PI) * height;
+
+            Vector3 flatDir = (targetPos - startPos);
+            flatDir.y = 0;
+            Vector3 moveVel = flatDir.normalized * (flatDir.magnitude / LEAP_DURATION);
+            moveVel.y = y > 0 ? y * 2f : -9.8f;
+            _cc.Move(moveVel * Time.deltaTime);
+
+            if (_actionTimer <= 0)
+            {
+                // 落地冲击
+                ExecuteLeapImpact();
+                _leapCooldown = _leapInterval;
+                EndAction(0.6f);
+            }
+        }
+
+        private void ExecuteLeapImpact()
+        {
+            float impactRadius = aoeRadius * 1.5f;
+            float damage = stats.attackDamage * 2f;
+
+            // 冲击波视觉
+            var impact = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            impact.name = "[VFX] LeapImpact";
+            impact.transform.position = transform.position + Vector3.up * 0.1f;
+            impact.transform.localScale = new Vector3(impactRadius * 2f, 0.1f, impactRadius * 2f);
+            var col = impact.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            var rend = impact.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(1f, 0.4f, 0.1f, 0.6f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(1f, 0.3f, 0.1f) * 2f);
+                rend.material = mat;
+            }
+            Destroy(impact, 0.5f);
+
+            // 范围伤害
+            var hits = Physics.OverlapSphere(transform.position, impactRadius);
+            foreach (var hit in hits)
+            {
+                if (hit.CompareTag("Player"))
+                {
+                    var damageable = hit.GetComponent<IDamageable>();
+                    if (damageable != null)
+                        damageable.OnDamage(damage, transform.position, gameObject); // 重击
+                }
+            }
+
+            // 顿帧
+            if (HitStop.Instance != null)
+                HitStop.Instance.TriggerHeavy();
+
+            Debug.Log("<color=red>★ Boss 跳跃冲击！★</color>");
+        }
+
+        // ========== 震荡波 ==========
+
+        private void StartShockwave()
+        {
+            _action = BossAction.ShockwaveCast;
+            _actionTimer = 0.6f; // 蓄力时间
+            SetAllRenderersColor(new Color(0.2f, 0.8f, 1f)); // 蓝色蓄力
+        }
+
+        private void UpdateShockwave()
+        {
+            _actionTimer -= Time.deltaTime;
+
+            // 蓄力抖动
+            float shake = Mathf.Sin(Time.time * 40f) * 0.04f;
+            transform.position += new Vector3(shake, 0, shake);
+
+            if (_actionTimer <= 0)
+            {
+                ExecuteShockwave();
+                _shockwaveCooldown = _shockwaveInterval;
+                RestoreColors();
+                _action = BossAction.Tracking;
+            }
+        }
+
+        private void ExecuteShockwave()
+        {
+            float radius = 5f;
+            float damage = stats.attackDamage * 0.8f;
+
+            // 扩散环视觉效果
+            StartCoroutine(ShockwaveVisual(radius));
+
+            // 范围伤害 + 击退
+            var hits = Physics.OverlapSphere(transform.position, radius);
+            foreach (var hit in hits)
+            {
+                if (hit.CompareTag("Player"))
+                {
+                    var damageable = hit.GetComponent<IDamageable>();
+                    if (damageable != null)
+                        damageable.OnDamage(damage, transform.position, gameObject);
+
+                    // 击退玩家
+                    var playerCC = hit.GetComponent<CharacterController>();
+                    if (playerCC != null)
+                    {
+                        Vector3 pushDir = (hit.transform.position - transform.position).normalized;
+                        pushDir.y = 0;
+                        playerCC.Move(pushDir * 3f);
+                    }
+                }
+            }
+
+            Debug.Log("<color=cyan>★ Boss 震荡波！★</color>");
+        }
+
+        private IEnumerator ShockwaveVisual(float maxRadius)
+        {
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = "[VFX] Shockwave";
+            ring.transform.position = transform.position + Vector3.up * 0.1f;
+            var ringCol = ring.GetComponent<Collider>();
+            if (ringCol != null) Destroy(ringCol);
+
+            var rend = ring.GetComponent<Renderer>();
+            Material mat = null;
+            if (rend != null)
+            {
+                mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(0.2f, 0.7f, 1f, 0.5f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.2f, 0.7f, 1f) * 2f);
+                rend.material = mat;
+            }
+
+            float timer = 0f;
+            float duration = 0.4f;
+            while (timer < duration)
+            {
+                timer += Time.deltaTime;
+                float t = timer / duration;
+                float scale = Mathf.Lerp(0.5f, maxRadius * 2f, t);
+                ring.transform.localScale = new Vector3(scale, 0.05f, scale);
+                if (mat != null)
+                {
+                    var c = mat.color;
+                    c.a = (1f - t) * 0.5f;
+                    mat.color = c;
+                }
+                yield return null;
+            }
+
+            Destroy(ring);
         }
 
         // ========== 通用 ==========

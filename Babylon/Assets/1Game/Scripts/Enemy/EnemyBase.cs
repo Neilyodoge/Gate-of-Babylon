@@ -23,6 +23,16 @@ namespace XianTu
         [SerializeField] private float attackRange = 1.5f;
         [SerializeField] private float attackInterval = 1.5f;
 
+        // AI行为增强
+        private float _strafeTimer;       // 绕行计时器
+        private float _strafeDirection;   // 绕行方向 (1 或 -1)
+        private float _dodgeTimer;        // 闪避CD
+        private bool _isDodging;          // 是否在闪避中
+        private float _dodgeDuration;     // 闪避持续时间
+        private Vector3 _dodgeDirection;  // 闪避方向
+        private enum AIState { Idle, Chase, Strafe, AttackPrep, Dodge }
+        private AIState _aiState = AIState.Idle;
+
         [Header("掉落")]
         [SerializeField] private ItemData[] possibleDrops;
         [SerializeField] private SkillData[] possibleSkillDrops;
@@ -104,6 +114,24 @@ namespace XianTu
                 return;
             }
 
+            // 闪避CD更新
+            if (_dodgeTimer > 0) _dodgeTimer -= Time.deltaTime;
+
+            // 闪避中
+            if (_isDodging)
+            {
+                _dodgeDuration -= Time.deltaTime;
+                Vector3 dodgeVel = _dodgeDirection * stats.moveSpeed * 3f;
+                dodgeVel.y = -9.8f;
+                _cc.Move(dodgeVel * Time.deltaTime);
+                if (_dodgeDuration <= 0)
+                {
+                    _isDodging = false;
+                    _aiState = AIState.Chase;
+                }
+                return;
+            }
+
             float distToTarget = Vector3.Distance(transform.position, _target.position);
 
             // 攻击预警阶段
@@ -117,23 +145,72 @@ namespace XianTu
                     _isPreparing = false;
                     DestroyAttackWarning();
                     _attackTimer = attackInterval;
+                    _aiState = AIState.Chase;
                 }
                 return;
             }
 
-            if (distToTarget <= attackRange)
+            // AI状态机
+            switch (_aiState)
             {
-                // 攻击
-                _attackTimer -= Time.deltaTime;
-                if (_attackTimer <= 0)
-                {
-                    StartAttackPrep();
-                }
-            }
-            else if (distToTarget <= detectRange)
-            {
-                // 追踪
-                MoveTowards(_target.position);
+                case AIState.Idle:
+                    if (distToTarget <= detectRange)
+                        _aiState = AIState.Chase;
+                    break;
+
+                case AIState.Chase:
+                    if (distToTarget <= attackRange)
+                    {
+                        _attackTimer -= Time.deltaTime;
+                        if (_attackTimer <= 0)
+                        {
+                            StartAttackPrep();
+                            _aiState = AIState.AttackPrep;
+                        }
+                        else
+                        {
+                            // 攻击CD中绕行
+                            _aiState = AIState.Strafe;
+                            _strafeTimer = Random.Range(0.5f, 1.5f);
+                            _strafeDirection = Random.value > 0.5f ? 1f : -1f;
+                        }
+                    }
+                    else if (distToTarget <= detectRange)
+                    {
+                        MoveTowards(_target.position);
+                    }
+                    break;
+
+                case AIState.Strafe:
+                    _strafeTimer -= Time.deltaTime;
+                    if (_strafeTimer <= 0 || distToTarget > attackRange * 1.5f)
+                    {
+                        _aiState = AIState.Chase;
+                        break;
+                    }
+
+                    // 绕行移动（围绕玩家侧向移动）
+                    Vector3 toPlayer = (_target.position - transform.position).normalized;
+                    Vector3 strafeDir = Vector3.Cross(Vector3.up, toPlayer) * _strafeDirection;
+                    Vector3 strafeVel = strafeDir * stats.moveSpeed * 0.6f;
+                    strafeVel.y = -9.8f;
+                    _cc.Move(strafeVel * Time.deltaTime);
+
+                    // 绕行中仍然检查攻击
+                    if (distToTarget <= attackRange)
+                    {
+                        _attackTimer -= Time.deltaTime;
+                        if (_attackTimer <= 0)
+                        {
+                            StartAttackPrep();
+                            _aiState = AIState.AttackPrep;
+                        }
+                    }
+                    break;
+
+                case AIState.AttackPrep:
+                    // 由_isPreparing处理
+                    break;
             }
 
             // 朝向目标
@@ -141,6 +218,30 @@ namespace XianTu
             lookDir.y = 0;
             if (lookDir.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.LookRotation(lookDir);
+        }
+
+        /// <summary>尝试闪避（受击后概率触发）</summary>
+        private void TryDodge(GameObject attacker)
+        {
+            if (attacker == null) return;
+            _isDodging = true;
+            _dodgeDuration = 0.2f;
+            _dodgeTimer = 3f; // 闪避CD 3秒
+
+            // 闪避方向：远离攻击者的侧向
+            Vector3 awayDir = (transform.position - attacker.transform.position).normalized;
+            float side = Random.value > 0.5f ? 1f : -1f;
+            _dodgeDirection = (awayDir + Vector3.Cross(Vector3.up, awayDir) * side).normalized;
+            _dodgeDirection.y = 0;
+
+            // 闪避视觉：变半透明
+            foreach (var r in _renderers)
+                if (r != null)
+                {
+                    var c = r.material.color;
+                    c.a = 0.4f;
+                    r.material.color = c;
+                }
         }
 
         private void MoveTowards(Vector3 targetPos)
@@ -272,6 +373,14 @@ namespace XianTu
             _isPreparing = false;
             DestroyAttackWarning();
 
+            // 受击后有概率闪避（30%概率，当血量低于50%时提高到50%）
+            float dodgeChance = stats.currentHp < stats.maxHp * 0.5f ? 0.5f : 0.3f;
+            if (_dodgeTimer <= 0 && Random.value < dodgeChance)
+            {
+                _stunTimer = 0; // 取消硬直，立即闪避
+                TryDodge(attacker);
+            }
+
             // 击退
             if (attacker != null)
             {
@@ -326,7 +435,11 @@ namespace XianTu
 
         private void TryDropItem()
         {
-            if (possibleDrops == null || possibleDrops.Length == 0) return;
+            if (possibleDrops == null || possibleDrops.Length == 0)
+            {
+                Debug.Log($"<color=gray>[Drop] {gameObject.name} possibleDrops为空，跳过掉落</color>");
+                return;
+            }
 
             // 使用 GameConfig 的固定掉率（不随层数增加）
             var config = GameConfig.Instance;
@@ -336,7 +449,13 @@ namespace XianTu
                 chance = config.debugMaxDropRate ? 1f : config.敌人掉落概率;
             }
 
-            if (Random.value > chance) return;
+            float roll = Random.value;
+            if (roll > chance)
+            {
+                if (config != null && config.debugMaxDropRate)
+                    Debug.LogWarning($"[Drop] 爆率拉满但未掉落？chance={chance}, roll={roll}, debugMaxDropRate={config.debugMaxDropRate}");
+                return;
+            }
 
             // 按品阶权重选择灵物（层数越高高品质比重越大）
             ItemData selectedItem = null;

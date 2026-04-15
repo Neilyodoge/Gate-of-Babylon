@@ -21,10 +21,8 @@ namespace XianTu
         [SerializeField] private float hpScalePerLevel = 0.3f;
         [SerializeField] private float dmgScalePerLevel = 0.2f;
 
-        [Header("房间尺寸曲线")]
-        [SerializeField] private float baseRoomSize = 30f;
-        [SerializeField] private float roomSizePerLevel = 5f;
-        [SerializeField] private float maxRoomSize = 55f;
+        [Header("房间尺寸")]
+        [SerializeField] private float roomSize = 35f;
 
         [Header("灵物池（在 Inspector 中配置）")]
         [SerializeField] private ItemData[] itemPool;
@@ -75,9 +73,7 @@ namespace XianTu
                 enemyCountPerLevel = config.每层增加敌人数;
                 hpScalePerLevel = config.每层血量倍率;
                 dmgScalePerLevel = config.每层伤害倍率;
-                baseRoomSize = config.基础房间大小;
-                roomSizePerLevel = config.每层房间增大;
-                maxRoomSize = config.最大房间大小;
+                roomSize = config.房间大小;
             }
 
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
@@ -254,8 +250,6 @@ namespace XianTu
             int enemyCount = baseEnemyCount + _currentLevel * enemyCountPerLevel;
             float hpMul = 1f + _currentLevel * hpScalePerLevel;
             float dmgMul = 1f + _currentLevel * dmgScalePerLevel;
-            float roomSize = Mathf.Min(baseRoomSize + _currentLevel * roomSizePerLevel, maxRoomSize);
-
             room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, itemPool, roomSize, roomSize);
             room.SetSkillPool(skillPool);
 
@@ -274,8 +268,6 @@ namespace XianTu
 
             float hpMul = 1f + _currentLevel * hpScalePerLevel;
             float dmgMul = 1f + _currentLevel * dmgScalePerLevel;
-            float roomSize = Mathf.Min(baseRoomSize + _currentLevel * roomSizePerLevel, maxRoomSize);
-
             // Boss房间：少量普通敌人 + 1个Boss
             int normalEnemyCount = 2;
             room.Initialize(_currentLevel, normalEnemyCount, hpMul, dmgMul, itemPool, roomSize, roomSize);

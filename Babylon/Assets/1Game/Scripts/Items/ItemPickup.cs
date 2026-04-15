@@ -385,6 +385,10 @@ namespace XianTu
             _holdProgressFill.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal;
             _holdProgressFill.fillAmount = 0f;
 
+            // 让提示UI稍微朝向相机方向倾斜（不完全正对）
+            var billboard = canvasGo.AddComponent<BillboardUI>();
+            billboard.lerpFactor = 0.5f;
+
             _promptUI = canvasGo;
         }
 

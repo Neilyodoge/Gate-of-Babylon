@@ -47,6 +47,12 @@ namespace XianTu
         private float _hitFlashTimer;
         private float _stunTimer; // 硬直计时器
 
+        // 闪避行为
+        private float _dodgeTimer;
+        private bool _isDodging;
+        private float _dodgeDuration;
+        private Vector3 _dodgeDirection;
+
         // 血条
         private EnemyHealthBar _healthBar;
 
@@ -106,6 +112,21 @@ namespace XianTu
             if (_stunTimer > 0)
             {
                 _stunTimer -= Time.deltaTime;
+                return;
+            }
+
+            // 闪避CD
+            if (_dodgeTimer > 0) _dodgeTimer -= Time.deltaTime;
+
+            // 闪避中
+            if (_isDodging)
+            {
+                _dodgeDuration -= Time.deltaTime;
+                Vector3 dodgeVel = _dodgeDirection * stats.moveSpeed * 4f;
+                dodgeVel.y = -9.8f;
+                _cc.Move(dodgeVel * Time.deltaTime);
+                if (_dodgeDuration <= 0)
+                    _isDodging = false;
                 return;
             }
 
@@ -259,6 +280,17 @@ namespace XianTu
             _stunTimer = 0.3f;
             _isWarning = false;
             if (_warningLine != null) _warningLine.enabled = false;
+
+            // 远程敌人受击后40%概率后跳闪避
+            if (_dodgeTimer <= 0 && Random.value < 0.4f && attacker != null)
+            {
+                _stunTimer = 0;
+                _isDodging = true;
+                _dodgeDuration = 0.25f;
+                _dodgeTimer = 4f;
+                _dodgeDirection = (transform.position - attacker.transform.position).normalized;
+                _dodgeDirection.y = 0;
+            }
 
             // 击退
             if (attacker != null)

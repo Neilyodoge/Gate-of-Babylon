@@ -339,6 +339,10 @@ namespace XianTu
             _holdProgressFill.fillMethod = Image.FillMethod.Horizontal;
             _holdProgressFill.fillAmount = 0f;
 
+            // 让提示UI稍微朝向相机方向倾斜（不完全正对）
+            var billboard = canvasGo.AddComponent<BillboardUI>();
+            billboard.lerpFactor = 0.5f;
+
             _promptUI = canvasGo;
         }
 
@@ -428,15 +432,32 @@ namespace XianTu
     }
 
     /// <summary>
-    /// 简单的Billboard组件，让UI始终面向相机
+    /// Billboard组件，让UI朝向相机方向倾斜（部分面向相机，不完全正对）
+    /// lerpFactor 控制倾斜程度：0=完全不朝向相机，1=完全面向相机
     /// </summary>
     public class BillboardUI : MonoBehaviour
     {
+        [Tooltip("朝向相机的插值比例。0.4=轻微朝向相机，0.7=大部分朝向相机")]
+        public float lerpFactor = 0.5f;
+
+        private Quaternion _initialRotation;
+        private bool _initialized;
+
         private void LateUpdate()
         {
             var cam = Camera.main;
             if (cam == null) return;
-            transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position);
+
+            if (!_initialized)
+            {
+                _initialRotation = transform.rotation;
+                _initialized = true;
+            }
+
+            // 完全面向相机的旋转
+            Quaternion lookAtCam = Quaternion.LookRotation(transform.position - cam.transform.position);
+            // 在初始朝向和面向相机之间插值
+            transform.rotation = Quaternion.Slerp(_initialRotation, lookAtCam, lerpFactor);
         }
     }
 }

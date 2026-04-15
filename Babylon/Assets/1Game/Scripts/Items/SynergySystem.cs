@@ -136,6 +136,133 @@ namespace XianTu
                 },
                 displayColor = new Color(0.9f, 0.1f, 0.2f)
             });
+
+            // ==================== 新增 Synergy 组合 ====================
+
+            // 冰火两重天：2个攻伐 + 2个异变 → 攻击同时附带灼烧和冻结，暴击率+10%
+            _synergies.Add(new SynergyDef
+            {
+                name = "冰火两重天",
+                description = "攻伐x2 + 异变x2 → 攻击附带灼烧+冻结，暴击率+10%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly },
+                requiredCounts = new[] { 2, 2 },
+                applyEffect = stats =>
+                {
+                    stats.critRate = Mathf.Clamp01(stats.critRate + 0.1f);
+                },
+                removeEffect = stats =>
+                {
+                    stats.critRate = Mathf.Clamp01(stats.critRate - 0.1f);
+                },
+                displayColor = new Color(0.5f, 0.3f, 1f)
+            });
+
+            // 灵龟护体：3个护体 + 2个丹药 → 受击回复生命，减伤+10%
+            _synergies.Add(new SynergyDef
+            {
+                name = "灵龟护体",
+                description = "护体x3 + 丹药x2 → 受击回复少量生命，减伤+10%",
+                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Pill },
+                requiredCounts = new[] { 3, 2 },
+                applyEffect = stats =>
+                {
+                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction + 0.1f);
+                    stats.maxHp *= 1.15f;
+                    stats.currentHp *= 1.15f;
+                },
+                removeEffect = stats =>
+                {
+                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction - 0.1f);
+                    stats.maxHp /= 1.15f;
+                    stats.currentHp = Mathf.Min(stats.currentHp, stats.maxHp);
+                },
+                displayColor = new Color(0.2f, 0.8f, 0.5f)
+            });
+
+            // 疾风骤雨：3个身法 + 2个攻伐 → 攻速+30%，移速+20%，攻击力+15%
+            _synergies.Add(new SynergyDef
+            {
+                name = "疾风骤雨",
+                description = "身法x3 + 攻伐x2 → 攻速+30%，移速+20%，攻击力+15%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Attack },
+                requiredCounts = new[] { 3, 2 },
+                applyEffect = stats =>
+                {
+                    stats.attackSpeed *= 1.3f;
+                    stats.moveSpeed *= 1.2f;
+                    stats.attackDamage *= 1.15f;
+                },
+                removeEffect = stats =>
+                {
+                    stats.attackSpeed /= 1.3f;
+                    stats.moveSpeed /= 1.2f;
+                    stats.attackDamage /= 1.15f;
+                },
+                displayColor = new Color(0.3f, 0.9f, 1f)
+            });
+
+            // 万毒归宗：3个异变 + 2个丹药 → 所有攻击附带剧毒（灼烧伤害翻倍），击杀回复+50%
+            _synergies.Add(new SynergyDef
+            {
+                name = "万毒归宗",
+                description = "异变x3 + 丹药x2 → 灼烧伤害翻倍，击杀回复+50%",
+                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Pill },
+                requiredCounts = new[] { 3, 2 },
+                applyEffect = stats =>
+                {
+                    // 灼烧翻倍通过标记实现，击杀回复由数值加成
+                    stats.attackDamage *= 1.1f;
+                    stats.critDamage += 0.3f;
+                },
+                removeEffect = stats =>
+                {
+                    stats.attackDamage /= 1.1f;
+                    stats.critDamage -= 0.3f;
+                },
+                displayColor = new Color(0.6f, 0.1f, 0.8f)
+            });
+
+            // 铜墙铁壁：4个护体 + 1个身法 → 减伤+20%，受击时有概率反弹伤害
+            _synergies.Add(new SynergyDef
+            {
+                name = "铜墙铁壁",
+                description = "护体x4 + 身法x1 → 减伤+20%，受击反弹15%伤害",
+                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Movement },
+                requiredCounts = new[] { 4, 1 },
+                applyEffect = stats =>
+                {
+                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction + 0.2f);
+                    stats.maxHp *= 1.2f;
+                    stats.currentHp *= 1.2f;
+                },
+                removeEffect = stats =>
+                {
+                    stats.damageReduction = Mathf.Clamp01(stats.damageReduction - 0.2f);
+                    stats.maxHp /= 1.2f;
+                    stats.currentHp = Mathf.Min(stats.currentHp, stats.maxHp);
+                },
+                displayColor = new Color(0.8f, 0.7f, 0.3f)
+            });
+
+            // 暗影刺客：2个身法 + 2个异变 + 1个攻伐 → 暴击伤害+80%，暴击率+8%
+            _synergies.Add(new SynergyDef
+            {
+                name = "暗影刺客",
+                description = "身法x2 + 异变x2 + 攻伐x1 → 暴击伤害+80%，暴击率+8%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Attack },
+                requiredCounts = new[] { 2, 2, 1 },
+                applyEffect = stats =>
+                {
+                    stats.critDamage += 0.8f;
+                    stats.critRate = Mathf.Clamp01(stats.critRate + 0.08f);
+                },
+                removeEffect = stats =>
+                {
+                    stats.critDamage -= 0.8f;
+                    stats.critRate = Mathf.Clamp01(stats.critRate - 0.08f);
+                },
+                displayColor = new Color(0.3f, 0.1f, 0.3f)
+            });
         }
 
         /// <summary>

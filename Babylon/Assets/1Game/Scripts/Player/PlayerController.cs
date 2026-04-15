@@ -37,7 +37,12 @@ namespace XianTu
         private bool _isDashing;
         private float _dashTimer;
         private Vector3 _dashDirection;
-        private float _dashCooldownTimer;
+
+        // 闪避充能系统（2层充能）
+        private int _dashCharges = 2;
+        private int _dashMaxCharges = 2;
+        private float _dashRechargeTimer;
+        private float _dashRechargeDuration = 1.5f; // 每层充能恢复时间
 
         // 无敌帧
         private bool _invincible;
@@ -65,6 +70,8 @@ namespace XianTu
         public SpiritSlotSystem SpiritSlots => _spiritSlots;
         public Vector3 AimDirection => _aimDirection;
         public bool IsDashing => _isDashing;
+        public int DashCharges => _dashCharges;
+        public int DashMaxCharges => _dashMaxCharges;
 
         // 单例（Demo1 简化用）
         public static PlayerController Instance { get; private set; }
@@ -85,6 +92,9 @@ namespace XianTu
                 config.ApplyToPlayerStats(stats);
                 dashDistance = config.闪避距离;
                 dashDuration = config.闪避持续时间;
+                _dashMaxCharges = config.闪避充能层数;
+                _dashCharges = _dashMaxCharges;
+                _dashRechargeDuration = config.闪避冷却时间;
             }
 
             // 初始化背包系统
@@ -114,7 +124,7 @@ namespace XianTu
         /// <summary>处理缓冲的闪避请求</summary>
         private void OnBufferedEvade(GameEvents.BufferedEvadeRequested evt)
         {
-            if (!stats.IsAlive || _dashCooldownTimer > 0) return;
+            if (!stats.IsAlive || _dashCharges <= 0) return;
             ExecuteDash();
         }
 
@@ -212,7 +222,7 @@ namespace XianTu
             }
         }
 
-        /// <summary>闪避（Space）—— 哈迪斯风格：最高优先级，可打断一切动作</summary>
+        /// <summary>闪避（Space）—— 哈迪斯风格：最高优先级，可打断一切动作，支持多层充能</summary>
         private void HandleDash()
         {
             if (_isDashing) return;
@@ -223,9 +233,9 @@ namespace XianTu
                 // 标记本帧有闪避输入，阻止同帧的攻击输入（闪避优先级最高）
                 _dashRequestedThisFrame = true;
 
-                if (_dashCooldownTimer > 0)
+                if (_dashCharges <= 0)
                 {
-                    // CD中，缓冲闪避输入
+                    // 没有充能，缓冲闪避输入
                     _playerAnim.BufferEvade();
                     return;
                 }
@@ -245,13 +255,19 @@ namespace XianTu
             _isDashing = true;
             _dashTimer = dashDuration;
             _dashDirection = _moveInput.sqrMagnitude > 0.01f ? _moveInput : _aimDirection;
-            _dashCooldownTimer = stats.dashCooldown;
 
-            // 发布闪避CD更新事件
-            GameEvents.Publish(new GameEvents.DashCooldownUpdate
+            // 消耗一层充能
+            _dashCharges--;
+            // 如果充能未满，开始计时恢复
+            if (_dashCharges < _dashMaxCharges && _dashRechargeTimer <= 0)
+                _dashRechargeTimer = _dashRechargeDuration;
+
+            // 发布闪避充能更新事件
+            GameEvents.Publish(new GameEvents.DashChargeUpdate
             {
-                RemainingTime = stats.dashCooldown,
-                TotalCooldown = stats.dashCooldown
+                CurrentCharges = _dashCharges,
+                MaxCharges = _dashMaxCharges,
+                RechargeProgress = _dashRechargeTimer > 0 ? 1f - (_dashRechargeTimer / _dashRechargeDuration) : 1f
             });
 
             // 开启无敌帧（哈迪斯风格：闪避全程无敌）
@@ -274,14 +290,26 @@ namespace XianTu
         {
             float dt = Time.deltaTime;
 
-            if (_dashCooldownTimer > 0)
+            // 闪避充能恢复
+            if (_dashCharges < _dashMaxCharges)
             {
-                _dashCooldownTimer -= dt;
-                // 发布闪避CD更新
-                GameEvents.Publish(new GameEvents.DashCooldownUpdate
+                _dashRechargeTimer -= dt;
+                if (_dashRechargeTimer <= 0)
                 {
-                    RemainingTime = Mathf.Max(0, _dashCooldownTimer),
-                    TotalCooldown = stats.dashCooldown
+                    _dashCharges++;
+                    // 如果还没满，继续充能下一层
+                    if (_dashCharges < _dashMaxCharges)
+                        _dashRechargeTimer = _dashRechargeDuration;
+                    else
+                        _dashRechargeTimer = 0;
+                }
+
+                // 发布闪避充能更新
+                GameEvents.Publish(new GameEvents.DashChargeUpdate
+                {
+                    CurrentCharges = _dashCharges,
+                    MaxCharges = _dashMaxCharges,
+                    RechargeProgress = _dashRechargeTimer > 0 ? 1f - (_dashRechargeTimer / _dashRechargeDuration) : 1f
                 });
             }
 

@@ -138,6 +138,29 @@ namespace XianTu
             int trapCount = Mathf.Min(_roomIndex, 3);
             RoomBuilder.BuildTraps(transform, roomWidth, roomDepth, trapCount);
 
+            // 生成可破坏物
+            var config2 = GameConfig.Instance;
+            int destructibleCount = config2 != null ? config2.可破坏物数量 : 3;
+            for (int i = 0; i < destructibleCount; i++)
+            {
+                Vector3 spawnPos = GetRandomSpawnPosition();
+                spawnPos.y = 0;
+                Destructible.Spawn(spawnPos, rewardPool);
+            }
+
+            // 生成精英怪（满足层数条件且概率判定通过）
+            var eliteConfig = GameConfig.Instance;
+            if (eliteConfig != null && _roomIndex >= eliteConfig.精英怪最低层数)
+            {
+                if (Random.value < eliteConfig.精英怪出现概率)
+                {
+                    Vector3 elitePos = GetRandomSpawnPosition();
+                    elitePos.y = 0;
+                    var elite = EnemyElite.Spawn(elitePos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool, skillRewardPool);
+                    _totalEnemyCount++; // 精英怪额外计入总数
+                }
+            }
+
             // 监听敌人死亡
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
 

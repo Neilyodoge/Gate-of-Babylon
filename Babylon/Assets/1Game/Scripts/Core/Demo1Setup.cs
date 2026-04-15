@@ -316,12 +316,65 @@ namespace XianTu
             var gmGo = new GameObject("GameManager");
             var gm = gmGo.AddComponent<GameManager>();
 
+            // 如果 itemPool 为空，尝试自动加载
+            if (itemPool == null || itemPool.Length == 0)
+            {
+                Debug.LogWarning("[Demo1Setup] itemPool 为空，尝试自动加载灵物数据...");
+#if UNITY_EDITOR
+                // 编辑器模式下自动从 Data/Items 加载所有 ItemData
+                var guids = UnityEditor.AssetDatabase.FindAssets("t:ItemData", new[] { "Assets/1Game/Data/Items" });
+                if (guids.Length > 0)
+                {
+                    var items = new System.Collections.Generic.List<ItemData>();
+                    foreach (var guid in guids)
+                    {
+                        var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                        var item = UnityEditor.AssetDatabase.LoadAssetAtPath<ItemData>(path);
+                        if (item != null) items.Add(item);
+                    }
+                    itemPool = items.ToArray();
+                    Debug.Log($"<color=green>[Demo1Setup] 自动加载了 {itemPool.Length} 个灵物数据</color>");
+                }
+                else
+                {
+                    Debug.LogError("[Demo1Setup] 未找到任何 ItemData！请在 Assets/1Game/Data/Items 下创建灵物数据。");
+                }
+#else
+                Debug.LogError("[Demo1Setup] itemPool 为空！请在 Inspector 中配置灵物池，或运行编辑器工具 '仙途梦境 → 配置场景'。");
+#endif
+            }
+
+            // 如果 skillPool 为空，也尝试自动加载
+            if (skillPool == null || skillPool.Length == 0)
+            {
+#if UNITY_EDITOR
+                var skillGuids = UnityEditor.AssetDatabase.FindAssets("t:SkillData", new[] { "Assets/1Game/Data/Skills" });
+                if (skillGuids.Length > 0)
+                {
+                    var skills = new System.Collections.Generic.List<SkillData>();
+                    foreach (var guid in skillGuids)
+                    {
+                        var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                        var skill = UnityEditor.AssetDatabase.LoadAssetAtPath<SkillData>(path);
+                        if (skill != null) skills.Add(skill);
+                    }
+                    skillPool = skills.ToArray();
+                    Debug.Log($"<color=green>[Demo1Setup] 自动加载了 {skillPool.Length} 个功法数据</color>");
+                }
+#endif
+            }
+
             // 设置灵物池
             if (itemPool != null && itemPool.Length > 0)
             {
                 var poolField = typeof(GameManager).GetField("itemPool",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 poolField?.SetValue(gm, itemPool);
+                Debug.Log($"<color=green>[Demo1Setup] 灵物池已传递给 GameManager：{itemPool.Length} 个灵物</color>");
+            }
+            else
+            {
+                Debug.LogError("[Demo1Setup] 灵物池为空！敌人将无法掉落灵物！");
             }
 
             // 设置功法池
@@ -523,7 +576,6 @@ namespace XianTu
             // 技能图标参数
             float skillSize = 68f;       // 技能图标大小
             float spiritSize = 80f;      // 灵物槽位大小（超大号，确保看得清）
-            float skillSpacing = 145f;   // 技能间距（加大，给灵物留空间）
             float skillY = 110f;         // 技能图标Y中心（上移）
             float spiritY = 25f;         // 灵物槽位Y中心
             float spiritSpacing = 82f;   // 灵物槽位间距（加大）

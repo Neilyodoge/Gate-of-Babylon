@@ -41,6 +41,13 @@ namespace XianTu
         [Range(0.5f, 3f)]
         public float castSpeed = 1f;
 
+        [Header("充能")]
+        /// <summary>最大充能层数（1=无充能，普通CD；2+=多层充能）</summary>
+        [Range(1, 5)]
+        public int maxCharges = 1;
+        /// <summary>每层充能恢复时间（秒），0=使用cooldown值</summary>
+        public float chargeTime = 0f;
+
         [Header("范围伤害参数")]
         public float aoeRadius = 3f;
 

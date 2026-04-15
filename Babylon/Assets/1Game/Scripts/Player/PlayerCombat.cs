@@ -34,9 +34,12 @@ namespace XianTu
 
         private PlayerController _player;
         private PlayerAnimator _playerAnim;
-        private float _skillQCooldown;
-        private float _skillECooldown;
-        private float _skillRCooldown;
+
+        // 技能充能系统（每个槽位独立充能）
+        private int[] _skillCharges = new int[3];       // 当前充能层数
+        private int[] _skillMaxCharges = new int[3];    // 最大充能层数
+        private float[] _skillRechargeTimer = new float[3]; // 充能恢复计时器
+        private float[] _skillRechargeDuration = new float[3]; // 每层充能恢复时间
 
         // 攻击判定：每段攻击只判定一次
         private bool _hasHitThisSwing;
@@ -232,32 +235,80 @@ namespace XianTu
 
         // ==================== 技能 ====================
 
-        /// <summary>技能释放</summary>
+        /// <summary>技能释放（支持充能系统）</summary>
         private void HandleSkills()
         {
             var kb = Keyboard.current;
             if (kb == null) return;
 
             // Q 技能
-            if (kb.qKey.wasPressedThisFrame && skillQ != null && _skillQCooldown <= 0)
+            if (kb.qKey.wasPressedThisFrame && skillQ != null && _skillCharges[0] > 0)
             {
                 if (UseSkill(skillQ, 0))
-                    _skillQCooldown = skillQ.cooldown;
+                    ConsumeSkillCharge(0, skillQ);
             }
 
             // E 技能
-            if (kb.eKey.wasPressedThisFrame && skillE != null && _skillECooldown <= 0)
+            if (kb.eKey.wasPressedThisFrame && skillE != null && _skillCharges[1] > 0)
             {
                 if (UseSkill(skillE, 1))
-                    _skillECooldown = skillE.cooldown;
+                    ConsumeSkillCharge(1, skillE);
             }
 
             // R 技能
-            if (kb.rKey.wasPressedThisFrame && skillR != null && _skillRCooldown <= 0)
+            if (kb.rKey.wasPressedThisFrame && skillR != null && _skillCharges[2] > 0)
             {
                 if (UseSkill(skillR, 2))
-                    _skillRCooldown = skillR.cooldown;
+                    ConsumeSkillCharge(2, skillR);
             }
+        }
+
+        /// <summary>消耗一层技能充能</summary>
+        private void ConsumeSkillCharge(int slotIndex, SkillData skill)
+        {
+            _skillCharges[slotIndex]--;
+            // 如果充能未满且没在恢复中，开始恢复
+            if (_skillCharges[slotIndex] < _skillMaxCharges[slotIndex] && _skillRechargeTimer[slotIndex] <= 0)
+            {
+                float rechargeTime = skill.chargeTime > 0 ? skill.chargeTime : skill.cooldown;
+                _skillRechargeTimer[slotIndex] = rechargeTime;
+                _skillRechargeDuration[slotIndex] = rechargeTime;
+            }
+
+            // 发布充能更新事件
+            PublishSkillChargeUpdate(slotIndex, skill);
+        }
+
+        /// <summary>发布技能充能更新事件</summary>
+        private void PublishSkillChargeUpdate(int slotIndex, SkillData skill)
+        {
+            float rechargeProgress = _skillRechargeTimer[slotIndex] > 0 && _skillRechargeDuration[slotIndex] > 0
+                ? 1f - (_skillRechargeTimer[slotIndex] / _skillRechargeDuration[slotIndex])
+                : 1f;
+
+            GameEvents.Publish(new GameEvents.SkillCooldownUpdate
+            {
+                SlotIndex = slotIndex,
+                RemainingTime = _skillRechargeTimer[slotIndex],
+                TotalCooldown = _skillRechargeDuration[slotIndex] > 0 ? _skillRechargeDuration[slotIndex] : (skill != null ? skill.cooldown : 1f)
+            });
+        }
+
+        /// <summary>初始化技能槽位的充能数据</summary>
+        private void InitSkillCharges(int slotIndex, SkillData skill)
+        {
+            if (skill != null)
+            {
+                _skillMaxCharges[slotIndex] = Mathf.Max(1, skill.maxCharges);
+                _skillCharges[slotIndex] = _skillMaxCharges[slotIndex];
+            }
+            else
+            {
+                _skillMaxCharges[slotIndex] = 1;
+                _skillCharges[slotIndex] = 1;
+            }
+            _skillRechargeTimer[slotIndex] = 0;
+            _skillRechargeDuration[slotIndex] = 0;
         }
 
         /// <summary>使用技能（返回是否成功释放）</summary>
@@ -446,49 +497,34 @@ namespace XianTu
             Debug.Log("<color=cyan>金钟罩结束</color>");
         }
 
-        /// <summary>更新冷却</summary>
+        /// <summary>更新技能充能恢复</summary>
         private void UpdateCooldowns()
         {
-            if (_skillQCooldown > 0)
+            SkillData[] skills = { skillQ, skillE, skillR };
+            for (int i = 0; i < 3; i++)
             {
-                _skillQCooldown -= Time.deltaTime;
-                if (skillQ != null)
-                {
-                    GameEvents.Publish(new GameEvents.SkillCooldownUpdate
-                    {
-                        SlotIndex = 0,
-                        RemainingTime = Mathf.Max(0, _skillQCooldown),
-                        TotalCooldown = skillQ.cooldown
-                    });
-                }
-            }
+                if (skills[i] == null) continue;
+                if (_skillCharges[i] >= _skillMaxCharges[i]) continue;
 
-            if (_skillECooldown > 0)
-            {
-                _skillECooldown -= Time.deltaTime;
-                if (skillE != null)
+                _skillRechargeTimer[i] -= Time.deltaTime;
+                if (_skillRechargeTimer[i] <= 0)
                 {
-                    GameEvents.Publish(new GameEvents.SkillCooldownUpdate
+                    // 恢复一层充能
+                    _skillCharges[i]++;
+                    // 如果还没满，继续充能下一层
+                    if (_skillCharges[i] < _skillMaxCharges[i])
                     {
-                        SlotIndex = 1,
-                        RemainingTime = Mathf.Max(0, _skillECooldown),
-                        TotalCooldown = skillE.cooldown
-                    });
+                        float rechargeTime = skills[i].chargeTime > 0 ? skills[i].chargeTime : skills[i].cooldown;
+                        _skillRechargeTimer[i] = rechargeTime;
+                        _skillRechargeDuration[i] = rechargeTime;
+                    }
+                    else
+                    {
+                        _skillRechargeTimer[i] = 0;
+                    }
                 }
-            }
 
-            if (_skillRCooldown > 0)
-            {
-                _skillRCooldown -= Time.deltaTime;
-                if (skillR != null)
-                {
-                    GameEvents.Publish(new GameEvents.SkillCooldownUpdate
-                    {
-                        SlotIndex = 2,
-                        RemainingTime = Mathf.Max(0, _skillRCooldown),
-                        TotalCooldown = skillR.cooldown
-                    });
-                }
+                PublishSkillChargeUpdate(i, skills[i]);
             }
         }
 
@@ -496,14 +532,14 @@ namespace XianTu
         public void EquipSkillQ(SkillData skill)
         {
             skillQ = skill;
-            _skillQCooldown = 0;
+            InitSkillCharges(0, skill);
         }
 
         /// <summary>装备技能到E槽位</summary>
         public void EquipSkillE(SkillData skill)
         {
             skillE = skill;
-            _skillECooldown = 0;
+            InitSkillCharges(1, skill);
         }
 
         // ==================== 公开设置方法 ====================
@@ -537,7 +573,7 @@ namespace XianTu
         public void EquipSkillR(SkillData skill)
         {
             skillR = skill;
-            _skillRCooldown = 0;
+            InitSkillCharges(2, skill);
         }
 
         // ==================== 技能槽位管理 ====================

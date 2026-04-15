@@ -219,7 +219,7 @@ namespace XianTu
 
             bool exists = AssetExists(GAME_CONFIG_PATH);
             DrawAssetRow("GameConfig.asset", GAME_CONFIG_PATH, exists,
-                "玩家属性 · 敌人属性 · 难度曲线 · 掉落概率 · 近战参数 · 技能速度");
+                "玩家属性 · 闪避充能 · 敌人属性 · 难度曲线 · 房间大小 · 精英怪 · 可破坏物 · 掉落概率 · 功法掉落 · 近战参数 · 技能速度");
 
             if (exists)
             {
@@ -227,9 +227,14 @@ namespace XianTu
                 EditorGUILayout.LabelField("常用调整：", _subHeaderStyle);
                 DrawTipRow("让玩家更肉", "↑ 玩家最大生命值、↑ 玩家减伤比例");
                 DrawTipRow("让战斗更快", "↑ 玩家攻击速度、↑ 玩家移动速度");
-                DrawTipRow("让掉落更多", "↑ 敌人掉落概率、↑ 通关额外掉落数");
+                DrawTipRow("让掉落更多", "↑ 敌人掉落概率、↑ 通关掉落概率、↑ 通关额外掉落数");
+                DrawTipRow("让功法更多", "↑ 功法掉落概率、↑ 通关功法掉落概率");
                 DrawTipRow("降低难度", "↓ 基础敌人数量、↓ 每层血量倍率");
                 DrawTipRow("调整暴击", "↑ 玩家暴击率、↑ 玩家暴击伤害");
+                DrawTipRow("增加闪避", "↑ 闪避充能层数（默认2层）");
+                DrawTipRow("调精英怪", "↑↓ 精英怪出现概率、↑↓ 精英怪最低层数");
+                DrawTipRow("调可破坏物", "↑↓ 可破坏物数量、↑↓ 可破坏物掉落概率");
+                DrawTipRow("调高品质掉率", "↓ 凡品掉率权重、↑ 地品/天品掉率权重");
             }
 
             EditorGUILayout.EndVertical();

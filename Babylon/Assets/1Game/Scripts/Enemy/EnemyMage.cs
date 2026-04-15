@@ -19,7 +19,6 @@ namespace XianTu
         };
 
         [Header("AI 参数")]
-        [SerializeField] private float detectRange = 16f;
         [SerializeField] private float castRange = 13f;
         [SerializeField] private float preferredRange = 9f;
         [SerializeField] private float attackInterval = 3.5f;
@@ -45,6 +44,10 @@ namespace XianTu
         private Renderer[] _renderers;
         private Color[] _originalColors;
         private float _hitFlashTimer;
+
+        // 瞬移闪避
+        private float _teleportTimer;
+        private const float TELEPORT_COOLDOWN = 5f;
 
         private EnemyHealthBar _healthBar;
 
@@ -84,6 +87,9 @@ namespace XianTu
                 _stunTimer -= Time.deltaTime;
                 return;
             }
+
+            // 瞬移CD更新
+            if (_teleportTimer > 0) _teleportTimer -= Time.deltaTime;
 
             float distToTarget = Vector3.Distance(transform.position, _target.position);
 
@@ -275,6 +281,13 @@ namespace XianTu
                 RestoreColors();
             }
 
+            // 法师受击后35%概率瞬移到随机位置
+            if (_teleportTimer <= 0 && Random.value < 0.35f && attacker != null)
+            {
+                _stunTimer = 0;
+                TryTeleport();
+            }
+
             if (attacker != null)
             {
                 Vector3 knockback = (transform.position - attacker.transform.position).normalized * 0.4f;
@@ -284,6 +297,49 @@ namespace XianTu
 
             if (HitStop.Instance != null) HitStop.Instance.TriggerNormal();
             if (!stats.IsAlive) OnDeath();
+        }
+
+        /// <summary>瞬移闪避（法师特有）</summary>
+        private void TryTeleport()
+        {
+            _teleportTimer = TELEPORT_COOLDOWN;
+
+            // 瞬移到远离玩家的随机位置
+            Vector3 awayDir = (transform.position - _target.position).normalized;
+            float teleportDist = Random.Range(4f, 7f);
+            Vector3 targetPos = transform.position + awayDir * teleportDist
+                + new Vector3(Random.Range(-3f, 3f), 0, Random.Range(-3f, 3f));
+
+            // 起点特效
+            var startVfx = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            startVfx.name = "[VFX] TeleportStart";
+            startVfx.transform.position = transform.position + Vector3.up * 1f;
+            startVfx.transform.localScale = Vector3.one * 1.5f;
+            var startCol = startVfx.GetComponent<Collider>();
+            if (startCol != null) Destroy(startCol);
+            var startRend = startVfx.GetComponent<Renderer>();
+            if (startRend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(0.6f, 0.2f, 0.8f, 0.6f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.6f, 0.2f, 0.8f) * 2f);
+                startRend.material = mat;
+            }
+            Destroy(startVfx, 0.5f);
+
+            // 瞬移
+            _cc.enabled = false;
+            transform.position = targetPos;
+            _cc.enabled = true;
+
+            Debug.Log("<color=magenta>法师瞬移！</color>");
         }
 
         public void OnDeath()
