@@ -110,12 +110,13 @@ namespace XianTu
                 _enemies.Add(enemy);
             }
 
-            // 生成远程弓箭手
+            // 生成远程弓箍手
             for (int i = 0; i < rangedCount; i++)
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                EnemyRanged.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                var ranged = EnemyRanged.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                if (skillRewardPool != null) ranged.SetSkillDrops(skillRewardPool);
             }
 
             // 生成冲锋型
@@ -123,7 +124,8 @@ namespace XianTu
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                EnemyCharger.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                var charger = EnemyCharger.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                if (skillRewardPool != null) charger.SetSkillDrops(skillRewardPool);
             }
 
             // 生成AOE法师
@@ -131,9 +133,9 @@ namespace XianTu
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                EnemyMage.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                var mage = EnemyMage.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                if (skillRewardPool != null) mage.SetSkillDrops(skillRewardPool);
             }
-
             // 生成陷阱
             int trapCount = Mathf.Min(_roomIndex, 3);
             RoomBuilder.BuildTraps(transform, roomWidth, roomDepth, trapCount);
@@ -226,7 +228,7 @@ namespace XianTu
             int count = config != null ? config.通关额外掉落数 : rewardCount;
 
             // 通关掉落概率判定（debug爆率拉满时跳过判定）
-            if (config != null && !config.debugMaxDropRate)
+            if (config != null && !config.debugMaxItemDropRate)
             {
                 if (Random.value > config.通关掉落概率) return; // 未通过概率判定，不掉落
             }
@@ -275,7 +277,7 @@ namespace XianTu
             if (config == null) return;
 
             // 功法掉落概率判定
-            float chance = config.debugMaxDropRate ? 1f : config.通关功法掉落概率;
+            float chance = config.debugMaxSkillDropRate ? 1f : config.通关功法掉落概率;
             if (Random.value > chance) return;
 
             // 随机选择一个功法

@@ -512,7 +512,7 @@ namespace XianTu
             if (!guaranteed)
             {
                 var config = GameConfig.Instance;
-                float chance = config != null ? (config.debugMaxDropRate ? 1f : config.敌人掉落概率) : 0.05f;
+                float chance = config != null ? (config.debugMaxItemDropRate ? 1f : config.敌人掉落概率) : 0.05f;
                 if (Random.value > chance) return;
             }
 
@@ -550,7 +550,7 @@ namespace XianTu
             if (possibleSkillDrops == null || possibleSkillDrops.Length == 0) return;
             // 精英怪25%概率掉功法（debug爆率拉满时必掉）
             var skillConfig = GameConfig.Instance;
-            bool forceDropSkill = skillConfig != null && skillConfig.debugMaxDropRate;
+            bool forceDropSkill = skillConfig != null && skillConfig.debugMaxSkillDropRate;
             if (!forceDropSkill && Random.value > 0.25f) return;
             var skill = possibleSkillDrops[Random.Range(0, possibleSkillDrops.Length)];
             if (skill != null)

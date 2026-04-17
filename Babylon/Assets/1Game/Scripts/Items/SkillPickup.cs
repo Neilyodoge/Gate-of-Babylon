@@ -30,6 +30,10 @@ namespace XianTu
         private Vector3 _startPos;
         private bool _pickedUp;
 
+        // 槽位选择（槽位满时）
+        private bool _waitingForSlotChoice;  // 是否正在等待玩家选择替换槽位
+        private GameObject _slotChoiceUI;    // 选择提示UI
+
         // 长按分解
         private float _holdTimer;
         private const float HOLD_TO_DECOMPOSE = 1.5f; // 长按1.5秒分解
@@ -69,6 +73,16 @@ namespace XianTu
                 var kb = Keyboard.current;
                 if (kb == null) return;
 
+                // 等待槽位选择时，按Q/E/R替换对应槽位
+                if (_waitingForSlotChoice)
+                {
+                    if (kb.qKey.wasPressedThisFrame) ConfirmSlotReplace(0);
+                    else if (kb.eKey.wasPressedThisFrame) ConfirmSlotReplace(1);
+                    else if (kb.rKey.wasPressedThisFrame) ConfirmSlotReplace(2);
+                    else if (kb.escapeKey.wasPressedThisFrame) CancelSlotChoice();
+                    return;
+                }
+
                 if (kb.fKey.isPressed)
                 {
                     _holdTimer += Time.deltaTime;
@@ -100,7 +114,7 @@ namespace XianTu
             }
         }
 
-        /// <summary>尝试拾取功法 → 自动装备到第一个空位，满了则替换最后一个槽位（旧技能掉落）</summary>
+        /// <summary>尝试拾取功法 → 自动装备到第一个空位，满了则弹出选择UI让玩家选择替换哪个槽位</summary>
         private void TryPickup()
         {
             if (skillData == null || _nearbyPlayerCombat == null) return;
@@ -123,27 +137,110 @@ namespace XianTu
             }
             else
             {
-                // 槽位满了 → 替换最后一个槽位（R），旧技能掉落到地面
-                int lastSlot = 2; // R槽位
-                SkillData oldSkill = _nearbyPlayerCombat.EquipSkillToSlot(skillData, lastSlot);
-                string slotName = GetSlotKeyName(lastSlot);
-                Debug.Log($"<color=cyan>替换功法：{skillData.skillName} → {slotName}槽位（旧：{oldSkill?.skillName ?? "空"}）</color>");
+                // 槽位满了 → 弹出选择提示，让玩家按Q/E/R选择替换哪个槽位
+                ShowSlotChoiceUI();
+            }
+        }
 
-                GameEvents.Publish(new GameEvents.SkillEquipped
-                {
-                    Skill = skillData,
-                    SlotIndex = lastSlot
-                });
+        /// <summary>显示槽位选择UI</summary>
+        private void ShowSlotChoiceUI()
+        {
+            if (_waitingForSlotChoice) return;
+            _waitingForSlotChoice = true;
 
-                // 旧技能掉落到地面
-                if (oldSkill != null)
-                {
-                    Vector3 dropPos = transform.position + Random.insideUnitSphere * 1.5f;
-                    dropPos.y = _startPos.y;
-                    Spawn(oldSkill, dropPos);
-                }
+            // 更新提示文字
+            if (_promptText != null)
+                _promptText.text = "选择替换槽位：[Q] [E] [R]  |  [Esc] 取消";
 
-                OnPickedUp();
+            // 创建槽位选择提示
+            var canvasGo = new GameObject("SlotChoiceCanvas");
+            canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 3.2f, _startPos.z);
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 201;
+            var rt = canvasGo.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(500, 80);
+            rt.localScale = Vector3.one * 0.00875f;
+
+            var bgGo = new GameObject("Bg");
+            bgGo.transform.SetParent(canvasGo.transform, false);
+            var bgRt = bgGo.AddComponent<RectTransform>();
+            bgRt.anchorMin = Vector2.zero;
+            bgRt.anchorMax = Vector2.one;
+            bgRt.offsetMin = Vector2.zero;
+            bgRt.offsetMax = Vector2.zero;
+            var bgImg = bgGo.AddComponent<Image>();
+            bgImg.color = new Color(0.1f, 0.05f, 0.05f, 0.9f);
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(canvasGo.transform, false);
+            var textRt = textGo.AddComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = new Vector2(8, 4);
+            textRt.offsetMax = new Vector2(-8, -4);
+            var text = textGo.AddComponent<Text>();
+
+            // 显示当前各槽位技能名
+            string qName = _nearbyPlayerCombat.GetSkillInSlot(0)?.skillName ?? "空";
+            string eName = _nearbyPlayerCombat.GetSkillInSlot(1)?.skillName ?? "空";
+            string rName = _nearbyPlayerCombat.GetSkillInSlot(2)?.skillName ?? "空";
+            text.text = $"[Q]{qName}  [E]{eName}  [R]{rName}  [Esc]取消";
+            text.fontSize = 22;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.color = new Color(1f, 0.8f, 0.3f, 1f);
+            text.alignment = TextAnchor.MiddleCenter;
+
+            canvasGo.AddComponent<BillboardUI>().lerpFactor = 0.5f;
+            _slotChoiceUI = canvasGo;
+        }
+
+        /// <summary>确认替换指定槽位</summary>
+        private void ConfirmSlotReplace(int slotIndex)
+        {
+            if (_nearbyPlayerCombat == null) return;
+
+            SkillData oldSkill = _nearbyPlayerCombat.EquipSkillToSlot(skillData, slotIndex);
+            string slotName = GetSlotKeyName(slotIndex);
+            Debug.Log($"<color=cyan>替换功法：{skillData.skillName} → {slotName}槽位（旧：{oldSkill?.skillName ?? "空"}）</color>");
+
+            GameEvents.Publish(new GameEvents.SkillEquipped
+            {
+                Skill = skillData,
+                SlotIndex = slotIndex
+            });
+
+            // 旧技能掉落到地面
+            if (oldSkill != null)
+            {
+                Vector3 dropPos = transform.position + Random.insideUnitSphere * 1.5f;
+                dropPos.y = _startPos.y;
+                Spawn(oldSkill, dropPos);
+            }
+
+            HideSlotChoiceUI();
+            OnPickedUp();
+        }
+
+        /// <summary>取消槽位选择</summary>
+        private void CancelSlotChoice()
+        {
+            _waitingForSlotChoice = false;
+            HideSlotChoiceUI();
+            // 恢复提示文字
+            if (_promptText != null)
+            {
+                int shards = PlayerResources.GetDecomposeShards(skillData.rarity);
+                _promptText.text = $"[F] 拾取  |  长按[F] 分解（✦{shards}）";
+            }
+        }
+
+        private void HideSlotChoiceUI()
+        {
+            if (_slotChoiceUI != null)
+            {
+                Destroy(_slotChoiceUI);
+                _slotChoiceUI = null;
             }
         }
 
@@ -206,6 +303,8 @@ namespace XianTu
             _playerInRange = false;
             _nearbyPlayerCombat = null;
             _holdTimer = 0f;
+            _waitingForSlotChoice = false;
+            HideSlotChoiceUI();
             HidePrompt();
         }
 
@@ -359,6 +458,7 @@ namespace XianTu
         {
             // 提示UI是独立根级对象，需要手动清理
             HidePrompt();
+            HideSlotChoiceUI();
         }
 
         private void SetupVisual()

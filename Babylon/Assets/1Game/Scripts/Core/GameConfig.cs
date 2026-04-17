@@ -184,12 +184,27 @@ namespace XianTu
         public float 通关功法掉落概率 = 0.25f;
 
         // ==================== Debug 爆率覆盖 ====================
-        /// <summary>Debug模式下是否拉满爆率（运行时设置，不序列化）</summary>
-        private static bool _debugMaxDropRate = false;
+        /// <summary>Debug模式下是否拉满灵物爆率（运行时设置，不序列化）</summary>
+        private static bool _debugMaxItemDropRate = false;
+        public bool debugMaxItemDropRate
+        {
+            get => _debugMaxItemDropRate;
+            set => _debugMaxItemDropRate = value;
+        }
+
+        /// <summary>Debug模式下是否拉满功法爆率（运行时设置，不序列化）</summary>
+        private static bool _debugMaxSkillDropRate = false;
+        public bool debugMaxSkillDropRate
+        {
+            get => _debugMaxSkillDropRate;
+            set => _debugMaxSkillDropRate = value;
+        }
+
+        /// <summary>兼容旧接口：同时控制灵物和功法爆率</summary>
         public bool debugMaxDropRate
         {
-            get => _debugMaxDropRate;
-            set => _debugMaxDropRate = value;
+            get => _debugMaxItemDropRate && _debugMaxSkillDropRate;
+            set { _debugMaxItemDropRate = value; _debugMaxSkillDropRate = value; }
         }
 
         // ==================== 近战攻击 ====================

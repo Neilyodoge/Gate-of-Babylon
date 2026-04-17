@@ -446,14 +446,14 @@ namespace XianTu
             float chance = dropChance;
             if (config != null)
             {
-                chance = config.debugMaxDropRate ? 1f : config.敌人掉落概率;
+                chance = config.debugMaxItemDropRate ? 1f : config.敌人掉落概率;
             }
 
             float roll = Random.value;
             if (roll > chance)
             {
-                if (config != null && config.debugMaxDropRate)
-                    Debug.LogWarning($"[Drop] 爆率拉满但未掉落？chance={chance}, roll={roll}, debugMaxDropRate={config.debugMaxDropRate}");
+                if (config != null && config.debugMaxItemDropRate)
+                    Debug.LogWarning($"[Drop] 灵物爆率拉满但未掉落？chance={chance}, roll={roll}");
                 return;
             }
 
@@ -500,7 +500,7 @@ namespace XianTu
             float chance = 0.03f;
             if (config != null)
             {
-                chance = config.debugMaxDropRate ? 1f : config.功法掉落概率;
+                chance = config.debugMaxSkillDropRate ? 1f : config.功法掉落概率;
             }
 
             if (Random.value > chance) return;

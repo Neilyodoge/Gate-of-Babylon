@@ -78,6 +78,8 @@ namespace XianTu
         public float summonDamage = 10f;
 
         [Header("表现")]
+        /// <summary>是否播放技能动作动画（false = 无动作直接释放）</summary>
+        public bool playAnimation = false;
         public GameObject vfxPrefab;
         public float vfxDuration = 1.5f;
 

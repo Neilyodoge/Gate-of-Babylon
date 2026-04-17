@@ -338,8 +338,19 @@ namespace XianTu
             if (config != null && Mathf.Approximately(castSpeed, 1f))
                 castSpeed = config.技能释放速度;
 
-            // 尝试播放技能动画（遵循优先级系统）
-            if (!_playerAnim.PlaySkill(castSpeed)) return false;
+            // 根据配置决定是否播放技能动画
+            if (skill.playAnimation)
+            {
+                // 尝试播放技能动画（遵循优先级系统）
+                if (!_playerAnim.PlaySkill(castSpeed)) return false;
+            }
+            else
+            {
+                // 不播放动画：仅检查当前状态是否允许释放（不能在死亡/闪避中释放）
+                var priority = _playerAnim.CurrentPriority;
+                if (priority == AnimationPriority.Die || priority == AnimationPriority.Evade)
+                    return false;
+            }
 
             Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
 
@@ -533,6 +544,7 @@ namespace XianTu
         {
             skillQ = skill;
             InitSkillCharges(0, skill);
+            PublishSkillChargeUpdate(0, skill);
         }
 
         /// <summary>装备技能到E槽位</summary>
@@ -540,6 +552,7 @@ namespace XianTu
         {
             skillE = skill;
             InitSkillCharges(1, skill);
+            PublishSkillChargeUpdate(1, skill);
         }
 
         // ==================== 公开设置方法 ====================
@@ -574,6 +587,7 @@ namespace XianTu
         {
             skillR = skill;
             InitSkillCharges(2, skill);
+            PublishSkillChargeUpdate(2, skill);
         }
 
         // ==================== 技能槽位管理 ====================

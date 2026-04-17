@@ -30,7 +30,8 @@ namespace XianTu
         private float _originalAttack;  // 原始攻击力（用于恢复）
         private bool _speedBoost;       // 加速模式
         private float _originalSpeed;   // 原始移速
-        private bool _maxDropRate;      // 爆率拉满模式
+        private bool _maxItemDropRate;   // 灵物爆率拉满
+        private bool _maxSkillDropRate;  // 功法爆率拉满
 
         // 日志
         private List<string> _logMessages = new();
@@ -50,7 +51,8 @@ namespace XianTu
             var config = GameConfig.Instance;
             if (config != null)
             {
-                _maxDropRate = config.debugMaxDropRate;
+                _maxItemDropRate = config.debugMaxItemDropRate;
+                _maxSkillDropRate = config.debugMaxSkillDropRate;
             }
         }
 
@@ -288,33 +290,25 @@ namespace XianTu
             AddLog("<color=magenta>↺ 重新开始</color>");
         }
 
-        /// <summary>爆率拉满模式（每个敌人必掉灵物）</summary>
-        private void ToggleMaxDropRate()
+        /// <summary>灵物爆率拉满</summary>
+        private void ToggleMaxItemDropRate()
         {
-            _maxDropRate = !_maxDropRate;
+            _maxItemDropRate = !_maxItemDropRate;
             var config = GameConfig.Instance;
             if (config != null)
-            {
-                config.debugMaxDropRate = _maxDropRate;
-                Debug.Log($"[DebugConsole] debugMaxDropRate = {config.debugMaxDropRate}");
+                config.debugMaxItemDropRate = _maxItemDropRate;
+            AddLog(_maxItemDropRate ? "<color=yellow>💎 灵物爆率拉满 开启</color>" : "<color=gray>💎 灵物爆率拉满 关闭</color>");
+            RefreshStatus();
+        }
 
-                // 验证：检查 GameManager 的灵物池是否为空
-                if (_maxDropRate && GameManager.Instance != null)
-                {
-                    var poolField = typeof(GameManager).GetField("itemPool",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    var pool = poolField?.GetValue(GameManager.Instance) as ItemData[];
-                    if (pool == null || pool.Length == 0)
-                        Debug.LogError("[DebugConsole] ⚠ 警告：GameManager.itemPool 为空！敌人无法掉落灵物！请检查 Demo1Setup 的灵物池配置。");
-                    else
-                        Debug.Log($"[DebugConsole] ✓ GameManager.itemPool 有 {pool.Length} 个灵物");
-                }
-            }
-            else
-            {
-                Debug.LogWarning("[DebugConsole] GameConfig.Instance 为 null，爆率拉满设置失败！");
-            }
-            AddLog(_maxDropRate ? "<color=yellow>💎 爆率拉满 开启（100%掉落）</color>" : "<color=gray>💎 爆率拉满 关闭</color>");
+        /// <summary>功法爆率拉满</summary>
+        private void ToggleMaxSkillDropRate()
+        {
+            _maxSkillDropRate = !_maxSkillDropRate;
+            var config = GameConfig.Instance;
+            if (config != null)
+                config.debugMaxSkillDropRate = _maxSkillDropRate;
+            AddLog(_maxSkillDropRate ? "<color=cyan>📜 功法爆率拉满 开启</color>" : "<color=gray>📜 功法爆率拉满 关闭</color>");
             RefreshStatus();
         }
 
@@ -462,7 +456,8 @@ namespace XianTu
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
             CreateButton(contentGo.transform, "♥ 最大生命 +100", new Color(0.2f, 0.45f, 0.25f), BoostMaxHp);
             CreateButton(contentGo.transform, "✦ 灵力碎片 +500", new Color(0.2f, 0.35f, 0.5f), AddShards);
-            CreateButton(contentGo.transform, "💎 爆率拉满 (100%)", new Color(0.5f, 0.4f, 0.1f), ToggleMaxDropRate);
+            CreateButton(contentGo.transform, "💎 灵物爆率拉满", new Color(0.5f, 0.4f, 0.1f), ToggleMaxItemDropRate);
+            CreateButton(contentGo.transform, "📜 功法爆率拉满", new Color(0.2f, 0.4f, 0.5f), ToggleMaxSkillDropRate);
 
             // --- 房间控制 ---
             CreateSectionHeader(contentGo.transform, "【 房间跳转 】");
@@ -614,7 +609,7 @@ namespace XianTu
                 status += "\n";
                 status += $"无敌：{BoolStr(_godMode)}  锁血：{BoolStr(_lockHp)}\n";
                 status += $"秒杀：{BoolStr(_oneHitKill)}  加速：{BoolStr(_speedBoost)}\n";
-                status += $"爆率拉满：{BoolStr(_maxDropRate)}\n";
+                status += $"灵物爆率：{BoolStr(_maxItemDropRate)}  功法爆率：{BoolStr(_maxSkillDropRate)}\n";
                 status += $"时间缩放：{Time.timeScale}x";
             }
             else

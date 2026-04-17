@@ -325,6 +325,7 @@ namespace XianTu
                         item = _shopItems[Random.Range(0, _shopItems.Length)];
                     }
 
+                    if (item == null) continue;
                     int price = CalculatePrice(item);
                     float xPos = startX + slotIdx * (cardWidth + spacing);
                     var slot = CreateItemCard(item, price, xPos, slotIdx);
@@ -356,6 +357,7 @@ namespace XianTu
                 while (slotIdx < totalSlots)
                 {
                     var item = _shopItems[Random.Range(0, _shopItems.Length)];
+                    if (item == null) continue;
                     int price = CalculatePrice(item);
                     float xPos = startX + slotIdx * (cardWidth + spacing);
                     var slot = CreateItemCard(item, price, xPos, slotIdx);
@@ -367,6 +369,7 @@ namespace XianTu
 
         private int CalculatePrice(ItemData item)
         {
+            if (item == null) return 0;
             // 价格 = 分解价值 × 2.5（买比卖贵）
             int basePrice = PlayerResources.GetDecomposeShards(item.rarity);
             return Mathf.RoundToInt(basePrice * 2.5f);

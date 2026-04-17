@@ -32,6 +32,7 @@ namespace XianTu
 
         [Header("掉落")]
         [SerializeField] private ItemData[] possibleDrops;
+        [SerializeField] private SkillData[] possibleSkillDrops;
         [SerializeField] private int _roomLevel;
 
         private CharacterController _cc;
@@ -313,6 +314,7 @@ namespace XianTu
             gameObject.tag = "Untagged";
 
             TryDropItem();
+            TryDropSkill();
             GameEvents.Publish(new GameEvents.EnemyKilled
             {
                 Enemy = gameObject,
@@ -338,13 +340,29 @@ namespace XianTu
             var config = GameConfig.Instance;
             float chance = 0.08f;
             if (config != null)
-                chance = config.debugMaxDropRate ? 1f : config.敌人掉落概率;
+                chance = config.debugMaxItemDropRate ? 1f : config.敌人掉落概率;
             if (Random.value > chance) return;
 
             ItemData selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
             if (selectedItem != null)
                 ItemPickup.Spawn(selectedItem, transform.position);
         }
+
+        private void TryDropSkill()
+        {
+            if (possibleSkillDrops == null || possibleSkillDrops.Length == 0) return;
+            var config = GameConfig.Instance;
+            float chance = 0.03f;
+            if (config != null)
+                chance = config.debugMaxSkillDropRate ? 1f : config.功法掉落概率;
+            if (Random.value > chance) return;
+            var skill = possibleSkillDrops[Random.Range(0, possibleSkillDrops.Length)];
+            if (skill != null)
+                SkillPickup.Spawn(skill, transform.position + new Vector3(Random.Range(-0.5f, 0.5f), 0, Random.Range(-0.5f, 0.5f)));
+        }
+
+        /// <summary>设置功法掉落池</summary>
+        public void SetSkillDrops(SkillData[] skills) => possibleSkillDrops = skills;
 
         private System.Collections.IEnumerator DeathAnimation()
         {
