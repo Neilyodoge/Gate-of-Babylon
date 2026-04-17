@@ -437,7 +437,7 @@ namespace XianTu
         {
             if (possibleDrops == null || possibleDrops.Length == 0)
             {
-                Debug.Log($"<color=gray>[Drop] {gameObject.name} possibleDrops为空，跳过掉落</color>");
+                Debug.LogWarning($"<color=red>[Drop] {gameObject.name} possibleDrops为空（null={possibleDrops == null}），跳过灵物掉落！请检查灵物池是否正确传入。</color>");
                 return;
             }
 
@@ -450,10 +450,22 @@ namespace XianTu
             }
 
             float roll = Random.value;
+            Debug.Log($"<color=yellow>[Drop] {gameObject.name} 灵物掉落判定: chance={chance}, roll={roll}, debugMaxItemDropRate={config?.debugMaxItemDropRate}, possibleDrops={possibleDrops.Length}个</color>");
             if (roll > chance)
             {
                 if (config != null && config.debugMaxItemDropRate)
                     Debug.LogWarning($"[Drop] 灵物爆率拉满但未掉落？chance={chance}, roll={roll}");
+                return;
+            }
+
+            // 先过滤掉 null 元素
+            var validDrops = new System.Collections.Generic.List<ItemData>();
+            foreach (var d in possibleDrops)
+                if (d != null) validDrops.Add(d);
+
+            if (validDrops.Count == 0)
+            {
+                Debug.LogWarning($"[Drop] {gameObject.name} possibleDrops 全部为 null，跳过掉落");
                 return;
             }
 
@@ -464,30 +476,32 @@ namespace XianTu
                 ItemRarity targetRarity = config.RollRarity(_roomLevel);
 
                 var candidates = new System.Collections.Generic.List<ItemData>();
-                foreach (var item in possibleDrops)
+                foreach (var item in validDrops)
                 {
-                    if (item != null && item.rarity == targetRarity)
+                    if (item.rarity == targetRarity)
                         candidates.Add(item);
                 }
 
-                if (candidates.Count == 0)
-                {
-                    selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
-                }
-                else
-                {
-                    selectedItem = candidates[Random.Range(0, candidates.Count)];
-                }
+                selectedItem = candidates.Count > 0
+                    ? candidates[Random.Range(0, candidates.Count)]
+                    : validDrops[Random.Range(0, validDrops.Count)];
             }
             else
             {
-                selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
+                selectedItem = validDrops[Random.Range(0, validDrops.Count)];
             }
 
             if (selectedItem != null)
             {
-                // 在敌人脚下掉落（当前位置）
-                ItemPickup.Spawn(selectedItem, transform.position);
+                // 在敌人脚下掉落（当前位置），确保Y坐标在地面上
+                Vector3 dropPos = transform.position;
+                dropPos.y = Mathf.Max(dropPos.y, 0.1f); // 确保不在地面以下
+                var pickup = ItemPickup.Spawn(selectedItem, dropPos);
+                Debug.Log($"<color=green>[Drop] ✓ 灵物已生成：{selectedItem.itemName}，位置={dropPos}，pickup={pickup != null}</color>");
+            }
+            else
+            {
+                Debug.LogWarning($"[Drop] selectedItem 为 null！possibleDrops 中可能有空元素");
             }
         }
 

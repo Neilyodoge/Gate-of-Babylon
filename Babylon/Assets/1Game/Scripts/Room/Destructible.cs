@@ -85,7 +85,7 @@ namespace XianTu
         private void OnDestroyed()
         {
             var config = GameConfig.Instance;
-            bool forceAll = config != null && config.debugMaxDropRate;
+            bool forceAll = config != null && config.debugMaxItemDropRate;
 
             // 掉落灵力碎片
             float shardChance = config != null ? config.可破坏物掉落概率 : dropChance;

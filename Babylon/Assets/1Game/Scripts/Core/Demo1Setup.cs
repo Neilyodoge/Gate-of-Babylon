@@ -316,8 +316,21 @@ namespace XianTu
             var gmGo = new GameObject("GameManager");
             var gm = gmGo.AddComponent<GameManager>();
 
-            // 如果 itemPool 为空，尝试自动加载
-            if (itemPool == null || itemPool.Length == 0)
+            // 如果 itemPool 为空或全部为null，尝试自动加载
+            bool itemPoolEmpty = itemPool == null || itemPool.Length == 0;
+            if (!itemPoolEmpty)
+            {
+                // 检查是否全部为 null（Inspector 中配置了槽位但没拖入资产）
+                bool allNull = true;
+                foreach (var item in itemPool)
+                    if (item != null) { allNull = false; break; }
+                if (allNull)
+                {
+                    Debug.LogWarning($"[Demo1Setup] itemPool 有 {itemPool.Length} 个槽位但全部为 null，重新自动加载...");
+                    itemPoolEmpty = true;
+                }
+            }
+            if (itemPoolEmpty)
             {
                 Debug.LogWarning("[Demo1Setup] itemPool 为空，尝试自动加载灵物数据...");
 #if UNITY_EDITOR
@@ -344,8 +357,20 @@ namespace XianTu
 #endif
             }
 
-            // 如果 skillPool 为空，也尝试自动加载
-            if (skillPool == null || skillPool.Length == 0)
+            // 如果 skillPool 为空或全部为null，也尝试自动加载
+            bool skillPoolEmpty = skillPool == null || skillPool.Length == 0;
+            if (!skillPoolEmpty)
+            {
+                bool allNull = true;
+                foreach (var sk in skillPool)
+                    if (sk != null) { allNull = false; break; }
+                if (allNull)
+                {
+                    Debug.LogWarning($"[Demo1Setup] skillPool 有 {skillPool.Length} 个槽位但全部为 null，重新自动加载...");
+                    skillPoolEmpty = true;
+                }
+            }
+            if (skillPoolEmpty)
             {
 #if UNITY_EDITOR
                 var skillGuids = UnityEditor.AssetDatabase.FindAssets("t:SkillData", new[] { "Assets/1Game/Data/Skills" });
@@ -364,13 +389,24 @@ namespace XianTu
 #endif
             }
 
-            // 设置灵物池
+            // 设置灵物池（过滤掉 null 元素）
             if (itemPool != null && itemPool.Length > 0)
             {
-                var poolField = typeof(GameManager).GetField("itemPool",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                poolField?.SetValue(gm, itemPool);
-                Debug.Log($"<color=green>[Demo1Setup] 灵物池已传递给 GameManager：{itemPool.Length} 个灵物</color>");
+                var validItems = new System.Collections.Generic.List<ItemData>();
+                foreach (var item in itemPool)
+                    if (item != null) validItems.Add(item);
+
+                if (validItems.Count > 0)
+                {
+                    var poolField = typeof(GameManager).GetField("itemPool",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    poolField?.SetValue(gm, validItems.ToArray());
+                    Debug.Log($"<color=green>[Demo1Setup] 灵物池已传递给 GameManager：{validItems.Count} 个灵物（原始 {itemPool.Length} 个，过滤 null 后 {validItems.Count} 个）</color>");
+                }
+                else
+                {
+                    Debug.LogError("[Demo1Setup] 灵物池全部为 null！敌人将无法掉落灵物！");
+                }
             }
             else
             {
@@ -580,11 +616,11 @@ namespace XianTu
             float spiritY = 25f;         // 灵物槽位Y中心
             float spiritSpacing = 82f;   // 灵物槽位间距（加大）
 
-            // 技能槽位颜色
+            // 技能槽位颜色（Q/E/R初始暗色，由SkillBarUI.RefreshSkillSlots根据实际状态设置）
             Color[] skillColors = {
-                new Color(0.3f, 0.5f, 1f, 0.85f),    // Q - 蓝
-                new Color(0.8f, 0.4f, 0.2f, 0.85f),   // E - 橙
-                new Color(0.6f, 0.3f, 0.8f, 0.85f),   // R - 紫
+                new Color(0.08f, 0.08f, 0.12f, 0.35f),    // Q - 初始暗色（有技能后由RefreshSkillSlots设置品阶色）
+                new Color(0.08f, 0.08f, 0.12f, 0.35f),    // E - 初始暗色
+                new Color(0.08f, 0.08f, 0.12f, 0.35f),    // R - 初始暗色
                 new Color(0.2f, 0.8f, 0.6f, 0.85f),   // 闪避 - 青
                 new Color(0.7f, 0.7f, 0.7f, 0.7f)     // 普攻 - 灰
             };

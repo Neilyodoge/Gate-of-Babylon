@@ -223,6 +223,11 @@ namespace XianTu
         {
             if (rewardPool == null || rewardPool.Length == 0) return;
 
+            // 过滤 null 元素
+            var validPool = new System.Collections.Generic.List<ItemData>();
+            foreach (var d in rewardPool) if (d != null) validPool.Add(d);
+            if (validPool.Count == 0) return;
+
             // 通关额外奖励：先判定概率，再掉落
             var config = GameConfig.Instance;
             int count = config != null ? config.通关额外掉落数 : rewardCount;
@@ -241,18 +246,18 @@ namespace XianTu
                     // 按品阶权重选择（层数越高，高品质比重越大）
                     ItemRarity targetRarity = config.RollRarity(_roomIndex);
                     var candidates = new System.Collections.Generic.List<ItemData>();
-                    foreach (var d in rewardPool)
+                    foreach (var d in validPool)
                     {
-                        if (d != null && d.rarity == targetRarity)
+                        if (d.rarity == targetRarity)
                             candidates.Add(d);
                     }
                     item = candidates.Count > 0
                         ? candidates[Random.Range(0, candidates.Count)]
-                        : rewardPool[Random.Range(0, rewardPool.Length)];
+                        : validPool[Random.Range(0, validPool.Count)];
                 }
                 else
                 {
-                    item = rewardPool[Random.Range(0, rewardPool.Length)];
+                    item = validPool[Random.Range(0, validPool.Count)];
                 }
 
                 if (item != null)

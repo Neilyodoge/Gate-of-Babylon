@@ -372,8 +372,12 @@ namespace XianTu
             float chance = 0.08f;
             if (config != null) chance = config.debugMaxItemDropRate ? 1f : config.敌人掉落概率;
             if (Random.value > chance) return;
-            ItemData item = possibleDrops[Random.Range(0, possibleDrops.Length)];
-            if (item != null) ItemPickup.Spawn(item, transform.position);
+            // 过滤 null 元素
+            var valid = new System.Collections.Generic.List<ItemData>();
+            foreach (var d in possibleDrops) if (d != null) valid.Add(d);
+            if (valid.Count == 0) return;
+            ItemData item = valid[Random.Range(0, valid.Count)];
+            ItemPickup.Spawn(item, transform.position);
         }
 
         private void TryDropSkill()

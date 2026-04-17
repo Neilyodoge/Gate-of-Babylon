@@ -202,10 +202,15 @@ namespace XianTu
             }
         }
 
-        /// <summary>显示拖拽幽灵</summary>
+        /// <summary>显示拖拽幽灵（带图标效果）</summary>
         private void ShowDragGhost()
         {
             if (_dragGhost == null) return;
+
+            // 获取中心图标文字组件
+            var iconText = _dragGhost.transform.Find("IconText")?.GetComponent<Text>();
+            // 获取外圈发光
+            var glow = _dragGhost.transform.Find("Glow")?.GetComponent<Image>();
 
             if (_dragType == DragType.Spirit)
             {
@@ -215,9 +220,24 @@ namespace XianTu
                     var item = spiritSlots.Slots[_dragSourceSlot].item;
                     if (item != null)
                     {
-                        _dragGhostImage.color = item.GetRarityColor() * 0.9f;
+                        Color c = item.GetRarityColor();
+                        _dragGhostImage.color = new Color(c.r * 0.3f, c.g * 0.3f, c.b * 0.3f, 0.9f);
                         _dragGhostLabel.text = item.itemName;
-                        _dragGhostLabel.color = item.GetRarityColor();
+                        _dragGhostLabel.color = c;
+                        if (_dragGhostKeyLabel != null)
+                        {
+                            int skillIdx = _dragSourceSlot / SpiritSlotSystem.SLOTS_PER_SKILL;
+                            string[] keys = { "Q", "E", "R" };
+                            _dragGhostKeyLabel.text = skillIdx < keys.Length ? keys[skillIdx] : "";
+                        }
+                        if (iconText != null)
+                        {
+                            // 显示灵物名首字作为图标
+                            iconText.text = item.itemName.Length > 0 ? item.itemName.Substring(0, 1) : "?";
+                            iconText.color = c;
+                        }
+                        if (glow != null)
+                            glow.color = new Color(c.r, c.g, c.b, 0.4f);
                     }
                 }
             }
@@ -229,23 +249,29 @@ namespace XianTu
                     var skill = combat.GetSkillInSlot(_dragSourceSlot);
                     if (skill != null)
                     {
-                        Color c = skill.rarity switch
-                        {
-                            ItemRarity.Fan => Color.white,
-                            ItemRarity.Ling => Color.green,
-                            ItemRarity.Xuan => new Color(0.3f, 0.5f, 1f),
-                            ItemRarity.Di => new Color(0.7f, 0.3f, 1f),
-                            ItemRarity.Tian => new Color(1f, 0.85f, 0f),
-                            _ => Color.white
-                        };
-                        _dragGhostImage.color = c * 0.9f;
+                        Color c = GetRarityColor(skill.rarity);
+                        _dragGhostImage.color = new Color(c.r * 0.3f, c.g * 0.3f, c.b * 0.3f, 0.9f);
                         _dragGhostLabel.text = skill.skillName;
                         _dragGhostLabel.color = c;
+                        if (_dragGhostKeyLabel != null)
+                        {
+                            string[] keys = { "Q", "E", "R" };
+                            _dragGhostKeyLabel.text = _dragSourceSlot < keys.Length ? keys[_dragSourceSlot] : "";
+                        }
+                        if (iconText != null)
+                        {
+                            // 显示技能名首字作为图标
+                            iconText.text = skill.skillName.Length > 0 ? skill.skillName.Substring(0, 1) : "?";
+                            iconText.color = c;
+                        }
+                        if (glow != null)
+                            glow.color = new Color(c.r, c.g, c.b, 0.4f);
                     }
                 }
             }
 
             _dragGhost.SetActive(true);
+            _dragGhost.transform.SetAsLastSibling();
         }
 
         /// <summary>源槽位变暗</summary>
@@ -404,6 +430,8 @@ namespace XianTu
             {
                 RefreshSpiritSlot(i, spiritSlots.Slots[i].item);
             }
+
+            RefreshSkillSlots();
         }
 
         private void RefreshSpiritSlot(int index, ItemData item)
@@ -438,7 +466,132 @@ namespace XianTu
         }
 
         private void OnSpiritSlotChanged(GameEvents.SpiritSlotChanged evt) => RefreshAllSlots();
-        private void OnSkillEquipped(GameEvents.SkillEquipped evt) { /* 可刷新技能图标 */ }
+        private void OnSkillEquipped(GameEvents.SkillEquipped evt) => RefreshSkillSlots();
+
+        /// <summary>刷新技能槽位显示（空槽暗色虚化，有技能显示品阶色+功法名+发光边框）</summary>
+        public void RefreshSkillSlots()
+        {
+            if (PlayerController.Instance == null) return;
+            var combat = PlayerController.Instance.GetComponent<PlayerCombat>();
+            if (combat == null) return;
+
+            string[] keys = { "Q", "E", "R" };
+            for (int i = 0; i < 3 && i < skillSlotRTs.Length; i++)
+            {
+                if (skillSlotRTs[i] == null) continue;
+                var skill = combat.GetSkillInSlot(i);
+                var slotImg = skillSlotRTs[i].GetComponent<Image>();
+
+                // 获取子元素
+                var borderTf = skillSlotRTs[i].Find($"SkillBorder_{i}");
+                var iconTf = skillSlotRTs[i].Find($"SkillIcon_{i}");
+                var cdTextTf = skillSlotRTs[i].Find($"SkillCDText_{i}");
+                var borderImg = borderTf?.GetComponent<Image>();
+                var iconImg = iconTf?.GetComponent<Image>();
+                var cdText = cdTextTf?.GetComponent<Text>();
+
+                // 查找或创建技能名标签
+                var nameLabelTf = skillSlotRTs[i].Find("SkillNameLabel");
+                Text nameLabel = null;
+                if (nameLabelTf == null)
+                {
+                    var nameLabelGo = new GameObject("SkillNameLabel");
+                    nameLabelGo.transform.SetParent(skillSlotRTs[i], false);
+                    var nlRT = nameLabelGo.AddComponent<RectTransform>();
+                    nlRT.anchorMin = new Vector2(0.5f, 0);
+                    nlRT.anchorMax = new Vector2(0.5f, 0);
+                    nlRT.pivot = new Vector2(0.5f, 1);
+                    nlRT.anchoredPosition = new Vector2(0, -2);
+                    nlRT.sizeDelta = new Vector2(100, 16);
+                    nameLabel = nameLabelGo.AddComponent<Text>();
+                    nameLabel.fontSize = 11;
+                    nameLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                    nameLabel.alignment = TextAnchor.MiddleCenter;
+                    nameLabel.fontStyle = FontStyle.Bold;
+                    nameLabel.raycastTarget = false;
+                    nameLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+                    var nlOutline = nameLabelGo.AddComponent<Outline>();
+                    nlOutline.effectColor = new Color(0, 0, 0, 0.9f);
+                    nlOutline.effectDistance = new Vector2(1, -1);
+                }
+                else
+                {
+                    nameLabel = nameLabelTf.GetComponent<Text>();
+                }
+
+                if (skill != null)
+                {
+                    // ===== 有功法：高亮品阶色 =====
+                    Color c = GetRarityColor(skill.rarity);
+
+                    // 背景：品阶色，较高不透明度
+                    if (slotImg != null)
+                        slotImg.color = new Color(c.r * 0.5f, c.g * 0.5f, c.b * 0.5f, 0.9f);
+
+                    // 边框：品阶色发光
+                    if (borderImg != null)
+                        borderImg.color = new Color(c.r, c.g, c.b, 0.8f);
+
+                    // 图标区域：品阶色淡底
+                    if (iconImg != null)
+                        iconImg.color = new Color(c.r, c.g, c.b, 0.25f);
+
+                    // CD文字：明亮白色
+                    if (cdText != null)
+                        cdText.color = Color.white;
+
+                    // 功法名标签：品阶色
+                    if (nameLabel != null)
+                    {
+                        string displayName = skill.skillName.Length <= 4
+                            ? skill.skillName : skill.skillName.Substring(0, 4);
+                        nameLabel.text = displayName;
+                        nameLabel.color = c;
+                        nameLabel.gameObject.SetActive(true);
+                    }
+                }
+                else
+                {
+                    // ===== 空槽：暗淡虚化 =====
+
+                    // 背景：极暗
+                    if (slotImg != null)
+                        slotImg.color = new Color(0.08f, 0.08f, 0.12f, 0.35f);
+
+                    // 边框：暗灰虚化
+                    if (borderImg != null)
+                        borderImg.color = new Color(0.25f, 0.25f, 0.3f, 0.25f);
+
+                    // 图标区域：几乎不可见
+                    if (iconImg != null)
+                        iconImg.color = new Color(0.3f, 0.3f, 0.3f, 0.05f);
+
+                    // CD文字：暗淡
+                    if (cdText != null)
+                        cdText.color = new Color(0.4f, 0.4f, 0.45f, 0.5f);
+
+                    // 隐藏功法名
+                    if (nameLabel != null)
+                    {
+                        nameLabel.text = "";
+                        nameLabel.gameObject.SetActive(false);
+                    }
+                }
+            }
+        }
+
+        private Color GetRarityColor(ItemRarity rarity)
+        {
+            return rarity switch
+            {
+                ItemRarity.Fan => new Color(0.7f, 0.7f, 0.7f),
+                ItemRarity.Ling => new Color(0.3f, 0.85f, 0.3f),
+                ItemRarity.Xuan => new Color(0.3f, 0.5f, 1f),
+                ItemRarity.Di => new Color(0.7f, 0.3f, 1f),
+                ItemRarity.Tian => new Color(1f, 0.85f, 0f),
+                _ => Color.white
+            };
+        }
 
         // ==================== 悬停提示 ====================
 
@@ -685,13 +838,30 @@ namespace XianTu
             _tooltipPanel.SetActive(false);
         }
 
+        private Text _dragGhostKeyLabel;  // 快捷键标签（Q/E/R）
+
         private void CreateDragGhost()
         {
             _dragGhost = new GameObject("DragGhost");
-            _dragGhost.transform.SetParent(transform, false);
+            // 挂到Canvas根节点下，确保在最上层
+            var canvasRoot = _parentCanvas != null ? _parentCanvas.transform : transform;
+            _dragGhost.transform.SetParent(canvasRoot, false);
             _dragGhostRT = _dragGhost.AddComponent<RectTransform>();
-            _dragGhostRT.sizeDelta = new Vector2(48, 48);
+            _dragGhostRT.sizeDelta = new Vector2(56, 56);
 
+            // 外圈发光背景
+            var glowGo = new GameObject("Glow");
+            glowGo.transform.SetParent(_dragGhost.transform, false);
+            var glowRT = glowGo.AddComponent<RectTransform>();
+            glowRT.anchorMin = Vector2.zero;
+            glowRT.anchorMax = Vector2.one;
+            glowRT.offsetMin = new Vector2(-4, -4);
+            glowRT.offsetMax = new Vector2(4, 4);
+            var glowImg = glowGo.AddComponent<Image>();
+            glowImg.color = new Color(1f, 0.85f, 0.3f, 0.4f);
+            glowImg.raycastTarget = false;
+
+            // 主图标背景
             _dragGhostImage = _dragGhost.AddComponent<Image>();
             _dragGhostImage.color = Color.white;
             _dragGhostImage.raycastTarget = false;
@@ -700,17 +870,56 @@ namespace XianTu
             outline.effectColor = new Color(1f, 0.85f, 0.3f, 0.9f);
             outline.effectDistance = new Vector2(2, -2);
 
-            // 名称标签
+            // 快捷键标签（左上角小字，如 Q/E/R）
+            var keyGo = new GameObject("KeyLabel");
+            keyGo.transform.SetParent(_dragGhost.transform, false);
+            var keyRT = keyGo.AddComponent<RectTransform>();
+            keyRT.anchorMin = new Vector2(0, 1);
+            keyRT.anchorMax = new Vector2(0, 1);
+            keyRT.pivot = new Vector2(0, 1);
+            keyRT.anchoredPosition = new Vector2(2, -2);
+            keyRT.sizeDelta = new Vector2(20, 16);
+            _dragGhostKeyLabel = keyGo.AddComponent<Text>();
+            _dragGhostKeyLabel.fontSize = 11;
+            _dragGhostKeyLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _dragGhostKeyLabel.alignment = TextAnchor.UpperLeft;
+            _dragGhostKeyLabel.fontStyle = FontStyle.Bold;
+            _dragGhostKeyLabel.color = new Color(1, 1, 1, 0.7f);
+            _dragGhostKeyLabel.raycastTarget = false;
+            var keyOutline = keyGo.AddComponent<Outline>();
+            keyOutline.effectColor = new Color(0, 0, 0, 0.9f);
+            keyOutline.effectDistance = new Vector2(1, -1);
+
+            // 中心图标文字（灵物/技能名首字）
+            var iconTextGo = new GameObject("IconText");
+            iconTextGo.transform.SetParent(_dragGhost.transform, false);
+            var iconTextRT = iconTextGo.AddComponent<RectTransform>();
+            iconTextRT.anchorMin = Vector2.zero;
+            iconTextRT.anchorMax = Vector2.one;
+            iconTextRT.offsetMin = new Vector2(2, 2);
+            iconTextRT.offsetMax = new Vector2(-2, -14);
+            var iconText = iconTextGo.AddComponent<Text>();
+            iconText.fontSize = 22;
+            iconText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            iconText.alignment = TextAnchor.MiddleCenter;
+            iconText.fontStyle = FontStyle.Bold;
+            iconText.raycastTarget = false;
+            iconText.color = Color.white;
+            var iconOutline = iconTextGo.AddComponent<Outline>();
+            iconOutline.effectColor = new Color(0, 0, 0, 0.8f);
+            iconOutline.effectDistance = new Vector2(1, -1);
+
+            // 底部名称标签
             var labelGo = new GameObject("Label");
             labelGo.transform.SetParent(_dragGhost.transform, false);
             var labelRT = labelGo.AddComponent<RectTransform>();
-            labelRT.anchorMin = new Vector2(0.5f, 1);
-            labelRT.anchorMax = new Vector2(0.5f, 1);
-            labelRT.pivot = new Vector2(0.5f, 0);
-            labelRT.anchoredPosition = new Vector2(0, 4);
-            labelRT.sizeDelta = new Vector2(120, 20);
+            labelRT.anchorMin = new Vector2(0.5f, 0);
+            labelRT.anchorMax = new Vector2(0.5f, 0);
+            labelRT.pivot = new Vector2(0.5f, 1);
+            labelRT.anchoredPosition = new Vector2(0, -2);
+            labelRT.sizeDelta = new Vector2(120, 18);
             _dragGhostLabel = labelGo.AddComponent<Text>();
-            _dragGhostLabel.fontSize = 13;
+            _dragGhostLabel.fontSize = 12;
             _dragGhostLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _dragGhostLabel.alignment = TextAnchor.MiddleCenter;
             _dragGhostLabel.raycastTarget = false;

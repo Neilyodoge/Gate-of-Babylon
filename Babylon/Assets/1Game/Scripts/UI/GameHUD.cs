@@ -291,7 +291,10 @@ namespace XianTu
                         skillQCooldownText.text = "Q";
                 }
                 if (skillQIcon != null)
-                    skillQIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+                {
+                    Color readyColor = GetSkillSlotIconColor(0);
+                    skillQIcon.color = evt.RemainingTime > 0 ? new Color(0.3f, 0.3f, 0.3f, 0.5f) : readyColor;
+                }
             }
             else if (evt.SlotIndex == 1)
             {
@@ -305,7 +308,10 @@ namespace XianTu
                         skillECooldownText.text = "E";
                 }
                 if (skillEIcon != null)
-                    skillEIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+                {
+                    Color readyColor = GetSkillSlotIconColor(1);
+                    skillEIcon.color = evt.RemainingTime > 0 ? new Color(0.3f, 0.3f, 0.3f, 0.5f) : readyColor;
+                }
             }
             else if (evt.SlotIndex == 2)
             {
@@ -319,8 +325,30 @@ namespace XianTu
                         skillRCooldownText.text = "R";
                 }
                 if (skillRIcon != null)
-                    skillRIcon.color = evt.RemainingTime > 0 ? new Color(0.5f, 0.5f, 0.5f) : Color.white;
+                {
+                    Color readyColor = GetSkillSlotIconColor(2);
+                    skillRIcon.color = evt.RemainingTime > 0 ? new Color(0.3f, 0.3f, 0.3f, 0.5f) : readyColor;
+                }
             }
+        }
+
+        /// <summary>获取技能槽图标就绪颜色（有技能=品阶淡色，无技能=几乎不可见）</summary>
+        private Color GetSkillSlotIconColor(int slotIndex)
+        {
+            var combat = PlayerController.Instance?.GetComponent<PlayerCombat>();
+            if (combat == null) return new Color(0.3f, 0.3f, 0.3f, 0.05f);
+            var skill = combat.GetSkillInSlot(slotIndex);
+            if (skill == null) return new Color(0.3f, 0.3f, 0.3f, 0.05f);
+            Color c = skill.rarity switch
+            {
+                ItemRarity.Fan => new Color(0.7f, 0.7f, 0.7f),
+                ItemRarity.Ling => new Color(0.3f, 0.85f, 0.3f),
+                ItemRarity.Xuan => new Color(0.3f, 0.5f, 1f),
+                ItemRarity.Di => new Color(0.7f, 0.3f, 1f),
+                ItemRarity.Tian => new Color(1f, 0.85f, 0f),
+                _ => Color.white
+            };
+            return new Color(c.r, c.g, c.b, 0.25f);
         }
 
         // ==================== 闪避CD ====================

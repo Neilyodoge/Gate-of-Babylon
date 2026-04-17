@@ -509,6 +509,12 @@ namespace XianTu
         {
             if (possibleDrops == null || possibleDrops.Length == 0) return;
 
+            // 过滤掉 null 元素
+            var validDrops = new List<ItemData>();
+            foreach (var d in possibleDrops)
+                if (d != null) validDrops.Add(d);
+            if (validDrops.Count == 0) return;
+
             if (!guaranteed)
             {
                 var config = GameConfig.Instance;
@@ -525,16 +531,16 @@ namespace XianTu
                 {
                     ItemRarity targetRarity = config.RollRarity(_roomLevel);
                     var candidates = new List<ItemData>();
-                    foreach (var item in possibleDrops)
-                        if (item != null && item.rarity == targetRarity)
+                    foreach (var item in validDrops)
+                        if (item.rarity == targetRarity)
                             candidates.Add(item);
                     selectedItem = candidates.Count > 0
                         ? candidates[Random.Range(0, candidates.Count)]
-                        : possibleDrops[Random.Range(0, possibleDrops.Length)];
+                        : validDrops[Random.Range(0, validDrops.Count)];
                 }
                 else
                 {
-                    selectedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
+                    selectedItem = validDrops[Random.Range(0, validDrops.Count)];
                 }
 
                 if (selectedItem != null)

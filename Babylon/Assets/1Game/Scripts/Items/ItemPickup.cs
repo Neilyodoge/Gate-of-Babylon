@@ -41,19 +41,25 @@ namespace XianTu
             col.isTrigger = true;
             col.radius = pickupRadius;
 
-            // 设置显示颜色（根据品阶）
+            // 设置显示颜色（根据品阶）——如果Spawn中没有设置过材质，这里兜底设置
             if (itemData != null)
             {
                 var renderer = GetComponentInChildren<Renderer>();
-                if (renderer != null)
+                if (renderer != null && renderer.sharedMaterial != null 
+                    && renderer.sharedMaterial.shader.name.Contains("Error"))
                 {
-                    var mat = renderer.material;
-                    mat.color = itemData.GetRarityColor();
-                    // 添加自发光
-                    mat.EnableKeyword("_EMISSION");
-                    mat.SetColor("_EmissionColor", itemData.GetRarityColor() * 0.5f);
+                    ApplyMaterial(renderer);
                 }
             }
+        }
+
+        /// <summary>应用品阶颜色材质</summary>
+        private void ApplyMaterial(Renderer renderer)
+        {
+            if (itemData == null || renderer == null) return;
+            Color rarityColor = itemData.GetRarityColor();
+            var mat = MaterialHelper.CreateLitEmissive(rarityColor, rarityColor * 0.5f);
+            renderer.material = mat;
         }
 
         private void Update()
@@ -428,25 +434,41 @@ namespace XianTu
         /// </summary>
         public static ItemPickup Spawn(ItemData data, Vector3 position)
         {
+            if (data == null)
+            {
+                Debug.LogWarning("[ItemPickup.Spawn] data 为 null，跳过生成");
+                return null;
+            }
+
             // 创建一个简单的几何体作为灵物表现
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = $"ItemPickup_{data.itemName}";
-            go.transform.position = position + Vector3.up * 0.15f;
-            go.transform.localScale = Vector3.one * 0.4f;
+            // 确保Y坐标在地面以上
+            Vector3 spawnPos = position;
+            spawnPos.y = Mathf.Max(spawnPos.y, 0f) + 0.5f;
+            go.transform.position = spawnPos;
+            go.transform.localScale = Vector3.one * 0.5f;
             go.layer = LayerMask.NameToLayer("Default");
 
-            // 复用 CreatePrimitive 自带的 SphereCollider（RequireComponent 需要它）
-            // 先移除默认的非 Sphere 碰撞体（如果有的话），保留 SphereCollider
+            // 立即设置正确的URP材质（不等Start，确保第一帧就可见）
+            var renderer = go.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                Color rarityColor = data.GetRarityColor();
+                renderer.material = MaterialHelper.CreateLitEmissive(rarityColor, rarityColor * 0.8f);
+            }
+
+            // 复用 CreatePrimitive 自带的 SphereCollider
             var existingSphere = go.GetComponent<SphereCollider>();
             if (existingSphere != null)
             {
-                // 直接复用，不需要删除
                 existingSphere.isTrigger = true;
             }
 
             var pickup = go.AddComponent<ItemPickup>();
             pickup.itemData = data;
 
+            Debug.Log($"<color=green>[ItemPickup] ✓ 生成灵物：{data.itemName}（{data.rarity}），位置={spawnPos}</color>");
             return pickup;
         }
     }

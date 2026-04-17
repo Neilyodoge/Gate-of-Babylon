@@ -177,12 +177,15 @@ namespace XianTu
         private void KillAllEnemies()
         {
             var enemies = GameObject.FindGameObjectsWithTag("Enemy");
+            Debug.Log($"[DebugConsole] KillAllEnemies: 找到 {enemies.Length} 个Enemy标签对象");
             int count = 0;
             foreach (var enemy in enemies)
             {
+                if (enemy == null) continue;
                 var damageable = enemy.GetComponent<IDamageable>();
                 if (damageable != null)
                 {
+                    Debug.Log($"[DebugConsole] 击杀: {enemy.name}, IsAlive={damageable.Stats?.IsAlive}");
                     damageable.OnDamage(999999f, enemy.transform.position, gameObject);
                     count++;
                 }
@@ -296,7 +299,27 @@ namespace XianTu
             _maxItemDropRate = !_maxItemDropRate;
             var config = GameConfig.Instance;
             if (config != null)
+            {
                 config.debugMaxItemDropRate = _maxItemDropRate;
+                // 验证设置是否生效
+                Debug.Log($"[DebugConsole] debugMaxItemDropRate 设置为 {_maxItemDropRate}，验证读取: {config.debugMaxItemDropRate}");
+
+                // 检查灵物池
+                if (_maxItemDropRate && GameManager.Instance != null)
+                {
+                    var poolField = typeof(GameManager).GetField("itemPool",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var pool = poolField?.GetValue(GameManager.Instance) as ItemData[];
+                    if (pool == null || pool.Length == 0)
+                        Debug.LogError("[DebugConsole] ⚠ GameManager.itemPool 为空！敌人无法掉落灵物！");
+                    else
+                        Debug.Log($"[DebugConsole] ✓ GameManager.itemPool 有 {pool.Length} 个灵物");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[DebugConsole] GameConfig.Instance 为 null！");
+            }
             AddLog(_maxItemDropRate ? "<color=yellow>💎 灵物爆率拉满 开启</color>" : "<color=gray>💎 灵物爆率拉满 关闭</color>");
             RefreshStatus();
         }
