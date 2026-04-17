@@ -40,6 +40,14 @@ namespace XianTu
         private int[] _skillMaxCharges = new int[3];    // 最大充能层数
         private float[] _skillRechargeTimer = new float[3]; // 充能恢复计时器
         private float[] _skillRechargeDuration = new float[3]; // 每层充能恢复时间
+        private int[] _chargeBonusFromItems = new int[3]; // 灵物提供的额外充能层数
+
+        // 蓄力系统
+        private int _chargingSlot = -1;          // 当前正在蓄力的技能槽位（-1=未蓄力）
+        private float _chargeTimer = 0f;          // 蓄力计时器
+        private int _currentChargeLevel = 1;      // 当前蓄力等级
+        private float _originalMoveSpeed;         // 蓄力前的移速（用于恢复）
+        private bool _chargeMoveSpeedApplied;     // 是否已应用蓄力减速
 
         // 攻击判定：每段攻击只判定一次
         private bool _hasHitThisSwing;
@@ -63,12 +71,40 @@ namespace XianTu
 
         private void Update()
         {
-            if (!_player.Stats.IsAlive || _player.IsDashing) return;
+            if (!_player.Stats.IsAlive || _player.IsDashing)
+            {
+                // 死亡或闪避时取消蓄力
+                if (_chargingSlot >= 0)
+                    CancelCharging();
+                return;
+            }
 
             HandleMeleeAttack();
             HandleSkills();
             UpdateCooldowns();
             CheckMeleeHit();
+        }
+
+        /// <summary>取消蓄力（不释放技能）</summary>
+        private void CancelCharging()
+        {
+            if (_chargingSlot < 0) return;
+
+            int slot = _chargingSlot;
+            RestoreChargeMoveSpeed();
+            _chargingSlot = -1;
+            _chargeTimer = 0f;
+            _currentChargeLevel = 1;
+
+            GameEvents.Publish(new GameEvents.SkillChargeProgress
+            {
+                SlotIndex = slot,
+                ChargeTime = 0f,
+                ChargeLevel = 1,
+                IsCharging = false
+            });
+
+            Debug.Log("<color=gray>蓄力被中断</color>");
         }
 
         // ==================== 近战攻击 ====================
@@ -235,31 +271,158 @@ namespace XianTu
 
         // ==================== 技能 ====================
 
-        /// <summary>技能释放（支持充能系统）</summary>
+        /// <summary>技能释放（支持充能系统 + 蓄力系统）</summary>
         private void HandleSkills()
         {
             var kb = Keyboard.current;
             if (kb == null) return;
 
-            // Q 技能
-            if (kb.qKey.wasPressedThisFrame && skillQ != null && _skillCharges[0] > 0)
+            SkillData[] skills = { skillQ, skillE, skillR };
+            var keys = new[] { kb.qKey, kb.eKey, kb.rKey };
+
+            // 如果正在蓄力中
+            if (_chargingSlot >= 0)
             {
-                if (UseSkill(skillQ, 0))
-                    ConsumeSkillCharge(0, skillQ);
+                var skill = skills[_chargingSlot];
+                var key = keys[_chargingSlot];
+
+                if (skill == null || !key.isPressed)
+                {
+                    // 松开按键 → 释放蓄力技能
+                    ReleaseChargedSkill();
+                    return;
+                }
+
+                // 继续蓄力
+                float chargeSpeedBonus = 0f;
+                var spiritSlots = GetComponent<SpiritSlotSystem>();
+                if (spiritSlots != null)
+                    chargeSpeedBonus = spiritSlots.GetSkillChargeSpeedBonus(_chargingSlot);
+
+                _chargeTimer += Time.deltaTime * (1f + chargeSpeedBonus);
+                int newLevel = skill.GetChargeLevel(_chargeTimer);
+
+                if (newLevel != _currentChargeLevel)
+                {
+                    _currentChargeLevel = newLevel;
+                    Debug.Log($"<color=yellow>蓄力等级提升 → Lv{_currentChargeLevel}！</color>");
+                }
+
+                // 发布蓄力进度事件
+                GameEvents.Publish(new GameEvents.SkillChargeProgress
+                {
+                    SlotIndex = _chargingSlot,
+                    ChargeTime = _chargeTimer,
+                    ChargeLevel = _currentChargeLevel,
+                    IsCharging = true
+                });
+
+                return; // 蓄力中不处理其他技能
             }
 
-            // E 技能
-            if (kb.eKey.wasPressedThisFrame && skillE != null && _skillCharges[1] > 0)
+            // 非蓄力状态：检测按键
+            for (int i = 0; i < 3; i++)
             {
-                if (UseSkill(skillE, 1))
-                    ConsumeSkillCharge(1, skillE);
+                if (skills[i] == null || _skillCharges[i] <= 0) continue;
+
+                if (keys[i].wasPressedThisFrame)
+                {
+                    // 支持蓄力的技能 → 开始蓄力
+                    if (skills[i].canCharge)
+                    {
+                        StartCharging(i, skills[i]);
+                    }
+                    else
+                    {
+                        // 不支持蓄力 → 直接释放
+                        if (UseSkill(skills[i], i, 1))
+                            ConsumeSkillCharge(i, skills[i]);
+                    }
+                    return; // 每帧只处理一个技能
+                }
+            }
+        }
+
+        /// <summary>开始蓄力</summary>
+        private void StartCharging(int slotIndex, SkillData skill)
+        {
+            _chargingSlot = slotIndex;
+            _chargeTimer = 0f;
+            _currentChargeLevel = 1;
+            _chargeMoveSpeedApplied = false;
+
+            // 应用蓄力减速
+            if (skill.chargeMoveSpeedMultiplier < 1f && _player != null)
+            {
+                _originalMoveSpeed = _player.Stats.moveSpeed;
+                _player.Stats.moveSpeed *= skill.chargeMoveSpeedMultiplier;
+                _chargeMoveSpeedApplied = true;
             }
 
-            // R 技能
-            if (kb.rKey.wasPressedThisFrame && skillR != null && _skillCharges[2] > 0)
+            Debug.Log($"<color=yellow>开始蓄力：{skill.skillName}</color>");
+
+            GameEvents.Publish(new GameEvents.SkillChargeProgress
             {
-                if (UseSkill(skillR, 2))
-                    ConsumeSkillCharge(2, skillR);
+                SlotIndex = slotIndex,
+                ChargeTime = 0f,
+                ChargeLevel = 1,
+                IsCharging = true
+            });
+        }
+
+        /// <summary>释放蓄力技能</summary>
+        private void ReleaseChargedSkill()
+        {
+            if (_chargingSlot < 0) return;
+
+            int slot = _chargingSlot;
+            int chargeLevel = _currentChargeLevel;
+            SkillData[] skills = { skillQ, skillE, skillR };
+            var skill = skills[slot];
+
+            // 恢复移速
+            RestoreChargeMoveSpeed();
+
+            // 重置蓄力状态
+            _chargingSlot = -1;
+            _chargeTimer = 0f;
+            _currentChargeLevel = 1;
+
+            // 发布蓄力结束事件
+            GameEvents.Publish(new GameEvents.SkillChargeProgress
+            {
+                SlotIndex = slot,
+                ChargeTime = 0f,
+                ChargeLevel = 1,
+                IsCharging = false
+            });
+
+            if (skill == null) return;
+
+            // 释放技能（带蓄力等级）
+            if (UseSkill(skill, slot, chargeLevel))
+            {
+                ConsumeSkillCharge(slot, skill);
+
+                GameEvents.Publish(new GameEvents.SkillChargeReleased
+                {
+                    SlotIndex = slot,
+                    ChargeLevel = chargeLevel,
+                    Skill = skill
+                });
+
+                if (chargeLevel > 1)
+                    Debug.Log($"<color=cyan>蓄力释放 Lv{chargeLevel}：{skill.skillName}（伤害×{skill.GetChargeDamageMultiplier(chargeLevel):F1}）</color>");
+            }
+        }
+
+        /// <summary>恢复蓄力减速</summary>
+        private void RestoreChargeMoveSpeed()
+        {
+            if (_chargeMoveSpeedApplied && _player != null)
+            {
+                _player.Stats.moveSpeed = _originalMoveSpeed;
+                _chargeMoveSpeedApplied = false;
             }
         }
 
@@ -271,6 +434,15 @@ namespace XianTu
             if (_skillCharges[slotIndex] < _skillMaxCharges[slotIndex] && _skillRechargeTimer[slotIndex] <= 0)
             {
                 float rechargeTime = skill.chargeTime > 0 ? skill.chargeTime : skill.cooldown;
+
+                // 应用灵物CD缩减
+                var spiritSlots = GetComponent<SpiritSlotSystem>();
+                if (spiritSlots != null)
+                {
+                    float cdReduction = spiritSlots.GetSkillCooldownReduction(slotIndex);
+                    rechargeTime *= (1f - cdReduction);
+                }
+
                 _skillRechargeTimer[slotIndex] = rechargeTime;
                 _skillRechargeDuration[slotIndex] = rechargeTime;
             }
@@ -299,7 +471,8 @@ namespace XianTu
         {
             if (skill != null)
             {
-                _skillMaxCharges[slotIndex] = Mathf.Max(1, skill.maxCharges);
+                int baseCharges = Mathf.Max(1, skill.maxCharges);
+                _skillMaxCharges[slotIndex] = Mathf.Clamp(baseCharges + _chargeBonusFromItems[slotIndex], 1, 3);
                 _skillCharges[slotIndex] = _skillMaxCharges[slotIndex];
             }
             else
@@ -311,8 +484,66 @@ namespace XianTu
             _skillRechargeDuration[slotIndex] = 0;
         }
 
+        // ==================== 充能加成（灵物系统调用） ====================
+
+        /// <summary>增加技能槽位的充能上限（由灵物系统调用）</summary>
+        public void AddChargeBonus(int skillSlotIndex, int bonus)
+        {
+            if (skillSlotIndex < 0 || skillSlotIndex >= 3) return;
+            _chargeBonusFromItems[skillSlotIndex] += bonus;
+            // 重新初始化充能
+            SkillData[] skills = { skillQ, skillE, skillR };
+            if (skills[skillSlotIndex] != null)
+            {
+                int oldCharges = _skillCharges[skillSlotIndex];
+                InitSkillCharges(skillSlotIndex, skills[skillSlotIndex]);
+                // 保持当前充能不减少
+                _skillCharges[skillSlotIndex] = Mathf.Max(oldCharges, _skillCharges[skillSlotIndex]);
+                PublishSkillChargeUpdate(skillSlotIndex, skills[skillSlotIndex]);
+                Debug.Log($"<color=green>技能{skillSlotIndex}充能上限+{bonus} → {_skillMaxCharges[skillSlotIndex]}层</color>");
+            }
+        }
+
+        /// <summary>移除技能槽位的充能上限加成（由灵物系统调用）</summary>
+        public void RemoveChargeBonus(int skillSlotIndex, int bonus)
+        {
+            if (skillSlotIndex < 0 || skillSlotIndex >= 3) return;
+            _chargeBonusFromItems[skillSlotIndex] = Mathf.Max(0, _chargeBonusFromItems[skillSlotIndex] - bonus);
+            // 重新初始化充能
+            SkillData[] skills = { skillQ, skillE, skillR };
+            if (skills[skillSlotIndex] != null)
+            {
+                InitSkillCharges(skillSlotIndex, skills[skillSlotIndex]);
+                PublishSkillChargeUpdate(skillSlotIndex, skills[skillSlotIndex]);
+                Debug.Log($"<color=gray>技能{skillSlotIndex}充能上限-{bonus} → {_skillMaxCharges[skillSlotIndex]}层</color>");
+            }
+        }
+
+        /// <summary>获取技能槽位的实际充能上限（含灵物加成）</summary>
+        public int GetMaxCharges(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= 3) return 1;
+            return _skillMaxCharges[slotIndex];
+        }
+
+        /// <summary>获取技能槽位的当前充能层数</summary>
+        public int GetCurrentCharges(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= 3) return 0;
+            return _skillCharges[slotIndex];
+        }
+
+        /// <summary>是否正在蓄力</summary>
+        public bool IsCharging => _chargingSlot >= 0;
+
+        /// <summary>当前蓄力的技能槽位</summary>
+        public int ChargingSlot => _chargingSlot;
+
+        /// <summary>当前蓄力等级</summary>
+        public int CurrentChargeLevel => _currentChargeLevel;
+
         /// <summary>使用技能（返回是否成功释放）</summary>
-        private bool UseSkill(SkillData skill, int slotIndex)
+        private bool UseSkill(SkillData skill, int slotIndex, int chargeLevel = 1)
         {
             if (skill == null) return false;
 
@@ -352,15 +583,31 @@ namespace XianTu
                     return false;
             }
 
-            Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
+            // 计算蓄力加成
+            float chargeDmgMul = skill.GetChargeDamageMultiplier(chargeLevel);
+            float chargeRadiusMul = skill.GetChargeRadiusMultiplier(chargeLevel);
+
+            // 灵物蓄力伤害加成
+            if (chargeLevel > 1)
+            {
+                var spiritSlots = GetComponent<SpiritSlotSystem>();
+                if (spiritSlots != null)
+                {
+                    float bonusDmg = spiritSlots.GetSkillChargeDamageBonus(slotIndex);
+                    chargeDmgMul *= (1f + bonusDmg);
+                }
+            }
+
+            string chargeSuffix = chargeLevel > 1 ? $" [蓄力Lv{chargeLevel}]" : "";
+            Debug.Log($"<color=cyan>释放功法：{skill.skillName}{chargeSuffix}</color>");
 
             switch (skill.skillType)
             {
                 case SkillType.AreaDamage:
-                    CastAreaSkill(skill);
+                    CastAreaSkill(skill, chargeDmgMul, chargeRadiusMul);
                     break;
                 case SkillType.Projectile:
-                    CastProjectileSkill(skill);
+                    CastProjectileSkill(skill, chargeDmgMul);
                     break;
                 case SkillType.Dash:
                     CastDashSkill(skill);
@@ -376,8 +623,8 @@ namespace XianTu
             return true;
         }
 
-        /// <summary>范围伤害技能（如落石术）</summary>
-        private void CastAreaSkill(SkillData skill)
+        /// <summary>范围伤害技能（如落石术），支持蓄力倍率</summary>
+        private void CastAreaSkill(SkillData skill, float damageMul = 1f, float radiusMul = 1f)
         {
             var cam = Camera.main;
             if (cam == null) return;
@@ -388,9 +635,10 @@ namespace XianTu
             Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
             var groundPlane = new Plane(Vector3.up, transform.position);
 
-            if (groundPlane.Raycast(ray, out float distance))
+                if (groundPlane.Raycast(ray, out float distance))
             {
                 Vector3 targetPos = ray.GetPoint(distance);
+                float actualRadius = skill.aoeRadius * radiusMul;
 
                 if (skill.vfxPrefab != null)
                 {
@@ -405,33 +653,38 @@ namespace XianTu
                         vfx = Instantiate(skill.vfxPrefab, targetPos, Quaternion.identity);
                         Destroy(vfx, skill.vfxDuration);
                     }
+                    // 蓄力时放大VFX
+                    if (radiusMul > 1f)
+                        vfx.transform.localScale *= radiusMul;
                 }
                 else if (showDebugVisuals)
                 {
                     // 没有VFX时创建Debug可视化：用半透明Cube表示落石
-                    CreateDebugAreaIndicator(targetPos, skill.aoeRadius, skill.vfxDuration,
-                        new Color(0.8f, 0.3f, 0.1f, 0.6f));
+                    Color areaColor = damageMul > 1f
+                        ? new Color(1f, 0.5f, 0.1f, 0.8f)  // 蓄力：更亮的橙色
+                        : new Color(0.8f, 0.3f, 0.1f, 0.6f);
+                    CreateDebugAreaIndicator(targetPos, actualRadius, skill.vfxDuration, areaColor);
                 }
 
-                var hits = Physics.OverlapSphere(targetPos, skill.aoeRadius, enemyLayer);
+                var hits = Physics.OverlapSphere(targetPos, actualRadius, enemyLayer);
                 foreach (var hit in hits)
                 {
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
                     {
-                        float damage = skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling;
+                        float damage = (skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
                         damageable.OnDamage(damage, hit.transform.position, gameObject);
                     }
                 }
             }
         }
 
-        /// <summary>投射物技能（支持多发散射）</summary>
-        private void CastProjectileSkill(SkillData skill)
+        /// <summary>投射物技能（支持多发散射），支持蓄力倍率</summary>
+        private void CastProjectileSkill(SkillData skill, float damageMul = 1f)
         {
             Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
             Vector3 dir = _player.AimDirection;
-            float damage = skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling;
+            float damage = (skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
 
             int count = Mathf.Max(1, skill.projectileCount);
             float halfSpread = skill.spreadAngle * 0.5f;
@@ -526,6 +779,15 @@ namespace XianTu
                     if (_skillCharges[i] < _skillMaxCharges[i])
                     {
                         float rechargeTime = skills[i].chargeTime > 0 ? skills[i].chargeTime : skills[i].cooldown;
+
+                        // 应用灵物CD缩减
+                        var spiritSlots = GetComponent<SpiritSlotSystem>();
+                        if (spiritSlots != null)
+                        {
+                            float cdReduction = spiritSlots.GetSkillCooldownReduction(i);
+                            rechargeTime *= (1f - cdReduction);
+                        }
+
                         _skillRechargeTimer[i] = rechargeTime;
                         _skillRechargeDuration[i] = rechargeTime;
                     }

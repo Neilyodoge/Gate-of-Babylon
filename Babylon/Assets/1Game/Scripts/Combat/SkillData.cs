@@ -43,10 +43,35 @@ namespace XianTu
 
         [Header("充能")]
         /// <summary>最大充能层数（1=无充能，普通CD；2+=多层充能）</summary>
-        [Range(1, 5)]
+        [Range(1, 3)]
         public int maxCharges = 1;
         /// <summary>每层充能恢复时间（秒），0=使用cooldown值</summary>
         public float chargeTime = 0f;
+
+        [Header("蓄力系统")]
+        /// <summary>是否支持蓄力释放（长按增强）</summary>
+        public bool canCharge = false;
+        /// <summary>蓄力Lv2所需时间（秒）</summary>
+        [Range(0.3f, 2f)]
+        public float chargeLv2Time = 0.5f;
+        /// <summary>蓄力Lv3所需时间（秒）</summary>
+        [Range(0.8f, 3f)]
+        public float chargeLv3Time = 1.5f;
+        /// <summary>蓄力Lv2伤害倍率</summary>
+        [Range(1f, 3f)]
+        public float chargeLv2DamageMultiplier = 1.5f;
+        /// <summary>蓄力Lv3伤害倍率</summary>
+        [Range(1f, 5f)]
+        public float chargeLv3DamageMultiplier = 2.5f;
+        /// <summary>蓄力Lv2范围倍率（对AOE技能生效）</summary>
+        [Range(1f, 2f)]
+        public float chargeLv2RadiusMultiplier = 1.0f;
+        /// <summary>蓄力Lv3范围倍率（对AOE技能生效）</summary>
+        [Range(1f, 3f)]
+        public float chargeLv3RadiusMultiplier = 1.3f;
+        /// <summary>蓄力期间移速倍率（1=不减速，0.5=减速50%）</summary>
+        [Range(0.1f, 1f)]
+        public float chargeMoveSpeedMultiplier = 0.4f;
 
         [Header("范围伤害参数")]
         public float aoeRadius = 3f;
@@ -88,5 +113,38 @@ namespace XianTu
         public AudioClip castSFX;
         /// <summary>技能命中音效（为空则使用 AudioConfig 中的通用命中音效）</summary>
         public AudioClip hitSFX;
+
+        // ==================== 运行时数据（不序列化） ====================
+
+        /// <summary>获取指定蓄力等级的伤害倍率</summary>
+        public float GetChargeDamageMultiplier(int chargeLevel)
+        {
+            return chargeLevel switch
+            {
+                2 => chargeLv2DamageMultiplier,
+                3 => chargeLv3DamageMultiplier,
+                _ => 1f
+            };
+        }
+
+        /// <summary>获取指定蓄力等级的范围倍率</summary>
+        public float GetChargeRadiusMultiplier(int chargeLevel)
+        {
+            return chargeLevel switch
+            {
+                2 => chargeLv2RadiusMultiplier,
+                3 => chargeLv3RadiusMultiplier,
+                _ => 1f
+            };
+        }
+
+        /// <summary>根据蓄力时间计算蓄力等级（1/2/3）</summary>
+        public int GetChargeLevel(float chargeTime)
+        {
+            if (!canCharge || chargeTime <= 0) return 1;
+            if (chargeTime >= chargeLv3Time) return 3;
+            if (chargeTime >= chargeLv2Time) return 2;
+            return 1;
+        }
     }
 }

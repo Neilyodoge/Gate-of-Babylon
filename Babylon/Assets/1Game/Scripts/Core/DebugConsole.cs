@@ -233,12 +233,28 @@ namespace XianTu
             AddLog("<color=orange>★ 跳转到宝箱房间</color>");
         }
 
+        /// <summary>跳转到升级房间</summary>
+        private void GotoUpgradeRoom()
+        {
+            if (GameManager.Instance == null) return;
+            GameManager.Instance.DebugGotoRoom(Minimap.RoomType.Upgrade);
+            AddLog("<color=green>↑ 跳转到升级房间</color>");
+        }
+
         /// <summary>增加灵力碎片</summary>
         private void AddShards()
         {
             if (PlayerResources.Instance == null) return;
             PlayerResources.Instance.AddShards(500);
             AddLog("<color=#88CCFF>✦ +500 灵力碎片</color>");
+        }
+
+        /// <summary>大量增加灵力碎片</summary>
+        private void AddShardsLarge()
+        {
+            if (PlayerResources.Instance == null) return;
+            PlayerResources.Instance.AddShards(5000);
+            AddLog("<color=#88CCFF>✦ +5000 灵力碎片</color>");
         }
 
         /// <summary>强制通关当前房间</summary>
@@ -477,8 +493,8 @@ namespace XianTu
             // --- 属性调整 ---
             CreateSectionHeader(contentGo.transform, "【 属性调整 】");
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
-            CreateButton(contentGo.transform, "♥ 最大生命 +100", new Color(0.2f, 0.45f, 0.25f), BoostMaxHp);
             CreateButton(contentGo.transform, "✦ 灵力碎片 +500", new Color(0.2f, 0.35f, 0.5f), AddShards);
+            CreateButton(contentGo.transform, "✦ 灵力碎片 +5000", new Color(0.25f, 0.4f, 0.55f), AddShardsLarge);
             CreateButton(contentGo.transform, "💎 灵物爆率拉满", new Color(0.5f, 0.4f, 0.1f), ToggleMaxItemDropRate);
             CreateButton(contentGo.transform, "📜 功法爆率拉满", new Color(0.2f, 0.4f, 0.5f), ToggleMaxSkillDropRate);
 
@@ -491,6 +507,7 @@ namespace XianTu
             CreateButton(contentGo.transform, "☠ 跳转 → Boss", new Color(0.5f, 0.1f, 0.1f), GotoBossRoom);
             CreateButton(contentGo.transform, "♥ 跳转 → 休息", new Color(0.15f, 0.35f, 0.5f), GotoRestRoom);
             CreateButton(contentGo.transform, "★ 跳转 → 宝箱", new Color(0.5f, 0.35f, 0.1f), GotoTreasureRoom);
+            CreateButton(contentGo.transform, "↑ 跳转 → 升级", new Color(0.2f, 0.5f, 0.3f), GotoUpgradeRoom);
 
             // --- 系统 ---
             CreateSectionHeader(contentGo.transform, "【 系统 】");

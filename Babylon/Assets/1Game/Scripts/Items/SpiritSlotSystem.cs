@@ -173,6 +173,15 @@ namespace XianTu
             if (item.projectileSpeedBonusPercent > 0)
                 _playerStats.projectileSpeed *= (1f + item.projectileSpeedBonusPercent);
 
+            // 充能加成：通知PlayerCombat更新充能上限
+            if (item.skillChargeBonus > 0)
+            {
+                int skillIdx = slotIndex / SLOTS_PER_SKILL;
+                var combat = GetComponent<PlayerCombat>();
+                if (combat != null)
+                    combat.AddChargeBonus(skillIdx, item.skillChargeBonus);
+            }
+
             // 通知UI更新
             GameEvents.Publish(new GameEvents.HealthChanged
             {
@@ -209,6 +218,15 @@ namespace XianTu
             if (item.projectileSpeedBonusPercent > 0)
                 _playerStats.projectileSpeed /= (1f + item.projectileSpeedBonusPercent);
 
+            // 充能加成移除
+            if (item.skillChargeBonus > 0)
+            {
+                int skillIdx = slotIndex / SLOTS_PER_SKILL;
+                var combat = GetComponent<PlayerCombat>();
+                if (combat != null)
+                    combat.RemoveChargeBonus(skillIdx, item.skillChargeBonus);
+            }
+
             GameEvents.Publish(new GameEvents.HealthChanged
             {
                 CurrentHp = _playerStats.currentHp,
@@ -244,6 +262,45 @@ namespace XianTu
             if (slotIndex < 0 || slotIndex >= _slots.Length) return 0f;
             var item = _slots[slotIndex].item;
             return item != null ? item.freezeChance : 0f;
+        }
+
+        /// <summary>获取指定技能槽位的蓄力速度加成（来自该技能下方的灵物）</summary>
+        public float GetSkillChargeSpeedBonus(int skillSlotIndex)
+        {
+            float total = 0f;
+            int startSlot = skillSlotIndex * SLOTS_PER_SKILL;
+            for (int i = startSlot; i < startSlot + SLOTS_PER_SKILL && i < _slots.Length; i++)
+            {
+                if (_slots[i].item != null)
+                    total += _slots[i].item.chargeSpeedBonusPercent;
+            }
+            return total;
+        }
+
+        /// <summary>获取指定技能槽位的蓄力伤害加成（来自该技能下方的灵物）</summary>
+        public float GetSkillChargeDamageBonus(int skillSlotIndex)
+        {
+            float total = 0f;
+            int startSlot = skillSlotIndex * SLOTS_PER_SKILL;
+            for (int i = startSlot; i < startSlot + SLOTS_PER_SKILL && i < _slots.Length; i++)
+            {
+                if (_slots[i].item != null)
+                    total += _slots[i].item.chargeDamageBonusPercent;
+            }
+            return total;
+        }
+
+        /// <summary>获取指定技能槽位的CD缩减加成（来自该技能下方的灵物）</summary>
+        public float GetSkillCooldownReduction(int skillSlotIndex)
+        {
+            float total = 0f;
+            int startSlot = skillSlotIndex * SLOTS_PER_SKILL;
+            for (int i = startSlot; i < startSlot + SLOTS_PER_SKILL && i < _slots.Length; i++)
+            {
+                if (_slots[i].item != null)
+                    total += _slots[i].item.cooldownReductionPercent;
+            }
+            return Mathf.Clamp01(total); // 最高100%
         }
 
         private string GetSlotKeyName(int slotIndex)

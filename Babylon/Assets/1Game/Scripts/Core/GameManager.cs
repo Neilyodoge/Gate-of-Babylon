@@ -134,12 +134,14 @@ namespace XianTu
 
                     // 第二个房间随机
                     float roll = Random.value;
-                    if (roll < 0.35f)
+                    if (roll < 0.30f)
                         rooms.Add(Minimap.RoomType.Battle);
-                    else if (roll < 0.55f)
+                    else if (roll < 0.48f)
                         rooms.Add(Minimap.RoomType.Shop);
-                    else if (roll < 0.75f)
+                    else if (roll < 0.64f)
                         rooms.Add(Minimap.RoomType.Treasure);
+                    else if (roll < 0.80f)
+                        rooms.Add(Minimap.RoomType.Upgrade);
                     else
                         rooms.Add(Minimap.RoomType.Rest);
 
@@ -235,6 +237,9 @@ namespace XianTu
                 case Minimap.RoomType.Boss:
                     SpawnBossRoom(spawnPos);
                     break;
+                case Minimap.RoomType.Upgrade:
+                    SpawnUpgradeRoom(spawnPos);
+                    break;
             }
 
             // 将玩家传送到房间中心
@@ -309,6 +314,15 @@ namespace XianTu
             var room = _currentRoomGo.AddComponent<TreasureRoom>();
             room.Initialize(_currentLevel, itemPool);
             Debug.Log($"<color=yellow>【{CurrentRealmName}】宝箱房间 — 靠近开启 — 按F离开</color>");
+        }
+
+        private void SpawnUpgradeRoom(Vector3 spawnPos)
+        {
+            _currentRoomGo = new GameObject($"UpgradeRoom_Lv{_currentLevel}_{CurrentRealmName}");
+            _currentRoomGo.transform.position = spawnPos;
+            var room = _currentRoomGo.AddComponent<UpgradeRoom>();
+            room.Initialize(_currentLevel);
+            Debug.Log($"<color=green>【{CurrentRealmName}】升级房间 — 靠近功法宗师按F修炼 — 按F离开</color>");
         }
 
         private void TeleportPlayer(Vector3 pos)
@@ -389,6 +403,9 @@ namespace XianTu
 
             var treasureRoom = _currentRoomGo.GetComponent<TreasureRoom>();
             if (treasureRoom != null) return treasureRoom.RoomDepth / 2f;
+
+            var upgradeRoom = _currentRoomGo.GetComponent<UpgradeRoom>();
+            if (upgradeRoom != null) return upgradeRoom.RoomDepth / 2f;
 
             return 10f;
         }
@@ -520,6 +537,9 @@ namespace XianTu
                     break;
                 case Minimap.RoomType.Boss:
                     SpawnBossRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Upgrade:
+                    SpawnUpgradeRoom(spawnPos);
                     break;
             }
 

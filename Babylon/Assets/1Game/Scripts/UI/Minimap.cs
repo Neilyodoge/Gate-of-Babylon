@@ -16,7 +16,7 @@ namespace XianTu
         private int _currentRoomIndex;
         private int _totalRooms;
 
-        public enum RoomType { Battle, Shop, Rest, Treasure, Boss }
+        public enum RoomType { Battle, Shop, Rest, Treasure, Boss, Upgrade }
 
         /// <summary>初始化小地图布局</summary>
         public void Initialize(List<RoomType> roomLayout)
@@ -113,6 +113,7 @@ namespace XianTu
                 RoomType.Rest => new Color(0.3f, 0.7f, 1f, 0.8f),
                 RoomType.Treasure => new Color(1f, 0.6f, 0.1f, 0.8f),
                 RoomType.Boss => new Color(0.8f, 0.1f, 0.1f, 0.9f),
+                RoomType.Upgrade => new Color(0.4f, 0.8f, 0.4f, 0.8f),
                 _ => new Color(0.5f, 0.5f, 0.5f, 0.5f)
             };
         }
@@ -126,6 +127,7 @@ namespace XianTu
                 RoomType.Rest => "♥",
                 RoomType.Treasure => "★",
                 RoomType.Boss => "☠",
+                RoomType.Upgrade => "↑",
                 _ => "?"
             };
         }

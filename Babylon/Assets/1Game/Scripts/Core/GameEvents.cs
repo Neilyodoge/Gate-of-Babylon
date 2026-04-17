@@ -222,5 +222,22 @@ namespace XianTu
             public int SpiritShards;
             public int Delta; // 变化量（正=获得，负=消耗）
         }
+
+        /// <summary>技能蓄力进度更新（用于UI显示蓄力进度条）</summary>
+        public struct SkillChargeProgress
+        {
+            public int SlotIndex;       // 技能槽位 0=Q, 1=E, 2=R
+            public float ChargeTime;    // 当前蓄力时间
+            public int ChargeLevel;     // 当前蓄力等级 1/2/3
+            public bool IsCharging;     // 是否正在蓄力
+        }
+
+        /// <summary>技能蓄力释放（用于音效/特效反馈）</summary>
+        public struct SkillChargeReleased
+        {
+            public int SlotIndex;
+            public int ChargeLevel;     // 释放时的蓄力等级
+            public SkillData Skill;
+        }
     }
 }

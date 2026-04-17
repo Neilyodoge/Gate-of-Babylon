@@ -78,6 +78,16 @@ namespace XianTu
         /// <summary>击杀回复生命</summary>
         public float healOnKill = 0f;
 
+        [Header("充能与蓄力")]
+        /// <summary>技能充能层数加成（+1=额外增加1层充能上限，仅对同槽位技能生效）</summary>
+        public int skillChargeBonus = 0;
+        /// <summary>蓄力速度加成（百分比，0.2=蓄力速度+20%，即蓄力时间缩短）</summary>
+        public float chargeSpeedBonusPercent = 0f;
+        /// <summary>蓄力伤害额外加成（百分比，0.15=蓄力伤害额外+15%）</summary>
+        public float chargeDamageBonusPercent = 0f;
+        /// <summary>CD缩减（百分比，0.1=CD缩短10%）</summary>
+        public float cooldownReductionPercent = 0f;
+
         [Header("功法关联（仅功法类灵物）")]
         /// <summary>关联的功法数据（拾取后可装备到技能槽位）</summary>
         public SkillData linkedSkill;
