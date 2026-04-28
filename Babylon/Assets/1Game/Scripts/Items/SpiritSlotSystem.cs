@@ -25,11 +25,9 @@ namespace XianTu
         /// <summary>每个技能下方的灵物槽位数</summary>
         public const int SLOTS_PER_SKILL = 2;
 
-        /// <summary>玩家战斗属性引用</summary>
-        private CombatStats _playerStats;
-        private CombatStats _baseStats;
-
         public IReadOnlyList<SpiritSlot> Slots => _slots;
+
+        private ItemInventory _inventory;
 
         private void Awake()
         {
@@ -41,13 +39,13 @@ namespace XianTu
                     linkedSkillSlot = i / SLOTS_PER_SKILL // 0,0,1,1,2,2
                 };
             }
+            _inventory = GetComponent<ItemInventory>();
         }
 
-        /// <summary>初始化，绑定玩家属性</summary>
+        /// <summary>初始化（保留签名以兼容 PlayerController；全局属性由背包统一重算）</summary>
         public void Initialize(CombatStats baseStats, CombatStats playerStats)
         {
-            _baseStats = baseStats;
-            _playerStats = playerStats;
+            if (_inventory == null) _inventory = GetComponent<ItemInventory>();
         }
 
         /// <summary>
@@ -68,6 +66,10 @@ namespace XianTu
             // 应用新灵物效果
             if (item != null)
                 ApplyItemEffect(item, slotIndex);
+
+            // 槽位变化 → 通知背包重算（灵物离开槽位则其全局词条立即失效）
+            if (_inventory != null)
+                _inventory.RecalculatePlayerStats();
 
             // 发布事件
             GameEvents.Publish(new GameEvents.SpiritSlotChanged
@@ -125,6 +127,10 @@ namespace XianTu
             if (_slots[slotB].item != null)
                 ApplyItemEffect(_slots[slotB].item, slotB);
 
+            // 槽位灵物未变，但绑定技能可能不同，仍触发一次重算保持一致
+            if (_inventory != null)
+                _inventory.RecalculatePlayerStats();
+
             Debug.Log($"<color=cyan>灵物槽位交换：{GetSlotKeyName(slotA)} ↔ {GetSlotKeyName(slotB)}</color>");
         }
 
@@ -145,35 +151,14 @@ namespace XianTu
 
         // ==================== 效果应用 ====================
 
-        /// <summary>应用灵物效果到玩家属性</summary>
+        /// <summary>
+        /// 槽位效果：仅处理技能充能层数等槽位专属逻辑。
+        /// 灵物全局数值已由 <see cref="ItemInventory.RecalculateStats"/> 按背包持有数统一聚合，避免与背包重算互相覆盖。
+        /// </summary>
         private void ApplyItemEffect(ItemData item, int slotIndex)
         {
-            if (item == null || _playerStats == null) return;
+            if (item == null) return;
 
-            // 全局效果：直接加到玩家属性上
-            _playerStats.attackDamage += item.attackBonus;
-            _playerStats.maxHp += item.maxHpBonus;
-            _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction + item.damageReductionBonus);
-            _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + item.critRateBonus);
-            _playerStats.pierceCount += item.pierceBonus;
-
-            // 百分比加成
-            if (item.attackBonusPercent > 0)
-                _playerStats.attackDamage *= (1f + item.attackBonusPercent);
-            if (item.maxHpBonusPercent > 0)
-            {
-                float hpRatio = _playerStats.maxHp > 0 ? _playerStats.currentHp / _playerStats.maxHp : 1f;
-                _playerStats.maxHp *= (1f + item.maxHpBonusPercent);
-                _playerStats.currentHp = _playerStats.maxHp * hpRatio;
-            }
-            if (item.moveSpeedBonusPercent > 0)
-                _playerStats.moveSpeed *= (1f + item.moveSpeedBonusPercent);
-            if (item.attackSpeedBonusPercent > 0)
-                _playerStats.attackSpeed *= (1f + item.attackSpeedBonusPercent);
-            if (item.projectileSpeedBonusPercent > 0)
-                _playerStats.projectileSpeed *= (1f + item.projectileSpeedBonusPercent);
-
-            // 充能加成：通知PlayerCombat更新充能上限
             if (item.skillChargeBonus > 0)
             {
                 int skillIdx = slotIndex / SLOTS_PER_SKILL;
@@ -181,44 +166,12 @@ namespace XianTu
                 if (combat != null)
                     combat.AddChargeBonus(skillIdx, item.skillChargeBonus);
             }
-
-            // 通知UI更新
-            GameEvents.Publish(new GameEvents.HealthChanged
-            {
-                CurrentHp = _playerStats.currentHp,
-                MaxHp = _playerStats.maxHp
-            });
         }
 
-        /// <summary>移除灵物效果</summary>
         private void RemoveItemEffect(ItemData item, int slotIndex)
         {
-            if (item == null || _playerStats == null) return;
+            if (item == null) return;
 
-            // 移除全局效果
-            _playerStats.attackDamage -= item.attackBonus;
-            _playerStats.maxHp -= item.maxHpBonus;
-            _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction - item.damageReductionBonus);
-            _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate - item.critRateBonus);
-            _playerStats.pierceCount -= item.pierceBonus;
-
-            // 百分比加成（反向）
-            if (item.attackBonusPercent > 0)
-                _playerStats.attackDamage /= (1f + item.attackBonusPercent);
-            if (item.maxHpBonusPercent > 0)
-            {
-                float hpRatio = _playerStats.maxHp > 0 ? _playerStats.currentHp / _playerStats.maxHp : 1f;
-                _playerStats.maxHp /= (1f + item.maxHpBonusPercent);
-                _playerStats.currentHp = _playerStats.maxHp * hpRatio;
-            }
-            if (item.moveSpeedBonusPercent > 0)
-                _playerStats.moveSpeed /= (1f + item.moveSpeedBonusPercent);
-            if (item.attackSpeedBonusPercent > 0)
-                _playerStats.attackSpeed /= (1f + item.attackSpeedBonusPercent);
-            if (item.projectileSpeedBonusPercent > 0)
-                _playerStats.projectileSpeed /= (1f + item.projectileSpeedBonusPercent);
-
-            // 充能加成移除
             if (item.skillChargeBonus > 0)
             {
                 int skillIdx = slotIndex / SLOTS_PER_SKILL;
@@ -226,12 +179,6 @@ namespace XianTu
                 if (combat != null)
                     combat.RemoveChargeBonus(skillIdx, item.skillChargeBonus);
             }
-
-            GameEvents.Publish(new GameEvents.HealthChanged
-            {
-                CurrentHp = _playerStats.currentHp,
-                MaxHp = _playerStats.maxHp
-            });
         }
 
         /// <summary>

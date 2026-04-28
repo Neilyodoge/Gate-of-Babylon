@@ -28,6 +28,7 @@ namespace XianTu
         private float _phantomDuration = 3f;
         private float _phantomAttackInterval = 0.8f;
         private float _phantomDamageRatio = 0.3f;
+        private readonly List<GameObject> _activePhantoms = new();
 
         // ========== 剑阵（攻伐·剑质变）==========
         private bool _swordOrbitActive;
@@ -176,10 +177,25 @@ namespace XianTu
 
             switch (effectId)
             {
+                case "玉碎":
+                    _jadeShieldReady = false;
+                    _jadeShieldTimer = 0f;
+                    break;
+                case "焚天":
+                    _fireHitCounter = 0;
+                    break;
+                case "御风":
+                    ClearPhantoms();
+                    break;
                 case "剑阵":
                     DeactivateSwordOrbit();
                     break;
+                case "涅槃":
+                    _nirvanaReady = false;
+                    break;
             }
+
+            Debug.Log($"<color=gray>质变机制失效：{effectId}</color>");
         }
 
         // ==================== 玉碎：致命伤害免疫 ====================
@@ -412,6 +428,7 @@ namespace XianTu
             phantom.transform.position = spawnPos;
             phantom.transform.rotation = transform.rotation;
             phantom.transform.localScale = new Vector3(0.8f, 1f, 0.8f);
+            _activePhantoms.Add(phantom);
 
             var col = phantom.GetComponent<Collider>();
             if (col != null) Destroy(col);
@@ -460,6 +477,16 @@ namespace XianTu
             }
 
             if (phantom != null) Destroy(phantom);
+            _activePhantoms.Remove(phantom);
+        }
+
+        private void ClearPhantoms()
+        {
+            foreach (var phantom in _activePhantoms)
+            {
+                if (phantom != null) Destroy(phantom);
+            }
+            _activePhantoms.Clear();
         }
 
         private void PhantomAttack(Vector3 position)
@@ -1026,6 +1053,7 @@ namespace XianTu
             _bloodlustActive = false;
             BloodlustSynergyActive = false;
             FireTrailSynergyActive = false;
+            ClearPhantoms();
             DeactivateSwordOrbit();
             DeactivateElementBurst();
         }
