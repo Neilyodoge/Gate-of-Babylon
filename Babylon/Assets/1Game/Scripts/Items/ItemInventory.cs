@@ -204,6 +204,10 @@ namespace XianTu
 
             SynergySystem.ApplyActiveSynergyStatModifiers(_playerStats);
 
+            // StatusEffect 框架（BUFF/DEBUFF）—— 灵根连杀、临时增益等都走这里
+            var statusCtrl = GetComponent<StatusEffectController>();
+            if (statusCtrl != null) statusCtrl.ApplyModifiersTo(_playerStats);
+
             _playerStats.damageReduction = Mathf.Clamp01(_playerStats.damageReduction);
             _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate);
 

@@ -53,6 +53,15 @@ namespace XianTu
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
         public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "飞升";
 
+        /// <summary>按 itemName 在 itemPool 中查找灵物（灵根起手灵物 / 调试用）</summary>
+        public ItemData FindItemByName(string itemName)
+        {
+            if (string.IsNullOrEmpty(itemName) || itemPool == null) return null;
+            foreach (var it in itemPool)
+                if (it != null && it.itemName == itemName) return it;
+            return null;
+        }
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -79,7 +88,25 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Subscribe<GameEvents.SpiritRootSelected>(OnSpiritRootSelected);
 
+            // 先弹灵根选择 UI；选完才 StartNewRun
+            ShowSpiritRootSelectionThenStart();
+        }
+
+        private bool _waitingRoot;
+
+        private void ShowSpiritRootSelectionThenStart()
+        {
+            _waitingRoot = true;
+            SpiritRootSelectUI.Show();
+            StatusEffectHUD.EnsureExists();
+        }
+
+        private void OnSpiritRootSelected(GameEvents.SpiritRootSelected evt)
+        {
+            if (!_waitingRoot) return;
+            _waitingRoot = false;
             StartNewRun();
         }
 
@@ -123,22 +150,28 @@ namespace XianTu
                 }
                 else if (i == 0)
                 {
-                    // 第一层：2个战斗房间（教学/热身）
+                    // 第一层：第一间固定战斗（教学/热身），第二间偶尔放商店让玩家早一点见到
                     rooms.Add(Minimap.RoomType.Battle);
-                    rooms.Add(Minimap.RoomType.Battle);
+                    float r0 = Random.value;
+                    if (r0 < 0.55f)
+                        rooms.Add(Minimap.RoomType.Battle);   // 55% 战斗
+                    else if (r0 < 0.85f)
+                        rooms.Add(Minimap.RoomType.Shop);     // 30% 商店
+                    else
+                        rooms.Add(Minimap.RoomType.Rest);     // 15% 休息
                 }
                 else
                 {
                     // 中间层：2~3个房间，第一个固定战斗，后面随机
                     rooms.Add(Minimap.RoomType.Battle);
 
-                    // 第二个房间随机
+                    // 第二个房间随机（2026-04 调整：商店出现率 18% → 30%，减少额外战斗的占比）
                     float roll = Random.value;
-                    if (roll < 0.30f)
+                    if (roll < 0.20f)
                         rooms.Add(Minimap.RoomType.Battle);
-                    else if (roll < 0.48f)
+                    else if (roll < 0.50f)
                         rooms.Add(Minimap.RoomType.Shop);
-                    else if (roll < 0.64f)
+                    else if (roll < 0.65f)
                         rooms.Add(Minimap.RoomType.Treasure);
                     else if (roll < 0.80f)
                         rooms.Add(Minimap.RoomType.Upgrade);
@@ -154,20 +187,36 @@ namespace XianTu
                 _levelLayout.AddRange(rooms);
             }
 
-            // 确保整局至少有一个商店和一个休息房间
-            bool hasShop = false, hasRest = false;
+            // 经济平衡（2026-04 调整）：保底从「至少1家商店」提升到「至少2家商店」，
+            // 同时仍至少保留 1 个休息房，让消费窗口足够。
+            int shopCount = 0;
+            bool hasRest = false;
             foreach (var rooms in _levelRooms)
                 foreach (var rt in rooms)
                 {
-                    if (rt == Minimap.RoomType.Shop) hasShop = true;
+                    if (rt == Minimap.RoomType.Shop) shopCount++;
                     if (rt == Minimap.RoomType.Rest) hasRest = true;
                 }
 
-            // 如果缺少商店，在第2层第2个房间插入
-            if (!hasShop && _levelRooms.Count > 2 && _levelRooms[2].Count > 1)
-                _levelRooms[2][1] = Minimap.RoomType.Shop;
+            // 商店不足 2 家：优先补到第 2 / 第 4 层第二个房间（中前段、中后段各一）
+            int[] shopBackfillLayers = { 2, 4, 1, 3 };
+            int backfillIdx = 0;
+            while (shopCount < 2 && backfillIdx < shopBackfillLayers.Length)
+            {
+                int li = shopBackfillLayers[backfillIdx++];
+                if (li < _levelRooms.Count - 1 && _levelRooms[li].Count > 1
+                    && _levelRooms[li][1] != Minimap.RoomType.Shop
+                    && _levelRooms[li][1] != Minimap.RoomType.Boss)
+                {
+                    _levelRooms[li][1] = Minimap.RoomType.Shop;
+                    shopCount++;
+                }
+            }
+
             // 如果缺少休息，在第3层第2个房间插入
-            if (!hasRest && _levelRooms.Count > 3 && _levelRooms[3].Count > 1)
+            if (!hasRest && _levelRooms.Count > 3 && _levelRooms[3].Count > 1
+                && _levelRooms[3][1] != Minimap.RoomType.Shop
+                && _levelRooms[3][1] != Minimap.RoomType.Boss)
                 _levelRooms[3][1] = Minimap.RoomType.Rest;
 
             // 重建扁平化布局
@@ -421,10 +470,12 @@ namespace XianTu
         {
             if (PlayerResources.Instance == null) return;
 
-            // 基础奖励：每个敌人给2-5碎片，随层数增加
-            int baseShards = Random.Range(2, 6);
-            int levelBonus = _currentLevel; // 每层+1
-            int totalShards = baseShards + levelBonus;
+            // 经济平衡（2026-04 调整）：
+            // 旧公式 Random.Range(2, 6) + _currentLevel 在 6 层下整局给 ~300-600 碎片，配合 5 件商品 ≈10-50 单价
+            // 出现"钱多到买不完"的体感。这里降到约一半，让商店物价显得有分量。
+            int baseShards = Random.Range(1, 3);          // 1-2
+            int levelBonus = _currentLevel / 2;           // 0..2
+            int totalShards = baseShards + levelBonus;     // 1..4
 
             PlayerResources.Instance.AddShards(totalShards);
         }
@@ -462,6 +513,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Unsubscribe<GameEvents.SpiritRootSelected>(OnSpiritRootSelected);
         }
 
         /// <summary>设置小地图引用</summary>

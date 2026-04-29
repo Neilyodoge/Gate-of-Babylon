@@ -80,6 +80,22 @@ namespace XianTu
             _currentHitStop = null;
         }
 
+        /// <summary>
+        /// 强制中止当前顿帧并恢复时间。
+        /// 用于打开暂停式 UI（灵根选择等）前调用，避免协程半路把
+        /// timeScale 留在 0.05/0.02/0.01 被 UI 捕获，导致关闭后卡在慢动作。
+        /// </summary>
+        public void ForceClear()
+        {
+            if (_currentHitStop != null)
+            {
+                StopCoroutine(_currentHitStop);
+                _currentHitStop = null;
+            }
+            Time.timeScale = 1f;
+            Time.fixedDeltaTime = _originalFixedDeltaTime;
+        }
+
         private void OnDestroy()
         {
             // 确保销毁时恢复 TimeScale

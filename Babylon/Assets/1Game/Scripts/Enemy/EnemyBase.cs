@@ -63,6 +63,26 @@ namespace XianTu
 
         public CombatStats Stats => stats;
 
+        /// <summary>
+        /// 冻结：在 stunTimer 上叠加时间，使敌人在指定时长内不能行动 / 攻击。
+        /// 由 <see cref="SkillModifierApplier"/>（GDD 6.5 寒冰玉髓修饰）调用。
+        /// </summary>
+        public void ApplyFreeze(float duration)
+        {
+            if (duration <= 0f) return;
+            _stunTimer = Mathf.Max(_stunTimer, duration);
+            // 简化视觉提示：闪一下蓝色
+            for (int i = 0; i < _renderers.Length; i++)
+                if (_renderers[i] != null) _renderers[i].material.color = new Color(0.4f, 0.8f, 1f, 1f);
+            _hitFlashTimer = duration;
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 1.5f,
+                Damage = 0,
+                SpecialTag = "冻结"
+            });
+        }
+
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();

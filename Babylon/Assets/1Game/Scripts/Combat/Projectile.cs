@@ -18,11 +18,22 @@ namespace XianTu
         private float _burnDPS;
         private float _lifeTimer;
         private bool _initialized;
+        private ElementTag _elementTag;
+        private PlayerController _ownerPlayer;
 
         /// <summary>
         /// 初始化投射物参数
         /// </summary>
         public void Initialize(float damage, Vector3 direction, float speed, int pierceCount, float burnDPS)
+        {
+            Initialize(damage, direction, speed, pierceCount, burnDPS, ElementTag.None, null);
+        }
+
+        /// <summary>
+        /// 初始化投射物参数（含元素 + 释放者引用，用于命中元素表现）
+        /// </summary>
+        public void Initialize(float damage, Vector3 direction, float speed, int pierceCount, float burnDPS,
+                                ElementTag elementTag, PlayerController owner)
         {
             _damage = damage;
             _direction = direction.normalized;
@@ -30,6 +41,8 @@ namespace XianTu
             _pierceRemaining = pierceCount;
             _burnDPS = burnDPS;
             _lifeTimer = lifetime;
+            _elementTag = elementTag;
+            _ownerPlayer = owner;
             _initialized = true;
 
             transform.rotation = Quaternion.LookRotation(_direction);
@@ -71,6 +84,13 @@ namespace XianTu
                     if (burn == null)
                         burn = other.gameObject.AddComponent<BurnEffect>();
                     burn.Apply(_burnDPS, 3f); // 灼烧3秒
+                }
+
+                // 元素命中表现（cube 颜色 + 灼烧 / 冻结 / 雷击）
+                if (_elementTag != ElementTag.None && _ownerPlayer != null)
+                {
+                    var list = new System.Collections.Generic.List<Collider> { other };
+                    SkillModifierApplier.ApplyElementImpact(_elementTag, transform.position, list, _ownerPlayer);
                 }
 
                 // 穿透判定

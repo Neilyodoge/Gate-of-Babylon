@@ -41,6 +41,12 @@ namespace XianTu
         public Sprite icon;
         public ItemRarity rarity = ItemRarity.Fan;
         public ItemCategory category = ItemCategory.Attack;
+        /// <summary>
+        /// 元素 / 类型标签（GDD 5.6 元素反应、GDD 6.5 技能修饰共用）。
+        /// 装入技能槽时，与该技能 modifierDefs 匹配可激活变体。
+        /// </summary>
+        [Tooltip("用于技能修饰匹配（GDD 6.5）和元素反应（GDD 5.6）")]
+        public ElementTag modTag = ElementTag.None;
 
         [Header("叠加规则")]
         /// <summary>是否可叠加（功法类不可叠加，最多3个不同功法）</summary>

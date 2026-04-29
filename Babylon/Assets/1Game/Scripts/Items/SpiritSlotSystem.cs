@@ -250,6 +250,21 @@ namespace XianTu
             return Mathf.Clamp01(total); // 最高100%
         }
 
+        /// <summary>
+        /// 获取某个技能槽下方的所有灵物（去掉空槽，返回 ItemData 列表）。
+        /// 用于 GDD 6.5 技能修饰匹配（按 modTag）。
+        /// </summary>
+        public System.Collections.Generic.List<ItemData> GetItemsInSkillSlot(int skillSlotIndex)
+        {
+            var list = new System.Collections.Generic.List<ItemData>();
+            int startSlot = skillSlotIndex * SLOTS_PER_SKILL;
+            for (int i = startSlot; i < startSlot + SLOTS_PER_SKILL && i < _slots.Length; i++)
+            {
+                if (_slots[i].item != null) list.Add(_slots[i].item);
+            }
+            return list;
+        }
+
         private string GetSlotKeyName(int slotIndex)
         {
             int skillIdx = slotIndex / SLOTS_PER_SKILL;

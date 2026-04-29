@@ -29,6 +29,11 @@ namespace XianTu
         public Sprite icon;
         public ItemRarity rarity = ItemRarity.Fan;
         public SkillType skillType = SkillType.AreaDamage;
+        /// <summary>
+        /// 技能自身的元素属性（与槽位 modifier 正交：modifier 是"额外加的修饰"，
+        /// elementTag 是技能本身固有元素）。命中时会自动产生对应元素表现。
+        /// </summary>
+        public ElementTag elementTag = ElementTag.None;
 
         [Header("数值")]
         /// <summary>基础伤害</summary>
@@ -101,6 +106,10 @@ namespace XianTu
         public float summonDuration = 8f;
         /// <summary>召唤物攻击力</summary>
         public float summonDamage = 10f;
+
+        [Header("灵物修饰（v0.3 槽位限定，GDD 6.5）")]
+        /// <summary>该技能可被槽位灵物修饰的变体；运行时按"该技能槽下方灵物的 modTag"匹配 requiredTag 激活。</summary>
+        public SkillModifierDef[] modifierDefs;
 
         [Header("表现")]
         /// <summary>是否播放技能动作动画（false = 无动作直接释放）</summary>

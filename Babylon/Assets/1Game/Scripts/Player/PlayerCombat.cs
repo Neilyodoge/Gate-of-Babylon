@@ -144,7 +144,10 @@ namespace XianTu
             if (_lastHitComboStep == _playerAnim.ComboStep && _hasHitThisSwing) return;
 
             // 扇形范围检测
-            Vector3 origin = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
+            // 注意：attackOrigin / slashVFXSpawnPoint 都挂在 playerGo 根节点上（根节点不旋转，只有 modelTransform 跟随瞄准方向）。
+            // 所以这里把它们的 localPosition 当成"沿瞄准方向的偏移"（x=侧向, y=高度, z=前向距离），用 AimDirection 旋转后得到世界坐标。
+            // 修复前直接用 attackOrigin.position 会导致命中球永远偏在角色北侧，不跟随瞄准。
+            Vector3 origin = GetAimRelativeWorldPos(attackOrigin, transform.position + Vector3.up * 0.8f);
             Vector3 forward = _player.AimDirection;
 
             var colliders = Physics.OverlapSphere(origin, meleeRange, enemyLayer);
@@ -217,6 +220,21 @@ namespace XianTu
             }
         }
 
+        /// <summary>
+        /// 把 attackOrigin / slashVFXSpawnPoint 的 localPosition 转换成跟随瞄准方向的世界坐标。
+        /// 因为 PlayerController 只让 modelTransform 旋转，根节点不转，
+        /// 直接读 pivot.position 会得到一个与 AimDirection 无关的固定偏移点。
+        /// </summary>
+        private Vector3 GetAimRelativeWorldPos(Transform pivot, Vector3 fallback)
+        {
+            if (pivot == null) return fallback;
+            Vector3 localOffset = pivot.localPosition;
+            Vector3 aim = _player != null ? _player.AimDirection : transform.forward;
+            if (aim.sqrMagnitude < 0.0001f) aim = transform.forward;
+            Quaternion aimRot = Quaternion.LookRotation(aim);
+            return transform.position + aimRot * localOffset;
+        }
+
         // ==================== 特效 ====================
 
         /// <summary>动画事件触发刀光特效</summary>
@@ -232,9 +250,11 @@ namespace XianTu
 
             if (slashVFXPrefab == null) return;
 
-            Vector3 spawnPos = slashVFXSpawnPoint != null
-                ? slashVFXSpawnPoint.position
-                : transform.position + _player.AimDirection * 1f + Vector3.up * 1f;
+            // 与命中判定同源：把 spawnPoint.localPosition 当成沿瞄准方向的偏移
+            // 否则刀光视觉会出现在角色固定的"北侧"，与玩家朝向不一致，造成视觉与命中错位
+            Vector3 spawnPos = GetAimRelativeWorldPos(
+                slashVFXSpawnPoint,
+                transform.position + _player.AimDirection * 1f + Vector3.up * 1f);
 
             Quaternion rot = Quaternion.LookRotation(_player.AimDirection);
 
@@ -604,7 +624,7 @@ namespace XianTu
             switch (skill.skillType)
             {
                 case SkillType.AreaDamage:
-                    CastAreaSkill(skill, chargeDmgMul, chargeRadiusMul);
+                    CastAreaSkill(skill, chargeDmgMul, chargeRadiusMul, slotIndex);
                     break;
                 case SkillType.Projectile:
                     CastProjectileSkill(skill, chargeDmgMul);
@@ -623,8 +643,8 @@ namespace XianTu
             return true;
         }
 
-        /// <summary>范围伤害技能（如落石术），支持蓄力倍率</summary>
-        private void CastAreaSkill(SkillData skill, float damageMul = 1f, float radiusMul = 1f)
+        /// <summary>范围伤害技能（如落石术），支持蓄力倍率 + GDD 6.5 灵物修饰</summary>
+        private void CastAreaSkill(SkillData skill, float damageMul = 1f, float radiusMul = 1f, int slotIndex = -1)
         {
             var cam = Camera.main;
             if (cam == null) return;
@@ -639,6 +659,7 @@ namespace XianTu
             {
                 Vector3 targetPos = ray.GetPoint(distance);
                 float actualRadius = skill.aoeRadius * radiusMul;
+                System.Collections.Generic.List<Collider> hitList = null;
 
                 if (skill.vfxPrefab != null)
                 {
@@ -667,6 +688,7 @@ namespace XianTu
                 }
 
                 var hits = Physics.OverlapSphere(targetPos, actualRadius, enemyLayer);
+                hitList = new System.Collections.Generic.List<Collider>(hits);
                 foreach (var hit in hits)
                 {
                     var damageable = hit.GetComponent<IDamageable>();
@@ -675,6 +697,25 @@ namespace XianTu
                         float damage = (skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
                         damageable.OnDamage(damage, hit.transform.position, gameObject);
                     }
+                }
+
+                // 技能自身元素命中表现（cube 颜色提示 + 灼烧 / 冻结 / 雷击）
+                if (skill.elementTag != ElementTag.None)
+                {
+                    SkillModifierApplier.ApplyElementImpact(skill.elementTag, targetPos, hitList, _player);
+                }
+
+                // GDD 6.5：槽位灵物修饰落地触发（cube 临时特效 / 灼烧 / 冻结 / 雷击 / 持续地带）
+                if (slotIndex >= 0)
+                {
+                    SkillModifierApplier.ApplyAreaSkill(
+                        skill,
+                        slotIndex,
+                        targetPos,
+                        actualRadius,
+                        hitList,
+                        _player,
+                        enemyLayer);
                 }
             }
         }
@@ -709,12 +750,12 @@ namespace XianTu
 
                     var projectile = proj.GetComponent<Projectile>();
                     if (projectile != null)
-                        projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0);
+                        projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0, skill.elementTag, _player);
                 }
                 else if (showDebugVisuals)
                 {
-                    // 没有Prefab时创建Debug投射物
-                    CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration);
+                    // 没有Prefab时创建Debug投射物（带元素颜色提示）
+                    CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, skill.elementTag);
                 }
             }
         }
@@ -744,14 +785,18 @@ namespace XianTu
             }
             else if (showDebugVisuals)
             {
-                // 没有VFX时创建Debug可视化：用半透明球体表示护盾
-                CreateDebugShieldIndicator(skill.vfxDuration, new Color(1f, 0.85f, 0.1f, 0.3f));
+                // 没有VFX时创建Debug可视化：用半透明球体表示护盾，按 elementTag 上色
+                Color shieldColor = skill.elementTag != ElementTag.None
+                    ? SkillModifierApplier.ColorOf(skill.elementTag)
+                    : new Color(1f, 0.85f, 0.1f, 0.3f);
+                shieldColor.a = 0.35f;
+                CreateDebugShieldIndicator(skill.vfxDuration, shieldColor);
             }
 
             // 延迟恢复
             StartCoroutine(BuffDurationCoroutine(stats, originalReduction, skill.vfxDuration));
 
-            Debug.Log($"<color=cyan>金钟罩启动！减伤 +50%，持续 {skill.vfxDuration}秒</color>");
+            Debug.Log($"<color=cyan>{skill.skillName} 启动！减伤 +50%，持续 {skill.vfxDuration}秒</color>");
         }
 
         private System.Collections.IEnumerator BuffDurationCoroutine(CombatStats stats, float originalReduction, float duration)
@@ -1100,10 +1145,14 @@ namespace XianTu
                 targetPos = wallHit.point - dir * 0.5f;
             }
 
-            // 起点特效
+            // 起点特效（按 elementTag 上色，土黄/风青/水蓝/默认褐）
             if (showDebugVisuals)
             {
-                CreateDebugDashTrail(startPos, targetPos, new Color(0.6f, 0.4f, 0.2f, 0.5f));
+                Color trailColor = skill.elementTag != ElementTag.None
+                    ? SkillModifierApplier.ColorOf(skill.elementTag)
+                    : new Color(0.6f, 0.4f, 0.2f, 0.5f);
+                trailColor.a = 0.5f;
+                CreateDebugDashTrail(startPos, targetPos, trailColor);
             }
 
             // 瞬移
@@ -1220,29 +1269,35 @@ namespace XianTu
             Debug.Log($"<color=cyan>召唤！持续 {duration:F0} 秒，每次攻击 {damage:F0} 伤害</color>");
         }
 
-        /// <summary>创建Debug投射物（无Prefab时的可视化）</summary>
-        private void CreateDebugProjectile(Vector3 spawnPos, Vector3 direction, float speed, float damage, float lifetime)
+        /// <summary>创建Debug投射物（无Prefab时的可视化），按 elementTag 上色</summary>
+        private void CreateDebugProjectile(Vector3 spawnPos, Vector3 direction, float speed, float damage, float lifetime, ElementTag elementTag = ElementTag.None)
         {
             var proj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            proj.name = "[Debug] 投射物";
+            proj.name = $"[Debug] 投射物·{elementTag}";
             proj.transform.position = spawnPos;
             proj.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
             proj.layer = 0; // Default层，避免自伤
+
+            // 元素颜色（None 走默认蓝白）
+            Color body = elementTag == ElementTag.None
+                ? new Color(0.3f, 0.7f, 1f, 0.9f)
+                : SkillModifierApplier.ColorOf(elementTag);
+            body.a = 0.95f;
 
             // 设置材质
             var rend = proj.GetComponent<Renderer>();
             if (rend != null)
             {
                 var mat = new Material(MaterialHelper.GetLitShader());
-                mat.color = new Color(0.3f, 0.7f, 1f, 0.9f);
+                mat.color = body;
                 mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", new Color(0.2f, 0.5f, 1f) * 2f);
+                mat.SetColor("_EmissionColor", new Color(body.r, body.g, body.b) * 2f);
                 rend.material = mat;
             }
 
             // 添加Projectile组件
             var projComp = proj.AddComponent<Projectile>();
-            projComp.Initialize(damage, direction, speed, 0, 0);
+            projComp.Initialize(damage, direction, speed, 0, 0, elementTag, _player);
 
             // 确保有触发器碰撞体
             var col = proj.GetComponent<Collider>();
@@ -1432,7 +1487,16 @@ namespace XianTu
                         var damageable = nearest.GetComponent<IDamageable>();
                         if (damageable != null)
                         {
-                            damageable.OnDamage(damage, nearest.transform.position, gameObject);
+                            // 走 BuildSummonDamage 继承玩家暴击 + 当前 attackDamage
+                            var (dmg, isCrit) = _player.Stats.BuildSummonDamage(0.3f, damage * 0.5f);
+                            damageable.OnDamage(dmg, nearest.transform.position, gameObject);
+                            GameEvents.Publish(new GameEvents.DamageNumberRequested
+                            {
+                                WorldPosition = nearest.transform.position + Vector3.up * 1.5f,
+                                Damage = dmg,
+                                IsCrit = isCrit,
+                                SpecialTag = "傀儡"
+                            });
                             // 攻击特效线
                             Debug.DrawLine(summon.transform.position, nearest.transform.position,
                                 new Color(0.6f, 0.3f, 0.9f), 0.3f);
@@ -1458,7 +1522,7 @@ namespace XianTu
         /// <summary>运行时绘制攻击扇形范围（Debug.DrawLine，Game视图可见）</summary>
         private void DrawAttackRange(Color color)
         {
-            Vector3 origin = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
+            Vector3 origin = GetAimRelativeWorldPos(attackOrigin, transform.position + Vector3.up * 0.8f);
             Vector3 forward = _player.AimDirection;
             float halfAngle = meleeAngle * 0.5f;
 
@@ -1490,8 +1554,18 @@ namespace XianTu
         {
             if (_player == null) return;
 
-            Vector3 origin = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
             Vector3 forward = Application.isPlaying ? _player.AimDirection : transform.forward;
+            Vector3 origin;
+            if (attackOrigin != null)
+            {
+                Vector3 localOffset = attackOrigin.localPosition;
+                Quaternion aimRot = Quaternion.LookRotation(forward.sqrMagnitude > 0.0001f ? forward : transform.forward);
+                origin = transform.position + aimRot * localOffset;
+            }
+            else
+            {
+                origin = transform.position + Vector3.up * 0.8f;
+            }
 
             // 绘制攻击范围球
             Gizmos.color = new Color(1f, 0.3f, 0.3f, 0.2f);

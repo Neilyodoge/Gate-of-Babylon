@@ -3,17 +3,17 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 场景中的灵物拾取物
-    /// 靠近后显示提示，按F拾取自动放入第一个空位
-    /// 长按F分解获得灵力碎片
+    /// ?????????
+    /// ?????????F???????????
+    /// ??F????????
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
     public class ItemPickup : MonoBehaviour
     {
-        [Header("灵物数据")]
+        [Header("????")]
         public ItemData itemData;
 
-        [Header("表现")]
+        [Header("??")]
         [SerializeField] private float bobSpeed = 2f;
         [SerializeField] private float bobHeight = 0.15f;
         [SerializeField] private float rotateSpeed = 90f;
@@ -22,26 +22,34 @@ namespace XianTu
         private Vector3 _startPos;
         private bool _pickedUp;
 
-        // 交互状态（需要槽位的灵物才用）
+        // ???????????????
         private bool _playerInRange;
         private PlayerController _nearbyPlayer;
         private float _holdTimer;
         private const float HOLD_TO_DECOMPOSE = 1.5f;
 
-        // 提示UI
+        // ??UI
         private GameObject _promptUI;
         private UnityEngine.UI.Image _holdProgressFill;
+
+        // ??????????? Keyboard.current ????
+        private UnityEngine.InputSystem.Keyboard _keyboard;
+
+        private void Awake()
+        {
+            _keyboard = UnityEngine.InputSystem.Keyboard.current;
+        }
 
         private void Start()
         {
             _startPos = transform.position;
 
-            // 设置触发器
+            // ?????
             var col = GetComponent<SphereCollider>();
             col.isTrigger = true;
             col.radius = pickupRadius;
 
-            // 设置显示颜色（根据品阶）——如果Spawn中没有设置过材质，这里兜底设置
+            // ????????????????Spawn???????????????
             if (itemData != null)
             {
                 var renderer = GetComponentInChildren<Renderer>();
@@ -53,36 +61,35 @@ namespace XianTu
             }
         }
 
-        /// <summary>应用品阶颜色材质</summary>
+        /// <summary>????????????? + MPB???????</summary>
         private void ApplyMaterial(Renderer renderer)
         {
             if (itemData == null || renderer == null) return;
             Color rarityColor = itemData.GetRarityColor();
-            var mat = MaterialHelper.CreateLitEmissive(rarityColor, rarityColor * 0.5f);
-            renderer.material = mat;
+            MaterialHelper.ApplyEmissiveColor(renderer, rarityColor, rarityColor * 0.5f);
         }
 
         private void Update()
         {
             if (_pickedUp) return;
 
-            // 上下浮动（仅模型浮动，提示UI保持固定高度）
+            // ?????????????UI???????
             float newY = _startPos.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
             transform.position = new Vector3(_startPos.x, newY, _startPos.z);
 
-            // 旋转
+            // ??
             transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
 
-            // 提示UI跟随XZ但Y轴固定，不受浮动影响
+            // ??UI??XZ?Y??????????
             if (_promptUI != null)
             {
                 _promptUI.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
             }
 
-            // 玩家在范围内：处理交互（按F拾取 / 长按F分解）
+            // ?????????????F?? / ??F???
             if (_playerInRange && _nearbyPlayer != null)
             {
-                var kb = UnityEngine.InputSystem.Keyboard.current;
+                var kb = _keyboard ?? (_keyboard = UnityEngine.InputSystem.Keyboard.current);
                 if (kb == null) return;
 
                 if (kb.fKey.isPressed)
@@ -91,7 +98,7 @@ namespace XianTu
                     if (_holdProgressFill != null)
                         _holdProgressFill.fillAmount = _holdTimer / HOLD_TO_DECOMPOSE;
 
-                    // 长按分解
+                    // ????
                     if (_holdTimer >= HOLD_TO_DECOMPOSE)
                     {
                         Decompose();
@@ -101,7 +108,7 @@ namespace XianTu
 
                 if (kb.fKey.wasReleasedThisFrame && _holdTimer < HOLD_TO_DECOMPOSE)
                 {
-                    // 短按拾取
+                    // ????
                     ManualPickup();
                 }
 
@@ -119,7 +126,7 @@ namespace XianTu
             if (_pickedUp) return;
             if (!other.CompareTag("Player")) return;
 
-            // 所有灵物统一：显示提示，等待按F拾取 / 长按F分解
+            // ???????????????F?? / ??F??
             _nearbyPlayer = other.GetComponent<PlayerController>();
             _playerInRange = true;
             ShowPrompt();
@@ -135,12 +142,12 @@ namespace XianTu
             HidePrompt();
         }
 
-        /// <summary>拾取灵物（按F触发）→ 自动放入第一个空位</summary>
+        /// <summary>??????F???? ?????????</summary>
         private void ManualPickup()
         {
             if (itemData == null || _nearbyPlayer == null) return;
 
-            // 功法类灵物：装备到技能槽位
+            // ?????????????
             if (itemData.linkedSkill != null)
             {
                 var combat = _nearbyPlayer.GetComponent<PlayerCombat>();
@@ -158,18 +165,18 @@ namespace XianTu
                     }
                     else
                     {
-                        // 槽位满了 → 生成SkillPickup让玩家通过选择面板替换
+                        // ???? ? ??SkillPickup???????????
                         Vector3 dropPos = transform.position + Vector3.up * 0.1f;
                         SkillPickup.Spawn(itemData.linkedSkill, dropPos);
                     }
                 }
             }
 
-            // 所有灵物都放入灵物槽位（技能下方的小圆槽）
+            // ?????????????????????
             var spiritSlots = _nearbyPlayer.GetComponent<SpiritSlotSystem>();
             if (spiritSlots != null)
             {
-                // 先检查是否已有相同灵物（叠加到同一槽位，不占新位）
+                // ?????????????????????????
                 int existingSlot = -1;
                 for (int i = 0; i < spiritSlots.Slots.Count; i++)
                 {
@@ -182,19 +189,19 @@ namespace XianTu
 
                 if (existingSlot < 0)
                 {
-                    // 没有相同灵物，放入第一个空槽位
+                    // ???????????????
                     int emptySlot = spiritSlots.FindEmptySlot();
                     if (emptySlot >= 0)
                     {
                         spiritSlots.SetSlot(emptySlot, itemData);
-                        Debug.Log($"<color=cyan>灵物放入槽位 {emptySlot}：{itemData.itemName}</color>");
+                        Debug.Log($"<color=cyan>?????? {emptySlot}?{itemData.itemName}</color>");
                     }
                     else
                     {
-                        // 满了 → 替换最后一个槽位，旧灵物掉落
+                        // ?? ? ??????????????
                         int lastSlot = spiritSlots.Slots.Count - 1;
                         ItemData oldItem = spiritSlots.SetSlot(lastSlot, itemData);
-                        Debug.Log($"<color=cyan>灵物槽已满，替换槽位 {lastSlot}：{itemData.itemName}（旧：{oldItem?.itemName}）</color>");
+                        Debug.Log($"<color=cyan>?????????? {lastSlot}?{itemData.itemName}???{oldItem?.itemName}?</color>");
                         if (oldItem != null)
                         {
                             Vector3 dropPos = transform.position + Random.insideUnitSphere * 1.5f;
@@ -205,12 +212,12 @@ namespace XianTu
                 }
                 else
                 {
-                    // 已有相同灵物，不占新槽位（背包计数会叠加）
-                    Debug.Log($"<color=cyan>灵物叠加：{itemData.itemName}（槽位 {existingSlot}）</color>");
+                    // ?????????????????????
+                    Debug.Log($"<color=cyan>?????{itemData.itemName}??? {existingSlot}?</color>");
                 }
             }
 
-            // 加入背包记录
+            // ??????
             var inventory = _nearbyPlayer.GetComponent<ItemInventory>();
             if (inventory != null)
                 inventory.AddItem(itemData);
@@ -227,37 +234,37 @@ namespace XianTu
             Destroy(gameObject);
         }
 
-        /// <summary>分解灵物（长按F）</summary>
+        /// <summary>???????F?</summary>
         private void Decompose()
         {
             if (itemData == null) return;
 
-            // 分解获得灵力碎片
+            // ????????
             int shards = PlayerResources.GetDecomposeShards(itemData.rarity);
             if (PlayerResources.Instance != null)
                 PlayerResources.Instance.AddShards(shards);
 
-            Debug.Log($"<color=yellow>分解灵物：{itemData.itemName} → 获得 {shards} 灵力碎片</color>");
+            Debug.Log($"<color=yellow>?????{itemData.itemName} ? ?? {shards} ????</color>");
 
             _pickedUp = true;
             HidePrompt();
             Destroy(gameObject);
         }
 
-        // ==================== 提示UI ====================
+        // ==================== ??UI ====================
 
         private void ShowPrompt()
         {
             if (_promptUI != null || itemData == null) return;
 
-            // 构建效果文本
+            // ??????
             string effectText = GetItemEffectText(itemData);
             bool hasEffect = !string.IsNullOrEmpty(effectText);
-            // 面板高度根据内容动态调整
+            // ????????????
             float panelHeight = hasEffect ? 160 : 100;
 
             var canvasGo = new GameObject("ItemPromptCanvas");
-            // 不作为掉落物子物体，避免跟随浮动
+            // ????????????????
             canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
 
             var canvas = canvasGo.AddComponent<Canvas>();
@@ -268,7 +275,7 @@ namespace XianTu
             rt.sizeDelta = new Vector2(480, panelHeight);
             rt.localScale = Vector3.one * 0.00875f;
 
-            // 背景
+            // ??
             var bgGo = new GameObject("Bg");
             bgGo.transform.SetParent(canvasGo.transform, false);
             var bgRt = bgGo.AddComponent<RectTransform>();
@@ -279,18 +286,18 @@ namespace XianTu
             var bgImg = bgGo.AddComponent<UnityEngine.UI.Image>();
             bgImg.color = new Color(0.05f, 0.05f, 0.1f, 0.88f);
 
-            // 品阶名称
+            // ????
             string rarityName = itemData.rarity switch
             {
-                ItemRarity.Fan => "凡品",
-                ItemRarity.Ling => "灵品",
-                ItemRarity.Xuan => "玄品",
-                ItemRarity.Di => "地品",
-                ItemRarity.Tian => "天品",
-                _ => "凡品"
+                ItemRarity.Fan => "??",
+                ItemRarity.Ling => "??",
+                ItemRarity.Xuan => "??",
+                ItemRarity.Di => "??",
+                ItemRarity.Tian => "??",
+                _ => "??"
             };
 
-            // 名称
+            // ??
             var nameGo = new GameObject("Name");
             nameGo.transform.SetParent(canvasGo.transform, false);
             var nameRt = nameGo.AddComponent<RectTransform>();
@@ -300,9 +307,9 @@ namespace XianTu
             nameRt.offsetMin = new Vector2(8, 0);
             nameRt.offsetMax = new Vector2(-8, -4);
             var nameText = nameGo.AddComponent<UnityEngine.UI.Text>();
-            nameText.text = $"{itemData.itemName}（{rarityName}）";
+            nameText.text = $"{itemData.itemName}?{rarityName}?";
             nameText.fontSize = 28;
-            nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            nameText.font = UIBuiltins.LegacyFont;
             nameText.color = itemData.GetRarityColor();
             nameText.alignment = TextAnchor.MiddleCenter;
             nameText.fontStyle = FontStyle.Bold;
@@ -310,7 +317,7 @@ namespace XianTu
             nameOutline.effectColor = new Color(0, 0, 0, 0.9f);
             nameOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
-            // 描述（如果有）
+            // ???????
             if (!string.IsNullOrEmpty(itemData.description))
             {
                 var descGo = new GameObject("Desc");
@@ -325,12 +332,12 @@ namespace XianTu
                 var descText = descGo.AddComponent<UnityEngine.UI.Text>();
                 descText.text = itemData.description;
                 descText.fontSize = 18;
-                descText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                descText.font = UIBuiltins.LegacyFont;
                 descText.color = new Color(0.75f, 0.75f, 0.75f, 0.9f);
                 descText.alignment = TextAnchor.MiddleCenter;
             }
 
-            // 效果属性（如果有）
+            // ?????????
             if (hasEffect)
             {
                 var effectGo = new GameObject("Effect");
@@ -343,13 +350,13 @@ namespace XianTu
                 var effText = effectGo.AddComponent<UnityEngine.UI.Text>();
                 effText.text = effectText;
                 effText.fontSize = 16;
-                effText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                effText.font = UIBuiltins.LegacyFont;
                 effText.color = new Color(0.5f, 0.9f, 0.5f, 0.9f);
                 effText.alignment = TextAnchor.MiddleCenter;
                 effText.supportRichText = true;
             }
 
-            // 操作提示
+            // ????
             var promptGo = new GameObject("Prompt");
             promptGo.transform.SetParent(canvasGo.transform, false);
             var promptRt = promptGo.AddComponent<RectTransform>();
@@ -361,13 +368,13 @@ namespace XianTu
             promptRt.offsetMax = new Vector2(-8, 0);
             var promptText = promptGo.AddComponent<UnityEngine.UI.Text>();
             int shards = PlayerResources.GetDecomposeShards(itemData.rarity);
-            promptText.text = $"[F] 拾取  |  长按[F] 分解（✦{shards}）";
+            promptText.text = $"[F] ??  |  ??[F] ????{shards}?";
             promptText.fontSize = 18;
-            promptText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            promptText.font = UIBuiltins.LegacyFont;
             promptText.color = new Color(0.6f, 0.8f, 1f, 0.9f);
             promptText.alignment = TextAnchor.MiddleCenter;
 
-            // 长按进度条
+            // ?????
             var holdBgGo = new GameObject("HoldBg");
             holdBgGo.transform.SetParent(canvasGo.transform, false);
             var holdBgRt = holdBgGo.AddComponent<RectTransform>();
@@ -391,28 +398,28 @@ namespace XianTu
             _holdProgressFill.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal;
             _holdProgressFill.fillAmount = 0f;
 
-            // 让提示UI稍微朝向相机方向倾斜（不完全正对）
+            // ???UI?????????????????
             var billboard = canvasGo.AddComponent<BillboardUI>();
             billboard.lerpFactor = 0.5f;
 
             _promptUI = canvasGo;
         }
 
-        /// <summary>获取灵物效果文本</summary>
+        /// <summary>????????</summary>
         private string GetItemEffectText(ItemData item)
         {
             var parts = new System.Collections.Generic.List<string>();
-            if (item.attackBonus > 0) parts.Add($"⚔攻+{item.attackBonus}");
-            if (item.attackBonusPercent > 0) parts.Add($"⚔攻+{item.attackBonusPercent * 100:0}%");
-            if (item.maxHpBonus > 0) parts.Add($"♥命+{item.maxHpBonus}");
-            if (item.maxHpBonusPercent > 0) parts.Add($"♥命+{item.maxHpBonusPercent * 100:0}%");
-            if (item.moveSpeedBonusPercent > 0) parts.Add($"速+{item.moveSpeedBonusPercent * 100:0}%");
-            if (item.attackSpeedBonusPercent > 0) parts.Add($"⚡攻速+{item.attackSpeedBonusPercent * 100:0}%");
-            if (item.damageReductionBonus > 0) parts.Add($"🛡减伤+{item.damageReductionBonus * 100:0}%");
-            if (item.critRateBonus > 0) parts.Add($"✧暴击+{item.critRateBonus * 100:0}%");
-            if (item.healOnKill > 0) parts.Add($"♥击杀回复{item.healOnKill}");
-            if (item.burnDamagePerSecond > 0) parts.Add($"灼烧{item.burnDamagePerSecond}/s");
-            if (item.linkedSkill != null) parts.Add($"功法：{item.linkedSkill.skillName}");
+            if (item.attackBonus > 0) parts.Add($"??+{item.attackBonus}");
+            if (item.attackBonusPercent > 0) parts.Add($"??+{item.attackBonusPercent * 100:0}%");
+            if (item.maxHpBonus > 0) parts.Add($"??+{item.maxHpBonus}");
+            if (item.maxHpBonusPercent > 0) parts.Add($"??+{item.maxHpBonusPercent * 100:0}%");
+            if (item.moveSpeedBonusPercent > 0) parts.Add($"?+{item.moveSpeedBonusPercent * 100:0}%");
+            if (item.attackSpeedBonusPercent > 0) parts.Add($"???+{item.attackSpeedBonusPercent * 100:0}%");
+            if (item.damageReductionBonus > 0) parts.Add($"????+{item.damageReductionBonus * 100:0}%");
+            if (item.critRateBonus > 0) parts.Add($"???+{item.critRateBonus * 100:0}%");
+            if (item.healOnKill > 0) parts.Add($"?????{item.healOnKill}");
+            if (item.burnDamagePerSecond > 0) parts.Add($"??{item.burnDamagePerSecond}/s");
+            if (item.linkedSkill != null) parts.Add($"???{item.linkedSkill.skillName}");
             return parts.Count > 0 ? string.Join("  ", parts) : "";
         }
 
@@ -427,38 +434,41 @@ namespace XianTu
 
         private void OnDestroy()
         {
-            // 提示UI是独立根级对象，需要手动清理
+            // ??UI??????????????
             HidePrompt();
         }
-        /// 工厂方法：在指定位置生成灵物拾取物
+
+        /// <summary>
+        /// ?????????????????
         /// </summary>
         public static ItemPickup Spawn(ItemData data, Vector3 position)
         {
             if (data == null)
             {
-                Debug.LogWarning("[ItemPickup.Spawn] data 为 null，跳过生成");
+                Debug.LogWarning("[ItemPickup.Spawn] data ? null?????");
                 return null;
             }
 
-            // 创建一个简单的几何体作为灵物表现
+            // ????????????????
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = $"ItemPickup_{data.itemName}";
-            // 确保Y坐标在地面以上
+            // ??Y???????
             Vector3 spawnPos = position;
             spawnPos.y = Mathf.Max(spawnPos.y, 0f) + 0.5f;
             go.transform.position = spawnPos;
             go.transform.localScale = Vector3.one * 0.5f;
             go.layer = LayerMask.NameToLayer("Default");
 
-            // 立即设置正确的URP材质（不等Start，确保第一帧就可见）
+            // ???????URP?????Start??????????
+            // ???? + MPB????????????????? Material
             var renderer = go.GetComponent<Renderer>();
             if (renderer != null)
             {
                 Color rarityColor = data.GetRarityColor();
-                renderer.material = MaterialHelper.CreateLitEmissive(rarityColor, rarityColor * 0.8f);
+                MaterialHelper.ApplyEmissiveColor(renderer, rarityColor, rarityColor * 0.8f);
             }
 
-            // 复用 CreatePrimitive 自带的 SphereCollider
+            // ?? CreatePrimitive ??? SphereCollider
             var existingSphere = go.GetComponent<SphereCollider>();
             if (existingSphere != null)
             {
@@ -468,7 +478,7 @@ namespace XianTu
             var pickup = go.AddComponent<ItemPickup>();
             pickup.itemData = data;
 
-            Debug.Log($"<color=green>[ItemPickup] ✓ 生成灵物：{data.itemName}（{data.rarity}），位置={spawnPos}</color>");
+            Debug.Log($"<color=green>[ItemPickup] ? ?????{data.itemName}?{data.rarity}????={spawnPos}</color>");
             return pickup;
         }
     }

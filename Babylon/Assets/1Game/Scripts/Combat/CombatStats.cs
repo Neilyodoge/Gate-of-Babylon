@@ -52,6 +52,27 @@ namespace XianTu
         }
 
         /// <summary>
+        /// 召唤物 / 衍生伤害的统一构造（GDD 6.7.2）。
+        /// 不再让"焚天/剑阵/御风/元素爆发"等 hardcode 调用 attackDamage*ratio，
+        /// 而是经过本方法以继承玩家的暴击 / 加成。
+        /// </summary>
+        /// <param name="baseRatio">该衍生伤害基于玩家攻击的倍率</param>
+        /// <param name="flatBonus">附加的固定伤害（例如焚天的 _fireBurstDamage 基础值）</param>
+        /// <param name="inheritCrit">是否参与暴击 roll</param>
+        /// <returns>(damage, isCrit)</returns>
+        public (float damage, bool isCrit) BuildSummonDamage(float baseRatio, float flatBonus = 0f, bool inheritCrit = true)
+        {
+            float dmg = flatBonus + attackDamage * baseRatio;
+            bool isCrit = false;
+            if (inheritCrit && Random.value < critRate)
+            {
+                dmg *= critDamage;
+                isCrit = true;
+            }
+            return (dmg, isCrit);
+        }
+
+        /// <summary>
         /// 受到伤害，返回实际伤害值
         /// </summary>
         public float TakeDamage(float rawDamage)

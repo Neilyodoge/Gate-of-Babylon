@@ -5,23 +5,23 @@ using UnityEngine.InputSystem;
 namespace XianTu
 {
     /// <summary>
-    /// 功法（技能）地面拾取物
-    /// 靠近时显示技能信息提示，按F拾取自动装备到第一个空位
-    /// 长按F分解获得资源
+    /// ???????????
+    /// ?????????????F????????????
+    /// ??F??????
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
     public class SkillPickup : MonoBehaviour
     {
-        [Header("功法数据")]
+        [Header("????")]
         public SkillData skillData;
 
-        [Header("表现")]
+        [Header("??")]
         [SerializeField] private float bobSpeed = 1.5f;
         [SerializeField] private float bobHeight = 0.15f;
         [SerializeField] private float rotateSpeed = 60f;
         [SerializeField] private float interactRadius = 2.5f;
 
-        // 提示UI
+        // ??UI
         private GameObject _promptUI;
         private Text _promptText;
         private Text _skillInfoText;
@@ -30,25 +30,33 @@ namespace XianTu
         private Vector3 _startPos;
         private bool _pickedUp;
 
-        // 槽位选择（槽位满时）
-        private bool _waitingForSlotChoice;  // 是否正在等待玩家选择替换槽位
-        private GameObject _slotChoiceUI;    // 选择提示UI
+        // ??????????
+        private bool _waitingForSlotChoice;  // ??????????????
+        private GameObject _slotChoiceUI;    // ????UI
 
-        // 长按分解
+        // ????
         private float _holdTimer;
-        private const float HOLD_TO_DECOMPOSE = 1.5f; // 长按1.5秒分解
+        private const float HOLD_TO_DECOMPOSE = 1.5f; // ??1.5???
         private Image _holdProgressFill;
+
+        // ??????????? Keyboard.current ??????????? pickup ??? Update ?????
+        private Keyboard _keyboard;
+
+        private void Awake()
+        {
+            _keyboard = Keyboard.current;
+        }
 
         private void Start()
         {
             _startPos = transform.position;
 
-            // 设置触发器
+            // ?????
             var col = GetComponent<SphereCollider>();
             col.isTrigger = true;
             col.radius = interactRadius;
 
-            // 设置显示（用书卷形状的Cube表示功法）
+            // ???????????Cube?????
             SetupVisual();
         }
 
@@ -56,24 +64,25 @@ namespace XianTu
         {
             if (_pickedUp) return;
 
-            // 浮动动画（仅模型浮动，提示UI保持固定高度）
+            // ?????????????UI???????
             float newY = _startPos.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
             transform.position = new Vector3(_startPos.x, newY, _startPos.z);
             transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
 
-            // 提示UI跟随XZ但Y轴固定，不受浮动影响
+            // ??UI??XZ?Y??????????
             if (_promptUI != null)
             {
                 _promptUI.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
             }
 
-            // 交互逻辑
+            // ????
             if (_playerInRange && _nearbyPlayerCombat != null)
             {
-                var kb = Keyboard.current;
+                // ??????????????????? current
+                var kb = _keyboard ?? (_keyboard = Keyboard.current);
                 if (kb == null) return;
 
-                // 等待槽位选择时，按Q/E/R替换对应槽位
+                // ?????????Q/E/R??????
                 if (_waitingForSlotChoice)
                 {
                     if (kb.qKey.wasPressedThisFrame) ConfirmSlotReplace(0);
@@ -87,11 +96,11 @@ namespace XianTu
                 {
                     _holdTimer += Time.deltaTime;
 
-                    // 更新长按进度
+                    // ??????
                     if (_holdProgressFill != null)
                         _holdProgressFill.fillAmount = _holdTimer / HOLD_TO_DECOMPOSE;
 
-                    // 长按分解
+                    // ????
                     if (_holdTimer >= HOLD_TO_DECOMPOSE)
                     {
                         Decompose();
@@ -101,7 +110,7 @@ namespace XianTu
 
                 if (kb.fKey.wasReleasedThisFrame && _holdTimer < HOLD_TO_DECOMPOSE)
                 {
-                    // 短按拾取
+                    // ????
                     TryPickup();
                 }
 
@@ -114,18 +123,18 @@ namespace XianTu
             }
         }
 
-        /// <summary>尝试拾取功法 → 自动装备到第一个空位，满了则弹出选择UI让玩家选择替换哪个槽位</summary>
+        /// <summary>?????? ? ??????????????????UI???????????</summary>
         private void TryPickup()
         {
             if (skillData == null || _nearbyPlayerCombat == null) return;
 
-            // 先找空闲槽位
+            // ??????
             int emptySlot = _nearbyPlayerCombat.FindEmptySlot();
             if (emptySlot >= 0)
             {
                 _nearbyPlayerCombat.EquipSkillToSlot(skillData, emptySlot);
                 string slotName = GetSlotKeyName(emptySlot);
-                Debug.Log($"<color=cyan>装备功法：{skillData.skillName} → {slotName}槽位</color>");
+                Debug.Log($"<color=cyan>?????{skillData.skillName} ? {slotName}??</color>");
 
                 GameEvents.Publish(new GameEvents.SkillEquipped
                 {
@@ -137,22 +146,22 @@ namespace XianTu
             }
             else
             {
-                // 槽位满了 → 弹出选择提示，让玩家按Q/E/R选择替换哪个槽位
+                // ???? ? ???????????Q/E/R????????
                 ShowSlotChoiceUI();
             }
         }
 
-        /// <summary>显示槽位选择UI</summary>
+        /// <summary>??????UI</summary>
         private void ShowSlotChoiceUI()
         {
             if (_waitingForSlotChoice) return;
             _waitingForSlotChoice = true;
 
-            // 更新提示文字
+            // ??????
             if (_promptText != null)
-                _promptText.text = "选择替换槽位：[Q] [E] [R]  |  [Esc] 取消";
+                _promptText.text = "???????[Q] [E] [R]  |  [Esc] ??";
 
-            // 创建槽位选择提示
+            // ????????
             var canvasGo = new GameObject("SlotChoiceCanvas");
             canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 3.2f, _startPos.z);
             var canvas = canvasGo.AddComponent<Canvas>();
@@ -181,13 +190,13 @@ namespace XianTu
             textRt.offsetMax = new Vector2(-8, -4);
             var text = textGo.AddComponent<Text>();
 
-            // 显示当前各槽位技能名
-            string qName = _nearbyPlayerCombat.GetSkillInSlot(0)?.skillName ?? "空";
-            string eName = _nearbyPlayerCombat.GetSkillInSlot(1)?.skillName ?? "空";
-            string rName = _nearbyPlayerCombat.GetSkillInSlot(2)?.skillName ?? "空";
-            text.text = $"[Q]{qName}  [E]{eName}  [R]{rName}  [Esc]取消";
+            // ??????????
+            string qName = _nearbyPlayerCombat.GetSkillInSlot(0)?.skillName ?? "?";
+            string eName = _nearbyPlayerCombat.GetSkillInSlot(1)?.skillName ?? "?";
+            string rName = _nearbyPlayerCombat.GetSkillInSlot(2)?.skillName ?? "?";
+            text.text = $"[Q]{qName}  [E]{eName}  [R]{rName}  [Esc]??";
             text.fontSize = 22;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = UIBuiltins.LegacyFont;
             text.color = new Color(1f, 0.8f, 0.3f, 1f);
             text.alignment = TextAnchor.MiddleCenter;
 
@@ -195,14 +204,14 @@ namespace XianTu
             _slotChoiceUI = canvasGo;
         }
 
-        /// <summary>确认替换指定槽位</summary>
+        /// <summary>????????</summary>
         private void ConfirmSlotReplace(int slotIndex)
         {
             if (_nearbyPlayerCombat == null) return;
 
             SkillData oldSkill = _nearbyPlayerCombat.EquipSkillToSlot(skillData, slotIndex);
             string slotName = GetSlotKeyName(slotIndex);
-            Debug.Log($"<color=cyan>替换功法：{skillData.skillName} → {slotName}槽位（旧：{oldSkill?.skillName ?? "空"}）</color>");
+            Debug.Log($"<color=cyan>?????{skillData.skillName} ? {slotName}?????{oldSkill?.skillName ?? "?"}?</color>");
 
             GameEvents.Publish(new GameEvents.SkillEquipped
             {
@@ -210,7 +219,7 @@ namespace XianTu
                 SlotIndex = slotIndex
             });
 
-            // 旧技能掉落到地面
+            // ????????
             if (oldSkill != null)
             {
                 Vector3 dropPos = transform.position + Random.insideUnitSphere * 1.5f;
@@ -222,16 +231,16 @@ namespace XianTu
             OnPickedUp();
         }
 
-        /// <summary>取消槽位选择</summary>
+        /// <summary>??????</summary>
         private void CancelSlotChoice()
         {
             _waitingForSlotChoice = false;
             HideSlotChoiceUI();
-            // 恢复提示文字
+            // ??????
             if (_promptText != null)
             {
                 int shards = PlayerResources.GetDecomposeShards(skillData.rarity);
-                _promptText.text = $"[F] 拾取  |  长按[F] 分解（✦{shards}）";
+                _promptText.text = $"[F] ??  |  ??[F] ????{shards}?";
             }
         }
 
@@ -244,17 +253,17 @@ namespace XianTu
             }
         }
 
-        /// <summary>分解功法（长按F）</summary>
+        /// <summary>???????F?</summary>
         private void Decompose()
         {
             if (skillData == null) return;
 
-            // 分解获得灵力碎片
+            // ????????
             int shards = PlayerResources.GetDecomposeShards(skillData.rarity);
             if (PlayerResources.Instance != null)
                 PlayerResources.Instance.AddShards(shards);
 
-            Debug.Log($"<color=yellow>分解功法：{skillData.skillName} → 获得 {shards} 灵力碎片</color>");
+            Debug.Log($"<color=yellow>?????{skillData.skillName} ? ?? {shards} ????</color>");
 
             GameEvents.Publish(new GameEvents.SkillDecomposed
             {
@@ -282,7 +291,7 @@ namespace XianTu
             };
         }
 
-        // ==================== 提示UI ====================
+        // ==================== ??UI ====================
 
         private void OnTriggerEnter(Collider other)
         {
@@ -313,9 +322,9 @@ namespace XianTu
             if (_promptUI != null) return;
             if (skillData == null) return;
 
-            // 创建世界空间提示UI
+            // ????????UI
             var canvasGo = new GameObject("SkillPromptCanvas");
-            // 不作为掉落物子物体，避免跟随浮动
+            // ????????????????
             canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
 
             var canvas = canvasGo.AddComponent<Canvas>();
@@ -326,7 +335,7 @@ namespace XianTu
             rt.sizeDelta = new Vector2(500, 220);
             rt.localScale = Vector3.one * 0.00875f;
 
-            // 背景
+            // ??
             var bgGo = new GameObject("Bg");
             bgGo.transform.SetParent(canvasGo.transform, false);
             var bgRt = bgGo.AddComponent<RectTransform>();
@@ -337,7 +346,7 @@ namespace XianTu
             var bgImg = bgGo.AddComponent<Image>();
             bgImg.color = new Color(0.05f, 0.05f, 0.1f, 0.85f);
 
-            // 技能名称
+            // ????
             var nameGo = new GameObject("SkillName");
             nameGo.transform.SetParent(canvasGo.transform, false);
             var nameRt = nameGo.AddComponent<RectTransform>();
@@ -346,27 +355,27 @@ namespace XianTu
             nameRt.offsetMin = new Vector2(8, 0);
             nameRt.offsetMax = new Vector2(-8, -4);
             _skillInfoText = nameGo.AddComponent<Text>();
-            _skillInfoText.text = $"{skillData.skillName}（{GetRarityName(skillData.rarity)}）";
+            _skillInfoText.text = $"{skillData.skillName}?{GetRarityName(skillData.rarity)}?";
             _skillInfoText.fontSize = 28;
-            _skillInfoText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _skillInfoText.font = UIBuiltins.LegacyFont;
             _skillInfoText.color = GetRarityColor(skillData.rarity);
             _skillInfoText.alignment = TextAnchor.MiddleCenter;
             _skillInfoText.fontStyle = FontStyle.Bold;
-            // 描边让文字更清晰
+            // ????????
             var nameOutline = nameGo.AddComponent<Outline>();
             nameOutline.effectColor = new Color(0, 0, 0, 0.9f);
             nameOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
-            // 技能类型标签
+            // ??????
             string typeStr = skillData.skillType switch
             {
-                SkillType.AreaDamage => "范围伤害",
-                SkillType.Projectile => "投射物",
-                SkillType.Dash => "位移",
-                SkillType.Buff => "增益",
-                SkillType.Heal => "治疗",
-                SkillType.Summon => "召唤",
-                _ => "未知"
+                SkillType.AreaDamage => "????",
+                SkillType.Projectile => "???",
+                SkillType.Dash => "??",
+                SkillType.Buff => "??",
+                SkillType.Heal => "??",
+                SkillType.Summon => "??",
+                _ => "??"
             };
             var typeGo = new GameObject("Type");
             typeGo.transform.SetParent(canvasGo.transform, false);
@@ -376,13 +385,13 @@ namespace XianTu
             typeRt.offsetMin = new Vector2(8, 0);
             typeRt.offsetMax = new Vector2(-8, 0);
             var typeText = typeGo.AddComponent<Text>();
-            typeText.text = $"类型：{typeStr}  |  CD：{skillData.cooldown}s  |  伤害：{skillData.baseDamage}";
+            typeText.text = $"???{typeStr}  |  CD?{skillData.cooldown}s  |  ???{skillData.baseDamage}";
             typeText.fontSize = 18;
-            typeText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            typeText.font = UIBuiltins.LegacyFont;
             typeText.color = new Color(0.5f, 0.9f, 0.5f, 0.9f);
             typeText.alignment = TextAnchor.MiddleCenter;
 
-            // 描述
+            // ??
             var descGo = new GameObject("Desc");
             descGo.transform.SetParent(canvasGo.transform, false);
             var descRt = descGo.AddComponent<RectTransform>();
@@ -393,11 +402,11 @@ namespace XianTu
             var descText = descGo.AddComponent<Text>();
             descText.text = skillData.description;
             descText.fontSize = 18;
-            descText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            descText.font = UIBuiltins.LegacyFont;
             descText.color = new Color(0.8f, 0.8f, 0.8f, 0.9f);
             descText.alignment = TextAnchor.MiddleCenter;
 
-            // 操作提示
+            // ????
             var promptGo = new GameObject("Prompt");
             promptGo.transform.SetParent(canvasGo.transform, false);
             var promptRt = promptGo.AddComponent<RectTransform>();
@@ -407,13 +416,13 @@ namespace XianTu
             promptRt.offsetMax = new Vector2(-8, 0);
             _promptText = promptGo.AddComponent<Text>();
             int shards = PlayerResources.GetDecomposeShards(skillData.rarity);
-            _promptText.text = $"[F] 拾取  |  长按[F] 分解（✦{shards}）";
+            _promptText.text = $"[F] ??  |  ??[F] ????{shards}?";
             _promptText.fontSize = 18;
-            _promptText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _promptText.font = UIBuiltins.LegacyFont;
             _promptText.color = new Color(0.6f, 0.8f, 1f, 0.9f);
             _promptText.alignment = TextAnchor.MiddleCenter;
 
-            // 长按进度条背景
+            // ???????
             var holdBgGo = new GameObject("HoldBg");
             holdBgGo.transform.SetParent(canvasGo.transform, false);
             var holdBgRt = holdBgGo.AddComponent<RectTransform>();
@@ -424,7 +433,7 @@ namespace XianTu
             var holdBgImg = holdBgGo.AddComponent<Image>();
             holdBgImg.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
 
-            // 长按进度条填充
+            // ???????
             var holdFillGo = new GameObject("HoldFill");
             holdFillGo.transform.SetParent(holdBgGo.transform, false);
             var holdFillRt = holdFillGo.AddComponent<RectTransform>();
@@ -438,7 +447,7 @@ namespace XianTu
             _holdProgressFill.fillMethod = Image.FillMethod.Horizontal;
             _holdProgressFill.fillAmount = 0f;
 
-            // 让提示UI稍微朝向相机方向倾斜（不完全正对）
+            // ???UI?????????????????
             var billboard = canvasGo.AddComponent<BillboardUI>();
             billboard.lerpFactor = 0.5f;
 
@@ -456,7 +465,7 @@ namespace XianTu
 
         private void OnDestroy()
         {
-            // 提示UI是独立根级对象，需要手动清理
+            // ??UI??????????????
             HidePrompt();
             HideSlotChoiceUI();
         }
@@ -468,12 +477,9 @@ namespace XianTu
             var renderer = GetComponentInChildren<Renderer>();
             if (renderer != null)
             {
-                var mat = new Material(MaterialHelper.GetLitShader());
+                // ???? + MPB???????? new Material??????????? GPU ???? / ?????
                 Color rarityColor = GetRarityColor(skillData.rarity);
-                mat.color = rarityColor;
-                mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", rarityColor * 0.8f);
-                renderer.material = mat;
+                MaterialHelper.ApplyEmissiveColor(renderer, rarityColor, rarityColor * 0.8f);
             }
         }
 
@@ -494,32 +500,32 @@ namespace XianTu
         {
             return rarity switch
             {
-                ItemRarity.Fan => "凡品",
-                ItemRarity.Ling => "灵品",
-                ItemRarity.Xuan => "玄品",
-                ItemRarity.Di => "地品",
-                ItemRarity.Tian => "天品",
-                _ => "凡品"
+                ItemRarity.Fan => "??",
+                ItemRarity.Ling => "??",
+                ItemRarity.Xuan => "??",
+                ItemRarity.Di => "??",
+                ItemRarity.Tian => "??",
+                _ => "??"
             };
         }
 
-        // ==================== 工厂方法 ====================
+        // ==================== ???? ====================
 
         /// <summary>
-        /// 在指定位置生成功法拾取物
+        /// ????????????
         /// </summary>
         public static SkillPickup Spawn(SkillData data, Vector3 position)
         {
             if (data == null) return null;
 
-            // 用扁平的Cube表示书卷/功法
+            // ????Cube????/??
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"SkillPickup_{data.skillName}";
             go.transform.position = position + Vector3.up * 0.15f;
             go.transform.localScale = new Vector3(0.5f, 0.1f, 0.35f);
             go.layer = LayerMask.NameToLayer("Default");
 
-            // 移除默认BoxCollider，添加SphereCollider
+            // ????BoxCollider???SphereCollider
             var boxCol = go.GetComponent<BoxCollider>();
             if (boxCol != null) Object.Destroy(boxCol);
             go.AddComponent<SphereCollider>();
@@ -532,12 +538,12 @@ namespace XianTu
     }
 
     /// <summary>
-    /// Billboard组件，让UI朝向相机方向倾斜（部分面向相机，不完全正对）
-    /// lerpFactor 控制倾斜程度：0=完全不朝向相机，1=完全面向相机
+    /// Billboard????UI??????????????????????
+    /// lerpFactor ???????0=????????1=??????
     /// </summary>
     public class BillboardUI : MonoBehaviour
     {
-        [Tooltip("朝向相机的插值比例。0.4=轻微朝向相机，0.7=大部分朝向相机")]
+        [Tooltip("??????????0.4=???????0.7=???????")]
         public float lerpFactor = 0.5f;
 
         private Quaternion _initialRotation;
@@ -554,9 +560,9 @@ namespace XianTu
                 _initialized = true;
             }
 
-            // 完全面向相机的旋转
+            // ?????????
             Quaternion lookAtCam = Quaternion.LookRotation(transform.position - cam.transform.position);
-            // 在初始朝向和面向相机之间插值
+            // ??????????????
             transform.rotation = Quaternion.Slerp(_initialRotation, lookAtCam, lerpFactor);
         }
     }

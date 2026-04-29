@@ -10,6 +10,12 @@ namespace XianTu
     {
         private static Shader _cachedLitShader;
         private static Shader _cachedUnlitShader;
+        private static Material _sharedLitEmissive;
+
+        // 通过 MPB 设值时使用的属性 ID（缓存避免每次字符串哈希）
+        private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int _colorId = Shader.PropertyToID("_Color");
+        private static readonly int _emissionColorId = Shader.PropertyToID("_EmissionColor");
 
         /// <summary>
         /// 获取可用的 Lit Shader（带 fallback）
@@ -97,6 +103,49 @@ namespace XianTu
                 mat.EnableKeyword("_ALPHABLEND_ON");
             }
             return mat;
+        }
+
+        /// <summary>
+        /// 获取一个共享的 Lit + Emission 材质（全局唯一实例）。
+        /// 配合 <see cref="ApplyEmissiveColor"/> 用 MaterialPropertyBlock 设置颜色，
+        /// 避免每个 Renderer 各自 new Material（拾取物等高频生成对象的标准用法）。
+        /// 注意：返回的是 sharedMaterial，不要修改其属性。
+        /// </summary>
+        public static Material GetSharedLitEmissive()
+        {
+            if (_sharedLitEmissive != null) return _sharedLitEmissive;
+
+            var shader = GetLitShader();
+            if (shader == null) return null;
+
+            _sharedLitEmissive = new Material(shader)
+            {
+                name = "SharedLitEmissive(Runtime)",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            _sharedLitEmissive.EnableKeyword("_EMISSION");
+            _sharedLitEmissive.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            return _sharedLitEmissive;
+        }
+
+        /// <summary>
+        /// 给 Renderer 应用共享 LitEmissive 材质，并通过 MaterialPropertyBlock 设置 base/emission 颜色。
+        /// 不会创建新的 Material 实例，适合大量拾取物 / 短生命周期对象。
+        /// </summary>
+        public static void ApplyEmissiveColor(Renderer renderer, Color baseColor, Color emissionColor)
+        {
+            if (renderer == null) return;
+
+            var shared = GetSharedLitEmissive();
+            if (shared != null)
+                renderer.sharedMaterial = shared;
+
+            var mpb = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(mpb);
+            mpb.SetColor(_baseColorId, baseColor);
+            mpb.SetColor(_colorId, baseColor);
+            mpb.SetColor(_emissionColorId, emissionColor);
+            renderer.SetPropertyBlock(mpb);
         }
 
         /// <summary>创建一个 Unlit 材质</summary>

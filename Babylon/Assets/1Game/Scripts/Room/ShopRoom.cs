@@ -370,16 +370,18 @@ namespace XianTu
         private int CalculatePrice(ItemData item)
         {
             if (item == null) return 0;
-            // 价格 = 分解价值 × 2.5（买比卖贵）
+            // 价格 = 分解价值 × 3.5（买比卖贵）
+            // 2026-04 调整：原 2.5x。配合杀敌碎片产出减半，把单价拉高让商品更稀缺
+            // 凡 18 / 灵 53 / 玄 140 / 地 350 / 天 875
             int basePrice = PlayerResources.GetDecomposeShards(item.rarity);
-            return Mathf.RoundToInt(basePrice * 2.5f);
+            return Mathf.RoundToInt(basePrice * 3.5f);
         }
 
         private int CalculateSkillPrice(SkillData skill)
         {
-            // 功法价格比灵物更贵
+            // 功法价格更贵 4.5x（原 3.5x）：凡 23 / 灵 68 / 玄 180 / 地 450 / 天 1125
             int basePrice = PlayerResources.GetDecomposeShards(skill.rarity);
-            return Mathf.RoundToInt(basePrice * 3.5f);
+            return Mathf.RoundToInt(basePrice * 4.5f);
         }
 
         private ShopSlot CreateItemCard(ItemData item, int price, float xPos, int index)

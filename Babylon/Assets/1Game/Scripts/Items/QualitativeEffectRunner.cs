@@ -353,14 +353,15 @@ namespace XianTu
                 var damageable = hit.GetComponent<IDamageable>();
                 if (damageable != null && hit.gameObject != gameObject)
                 {
-                    float damage = _fireBurstDamage + _player.Stats.attackDamage * 0.5f;
+                    var (damage, isCrit) = _player.Stats.BuildSummonDamage(0.5f, _fireBurstDamage);
                     damageable.OnDamage(damage, hit.transform.position, gameObject);
 
-                    // 飘字：焚天伤害
+                    // 飘字：焚天伤害（继承暴击）
                     GameEvents.Publish(new GameEvents.DamageNumberRequested
                     {
                         WorldPosition = hit.transform.position + Vector3.up * 1.5f,
                         Damage = damage,
+                        IsCrit = isCrit,
                         SpecialTag = "焚天"
                     });
 
@@ -514,14 +515,15 @@ namespace XianTu
 
             if (closest != null)
             {
-                float damage = _player.Stats.attackDamage * _phantomDamageRatio;
+                var (damage, isCrit) = _player.Stats.BuildSummonDamage(_phantomDamageRatio);
                 closest.OnDamage(damage, closestPos, gameObject);
 
-                // 飘字：御风残影伤害
+                // 飘字：御风残影伤害（继承暴击）
                 GameEvents.Publish(new GameEvents.DamageNumberRequested
                 {
                     WorldPosition = closestPos + Vector3.up * 1.5f,
                     Damage = damage,
+                    IsCrit = isCrit,
                     SpecialTag = "御风"
                 });
             }
@@ -605,14 +607,15 @@ namespace XianTu
                 var damageable = hit.GetComponent<IDamageable>();
                 if (damageable != null && hit.gameObject != gameObject)
                 {
-                    float damage = _swordOrbitDamage + _player.Stats.attackDamage * 0.2f;
+                    var (damage, isCrit) = _player.Stats.BuildSummonDamage(0.2f, _swordOrbitDamage);
                     damageable.OnDamage(damage, hit.transform.position, gameObject);
 
-                    // 飘字：剑阵伤害
+                    // 飘字：剑阵伤害（继承暴击）
                     GameEvents.Publish(new GameEvents.DamageNumberRequested
                     {
                         WorldPosition = hit.transform.position + Vector3.up * 1.5f,
                         Damage = damage,
+                        IsCrit = isCrit,
                         SpecialTag = "剑阵"
                     });
                 }
@@ -966,14 +969,15 @@ namespace XianTu
                 var damageable = hit.GetComponent<IDamageable>();
                 if (damageable != null && hit.gameObject != gameObject)
                 {
-                    float damage = _elementBurstDamage + _player.Stats.attackDamage * 0.4f;
+                    var (damage, isCrit) = _player.Stats.BuildSummonDamage(0.4f, _elementBurstDamage);
                     damageable.OnDamage(damage, hit.transform.position, gameObject);
 
-                    // 飘字：元素爆发伤害
+                    // 飘字：元素爆发伤害（继承暴击）
                     GameEvents.Publish(new GameEvents.DamageNumberRequested
                     {
                         WorldPosition = hit.transform.position + Vector3.up * 1.5f,
                         Damage = damage,
+                        IsCrit = isCrit,
                         SpecialTag = "元素爆发"
                     });
 

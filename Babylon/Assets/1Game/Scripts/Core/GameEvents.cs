@@ -62,6 +62,10 @@ namespace XianTu
             public float Damage;
             public float CurrentHp;
             public float MaxHp;
+            /// <summary>未经减伤的原始伤害（用于水灵根反伤等）</summary>
+            public float RawDamage;
+            /// <summary>攻击者 GameObject（可空）</summary>
+            public UnityEngine.GameObject Attacker;
         }
 
         /// <summary>玩家死亡</summary>
@@ -238,6 +242,22 @@ namespace XianTu
             public int SlotIndex;
             public int ChargeLevel;     // 释放时的蓄力等级
             public SkillData Skill;
+        }
+
+        /// <summary>灵根选择完成（开局或调试切换时）</summary>
+        public struct SpiritRootSelected
+        {
+            public SpiritRootType Root;
+            public string DisplayName;
+            public string Description;
+        }
+
+        /// <summary>技能修饰被激活（灵物在槽位中触发功法变体）</summary>
+        public struct SkillModifierActivated
+        {
+            public int SlotIndex;          // 0=Q, 1=E, 2=R
+            public string ModifiedSkillName; // 例如"陨石术"
+            public ElementTag PrimaryTag;
         }
     }
 }

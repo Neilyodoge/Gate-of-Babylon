@@ -97,6 +97,15 @@ namespace XianTu
                 _dashRechargeDuration = config.闪避冷却时间;
             }
 
+            // StatusEffect 框架（玩家身上）—— 必须在 Inventory.Initialize 之前确保组件存在
+            // 因为 RecalculateStats 会从 StatusEffectController 读取 modifiers
+            if (GetComponent<StatusEffectController>() == null)
+                gameObject.AddComponent<StatusEffectController>();
+
+            // 灵根控制器（自动挂载，未选择灵根时无副作用）
+            if (GetComponent<SpiritRootController>() == null)
+                gameObject.AddComponent<SpiritRootController>();
+
             // 初始化背包系统
             _inventory.Initialize(stats, stats);
 
@@ -409,6 +418,14 @@ namespace XianTu
         {
             if (_invincible || !stats.IsAlive) return;
 
+            // 土灵根：地脉护盾优先抵挡（仅消耗一次伤害，无视伤害大小）
+            var rootCtrl = GetComponent<SpiritRootController>();
+            if (rootCtrl != null && rootCtrl.TryConsumeEarthShield())
+            {
+                Debug.Log("<color=#D4B582>🪨 地脉护盾抵挡了一次伤害</color>");
+                return;
+            }
+
             // 金刚不坏协同：30%概率完全格挡并反弹伤害
             if (SynergySystem.IsVajraActive && Random.value < 0.3f)
             {
@@ -459,7 +476,9 @@ namespace XianTu
             {
                 Damage = actual,
                 CurrentHp = stats.currentHp,
-                MaxHp = stats.maxHp
+                MaxHp = stats.maxHp,
+                RawDamage = damage,
+                Attacker = attacker
             });
 
             GameEvents.Publish(new GameEvents.HealthChanged
