@@ -1,13 +1,10 @@
-﻿using System.Net.Sockets;
+﻿#if UNITY_EDITOR
 using System;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.Rendering;
-using UnityEditor.Rendering.Universal.ShaderGUI;
-using UnityEditor.Rendering.Universal;
 using System.Collections.Generic;
 using UnityEditorInternal;
-using System.Linq;
 
 public class BaseVFXGUI : ShaderGUI
 {
@@ -388,7 +385,7 @@ public class BaseVFXGUI : ShaderGUI
                     targetMat.SetFloat("_MainTexCustomDataON", 0);
                 }
                 // CustomData.zw end
-                BaseShaderGUI.TwoFloatSingleLine(new GUIContent("特效图偏移"), _OffsetSpeedX, new GUIContent("X速度"), _OffsetSpeedY, new GUIContent("Y速度"), materialEditor);
+                TwoFloatSingleLine(new GUIContent("特效图偏移"), _OffsetSpeedX, new GUIContent("X速度"), _OffsetSpeedY, new GUIContent("Y速度"), materialEditor);
                 EditorGUI.indentLevel--;
                 EditorGUI.indentLevel--;
                 EditorGUILayout.EndVertical();
@@ -409,7 +406,7 @@ public class BaseVFXGUI : ShaderGUI
                 EditorGUI.indentLevel++;
                 materialEditor.ShaderProperty(_UseMaskR, "使用Mask的R通道");
                 materialEditor.ShaderProperty(_MaskTex, "MaskTex");
-                BaseShaderGUI.TwoFloatSingleLine(new GUIContent("Mask图偏移"), _MaskSpeedX, new GUIContent("X速度"), _MaskSpeedY, new GUIContent("Y速度"), materialEditor);
+                TwoFloatSingleLine(new GUIContent("Mask图偏移"), _MaskSpeedX, new GUIContent("X速度"), _MaskSpeedY, new GUIContent("Y速度"), materialEditor);
                 // CustomData2.zw start
                 EditorGUI.BeginChangeCheck();
                 EditorGUI.showMixedValue = _MaskTexCustomDataON.hasMixedValue;
@@ -509,7 +506,7 @@ public class BaseVFXGUI : ShaderGUI
                     targetMat.SetFloat("_CustomVertexAnimOffset", 0);
                 }
                 materialEditor.ShaderProperty(_VertexAnimTiling, "xy:R通道Tiling zw:B通道Tiling");
-                BaseShaderGUI.TwoFloatSingleLine(new GUIContent("动画速度"), _VertexAnimSpeedX, new GUIContent("X速度"), _VertexAnimSpeedY, new GUIContent("Y速度"), materialEditor);
+                TwoFloatSingleLine(new GUIContent("动画速度"), _VertexAnimSpeedX, new GUIContent("X速度"), _VertexAnimSpeedY, new GUIContent("Y速度"), materialEditor);
                 materialEditor.ShaderProperty(_VertexAnimIntensity, "动画强度");
 
                 EditorGUILayout.EndVertical();
@@ -639,7 +636,7 @@ public class BaseVFXGUI : ShaderGUI
 
                 
                 materialEditor.ShaderProperty(_DistortionTex, "扭曲贴图");
-                BaseShaderGUI.TwoFloatSingleLine(new GUIContent("扭曲图偏移"), _DistortionSpeedX, new GUIContent("X速度"), _DistortionSpeedY, new GUIContent("Y速度"), materialEditor);
+                TwoFloatSingleLine(new GUIContent("扭曲图偏移"), _DistortionSpeedX, new GUIContent("X速度"), _DistortionSpeedY, new GUIContent("Y速度"), materialEditor);
                 materialEditor.ShaderProperty(_DistortionIntensity, "扭曲强度");
                 EditorGUILayout.EndVertical();
             }
@@ -673,7 +670,7 @@ public class BaseVFXGUI : ShaderGUI
                 if (EditorGUI.EndChangeCheck()) _FresnelA.floatValue = _FRENSELA ? 1 : 0;
                 // materialEditor.ShaderProperty(_InvertFresnel, "反转菲尼尔范围");
                 materialEditor.ShaderProperty(_FresnelTex, "菲尼尔贴图");
-                BaseShaderGUI.TwoFloatSingleLine(new GUIContent("菲尼尔贴图偏移速度"), _FresnelOffsetX, new GUIContent("X速度"), _FresnelOffsetY, new GUIContent("Y速度"), materialEditor);
+                TwoFloatSingleLine(new GUIContent("菲尼尔贴图偏移速度"), _FresnelOffsetX, new GUIContent("X速度"), _FresnelOffsetY, new GUIContent("Y速度"), materialEditor);
                 materialEditor.ShaderProperty(_FresnelColor, "菲尼尔颜色");
                 materialEditor.ShaderProperty(_FresnelSideScale, "菲尼尔范围");
                 materialEditor.ShaderProperty(_FresnelWidth, "菲尼尔边缘软硬");
@@ -754,7 +751,7 @@ public class BaseVFXGUI : ShaderGUI
                     //{
                         //materialEditor.ShaderProperty(_DissolveIntensity, "溶解强度");
                     //}
-                    BaseShaderGUI.TwoFloatSingleLine(new GUIContent("溶解图偏移"), _DissolveSpeedX, new GUIContent("X速度"), _DissolveSpeedY, new GUIContent("Y速度"), materialEditor);
+                    TwoFloatSingleLine(new GUIContent("溶解图偏移"), _DissolveSpeedX, new GUIContent("X速度"), _DissolveSpeedY, new GUIContent("Y速度"), materialEditor);
                     EditorGUI.indentLevel--;
                 }
                 #endregion
@@ -840,7 +837,7 @@ public class BaseVFXGUI : ShaderGUI
                     materialEditor.ShaderProperty(_DissolveEdgeColor, "边缘颜色");
                     materialEditor.ShaderProperty(_DissolveEdgeWidth, "边缘宽度");
 
-                    BaseShaderGUI.TwoFloatSingleLine(new GUIContent("溶解图偏移"), _DissolveSpeedX, new GUIContent("X速度"), _DissolveSpeedY, new GUIContent("Y速度"), materialEditor);
+                    TwoFloatSingleLine(new GUIContent("溶解图偏移"), _DissolveSpeedX, new GUIContent("X速度"), _DissolveSpeedY, new GUIContent("Y速度"), materialEditor);
                     EditorGUI.indentLevel--;
                 }
                 else if ((FeatureT)targetMat.GetFloat("_Feature_Transparent") == FeatureT.SoftDissolve)
@@ -882,7 +879,7 @@ public class BaseVFXGUI : ShaderGUI
                     materialEditor.ShaderProperty(_SoftValue, "边缘软度");
                     materialEditor.ShaderProperty(_DissolveEdgeColor, "边缘颜色");
                     materialEditor.ShaderProperty(_DissolveEdgeWidthSoft, "边缘宽度");
-                    BaseShaderGUI.TwoFloatSingleLine(new GUIContent("溶解图偏移"), _DissolveSpeedX, new GUIContent("X速度"), _DissolveSpeedY, new GUIContent("Y速度"), materialEditor);
+                    TwoFloatSingleLine(new GUIContent("溶解图偏移"), _DissolveSpeedX, new GUIContent("X速度"), _DissolveSpeedY, new GUIContent("Y速度"), materialEditor);
                     EditorGUI.indentLevel--;
                 }
                 #endregion
@@ -923,6 +920,40 @@ public class BaseVFXGUI : ShaderGUI
         }
         EditorGUI.showMixedValue = false;
     }
+
+    private static void TwoFloatSingleLine(
+        GUIContent title,
+        MaterialProperty prop1,
+        GUIContent prop1Label,
+        MaterialProperty prop2,
+        GUIContent prop2Label,
+        MaterialEditor materialEditor,
+        float labelWidth = 30f)
+    {
+        if (prop1 == null) throw new ArgumentNullException(nameof(prop1));
+        if (prop2 == null) throw new ArgumentNullException(nameof(prop2));
+        if (materialEditor == null) throw new ArgumentNullException(nameof(materialEditor));
+
+        Rect rect = EditorGUILayout.GetControlRect();
+        EditorGUI.PrefixLabel(rect, title);
+
+        float oldLabelWidth = EditorGUIUtility.labelWidth;
+        int oldIndentLevel = EditorGUI.indentLevel;
+        EditorGUIUtility.labelWidth = labelWidth;
+        EditorGUI.indentLevel = 0;
+
+        rect.x += EditorGUIUtility.labelWidth;
+        rect.width -= EditorGUIUtility.labelWidth;
+        rect.width = (rect.width - 4f) * 0.5f;
+        materialEditor.ShaderProperty(rect, prop1, prop1Label);
+
+        rect.x += rect.width + 4f;
+        materialEditor.ShaderProperty(rect, prop2, prop2Label);
+
+        EditorGUIUtility.labelWidth = oldLabelWidth;
+        EditorGUI.indentLevel = oldIndentLevel;
+    }
+
     public static void SetupMaterialBlendMode(Material material)
     {
         if (material == null)
@@ -1158,3 +1189,4 @@ public class BaseVFXGUI : ShaderGUI
     //#endregion
 
 }
+#endif
