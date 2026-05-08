@@ -18,7 +18,8 @@ Assets/Effect/PBRToon/
 │   └── CharacterShadowAtlasTarget.cs         # 角色 Atlas 阴影目标组件
 ├── PBRToonFaceDirection.cs             # 面部朝向脚本（运行时组件）
 └── Shaders/
-    ├── PBRToonCommon.hlsl              # 公共工具函数库
+    ├── PBRToonCommon.hlsl              # 公共工具函数库（光照/RimLight/IBL 等）
+    ├── PBRToonOutline.hlsl             # 描边算法库（背面法线外扩 + 视距自适应）
     ├── ToonShadowFilter.hlsl           # 自定义 PCF/PCSS 阴影滤波库
     ├── PBRToonBase.shader              # 基础 Shader（身体/衣服等）
     ├── PBRToonFace.shader              # 面部 Shader（SDF 阴影 + 鼻尖高光）
