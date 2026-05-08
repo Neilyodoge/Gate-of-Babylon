@@ -195,76 +195,8 @@ void GetApproxPreIntegratedFGD(float NdotV, float perceptualRoughness, float3 fr
 }
 
 // ============================================================================
-// Outline 描边公共函数 (原神风格描边算法)
+// Outline 描边相关函数已迁移至 PBRToonOutline.hlsl
+// 在 Outline Pass 中请直接 #include "PBRToonOutline.hlsl"
 // ============================================================================
-
-// 视距 Remap：将 EyeDepth 在旧范围内线性映射到新范围
-// 魔改 Remap: 与标准 Remap 区别是限定分母最小值不为0 (max(..., 0.001))
-float OutlineEyeDepthRemap(float In, float2 InMinMax, float2 OutMinMax)
-{
-    return OutMinMax.x + saturate((In - InMinMax.x) / max(InMinMax.y - InMinMax.x, 0.001)) * (OutMinMax.y - OutMinMax.x);
-}
-
-// 原神风格描边顶点着色器
-// positionOS:      对象空间顶点位置
-// smoothNormalOS:  对象空间平滑法线 (从 UV3/TEXCOORD3.xyz 解码切线空间法线，用 TBN 矩阵还原到对象空间)
-//                  UV 通道分配: UV2=BentNormal, UV3=平滑法线（切线空间 xyz）
-// vertexColor:     顶点色 (A通道 = 顶点描边宽度缩放，默认0.5)
-// 描边参数由 CBUFFER 中的 uniform 变量提供
-float4 ToonOutlineVertex(
-    float4 positionOS,
-    float3 smoothNormalOS,
-    float4 vertexColor,
-    // 以下为材质参数
-    float  outlineWidth,             // _OutlineWidth: 全局描边宽度缩放
-    float3 eyeDepthRemapOldRanges,   // _OutlineDepthOldRange: 默认 (0.01, 2.0, 6.0)  x:最细距离 y:近远分界 z:最粗距离
-    float3 eyeDepthRemapNewRanges,   // _OutlineDepthNewRange: 默认 (0.105, 0.245, 0.60) x:近处最细宽度 y:宽度 z:远处宽度
-    float  normalizeViewNormalXYScale // _OutlineNormalScale: 法线XY缩放 默认 1.0
-)
-{
-    // ====== 视图空间位置 ======
-    // 这里算的是世界空间的米，1米 = Transform的1
-    float3 positionVS = TransformWorldToView(TransformObjectToWorld(positionOS.xyz));
-
-    // ====== 法线变换到视图空间 ======
-    float3 normalWS = mul((float3x3)unity_ObjectToWorld, smoothNormalOS);
-    float3 normalVS = mul((float3x3)unity_MatrixV, normalWS);
-
-    // 描边宽度方向：压扁Z后归一化取XY
-    // 这边算宽度相当于变化率也一起跟着算了，最后算宽度是不计算变化率的
-    float2 normalVSxy = normalize(float3(normalVS.xy, 0.01)).xy * normalizeViewNormalXYScale;
-
-    // ====== FOV 自适应 ======
-    // 透视投影矩阵 unity_CameraProjection._m11 = cot(FOV/2)
-    // cot(0.5*45°) = 2.414，即FOV=45°时 fov45AdaptScale=1，可看做缩放系数
-    // FOV 越小，cot(0.5*FOV) 越大，2.414 / _m11 越小
-    // FOV 越小，人物越大，描边在3D空间上变小，最终屏幕上粗度相应保持不变
-    float fov45AdaptScale = 2.414 / unity_CameraProjection._m11;
-
-    // ====== 视距分段 Remap ======
-    // _Property_EyeDepthRemapOldRanges: x:最细距离 y:近远分界距离 z:最粗距离
-    // _Property_EyeDepthRemapNewRanges: x:近处最细宽度 y:分界处宽度 z:远处宽度
-    // positionVS.z 用负数是因为摄像机朝向-z轴向
-    float fovFactor = -positionVS.z * fov45AdaptScale;
-    bool isNear = fovFactor < eyeDepthRemapOldRanges.y;
-    float2 widthOldRange = isNear ? eyeDepthRemapOldRanges.xy : eyeDepthRemapOldRanges.yz;
-    float2 widthNewRange = isNear ? eyeDepthRemapNewRanges.xy : eyeDepthRemapNewRanges.yz;
-    float eyeDepthInNewRange = OutlineEyeDepthRemap(fovFactor, widthOldRange, widthNewRange);
-
-    // ====== 描边缩放因子 ======
-    // 原神逐顶点宽度控制放在UV中(uv2.y默认0.5)，我们改用顶点色A通道替代
-    float depthScaleW = vertexColor.a;
-    float depthScale = eyeDepthInNewRange * 0.02 * depthScaleW;
-
-    // 应用全局宽度缩放
-    depthScale *= outlineWidth;
-
-    // ====== 法线方向偏移 + 投影 ======
-    float3 biasedPos = positionVS;
-    biasedPos.xy += normalVSxy * depthScale;
-    float4 positionCS = mul(UNITY_MATRIX_P, float4(biasedPos, 1.0));
-
-    return positionCS;
-}
 
 #endif // PBR_TOON_COMMON_INCLUDED

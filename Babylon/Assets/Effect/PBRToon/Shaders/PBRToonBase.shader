@@ -802,8 +802,7 @@ Shader "Universal Render Pipeline/PBRToon/Base"
 
             #pragma multi_compile_instancing
 
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "PBRToonCommon.hlsl"
+            #include "PBRToonOutline.hlsl"
 
             // ====== CBUFFER ======
             CBUFFER_START(UnityPerMaterial)
