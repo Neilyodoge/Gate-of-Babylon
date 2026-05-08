@@ -9,12 +9,21 @@ namespace XianTu
     /// 进入房间后自动弹出商店面板，展示3个随机商品
     /// 用灵力碎片购买灵物/功法
     /// </summary>
-    public class ShopRoom : MonoBehaviour
+    public class ShopRoom : MonoBehaviour, IInteractable
     {
         private ItemData[] _shopItems;
         private SkillData[] _shopSkills;
         private int _roomIndex;
         private GameObject _roomVisuals;
+        private Transform _shopkeeperTransform;
+
+        // ===== IInteractable：参与统一 F 交互路由 =====
+        // 商店优先级最高 —— 玩家若同时在商店和拾取物范围内，先满足商店交互
+        public Vector3 InteractionWorldPos =>
+            _shopkeeperTransform != null ? _shopkeeperTransform.position : transform.position;
+        public int InteractionPriority => 40;
+        public bool IsInteractionAvailable => _playerInRange && !_shopOpen;
+        public bool IsRoutedActive { get; set; }
 
         // 商店UI
         private GameObject _shopCanvas;
@@ -69,6 +78,7 @@ namespace XianTu
         private void OnDestroy()
         {
             GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
+            InteractionRouter.Unregister(this);
             if (_roomVisuals != null) Destroy(_roomVisuals);
             if (_shopCanvas != null) Destroy(_shopCanvas);
         }
@@ -104,6 +114,7 @@ namespace XianTu
             npc.name = "Shopkeeper";
             npc.transform.SetParent(transform);
             npc.transform.localPosition = new Vector3(0, 1f, 3.5f);
+            _shopkeeperTransform = npc.transform; // 给 InteractionRouter 用作距离锚点
             var npcCol = npc.GetComponent<Collider>();
             if (npcCol != null) Destroy(npcCol);
             var npcRend = npc.GetComponent<Renderer>();
@@ -994,8 +1005,16 @@ namespace XianTu
 
         private void Update()
         {
-            // 靠近商人时按F打开商店
-            if (_playerInRange && !_shopOpen)
+            // 同步交互提示：被路由器选中时才显示「按 F 交易」提示
+            if (_interactHint != null)
+            {
+                bool wantHint = _playerInRange && !_shopOpen && IsRoutedActive;
+                if (_interactHint.activeSelf != wantHint)
+                    _interactHint.SetActive(wantHint);
+            }
+
+            // 仅在被路由器选中时响应 F（避免与拾取物等其他交互体重叠时同时触发）
+            if (_playerInRange && !_shopOpen && IsRoutedActive)
             {
                 var kb = UnityEngine.InputSystem.Keyboard.current;
                 if (kb != null && kb.fKey.wasPressedThisFrame)
@@ -1015,13 +1034,15 @@ namespace XianTu
         public void OnPlayerEnterRange()
         {
             _playerInRange = true;
-            if (_interactHint != null) _interactHint.SetActive(true);
+            InteractionRouter.Register(this);
+            // 实际是否显示提示由 Update 中 IsRoutedActive 决定
         }
 
         /// <summary>玩家离开商人范围</summary>
         public void OnPlayerExitRange()
         {
             _playerInRange = false;
+            InteractionRouter.Unregister(this);
             if (_interactHint != null) _interactHint.SetActive(false);
         }
 

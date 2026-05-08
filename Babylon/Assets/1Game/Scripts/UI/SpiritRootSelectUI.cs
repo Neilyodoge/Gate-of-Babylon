@@ -14,9 +14,13 @@ namespace XianTu
         private bool _visible;
         private float _previousTimeScale = 1f;
 
+        /// <summary>外部（NPC / Portal 等）查询面板是否处于打开态，用以禁用其他交互输入</summary>
+        public static bool IsVisible => _instance != null && _instance._visible;
+
         public static void Show()
         {
             EnsureInstance();
+            if (_instance._visible) return; // 已经在显示，不重复打开
             _instance._visible = true;
 
             // 先把可能在跑的顿帧（HitStop）强制清掉，否则会捕获到 0.05/0.02 之类的瞬时
@@ -90,18 +94,29 @@ namespace XianTu
             for (int i = 0; i < defs.Count; i++)
             {
                 float cx = x + 30f + i * cardW;
-                DrawCard(new Rect(cx, cardY, cardW - 8f, cardH), defs[i]);
+                // 第一张是默认推荐卡，画的时候打个高亮边框
+                bool isDefault = i == 0;
+                DrawCard(new Rect(cx, cardY, cardW - 8f, cardH), defs[i], isDefault);
             }
 
-            // ESC 关闭（debug 用）
+            // 底部提示
+            var bottomStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = new Color(0.7f, 0.7f, 0.7f) }
+            };
+            GUI.Label(new Rect(x, y + panelH - 30f, panelW, 20),
+                "[Esc] 默认选「金灵根」 · 选完可在村庄内回到司命使重新选择", bottomStyle);
+
+            // ESC 关闭（默认选第一个）
             if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
             {
-                // ESC 默认选第一个（金灵根）以避免卡死
                 Pick(defs[0]);
             }
         }
 
-        private void DrawCard(Rect rect, SpiritRootDef def)
+        private void DrawCard(Rect rect, SpiritRootDef def, bool isDefault)
         {
             // 卡片背景
             var bg = GUI.color;
@@ -109,12 +124,38 @@ namespace XianTu
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = bg;
 
+            // 默认卡的高亮外框（在背景之上、内容之下，金黄色细边）
+            if (isDefault)
+            {
+                var oc = GUI.color;
+                GUI.color = new Color(1f, 0.85f, 0.2f, 0.9f);
+                float t = 2f;
+                GUI.DrawTexture(new Rect(rect.x - t, rect.y - t, rect.width + 2 * t, t), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(rect.x - t, rect.y + rect.height, rect.width + 2 * t, t), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(rect.x - t, rect.y - t, t, rect.height + 2 * t), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(rect.x + rect.width, rect.y - t, t, rect.height + 2 * t), Texture2D.whiteTexture);
+                GUI.color = oc;
+            }
+
             // 上边框色块
             var topRect = new Rect(rect.x, rect.y, rect.width, 6f);
             var oldColor = GUI.color;
             GUI.color = def.displayColor;
             GUI.DrawTexture(topRect, Texture2D.whiteTexture);
             GUI.color = oldColor;
+
+            // 默认徽章（右上角小标签）
+            if (isDefault)
+            {
+                var badgeStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 11,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = new Color(1f, 0.85f, 0.2f) }
+                };
+                GUI.Label(new Rect(rect.x + rect.width - 60f, rect.y + 8f, 56f, 18f), "★ 默认", badgeStyle);
+            }
 
             var nameStyle = new GUIStyle(GUI.skin.label)
             {

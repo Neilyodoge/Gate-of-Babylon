@@ -10,8 +10,14 @@ namespace XianTu
     /// ??F??????
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public class SkillPickup : MonoBehaviour
+    public class SkillPickup : MonoBehaviour, IInteractable
     {
+        // ===== IInteractable: unified F-key interaction router =====
+        public Vector3 InteractionWorldPos => transform.position;
+        public int InteractionPriority => 25;          // skill pickup: above item (20), below shop (40)
+        public bool IsInteractionAvailable => !_pickedUp && _playerInRange;
+        public bool IsRoutedActive { get; set; }
+
         [Header("????")]
         public SkillData skillData;
 
@@ -75,8 +81,22 @@ namespace XianTu
                 _promptUI.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
             }
 
+            // Sync prompt/F-handling with router-active state.
+            // Once the slot-replace UI is open it is treated as a modal ?
+            // we keep the prompt and hold-timer alive even if the router
+            // momentarily picks something else (player must press Q/E/R or Esc).
+            if (_playerInRange && IsRoutedActive)
+            {
+                if (_promptUI == null) ShowPrompt();
+            }
+            else
+            {
+                if (!_waitingForSlotChoice && _promptUI != null) HidePrompt();
+                if (!_waitingForSlotChoice) _holdTimer = 0f;
+            }
+
             // ????
-            if (_playerInRange && _nearbyPlayerCombat != null)
+            if (_playerInRange && _nearbyPlayerCombat != null && (IsRoutedActive || _waitingForSlotChoice))
             {
                 // ??????????????????? current
                 var kb = _keyboard ?? (_keyboard = Keyboard.current);
@@ -302,7 +322,9 @@ namespace XianTu
             if (_nearbyPlayerCombat == null) return;
 
             _playerInRange = true;
-            ShowPrompt();
+            InteractionRouter.Register(this);
+            // Whether the prompt actually shows is decided each frame in Update
+            // by checking IsRoutedActive (so overlapping shop/skill behave correctly).
         }
 
         private void OnTriggerExit(Collider other)
@@ -313,6 +335,7 @@ namespace XianTu
             _nearbyPlayerCombat = null;
             _holdTimer = 0f;
             _waitingForSlotChoice = false;
+            InteractionRouter.Unregister(this);
             HideSlotChoiceUI();
             HidePrompt();
         }
@@ -465,7 +488,7 @@ namespace XianTu
 
         private void OnDestroy()
         {
-            // ??UI??????????????
+            InteractionRouter.Unregister(this);
             HidePrompt();
             HideSlotChoiceUI();
         }

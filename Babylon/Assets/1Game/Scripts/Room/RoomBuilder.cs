@@ -3,6 +3,24 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
+    /// 房间调色板：每个境界 / 村庄使用不同的色彩组合，
+    /// 由 <see cref="RoomBuilder.Build"/> 在生成时统一查询。
+    /// </summary>
+    public class RoomPalette
+    {
+        public Color ground;
+        public Color groundLine;
+        public Color border;        // 地面四周装饰边
+        public Color wall;
+        public Color wallTop;
+        public Color pillar;
+        public Color pillarTop;
+        public Color cornerGlow;
+        public Color obstacleA;     // 障碍物色 1（深）
+        public Color obstacleB;     // 障碍物色 2（浅，用于配色 lerp）
+    }
+
+    /// <summary>
     /// 房间构建器 —— 用基础几何体（Cube/Plane）动态生成房间
     /// 包含地面、墙壁、柱子、地面装饰线等
     /// </summary>
@@ -12,14 +30,122 @@ namespace XianTu
         private const float WALL_HEIGHT = 4f;
         private const float WALL_THICKNESS = 1f;
 
-        // 颜色方案（仙侠风格：深色调 + 紫/青点缀）
-        private static readonly Color GROUND_COLOR = new(0.12f, 0.14f, 0.18f);
-        private static readonly Color GROUND_LINE_COLOR = new(0.18f, 0.22f, 0.28f, 0.5f);
-        private static readonly Color WALL_COLOR = new(0.22f, 0.18f, 0.28f);
-        private static readonly Color WALL_TOP_COLOR = new(0.35f, 0.25f, 0.45f);
-        private static readonly Color PILLAR_COLOR = new(0.28f, 0.22f, 0.35f);
-        private static readonly Color PILLAR_TOP_COLOR = new(0.5f, 0.35f, 0.6f);
-        private static readonly Color CORNER_GLOW_COLOR = new(0.3f, 0.6f, 0.9f);
+        // ========== 调色板 ==========
+
+        /// <summary>村庄 Hub 配色：暖棕 + 烛光暖橙，明显区别于"外面的关卡"</summary>
+        public static readonly RoomPalette VillagePalette = new()
+        {
+            ground = new(0.22f, 0.17f, 0.13f),
+            groundLine = new(0.32f, 0.24f, 0.16f, 0.5f),
+            border = new(0.45f, 0.30f, 0.18f, 0.7f),
+            wall = new(0.28f, 0.20f, 0.14f),
+            wallTop = new(0.55f, 0.38f, 0.20f),
+            pillar = new(0.34f, 0.24f, 0.16f),
+            pillarTop = new(0.65f, 0.45f, 0.22f),
+            cornerGlow = new(1f, 0.65f, 0.25f),     // 烛火暖橙
+            obstacleA = new(0.30f, 0.22f, 0.16f),
+            obstacleB = new(0.40f, 0.28f, 0.18f)
+        };
+
+        /// <summary>6 个境界各自的配色（练气→渡劫，色调逐境递进）</summary>
+        public static readonly RoomPalette[] RealmPalettes =
+        {
+            // 0 练气期 —— 青翠竹林
+            new()
+            {
+                ground = new(0.10f, 0.16f, 0.14f),
+                groundLine = new(0.16f, 0.26f, 0.20f, 0.5f),
+                border = new(0.22f, 0.36f, 0.26f, 0.7f),
+                wall = new(0.16f, 0.28f, 0.20f),
+                wallTop = new(0.28f, 0.50f, 0.32f),
+                pillar = new(0.20f, 0.34f, 0.24f),
+                pillarTop = new(0.36f, 0.58f, 0.38f),
+                cornerGlow = new(0.45f, 0.95f, 0.55f),
+                obstacleA = new(0.18f, 0.30f, 0.22f),
+                obstacleB = new(0.26f, 0.42f, 0.28f)
+            },
+            // 1 筑基期 —— 寒潭蓝
+            new()
+            {
+                ground = new(0.10f, 0.14f, 0.20f),
+                groundLine = new(0.18f, 0.26f, 0.36f, 0.5f),
+                border = new(0.20f, 0.34f, 0.46f, 0.7f),
+                wall = new(0.16f, 0.22f, 0.34f),
+                wallTop = new(0.28f, 0.44f, 0.62f),
+                pillar = new(0.20f, 0.28f, 0.42f),
+                pillarTop = new(0.32f, 0.50f, 0.70f),
+                cornerGlow = new(0.35f, 0.7f, 1f),
+                obstacleA = new(0.20f, 0.26f, 0.36f),
+                obstacleB = new(0.26f, 0.36f, 0.50f)
+            },
+            // 2 金丹期 —— 丹炉橙
+            new()
+            {
+                ground = new(0.20f, 0.13f, 0.10f),
+                groundLine = new(0.34f, 0.22f, 0.14f, 0.5f),
+                border = new(0.50f, 0.30f, 0.16f, 0.7f),
+                wall = new(0.32f, 0.18f, 0.12f),
+                wallTop = new(0.62f, 0.36f, 0.18f),
+                pillar = new(0.40f, 0.22f, 0.14f),
+                pillarTop = new(0.72f, 0.42f, 0.18f),
+                cornerGlow = new(1f, 0.55f, 0.18f),
+                obstacleA = new(0.36f, 0.20f, 0.14f),
+                obstacleB = new(0.50f, 0.28f, 0.16f)
+            },
+            // 3 元婴期 —— 紫雾秘境（旧默认色）
+            new()
+            {
+                ground = new(0.12f, 0.14f, 0.18f),
+                groundLine = new(0.18f, 0.22f, 0.28f, 0.5f),
+                border = new(0.25f, 0.20f, 0.35f, 0.7f),
+                wall = new(0.22f, 0.18f, 0.28f),
+                wallTop = new(0.35f, 0.25f, 0.45f),
+                pillar = new(0.28f, 0.22f, 0.35f),
+                pillarTop = new(0.50f, 0.35f, 0.60f),
+                cornerGlow = new(0.55f, 0.30f, 1f),
+                obstacleA = new(0.25f, 0.20f, 0.30f),
+                obstacleB = new(0.35f, 0.20f, 0.30f)
+            },
+            // 4 化神期 —— 血煞红黑
+            new()
+            {
+                ground = new(0.13f, 0.08f, 0.10f),
+                groundLine = new(0.24f, 0.12f, 0.14f, 0.5f),
+                border = new(0.40f, 0.14f, 0.16f, 0.7f),
+                wall = new(0.22f, 0.10f, 0.12f),
+                wallTop = new(0.50f, 0.20f, 0.22f),
+                pillar = new(0.28f, 0.12f, 0.14f),
+                pillarTop = new(0.62f, 0.22f, 0.20f),
+                cornerGlow = new(1f, 0.25f, 0.30f),
+                obstacleA = new(0.26f, 0.12f, 0.14f),
+                obstacleB = new(0.40f, 0.18f, 0.18f)
+            },
+            // 5 渡劫期 —— 天劫银白
+            new()
+            {
+                ground = new(0.16f, 0.16f, 0.20f),
+                groundLine = new(0.30f, 0.30f, 0.40f, 0.55f),
+                border = new(0.55f, 0.55f, 0.70f, 0.7f),
+                wall = new(0.25f, 0.25f, 0.32f),
+                wallTop = new(0.65f, 0.65f, 0.85f),
+                pillar = new(0.30f, 0.30f, 0.38f),
+                pillarTop = new(0.80f, 0.80f, 0.95f),
+                cornerGlow = new(0.85f, 0.95f, 1f),     // 雷电白
+                obstacleA = new(0.30f, 0.30f, 0.38f),
+                obstacleB = new(0.45f, 0.45f, 0.55f)
+            }
+        };
+
+        /// <summary>当前正在构建房间的调色板（线程不安全，仅主线程使用）</summary>
+        private static RoomPalette _palette = RealmPalettes[3];
+
+        /// <summary>根据境界索引取调色板，越界回落到第 0 境</summary>
+        public static RoomPalette GetRealmPalette(int realmIndex)
+        {
+            if (RealmPalettes == null || RealmPalettes.Length == 0) return null;
+            int idx = Mathf.Clamp(realmIndex, 0, RealmPalettes.Length - 1);
+            return RealmPalettes[idx];
+        }
 
         /// <summary>
         /// 构建房间
@@ -27,10 +153,13 @@ namespace XianTu
         /// <param name="parent">房间根节点</param>
         /// <param name="width">房间宽度（X轴）</param>
         /// <param name="depth">房间深度（Z轴）</param>
-        /// <param name="roomIndex">房间层数（影响装饰风格）</param>
+        /// <param name="roomIndex">房间层数（决定障碍数量与默认配色）</param>
+        /// <param name="palette">可选的指定调色板（村庄等场景用）；null 时按 roomIndex 查表</param>
         /// <returns>房间根 GameObject</returns>
-        public static GameObject Build(Transform parent, float width, float depth, int roomIndex)
+        public static GameObject Build(Transform parent, float width, float depth, int roomIndex, RoomPalette palette = null)
         {
+            _palette = palette ?? GetRealmPalette(roomIndex) ?? RealmPalettes[3];
+
             var roomRoot = new GameObject("RoomVisuals");
             roomRoot.transform.SetParent(parent, false);
             roomRoot.transform.localPosition = Vector3.zero;
@@ -68,30 +197,23 @@ namespace XianTu
             ground.transform.localScale = new Vector3(width / 10f, 1f, depth / 10f);
 
             // 地面不需要 MeshCollider 以外的碰撞（Plane 自带）
-            SetMaterial(ground, GROUND_COLOR);
+            SetMaterial(ground, _palette.ground);
 
             // 地面边缘装饰条（稍微亮一点的边框）
             float borderWidth = 0.3f;
-            // 前
+            Color borderColor = _palette.border;
             CreateDecorStrip(parent, "BorderFront",
                 new Vector3(0, 0.01f, depth / 2f - borderWidth / 2f),
-                new Vector3(width, 0.02f, borderWidth),
-                new Color(0.25f, 0.2f, 0.35f, 0.6f));
-            // 后
+                new Vector3(width, 0.02f, borderWidth), borderColor);
             CreateDecorStrip(parent, "BorderBack",
                 new Vector3(0, 0.01f, -depth / 2f + borderWidth / 2f),
-                new Vector3(width, 0.02f, borderWidth),
-                new Color(0.25f, 0.2f, 0.35f, 0.6f));
-            // 左
+                new Vector3(width, 0.02f, borderWidth), borderColor);
             CreateDecorStrip(parent, "BorderLeft",
                 new Vector3(-width / 2f + borderWidth / 2f, 0.01f, 0),
-                new Vector3(borderWidth, 0.02f, depth),
-                new Color(0.25f, 0.2f, 0.35f, 0.6f));
-            // 右
+                new Vector3(borderWidth, 0.02f, depth), borderColor);
             CreateDecorStrip(parent, "BorderRight",
                 new Vector3(width / 2f - borderWidth / 2f, 0.01f, 0),
-                new Vector3(borderWidth, 0.02f, depth),
-                new Color(0.25f, 0.2f, 0.35f, 0.6f));
+                new Vector3(borderWidth, 0.02f, depth), borderColor);
         }
 
         /// <summary>构建地面网格线</summary>
@@ -112,7 +234,7 @@ namespace XianTu
                 line.transform.SetParent(gridRoot.transform, false);
                 line.transform.localPosition = new Vector3(0, lineHeight, z);
                 line.transform.localScale = new Vector3(width - 2f, lineHeight, lineThickness);
-                SetMaterial(line, GROUND_LINE_COLOR);
+                SetMaterial(line, _palette.groundLine);
                 // 移除碰撞体，网格线不参与物理
                 Object.Destroy(line.GetComponent<Collider>());
             }
@@ -125,7 +247,7 @@ namespace XianTu
                 line.transform.SetParent(gridRoot.transform, false);
                 line.transform.localPosition = new Vector3(x, lineHeight, 0);
                 line.transform.localScale = new Vector3(lineThickness, lineHeight, depth - 2f);
-                SetMaterial(line, GROUND_LINE_COLOR);
+                SetMaterial(line, _palette.groundLine);
                 Object.Destroy(line.GetComponent<Collider>());
             }
         }
@@ -159,22 +281,19 @@ namespace XianTu
 
             // 墙顶装饰条（亮色）
             float topH = 0.3f;
+            Color topColor = _palette.wallTop;
             CreateDecorStrip(parent, "WallTopFront",
                 new Vector3(0, WALL_HEIGHT + topH / 2f, halfD + WALL_THICKNESS / 2f),
-                new Vector3(width + WALL_THICKNESS * 2 + 0.2f, topH, WALL_THICKNESS + 0.2f),
-                WALL_TOP_COLOR);
+                new Vector3(width + WALL_THICKNESS * 2 + 0.2f, topH, WALL_THICKNESS + 0.2f), topColor);
             CreateDecorStrip(parent, "WallTopBack",
                 new Vector3(0, WALL_HEIGHT + topH / 2f, -halfD - WALL_THICKNESS / 2f),
-                new Vector3(width + WALL_THICKNESS * 2 + 0.2f, topH, WALL_THICKNESS + 0.2f),
-                WALL_TOP_COLOR);
+                new Vector3(width + WALL_THICKNESS * 2 + 0.2f, topH, WALL_THICKNESS + 0.2f), topColor);
             CreateDecorStrip(parent, "WallTopRight",
                 new Vector3(halfW + WALL_THICKNESS / 2f, WALL_HEIGHT + topH / 2f, 0),
-                new Vector3(WALL_THICKNESS + 0.2f, topH, depth + WALL_THICKNESS * 2 + 0.2f),
-                WALL_TOP_COLOR);
+                new Vector3(WALL_THICKNESS + 0.2f, topH, depth + WALL_THICKNESS * 2 + 0.2f), topColor);
             CreateDecorStrip(parent, "WallTopLeft",
                 new Vector3(-halfW - WALL_THICKNESS / 2f, WALL_HEIGHT + topH / 2f, 0),
-                new Vector3(WALL_THICKNESS + 0.2f, topH, depth + WALL_THICKNESS * 2 + 0.2f),
-                WALL_TOP_COLOR);
+                new Vector3(WALL_THICKNESS + 0.2f, topH, depth + WALL_THICKNESS * 2 + 0.2f), topColor);
         }
 
         /// <summary>构建四角装饰柱</summary>
@@ -200,7 +319,7 @@ namespace XianTu
                 pillar.transform.SetParent(parent, false);
                 pillar.transform.localPosition = corners[i] + new Vector3(0, pillarHeight / 2f, 0);
                 pillar.transform.localScale = new Vector3(pillarSize, pillarHeight, pillarSize);
-                SetMaterial(pillar, PILLAR_COLOR);
+                SetMaterial(pillar, _palette.pillar);
 
                 // 柱顶装饰
                 var pillarTop = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -208,7 +327,7 @@ namespace XianTu
                 pillarTop.transform.SetParent(parent, false);
                 pillarTop.transform.localPosition = corners[i] + new Vector3(0, pillarHeight + 0.2f, 0);
                 pillarTop.transform.localScale = new Vector3(pillarSize + 0.4f, 0.4f, pillarSize + 0.4f);
-                SetMaterial(pillarTop, PILLAR_TOP_COLOR);
+                SetMaterial(pillarTop, _palette.pillarTop);
                 Object.Destroy(pillarTop.GetComponent<Collider>()); // 装饰不需要碰撞
             }
         }
@@ -220,11 +339,8 @@ namespace XianTu
             float halfD = depth / 2f - 3f;
             float safeRadius = 4f; // 中心安全区（玩家出生点附近不放障碍）
 
-            // 根据层数选择不同的障碍物颜色
-            Color obstacleColor = Color.Lerp(
-                new Color(0.25f, 0.2f, 0.3f),
-                new Color(0.35f, 0.15f, 0.2f),
-                (float)roomIndex / 5f);
+            // 障碍物颜色：在调色板的 obstacleA / obstacleB 之间按 roomIndex 插值
+            Color obstacleColor = Color.Lerp(_palette.obstacleA, _palette.obstacleB, roomIndex / 5f);
 
             var obstacleRoot = new GameObject("Obstacles");
             obstacleRoot.transform.SetParent(parent, false);
@@ -344,6 +460,7 @@ namespace XianTu
                 new(-halfW, 0.1f, -halfD)
             };
 
+            Color glowColor = _palette.cornerGlow;
             for (int i = 0; i < corners.Length; i++)
             {
                 var glow = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -357,10 +474,10 @@ namespace XianTu
                 if (renderer != null)
                 {
                     var mat = new Material(MaterialHelper.GetLitShader());
-                    mat.color = CORNER_GLOW_COLOR;
+                    mat.color = glowColor;
                     // 自发光
                     mat.EnableKeyword("_EMISSION");
-                    mat.SetColor("_EmissionColor", CORNER_GLOW_COLOR * 2f);
+                    mat.SetColor("_EmissionColor", glowColor * 2f);
                     renderer.material = mat;
                 }
             }
@@ -375,7 +492,7 @@ namespace XianTu
             wall.transform.SetParent(parent, false);
             wall.transform.localPosition = pos;
             wall.transform.localScale = scale;
-            SetMaterial(wall, WALL_COLOR);
+            SetMaterial(wall, _palette.wall);
         }
 
         private static void CreateDecorStrip(Transform parent, string name, Vector3 pos, Vector3 scale, Color color)

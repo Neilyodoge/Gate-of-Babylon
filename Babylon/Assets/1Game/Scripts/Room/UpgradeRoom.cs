@@ -9,10 +9,18 @@ namespace XianTu
     /// 进入房间靠近修炼台按F打开升级面板
     /// 每个技能可升级：伤害+15%、CD-10%、充能+1层（三选一）
     /// </summary>
-    public class UpgradeRoom : MonoBehaviour
+    public class UpgradeRoom : MonoBehaviour, IInteractable
     {
         private int _roomIndex;
         private GameObject _roomVisuals;
+        private Transform _masterTransform; // 升级宗师 NPC，用作距离锚点
+
+        // ===== IInteractable：参与统一 F 交互路由 =====
+        public Vector3 InteractionWorldPos =>
+            _masterTransform != null ? _masterTransform.position : transform.position;
+        public int InteractionPriority => 35;
+        public bool IsInteractionAvailable => _playerInRange && !_panelOpen;
+        public bool IsRoutedActive { get; set; }
 
         // 升级UI
         private GameObject _upgradeCanvas;
@@ -64,6 +72,7 @@ namespace XianTu
         private void OnDestroy()
         {
             GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
+            InteractionRouter.Unregister(this);
             if (_roomVisuals != null) Destroy(_roomVisuals);
             if (_upgradeCanvas != null) Destroy(_upgradeCanvas);
         }
@@ -101,6 +110,7 @@ namespace XianTu
             npc.name = "UpgradeMaster";
             npc.transform.SetParent(transform);
             npc.transform.localPosition = new Vector3(0, 1f, 2f);
+            _masterTransform = npc.transform;
             var npcCol = npc.GetComponent<Collider>();
             if (npcCol != null) Destroy(npcCol);
             var npcRend = npc.GetComponent<Renderer>();
@@ -661,7 +671,15 @@ namespace XianTu
 
         private void Update()
         {
-            if (_playerInRange && !_panelOpen)
+            // 同步交互提示：被路由器选中时才显示「按 F」提示
+            if (_interactHint != null)
+            {
+                bool wantHint = _playerInRange && !_panelOpen && IsRoutedActive;
+                if (_interactHint.activeSelf != wantHint)
+                    _interactHint.SetActive(wantHint);
+            }
+
+            if (_playerInRange && !_panelOpen && IsRoutedActive)
             {
                 var kb = UnityEngine.InputSystem.Keyboard.current;
                 if (kb != null && kb.fKey.wasPressedThisFrame)
@@ -679,12 +697,13 @@ namespace XianTu
         public void OnPlayerEnterRange()
         {
             _playerInRange = true;
-            if (_interactHint != null) _interactHint.SetActive(true);
+            InteractionRouter.Register(this);
         }
 
         public void OnPlayerExitRange()
         {
             _playerInRange = false;
+            InteractionRouter.Unregister(this);
             if (_interactHint != null) _interactHint.SetActive(false);
         }
 

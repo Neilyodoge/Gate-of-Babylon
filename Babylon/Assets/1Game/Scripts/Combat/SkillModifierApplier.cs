@@ -242,8 +242,9 @@ namespace XianTu
         /// <summary>
         /// 临时 cube 特效：用 GameObject.CreatePrimitive(Cube) + 自发光颜色 + 自动销毁。
         /// 等正式 VFX 资源接入后用 prefab 替换。
+        /// riseSpeed > 0 时，cube 会以指定速度向上飘（适合火苗/烟雾等环境特效）。
         /// </summary>
-        public static void SpawnCubeVfx(Vector3 pos, Color color, float size, float lifetime)
+        public static GameObject SpawnCubeVfx(Vector3 pos, Color color, float size, float lifetime, float riseSpeed = 0f)
         {
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cube.name = "ModifierCubeVfx";
@@ -261,21 +262,24 @@ namespace XianTu
                 rend.material = mat;
             }
 
-            cube.AddComponent<CubeVfxAutoDestroy>().Init(lifetime);
+            cube.AddComponent<CubeVfxAutoDestroy>().Init(lifetime, riseSpeed);
+            return cube;
         }
     }
 
-    /// <summary>cube 特效自销毁 + 一些动效（旋转 + 缩放褪色）。</summary>
+    /// <summary>cube 特效自销毁 + 一些动效（旋转 + 缩放褪色 + 可选上飘）。</summary>
     internal class CubeVfxAutoDestroy : MonoBehaviour
     {
         private float _lifetime;
         private float _t;
+        private float _riseSpeed;
         private Renderer _renderer;
         private Vector3 _baseScale;
 
-        public void Init(float lifetime)
+        public void Init(float lifetime, float riseSpeed = 0f)
         {
             _lifetime = Mathf.Max(0.1f, lifetime);
+            _riseSpeed = riseSpeed;
             _renderer = GetComponent<Renderer>();
             _baseScale = transform.localScale;
         }
@@ -290,7 +294,12 @@ namespace XianTu
                 return;
             }
             transform.Rotate(0, 90f * Time.deltaTime, 0, Space.Self);
-            transform.localScale = _baseScale * Mathf.Lerp(1f, 1.4f, p);
+            // 火苗/烟雾上升时同步缩小，避免后期变成大方块
+            float scaleP = _riseSpeed > 0f ? Mathf.Lerp(1f, 0.4f, p) : Mathf.Lerp(1f, 1.4f, p);
+            transform.localScale = _baseScale * scaleP;
+
+            if (_riseSpeed > 0f)
+                transform.position += Vector3.up * _riseSpeed * Time.deltaTime;
 
             if (_renderer != null && _renderer.material != null)
             {

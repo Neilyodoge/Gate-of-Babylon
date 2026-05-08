@@ -8,8 +8,15 @@ namespace XianTu
     /// ??F????????
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public class ItemPickup : MonoBehaviour
+    public class ItemPickup : MonoBehaviour, IInteractable
     {
+        // ===== IInteractable: unified F-key interaction router =====
+        // (avoids triggering this AND a nearby shop/skill at the same F press)
+        public Vector3 InteractionWorldPos => transform.position;
+        public int InteractionPriority => 20;          // item pickup: lower than skill (25) and shop (40)
+        public bool IsInteractionAvailable => !_pickedUp && _playerInRange;
+        public bool IsRoutedActive { get; set; }
+
         [Header("????")]
         public ItemData itemData;
 
@@ -86,8 +93,20 @@ namespace XianTu
                 _promptUI.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
             }
 
-            // ?????????????F?? / ??F???
-            if (_playerInRange && _nearbyPlayer != null)
+            // Sync prompt visibility with router-active state.
+            // When several interactables overlap, only the routed-active one
+            // shows its prompt and consumes F input.
+            if (_playerInRange && IsRoutedActive)
+            {
+                if (_promptUI == null) ShowPrompt();
+            }
+            else
+            {
+                if (_promptUI != null) HidePrompt();
+                _holdTimer = 0f;
+            }
+
+            if (_playerInRange && _nearbyPlayer != null && IsRoutedActive)
             {
                 var kb = _keyboard ?? (_keyboard = UnityEngine.InputSystem.Keyboard.current);
                 if (kb == null) return;
@@ -126,10 +145,11 @@ namespace XianTu
             if (_pickedUp) return;
             if (!other.CompareTag("Player")) return;
 
-            // ???????????????F?? / ??F??
             _nearbyPlayer = other.GetComponent<PlayerController>();
             _playerInRange = true;
-            ShowPrompt();
+            // Register with router; whether the prompt actually shows is decided
+            // each frame in Update by checking IsRoutedActive.
+            InteractionRouter.Register(this);
         }
 
         private void OnTriggerExit(Collider other)
@@ -139,6 +159,7 @@ namespace XianTu
             _playerInRange = false;
             _nearbyPlayer = null;
             _holdTimer = 0f;
+            InteractionRouter.Unregister(this);
             HidePrompt();
         }
 
@@ -434,7 +455,7 @@ namespace XianTu
 
         private void OnDestroy()
         {
-            // ??UI??????????????
+            InteractionRouter.Unregister(this);
             HidePrompt();
         }
 

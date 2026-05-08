@@ -88,26 +88,56 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Subscribe<GameEvents.SpiritRootSelected>(OnSpiritRootSelected);
 
-            // 先弹灵根选择 UI；选完才 StartNewRun
-            ShowSpiritRootSelectionThenStart();
-        }
-
-        private bool _waitingRoot;
-
-        private void ShowSpiritRootSelectionThenStart()
-        {
-            _waitingRoot = true;
-            SpiritRootSelectUI.Show();
+            // 启动 → 进入村庄 Hub。玩家在村里：
+            //   1. 默认已选好金灵根（不去 NPC 也能直接玩）
+            //   2. 想换灵根 → 走司命使按 F
+            //   3. 出发 → 走山门按 F → StartNewRun()
+            EnterVillageHub();
             StatusEffectHUD.EnsureExists();
         }
 
-        private void OnSpiritRootSelected(GameEvents.SpiritRootSelected evt)
+        /// <summary>
+        /// 生成村庄 Hub，把玩家放到中央，并自动激活默认灵根（金）。
+        /// 山门触发后会调 <see cref="StartNewRun"/>。
+        /// </summary>
+        private void EnterVillageHub()
         {
-            if (!_waitingRoot) return;
-            _waitingRoot = false;
-            StartNewRun();
+            if (_currentRoomGo != null)
+                Destroy(_currentRoomGo);
+
+            // 防御：上一局如果在面板打开时被外部强制重启（场景重载、Debug Restart…），
+            // 这里把它关掉并把 timeScale 恢复到 1，否则玩家进村会卡在 0 速度。
+            SpiritRootSelectUI.Hide();
+            if (Time.timeScale < 0.9f) Time.timeScale = 1f;
+
+            Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
+
+            _currentRoomGo = new GameObject("VillageHub");
+            _currentRoomGo.transform.position = spawnPos;
+            var hub = _currentRoomGo.AddComponent<VillageHub>();
+            hub.Initialize(onPortalEntered: StartNewRun);
+
+            // 默认灵根：金。玩家可以走到司命使那里重选。
+            ApplyDefaultSpiritRootIfNone();
+
+            TeleportPlayer(spawnPos);
+
+            Debug.Log("<color=magenta>═══ 入梦之村 · 选择灵根后从山门入梦 ═══</color>");
+        }
+
+        /// <summary>
+        /// 玩家此前没选过灵根 → 自动应用默认（金）；已经选过则跳过，避免重置玩家手选的灵根。
+        /// </summary>
+        private void ApplyDefaultSpiritRootIfNone()
+        {
+            var player = PlayerController.Instance;
+            if (player == null) return;
+            var ctrl = player.GetComponent<SpiritRootController>();
+            if (ctrl == null) return;
+            if (ctrl.CurrentRoot != SpiritRootType.None) return;
+
+            ctrl.Select(SpiritRootType.Metal, player.Stats);
         }
 
         /// <summary>开始新的一局</summary>
@@ -132,99 +162,44 @@ namespace XianTu
             SpawnCurrentRoom();
         }
 
-        /// <summary>生成整局的房间布局（每层2~3个房间）</summary>
+        /// <summary>
+        /// 整局房间布局（写死，不再随机）。设计目标：
+        ///   - 每境第一间永远战斗（导入战斗节奏）
+        ///   - 每境最后是核心房（商店 / 升级 / 宝箱 / 休息 / Boss）
+        ///   - 整局保证 2 家商店、1 间休息、2 个宝箱、2 个升级台，节奏稳定
+        ///   - 总长度 16 间房，跑一次约 20~30 分钟
+        /// </summary>
+        private static readonly Minimap.RoomType[][] _fixedLayout =
+        {
+            // 0 练气期：战 → 商店（早期见到商店）
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Shop },
+            // 1 筑基期：战 → 战 → 宝箱
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Treasure },
+            // 2 金丹期：战 → 升级 → 休息
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Upgrade, Minimap.RoomType.Rest },
+            // 3 元婴期：战 → 商店 → 战
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle },
+            // 4 化神期：战 → 宝箱 → 升级
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Treasure, Minimap.RoomType.Upgrade },
+            // 5 渡劫期：战 → Boss
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Boss }
+        };
+
+        /// <summary>使用 <see cref="_fixedLayout"/> 装载本局所有房间</summary>
         private void GenerateLevelLayout()
         {
             _levelRooms = new List<List<Minimap.RoomType>>();
-            _levelLayout = new List<Minimap.RoomType>(); // 扁平化，兼容小地图
+            _levelLayout = new List<Minimap.RoomType>();
 
             for (int i = 0; i < _realmNames.Length; i++)
             {
-                var rooms = new List<Minimap.RoomType>();
-
-                if (i == _realmNames.Length - 1)
-                {
-                    // 最后一层：1个战斗 + Boss
-                    rooms.Add(Minimap.RoomType.Battle);
-                    rooms.Add(Minimap.RoomType.Boss);
-                }
-                else if (i == 0)
-                {
-                    // 第一层：第一间固定战斗（教学/热身），第二间偶尔放商店让玩家早一点见到
-                    rooms.Add(Minimap.RoomType.Battle);
-                    float r0 = Random.value;
-                    if (r0 < 0.55f)
-                        rooms.Add(Minimap.RoomType.Battle);   // 55% 战斗
-                    else if (r0 < 0.85f)
-                        rooms.Add(Minimap.RoomType.Shop);     // 30% 商店
-                    else
-                        rooms.Add(Minimap.RoomType.Rest);     // 15% 休息
-                }
-                else
-                {
-                    // 中间层：2~3个房间，第一个固定战斗，后面随机
-                    rooms.Add(Minimap.RoomType.Battle);
-
-                    // 第二个房间随机（2026-04 调整：商店出现率 18% → 30%，减少额外战斗的占比）
-                    float roll = Random.value;
-                    if (roll < 0.20f)
-                        rooms.Add(Minimap.RoomType.Battle);
-                    else if (roll < 0.50f)
-                        rooms.Add(Minimap.RoomType.Shop);
-                    else if (roll < 0.65f)
-                        rooms.Add(Minimap.RoomType.Treasure);
-                    else if (roll < 0.80f)
-                        rooms.Add(Minimap.RoomType.Upgrade);
-                    else
-                        rooms.Add(Minimap.RoomType.Rest);
-
-                    // 50%概率有第三个房间（战斗）
-                    if (Random.value < 0.5f)
-                        rooms.Add(Minimap.RoomType.Battle);
-                }
-
+                var rooms = new List<Minimap.RoomType>(i < _fixedLayout.Length
+                    ? _fixedLayout[i]
+                    : new[] { Minimap.RoomType.Battle });
                 _levelRooms.Add(rooms);
                 _levelLayout.AddRange(rooms);
             }
 
-            // 经济平衡（2026-04 调整）：保底从「至少1家商店」提升到「至少2家商店」，
-            // 同时仍至少保留 1 个休息房，让消费窗口足够。
-            int shopCount = 0;
-            bool hasRest = false;
-            foreach (var rooms in _levelRooms)
-                foreach (var rt in rooms)
-                {
-                    if (rt == Minimap.RoomType.Shop) shopCount++;
-                    if (rt == Minimap.RoomType.Rest) hasRest = true;
-                }
-
-            // 商店不足 2 家：优先补到第 2 / 第 4 层第二个房间（中前段、中后段各一）
-            int[] shopBackfillLayers = { 2, 4, 1, 3 };
-            int backfillIdx = 0;
-            while (shopCount < 2 && backfillIdx < shopBackfillLayers.Length)
-            {
-                int li = shopBackfillLayers[backfillIdx++];
-                if (li < _levelRooms.Count - 1 && _levelRooms[li].Count > 1
-                    && _levelRooms[li][1] != Minimap.RoomType.Shop
-                    && _levelRooms[li][1] != Minimap.RoomType.Boss)
-                {
-                    _levelRooms[li][1] = Minimap.RoomType.Shop;
-                    shopCount++;
-                }
-            }
-
-            // 如果缺少休息，在第3层第2个房间插入
-            if (!hasRest && _levelRooms.Count > 3 && _levelRooms[3].Count > 1
-                && _levelRooms[3][1] != Minimap.RoomType.Shop
-                && _levelRooms[3][1] != Minimap.RoomType.Boss)
-                _levelRooms[3][1] = Minimap.RoomType.Rest;
-
-            // 重建扁平化布局
-            _levelLayout.Clear();
-            foreach (var rooms in _levelRooms)
-                _levelLayout.AddRange(rooms);
-
-            // 打印布局
             string layoutStr = "";
             for (int i = 0; i < _levelRooms.Count; i++)
             {
@@ -233,7 +208,7 @@ namespace XianTu
                     layoutStr += $" {rt}";
                 layoutStr += "] → ";
             }
-            Debug.Log($"<color=cyan>房间布局：{layoutStr}</color>");
+            Debug.Log($"<color=cyan>房间布局（固定）：{layoutStr}</color>");
         }
 
         /// <summary>生成当前房间</summary>
@@ -513,7 +488,6 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Unsubscribe<GameEvents.SpiritRootSelected>(OnSpiritRootSelected);
         }
 
         /// <summary>设置小地图引用</summary>

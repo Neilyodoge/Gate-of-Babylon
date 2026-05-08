@@ -241,20 +241,59 @@ namespace XianTu
             AddLog("<color=green>↑ 跳转到升级房间</color>");
         }
 
-        /// <summary>增加灵力碎片</summary>
-        private void AddShards()
-        {
-            if (PlayerResources.Instance == null) return;
-            PlayerResources.Instance.AddShards(500);
-            AddLog("<color=#88CCFF>✦ +500 灵力碎片</color>");
-        }
-
         /// <summary>大量增加灵力碎片</summary>
         private void AddShardsLarge()
         {
             if (PlayerResources.Instance == null) return;
             PlayerResources.Instance.AddShards(5000);
             AddLog("<color=#88CCFF>✦ +5000 灵力碎片</color>");
+        }
+
+        /// <summary>
+        /// 把背包里已持有的每种灵物直接补满到其最高质变阈值，
+        /// 途径每一个阈值都会正常触发 QualitativeTriggered 事件（走 AddItem 本来的逻辑），
+        /// 方便快速测试 5 件 / 8 件质变态。没有阈值配置的灵物按 5 件兜底。
+        /// </summary>
+        private void MaxOutHeldItems()
+        {
+            if (PlayerController.Instance == null) return;
+            var inventory = PlayerController.Instance.Inventory;
+            if (inventory == null) return;
+
+            var items = inventory.GetAllItems();
+            if (items.Count == 0)
+            {
+                AddLog("<color=gray>💎 当前背包无灵物，无法升满</color>");
+                return;
+            }
+
+            int totalAdded = 0;
+            int bumpedKinds = 0;
+            foreach (var (item, currentCount) in items)
+            {
+                int target = 5;
+                if (item.qualitativeThresholds != null && item.qualitativeThresholds.Length > 0)
+                {
+                    target = 0;
+                    foreach (int t in item.qualitativeThresholds)
+                        if (t > target) target = t;
+                }
+
+                int needed = target - currentCount;
+                if (needed <= 0) continue;
+
+                for (int i = 0; i < needed; i++)
+                    inventory.AddItem(item);
+
+                totalAdded += needed;
+                bumpedKinds++;
+            }
+
+            if (bumpedKinds == 0)
+                AddLog("<color=gray>💎 所有灵物已在最高阈值</color>");
+            else
+                AddLog($"<color=yellow>💎 灵物一键升满：{bumpedKinds} 种 +{totalAdded} 件</color>");
+            RefreshStatus();
         }
 
         /// <summary>强制通关当前房间</summary>
@@ -493,8 +532,8 @@ namespace XianTu
             // --- 属性调整 ---
             CreateSectionHeader(contentGo.transform, "【 属性调整 】");
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
-            CreateButton(contentGo.transform, "✦ 灵力碎片 +500", new Color(0.2f, 0.35f, 0.5f), AddShards);
             CreateButton(contentGo.transform, "✦ 灵力碎片 +5000", new Color(0.25f, 0.4f, 0.55f), AddShardsLarge);
+            CreateButton(contentGo.transform, "💎 灵物一键升满", new Color(0.45f, 0.3f, 0.5f), MaxOutHeldItems);
             CreateButton(contentGo.transform, "💎 灵物爆率拉满", new Color(0.5f, 0.4f, 0.1f), ToggleMaxItemDropRate);
             CreateButton(contentGo.transform, "📜 功法爆率拉满", new Color(0.2f, 0.4f, 0.5f), ToggleMaxSkillDropRate);
 

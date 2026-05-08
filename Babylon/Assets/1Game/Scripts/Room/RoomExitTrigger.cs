@@ -8,7 +8,7 @@ namespace XianTu
     /// 玩家走进触发区域后显示提示，按F触发离开回调
     /// 必须走进Trigger范围才能交互，防止远距离按F跳层
     /// </summary>
-    public class RoomExitTrigger : MonoBehaviour
+    public class RoomExitTrigger : MonoBehaviour, IInteractable
     {
         private System.Action _onExit;
         private bool _playerInRange;
@@ -16,6 +16,14 @@ namespace XianTu
         private GameObject _promptUI;
         private float _enterDelay = 0.3f; // 进入触发器后短暂延迟才能按F（防止冲进去瞬间触发）
         private float _enterTimer;
+
+        // ===== IInteractable：参与统一 F 交互路由 =====
+        // 出口优先级最低 —— 走到出口时如果旁边还有可拾取物，先满足拾取
+        public Vector3 InteractionWorldPos => transform.position;
+        public int InteractionPriority => 5;
+        public bool IsInteractionAvailable =>
+            !_triggered && _playerInRange && _enterTimer >= _enterDelay;
+        public bool IsRoutedActive { get; set; }
 
         public void Initialize(System.Action onExitCallback)
         {
@@ -28,6 +36,17 @@ namespace XianTu
 
             _enterTimer += Time.deltaTime;
             if (_enterTimer < _enterDelay) return;
+
+            // 同步提示显示状态：被路由器选中时才显示「按 F 继续前进」
+            if (_promptUI != null)
+            {
+                bool wantShown = IsRoutedActive;
+                if (_promptUI.activeSelf != wantShown)
+                    _promptUI.SetActive(wantShown);
+            }
+
+            // 仅当被选中时才响应 F（避免与拾取物等同时触发）
+            if (!IsRoutedActive) return;
 
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
@@ -45,6 +64,7 @@ namespace XianTu
 
             _playerInRange = true;
             _enterTimer = 0f;
+            InteractionRouter.Register(this);
             ShowPrompt();
         }
 
@@ -54,6 +74,7 @@ namespace XianTu
 
             _playerInRange = false;
             _enterTimer = 0f;
+            InteractionRouter.Unregister(this);
             HidePrompt();
         }
 
@@ -116,6 +137,7 @@ namespace XianTu
 
         private void OnDestroy()
         {
+            InteractionRouter.Unregister(this);
             HidePrompt();
         }
     }
