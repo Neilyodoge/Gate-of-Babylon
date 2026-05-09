@@ -36,7 +36,7 @@ Assets/Effect/PBRToon/
 - **特性**：
   - PBR Mask 贴图（金属度/光滑度/AO/自发光）
   - Normal Map
-  - Shadow Ramp（可选）
+  - Shadow Ramp（可选，ramp 贴图由 `nTools/美术工具/Ramp生成工具` 生成，详见下文）
   - 自定义间接光照（SH + Cubemap）
   - 屏幕空间 Rim Light
   - **SSS 皮肤（可选）**：基于视角 (Fresnel) 的轻量级假 SSS，开 `_SKIN_ON` 启用，
@@ -173,6 +173,33 @@ PCSS 模式提供距离自适应的软阴影效果，近处阴影锐利、远处
 - **Fade Width**：暗端/亮端的平滑过渡宽度
 
 通过 `_SHADOW_EDGE_COLOR` keyword 控制开关。
+
+#### Shadow Ramp 贴图（明暗交界线着色）
+
+Shadow Ramp 用于把 `shadowNdotL` 这个 [0,1] 灰度变量映射成有色阶过渡的颜色，
+形成卡通的明暗交界硬过渡 + 暖色暗部 / 冷色亮部之类的效果。贴图是一张横向 ramp
+PNG，UV.x = `shadowArea`、UV.y = `0.5`（单行）或 `1.0 - (row + 0.5) / rowCount`
+（多行）。
+
+**生成工具**：`nTools/美术工具/Ramp生成工具`（详见 `Assets/Tools/ToolsReadme.md`
+中"Ramp 生成工具"小节）。
+
+- 工具用 Unity Gradient 配色，可以一张 PNG 烘多条 ramp（纵向叠 N 行），shader
+  端通过 UV.y 选不同行
+- 已生成的 ramp PNG 重新打开会自动恢复 Gradient 列表（数据保存在 importer
+  userData 里），方便美术继续微调
+- 工具会自动配置 importer：`Wrap=Clamp / Filter=Bilinear / sRGB=true / 不压缩
+  / 不生成 mipmap`，避免 ramp 边缘出错
+- 推荐尺寸：`SingleRampSize = 256 × 4`（X 高一些保过渡平滑，Y 给到 4 像素够采）
+- 推荐保存路径：`Assets/Effect/PBRToon/RampTextures/`（与 shader 同工程区域）
+
+**配套 shader 参数**（`PBRToonBase.shader`）：
+
+| 属性 | 作用 |
+|---|---|
+| `_ShadowRampTex` | 上面工具生成的 ramp PNG |
+| `_ShadowOffset` | 明暗交界线在 NdotL 上的偏移（推暗 / 推亮） |
+| `_ShadowSharpness` | 明暗交界过渡锐度（越大越接近卡通硬阶） |
 
 #### 阴影混合流程
 

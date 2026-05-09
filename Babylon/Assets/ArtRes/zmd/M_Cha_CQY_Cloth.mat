@@ -65,7 +65,7 @@ Material:
     - _Cutoff: 1
     - _DebugShadow: 0
     - _DebugShadowMode: 0
-    - _DirectOcclusion: 0.1
+    - _DirectOcclusion: 0.8
     - _DirectRimWidth: 2.5
     - _EnableContactShadow: 1
     - _EnableIndirCubemap: 0

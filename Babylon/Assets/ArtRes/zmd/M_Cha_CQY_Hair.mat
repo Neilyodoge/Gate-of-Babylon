@@ -88,7 +88,7 @@ Material:
     - _NoseSpecMin: 0
     - _Occlusion: 1
     - _OutlineNormalScale: 1
-    - _OutlineWidth: 1.38
+    - _OutlineWidth: 0.1
     - _PcssBlockerGradientBias: 0
     - _PcssBlockerSamples: 16
     - _PcssFilterSamples: 16
