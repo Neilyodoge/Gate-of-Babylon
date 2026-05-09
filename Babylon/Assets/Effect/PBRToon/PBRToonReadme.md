@@ -107,14 +107,17 @@ Face 和 Hair 的 ShadowCaster、DepthOnly、DepthNormals 通过 `UsePass` 复�
 
 ### UV 通道分配约定
 
-| UV 通道 | 语义 | 用途 | 写入工具 |
-|---------|------|------|---------|
-| UV0 (TEXCOORD0) | 主纹理坐标 | 基础贴图、PBR Mask、法线贴图等 | DCC 软件 |
-| UV1 (TEXCOORD1) | Lightmap / 自定义 | Face Lightmap (SDF)、Hair SpecTex | DCC 软件 |
-| **UV2 (TEXCOORD2)** | **Bent Normal** | Visibility Cone 遮蔽数据 (Vector4) | Bent Normal Baker |
-| **UV3 (TEXCOORD3)** | **平滑法线** | PBRToon 描边用平滑法线 (.xy 2通道) | 平滑法线烘焙工具 |
+| UV 通道 | 语义 | 用途 | 维度 | 写入工具 |
+|---------|------|------|------|---------|
+| UV0 (TEXCOORD0) | 主纹理坐标 | 基础贴图、PBR Mask、法线贴图等 | 2D | DCC 软件 |
+| UV1 (TEXCOORD1) | Lightmap / 自定义 | Face Lightmap (SDF)、Hair SpecTex | 2D | DCC 软件 |
+| **UV2 (TEXCOORD2)** | **Bent Normal** | Visibility Cone 遮蔽数据 | 4D (Vector4) | Bent Normal Baker |
+| **UV3 (TEXCOORD3)** | **Outline 平滑法线** | PBRToon 描边用切线空间平滑法线 | 3D (xyz) | Outline 平滑法线烘焙 |
 
 > ⚠️ UV2 和 UV3 的用途已固定分配，两个工具不会互相冲突。
+>
+> 关于"UV 通道维度"：Unity 的 TEXCOORD0~7 每个通道最多可存 4 个 float 分量（不是只能存 2 个 UV 坐标），
+> 因此 UV2 可以装下 Bent Normal 的 Vector4、UV3 可以装下平滑法线的 Vector3，无需任何压缩。
 
 ### 阴影采样系统
 
@@ -261,11 +264,69 @@ Face shader 在 `_HAIR_SHADOW` 仍开启时采到的 mask 永远是 0，等价�
 - 阴影**仍在** → 才是 `_HairShadowMask` RT 残留，按上面的 disable 路径排查
 
 ### 描边系统
+
 - **算法**：原神风格背面法线外扩描边
-- **平滑法线来源**：固定从 UV3 (TEXCOORD3).xy 解码（2 通道编码，z 由勾股定理重建）
-- **烘焙工具**：`Tools > ArtTools > 平滑法线烘焙工具`
 - **RenderFeature**：需要在 URP Renderer 中添加 `ToonOutlineRenderFeature`
-- **兼容性**：如未烘焙平滑法线（UV3 为空），会自动回退到 Tangent 方向
+- **兼容性**：如未烘焙平滑法线（UV3 为空），shader 自动回退到原始 normalOS（描边会有锯齿和缺口）
+
+#### 平滑法线编码（重要）
+
+| 项目 | 说明 |
+|------|------|
+| 存储位置 | `TEXCOORD3.xyz`（默认；工具支持任意 UV0~UV7，但 PBRToonBase 当前 hard-code 读 TEXCOORD3） |
+| 数据维度 | **Vector3 / 3 分量** —— xyz 全部直接存储，**没有任何压缩或重建** |
+| 坐标空间 | 切线空间（已用 TBN 矩阵的转置把对象空间法线转过去） |
+| 算法 | 角度加权平滑法线（按顶点位置分组，三角面夹角作权重累加面法线） |
+
+> 早期版本的描述（"2 通道 + 勾股定理重建 z"）已废弃。当前方案直接 3 通道 xyz 存取，
+> 顶点 1 个 UV slot 总共有 4 个 float 容量，多用 1 个 float 换不掉精度损失，没必要压缩。
+
+#### Shader 解码（`PBRToonBase.shader` Outline Pass）
+
+```hlsl
+// 顶点结构里把平滑法线的 UV 通道声明为 float4（取前 3 分量）
+struct OutlineAttributes {
+    ...
+    float4 uv3 : TEXCOORD3; // 平滑法线，切线空间 xyz
+};
+
+// 顶点着色器中
+float3 snTS = input.uv3.xyz;
+if (dot(snTS, snTS) > 0.001)  // 烘焙过 → 用平滑法线
+{
+    float3 T = normalize(input.tangentOS.xyz);
+    float3 N = normalize(input.normalOS);
+    float3 B = normalize(cross(N, T) * input.tangentOS.w);
+    smoothNormalOS = normalize(T * snTS.x + B * snTS.y + N * snTS.z);
+}
+else                          // 未烘焙 → 回退原始法线
+{
+    smoothNormalOS = input.normalOS;
+}
+```
+
+> 注意：`cross(N, T) * w` 是在算 **B（副切线）**——这是 Unity 标准做法（顶点只存 T+w 和 N，B 在 shader 里现算），
+> 跟"平滑法线分量重建"无关。平滑法线本身是 3 分量直存直读。
+
+#### 烘焙工具
+
+- **菜单路径**：`nTools/美术工具/Outline平滑法线烘焙`
+- **核心特性**：
+  - 支持 Hierarchy / Project 双源添加，列表区分 `[H]` / `[P]`
+  - 写入 UV 通道可选（UV0~UV7），目标通道若已有数据会显示 ⚠ 警告
+  - 烘焙结果输出到 `xxx_SmoothN.asset`（源 Mesh 同目录），永远不修改原始 `.asset` / FBX
+  - `[H]` 烘焙后自动替换场景对象 `MeshFilter` / `SkinnedMeshRenderer` 引用
+  - **↺ 用原始资源替换**：撤销烘焙，把场景里的 `mesh_SmoothN` 引用还原回原始 `mesh`
+    - 仅改场景 / Prefab 引用，不动 `.asset`
+    - 旁边的「删除原始资源」勾选后会顺带删除被替换掉的 `_SmoothN.asset`（带列表内引用安全检查）
+- **算法保留各通道维度**：用 `Mesh.GetVertexAttributeDimension` 查询其它非目标通道的实际维度（2D/3D/4D）后原样写回，不会把 Bent Normal 等 3D/4D 数据降级
+- **使用方法**：
+  1. 在 Hierarchy 选中角色根节点（会递归收集所有 `MeshFilter` / `SkinnedMeshRenderer`）
+  2. 打开 `nTools/美术工具/Outline平滑法线烘焙`
+  3. 默认目标 UV3，直接点 "▶ 烘焙选中的 N 个 Mesh 到 UV3"
+  4. 完成后场景对象的 Mesh 引用会自动指向新生成的 `_SmoothN.asset`
+
+> 详细文档见 `Assets/Tools/ToolsReadme.md` 中"Outline 平滑法线烘焙"小节。
 
 ### ShaderGUI
 

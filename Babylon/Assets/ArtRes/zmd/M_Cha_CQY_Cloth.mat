@@ -13,7 +13,6 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _OUTLINE_ON
-  - _SHADOW_EDGE_COLOR
   - _SHADOW_RAMP
   - _TOON_SHADOW_PCSS
   m_InvalidKeywords:
@@ -72,8 +71,9 @@ Material:
     - _EnableIndirCubemap: 0
     - _EnableOutline: 1
     - _EnablePCF5x5: 0
-    - _EnableShadowEdgeColor: 1
+    - _EnableShadowEdgeColor: 0
     - _EnableShadowRamp: 1
+    - _EnableSkin: 0
     - _EnvColorLerp: 0.5
     - _IndirDiffIntensity: 1
     - _IndirDiffUpDirSH: 0
@@ -98,6 +98,7 @@ Material:
     - _PcssSoftness: 0.01
     - _PcssSoftnessFalloff: 1.5
     - _PunctualRimWidth: 2.75
+    - _SSSArea: 1
     - _ShadowEdgeBegin: 0.2
     - _ShadowEdgeEnd: 0.8
     - _ShadowEdgeFadeBeginWidth: 0.1
@@ -121,6 +122,7 @@ Material:
     - _OutlineDepthNewRange: {r: 0.105, g: 0.245, b: 0.6, a: 0}
     - _OutlineDepthOldRange: {r: 0.01, g: 2, b: 6, a: 0}
     - _OutlineScreenOffset: {r: 0, g: 0, b: 0.00044, a: 0.00012}
+    - _SSSColor: {r: 1, g: 0.54999995, b: 0.5, a: 1}
     - _SelfEnvColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
     - _SelfLight: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowColor: {r: 0, g: 0, b: 0, a: 1}

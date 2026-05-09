@@ -33,7 +33,7 @@ Tools/Editor/
 | `nTools/美术工具/批量重命名` | BatchAssetRenamer | 美术工具 |
 | `nTools/美术工具/贴图规范化` | TextureNormalizer | 美术工具 |
 | `nTools/美术工具/SDF Generator` | SDFGenerator | 美术工具 |
-| `nTools/美术工具/平滑法线烘焙` | SmoothNormalBaker | 美术工具 |
+| `nTools/美术工具/Outline平滑法线烘焙` | SmoothNormalBaker | 美术工具 |
 | `nTools/美术工具/Bent Normal Baker` | BentNormalBakeTool | 美术工具 |
 | `nTools/美术工具/Prefab资源快速复制` | PrefabAssetExtractor | 美术工具 |
 | `nTools/TA工具/通道重映射` | ChannelRemapper | TA工具 |
@@ -80,21 +80,46 @@ Tools/Editor/
   3. 设置阈值和扩散范围
   4. 点击生成
 
-#### 4. 平滑法线烘焙 (SmoothNormalBaker)
+#### 4. Outline 平滑法线烘焙 (SmoothNormalBaker)
 
-- **菜单路径**：`nTools/美术工具/平滑法线烘焙`
-- **功能**：使用角度加权算法计算模型的平滑法线，转换到切线空间后存入 UV3（TEXCOORD3）中，供 PBRToon 描边使用
-- **算法**：参考 Best-Smooth-Normal-Tool，按顶点位置分组，以三角面夹角为权重累加面法线
-- **UV 通道分配约定**：
-  - UV0 (TEXCOORD0)：主纹理坐标
-  - UV1 (TEXCOORD1)：Lightmap / 自定义数据
-  - UV2 (TEXCOORD2)：Bent Normal 数据
-  - UV3 (TEXCOORD3)：平滑法线（本工具写入）
+- **菜单路径**：`nTools/美术工具/Outline平滑法线烘焙`
+- **功能**：使用角度加权算法计算模型的平滑法线，转换到切线空间后存入指定 UV 通道（默认 UV3 / TEXCOORD3）的 xyz 中，供 PBRToon 描边使用
+- **算法**：参考 Best-Smooth-Normal-Tool，按顶点位置分组，以三角面夹角为权重累加面法线 → 归一化得到对象空间平滑法线 → 用 TBN 矩阵的转置转换到切线空间
+- **数据编码**：`TEXCOORDn.xyz = tangentSpaceSmoothNormal.xyz`（3 分量直接存储，无压缩，Shader 读到后乘 TBN 即可还原对象空间法线）
+- **UV 通道分配约定（默认）**：
+  - UV0 (TEXCOORD0)：主纹理坐标 (2D)
+  - UV1 (TEXCOORD1)：Lightmap / 自定义数据 (2D)
+  - UV2 (TEXCOORD2)：Bent Normal 数据 (3D / 4D，由 Bent Normal Baker 写入)
+  - UV3 (TEXCOORD3)：平滑法线 (3D，本工具写入)
+  - 工具支持烘焙到 **UV0~UV7 任意通道**（默认 UV3，可在窗口下拉框选择）
+- **关于 UV 通道维度**：
+  - Unity 的 UV 通道（TEXCOORD0~7）每个最多可存 **4 个 float 分量**（不是只能存 2 个 UV 坐标）
+  - 不同通道可以是 2D / 3D / 4D，本工具会用 `Mesh.GetVertexAttributeDimension` 查询并保留每个非目标通道的原始维度（不会把 3D 数据降为 2D）
+  - 因此切换目标通道时，其它通道的 baked 数据（如 UV2 上的 Bent Normal）能完好保留
+- **输出策略**：
+  - 始终在源 Mesh 同目录生成 `xxx_SmoothN.asset`，**不会修改任何原始 .asset 或 FBX 文件**
+  - 列表中 `[H]` 条目（来自场景）烘焙后会自动把 GameObject 的 MeshFilter / SkinnedMeshRenderer 引用替换为新 `_SmoothN.asset`
+  - 列表中 `[P]` 条目（来自 Project）只生成文件，不动场景
+- **目标 UV 通道占用警告**：若选中的 UV 通道在某些 Mesh 上已有数据，列表中会显示 ⚠ 标记，提示烘焙将覆盖该通道
+- **还原原始资源 ↺**：
+  - 用于撤销 `[H]` 烘焙：把场景对象当前引用的 `mesh_SmoothN` 还原为原始 `mesh`（去掉后缀的同名资源）
+  - 在同目录 → 上一级目录 → 全工程依次搜索原始 Mesh，优先返回 FBX/OBJ 等 Model 子 Mesh
+  - **默认只改场景 / Prefab 上的引用，不会修改 .asset 文件**
+  - 旁边的「删除原始资源」勾选后，还原成功的条目会同步删除被替换掉的 `_SmoothN.asset` 文件；为防误删，仅当工具列表中没有其它条目仍引用该资源时才会真正删除
 - **使用方法**：
-  1. 在 Hierarchy 中选择含有 MeshFilter / SkinnedMeshRenderer 的物体
-  2. 打开工具窗口
-  3. 点击"烘焙平滑法线到 UV3"
-  4. 输出 Mesh 保存在原 Mesh 同目录下，后缀为 `_SmoothN`
+  1. 在 Hierarchy / Project 中选择含 MeshFilter / SkinnedMeshRenderer 的对象（也可拖拽到工具窗口的拖入区）
+  2. 打开工具窗口，按需在"写入 UV 通道"下拉框选择目标通道
+  3. 检查列表中是否有 ⚠ 警告，若有数据会被覆盖
+  4. 点击"▶ 烘焙选中的 N 个 Mesh 到 UVx"
+  5. 想撤销时，选中场景中的 `_SmoothN` 条目，点"↺ 用原始资源替换选中的 N 个"
+- **Shader 解码**（参考 `Babylon/Assets/Effect/PBRToon/Shaders/PBRToonBase.shader`）：
+  ```hlsl
+  float3 snTS = input.uvN.xyz;          // 从烘焙的目标 UV 通道取出 3 分量
+  float3 T = normalize(tangentOS.xyz);
+  float3 N = normalize(normalOS);
+  float3 B = normalize(cross(N, T) * tangentOS.w);
+  float3 smoothNormalOS = normalize(T * snTS.x + B * snTS.y + N * snTS.z);
+  ```
 
 #### 5. Bent Normal 烘焙 (BentNormalBakeTool)
 
