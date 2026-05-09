@@ -198,7 +198,6 @@ Assets/1Game/
 │   ├── Editor/          # 编辑器工具
 │   │   ├── ConfigDashboard.cs
 │   │   ├── Demo1DataCreator.cs
-│   │   ├── FixPinkMaterials.cs
 │   │   ├── GameConfigEditor.cs
 │   │   └── ToolSearchWindow.cs
 │   ├── Enemy/           # 敌人 AI
