@@ -67,6 +67,12 @@ Shader "Universal Render Pipeline/PBRToon/Face"
         _DirectRimWidth                         ("DirectRimWidth", Range(0, 10)) = 2.5
         _PunctualRimWidth                       ("PunctualRimWidth", Range(0, 10)) = 2.75
 
+        // ====== SSS 皮肤（基于视角的轻量级假 SSS） ======
+        [Header(SSS Skin)]
+        [Toggle(_SKIN_ON)]_EnableSkin           ("Enable Skin SSS", Float) = 0
+        _SSSColor                               ("SSS Color (skin tint)", Color) = (1.0, 0.55, 0.5, 1.0)
+        _SSSArea                                ("SSS Area / Strength", Range(0, 3)) = 1.0
+
         // ====== 描边 ======
         [Header(Outline)]
         [Toggle(_OUTLINE_ON)]_EnableOutline      ("Enable Outline", Float) = 1
@@ -159,6 +165,7 @@ Shader "Universal Render Pipeline/PBRToon/Face"
             #pragma shader_feature_local _ _TOON_SHADOW_BASE _TOON_SHADOW_PCF_2X2 _TOON_SHADOW_PCF_3X3 _TOON_SHADOW_PCF_5X5 _TOON_SHADOW_PCF_7X7 _TOON_SHADOW_PCSS
             #pragma shader_feature_local _SHADOW_EDGE_COLOR
             #pragma shader_feature_local _HAIR_SHADOW
+            #pragma shader_feature_local _SKIN_ON
             #pragma shader_feature_local _DEBUG_SHADOW
 
             // Universal Pipeline keywords
@@ -181,6 +188,7 @@ Shader "Universal Render Pipeline/PBRToon/Face"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
             #include "PBRToonCommon.hlsl"
+            #include "PBRToonSkin.hlsl"
 
             // ====== CBUFFER ======
             CBUFFER_START(UnityPerMaterial)
@@ -234,6 +242,10 @@ Shader "Universal Render Pipeline/PBRToon/Face"
             float4  _DirectRimBackCol;
             float   _DirectRimWidth;
             float   _PunctualRimWidth;
+
+            // SSS Skin
+            float4  _SSSColor;
+            float   _SSSArea;
 
             // FaceDirection (由 C# 脚本设置)
             float3  _FaceRightDirWS;
@@ -383,6 +395,13 @@ Shader "Universal Render Pipeline/PBRToon/Face"
                 float3 viewDirWS = GetWorldSpaceNormalizeViewDir(positionWS);
                 float NdotV = dot(normalWS, viewDirWS);
                 float clampedNdotV = ClampNdotV(NdotV);
+
+                // ===== SSS 皮肤 (基于视角的轻量级假 SSS) =====
+                // 必须在 ComputeDiffuseColor / ComputeFresnel0 之前注入，
+                // 让染色后的 albedo 流入后续 PBR 链路
+                #ifdef _SKIN_ON
+                    albedo = ApplySkinSSS(albedo, NdotV, _SSSColor.rgb, _SSSArea);
+                #endif
 
                 // ===== 初始化光照累加器 =====
                 ToonDirectLighting directLighting;

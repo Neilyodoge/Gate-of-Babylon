@@ -15,6 +15,14 @@ namespace UnityEngine.Rendering.Universal
     /// 2. Face Forward Pass (Geometry-10): 
     ///    采样 _HairShadowMask, 前发区域的脸部像素进入阴影
     /// 3. Hair Forward Pass (Geometry+10): 正常渲染头发
+    ///
+    /// Disable 行为:
+    ///   - RenderFeature 顶部的 enabled checkbox（即 ScriptableRendererFeature.SetActive）
+    ///     仅改 m_Active 字段，URP 不触发任何回调，必须靠 EditorApplication.update 轮询
+    ///   - settings.enabled 内层勾选：靠 OnValidate + AddRenderPasses 状态机检测
+    ///   - RenderFeature 删除 / Pipeline 切换 / Domain Reload：靠 Dispose / OnDisable 兜底
+    /// 三条路径任意一条触发，都会把 _HairShadowMask 全局贴图重置为黑色，
+    /// 使 Face shader 在 _HAIR_SHADOW 仍开启时也不会再采样到旧 RT 残留。
     /// </summary>
     [Serializable]
     public class HairShadowSettings
@@ -35,25 +43,91 @@ namespace UnityEngine.Rendering.Universal
 
         private HairShadowMaskPass hairShadowMaskPass;
 
+        // 与 HairShadowMaskPass 共享的全局贴图 ID
+        internal static readonly int s_HairShadowMaskId = Shader.PropertyToID("_HairShadowMask");
+
+        // 上一帧 settings.enabled 是否真入队 Pass，用于检测 settings.enabled 切换瞬间
+        private bool _wasActive;
+
+#if UNITY_EDITOR
+        // 上一帧 isActive 状态（即 RenderFeature 顶部 checkbox），用于轮询切换
+        // 默认初始 true，与 ScriptableRendererFeature.m_Active 默认值保持一致
+        private bool _lastIsActiveTracked = true;
+#endif
+
         public override void Create()
         {
             hairShadowMaskPass = new HairShadowMaskPass(settings);
+
+#if UNITY_EDITOR
+            // 注册编辑器轮询：取消勾选 RenderFeature 顶部 checkbox 时不触发任何 Unity 回调，
+            // 必须用 EditorApplication.update 主动观测 isActive 变化
+            UnityEditor.EditorApplication.update -= EditorWatchIsActive;
+            UnityEditor.EditorApplication.update += EditorWatchIsActive;
+            _lastIsActiveTracked = isActive;
+#endif
         }
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
             if (!settings.enabled)
+            {
+                // settings.enabled 切换帧：清理 RT + 重置全局贴图
+                if (_wasActive)
+                    Cleanup();
                 return;
+            }
 
             if (renderingData.cameraData.cameraType != CameraType.Game &&
                 renderingData.cameraData.cameraType != CameraType.SceneView)
                 return;
 
+            _wasActive = true;
             renderer.EnqueuePass(hairShadowMaskPass);
         }
 
         protected override void Dispose(bool disposing)
         {
+            // RenderFeature 被删除 / Pipeline 切换 / Domain Reload 时由 URP 调用
+            Cleanup();
+        }
+
+#if UNITY_EDITOR
+        // 父类 ScriptableRendererFeature 没有定义 OnDisable，子类可以安全添加。
+        // ScriptableObject 的 OnDisable 在 Domain Reload / 资源卸载 / 销毁前触发。
+        private void OnDisable()
+        {
+            UnityEditor.EditorApplication.update -= EditorWatchIsActive;
+            Cleanup();
+        }
+
+        private void EditorWatchIsActive()
+        {
+            // 对象已销毁则反注册自身（避免空引用）
+            if (this == null)
+            {
+                UnityEditor.EditorApplication.update -= EditorWatchIsActive;
+                return;
+            }
+
+            bool now = isActive;
+            if (now != _lastIsActiveTracked)
+            {
+                _lastIsActiveTracked = now;
+                // 仅在 active → inactive 的切换瞬间清理；反之 inactive → active 啥都不用做
+                if (!now)
+                    Cleanup();
+            }
+        }
+#endif
+
+        // 把 _HairShadowMask 设为内置黑色贴图（1×1 RGBA），Face shader 采样后等价于"无前发遮挡"
+        // 同时释放 RTHandle 实际显存
+        private void Cleanup()
+        {
+            hairShadowMaskPass?.Dispose();
+            Shader.SetGlobalTexture(s_HairShadowMaskId, Texture2D.blackTexture);
+            _wasActive = false;
         }
     }
 
@@ -70,7 +144,6 @@ namespace UnityEngine.Rendering.Universal
         private HairShadowSettings settings;
         private FilteringSettings filteringSettings;
         private static readonly ShaderTagId hairShadowMaskTagId = new ShaderTagId("HairShadowMask");
-        private static readonly int s_HairShadowMaskId = Shader.PropertyToID("_HairShadowMask");
 
         private RTHandle hairShadowMaskRT;
 
@@ -118,7 +191,7 @@ namespace UnityEngine.Rendering.Universal
                     renderer.cameraDepthTargetHandle);
 
                 // 设置全局纹理, 供 Face shader 采样
-                cmd.SetGlobalTexture(s_HairShadowMaskId, hairShadowMaskRT);
+                cmd.SetGlobalTexture(HairShadowRenderFeature.s_HairShadowMaskId, hairShadowMaskRT);
             }
 
             context.ExecuteCommandBuffer(cmd);
@@ -127,8 +200,8 @@ namespace UnityEngine.Rendering.Universal
 
         public override void OnCameraCleanup(CommandBuffer cmd)
         {
-            // RT 由 RTHandle 管理, 不需要每帧释放
-            // 但需要清除全局纹理引用
+            // RT 由 RTHandle 管理跨帧复用，无需每帧释放；
+            // 全局贴图 _HairShadowMask 的清理交给 RenderFeature.Cleanup 统一处理
         }
 
         public void Dispose()

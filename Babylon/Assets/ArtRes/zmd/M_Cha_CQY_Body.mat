@@ -15,6 +15,7 @@ Material:
   - _OUTLINE_ON
   - _SHADOW_EDGE_COLOR
   - _SHADOW_RAMP
+  - _SKIN_ON
   - _TOON_SHADOW_PCSS
   m_InvalidKeywords:
   - _CONTACT_SHADOW
@@ -74,13 +75,14 @@ Material:
     - _EnablePCF5x5: 0
     - _EnableShadowEdgeColor: 1
     - _EnableShadowRamp: 1
+    - _EnableSkin: 1
     - _EnvColorLerp: 0.5
     - _IndirDiffIntensity: 1
     - _IndirDiffUpDirSH: 0
     - _IndirSpecCubeWeight: 0.5
     - _IndirSpecIntensity: 1
     - _MainLightColorLerp: 0.5
-    - _Metallic: 0.5
+    - _Metallic: 0
     - _NormalScale: 1
     - _Occlusion: 1
     - _OutlineAffectProjXY: 1
@@ -98,6 +100,7 @@ Material:
     - _PcssSoftness: 0.01
     - _PcssSoftnessFalloff: 1.5
     - _PunctualRimWidth: 2.75
+    - _SSSArea: 0.15
     - _ShadowEdgeBegin: 0.2
     - _ShadowEdgeEnd: 0.8
     - _ShadowEdgeFadeBeginWidth: 0.1
@@ -109,7 +112,7 @@ Material:
     - _ShadowSmoothNdotL: 0.25
     - _ShadowSmoothScene: 0.541
     - _ShadowStrength: 1
-    - _Smoothness: 0.5
+    - _Smoothness: 0
     - _TOON_SHADOW: 1
     - _ToonShadow: 5
     m_Colors:
@@ -121,6 +124,7 @@ Material:
     - _OutlineDepthNewRange: {r: 0.105, g: 0.245, b: 0.6, a: 0}
     - _OutlineDepthOldRange: {r: 0.01, g: 2, b: 6, a: 0}
     - _OutlineScreenOffset: {r: 0, g: 0, b: 0.00044, a: 0.00012}
+    - _SSSColor: {r: 1, g: 0.54901963, b: 0.5019608, a: 1}
     - _SelfEnvColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
     - _SelfLight: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowColor: {r: 0, g: 0, b: 0, a: 1}

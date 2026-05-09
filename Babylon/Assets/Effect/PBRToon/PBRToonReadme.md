@@ -15,13 +15,15 @@ Assets/Effect/PBRToon/
 │   └── PBRToonHairShaderGUI.cs
 ├── Scripts/                            # 运行时脚本
 │   ├── CharacterShadowAtlasRenderFeature.cs  # 角色 Atlas 阴影 RenderFeature
-│   └── CharacterShadowAtlasTarget.cs         # 角色 Atlas 阴影目标组件
+│   ├── CharacterShadowAtlasTarget.cs         # 角色 Atlas 阴影目标组件
+│   └── HairShadowRenderFeature.cs            # 前发投影 RenderFeature（屏幕空间 mask）
 ├── PBRToonFaceDirection.cs             # 面部朝向脚本（运行时组件）
 └── Shaders/
     ├── PBRToonCommon.hlsl              # 公共工具函数库（光照/RimLight/IBL 等）
     ├── PBRToonOutline.hlsl             # 描边算法库（背面法线外扩 + 视距自适应）
+    ├── PBRToonSkin.hlsl                # 皮肤 SSS 库（基于视角的轻量级假 SSS）
     ├── ToonShadowFilter.hlsl           # 自定义 PCF/PCSS 阴影滤波库
-    ├── PBRToonBase.shader              # 基础 Shader（身体/衣服等）
+    ├── PBRToonBase.shader              # 基础 Shader（身体/衣服/裸露皮肤等）
     ├── PBRToonFace.shader              # 面部 Shader（SDF 阴影 + 鼻尖高光）
     └── PBRToonHair.shader              # 头发 Shader（各向异性高光）
 ```
@@ -30,13 +32,16 @@ Assets/Effect/PBRToon/
 
 ### PBRToon/Base
 - **路径**：`Universal Render Pipeline/PBRToon/Base`
-- **用途**：身体、衣服等通用部位
+- **用途**：身体、衣服、裸露皮肤等通用部位
 - **特性**：
   - PBR Mask 贴图（金属度/光滑度/AO/自发光）
   - Normal Map
   - Shadow Ramp（可选）
   - 自定义间接光照（SH + Cubemap）
   - 屏幕空间 Rim Light
+  - **SSS 皮肤（可选）**：基于视角 (Fresnel) 的轻量级假 SSS，开 `_SKIN_ON` 启用，
+    `_SSSColor` 控制肉粉色、`_SSSArea` 控制范围/强度，掠射角处 albedo 朝
+    `_SSSColor` 偏移，模拟耳廓/鼻翼/手指边缘的红透感（实现见 `PBRToonSkin.hlsl`）
 
 ### PBRToon/Face
 - **路径**：`Universal Render Pipeline/PBRToon/Face`
@@ -44,6 +49,10 @@ Assets/Effect/PBRToon/
 - **特性**：
   - SDF 脸部阴影贴图（Face Lightmap，UV1 采样）
   - 鼻尖高光
+  - 前发投影（可选，需配合 `HairShadowRenderFeature`）
+  - **SSS 皮肤（可选）**：与 Base 共享 `PBRToonSkin.hlsl`，开 `_SKIN_ON` 启用，
+    `_SSSColor` / `_SSSArea` 控制肉色和强度，对脸部边缘（颧骨外沿、下颌侧、耳廓）
+    自动产生红透感
   - 需要挂载 `PBRToonFaceDirection` 组件
 - **Face Lightmap 通道说明**：
   - R：SDF 阴影阈值
@@ -197,6 +206,60 @@ shadowRamp = Shadow Edge Color  // 可选
 2. 在需要投射 Atlas 阴影的角色上添加 `CharacterShadowAtlasTarget` 组件
 3. Shader 中通过 `_CHAR_SHADOW_ATLAS_ON` keyword 启用
 
+### 前发投影系统（HairShadowRenderFeature）
+
+**核心文件**：`Scripts/HairShadowRenderFeature.cs`
+
+#### 设计目的
+
+把"头发投在脸上的阴影"从 URP 主光 CSM 体系里**单独抽出来**，用屏幕空间 mask 实现，
+让美术可以专门控制阴影颜色（`_HairShadowColor`）和软度，不和场景统一阴影耦合。
+
+#### 工作流程
+
+1. **HairShadowMask Pass**（`BeforeRenderingOpaques`）：分配 R8 全屏 RT，
+   用 Hair mesh 的 `HairShadowMask` Pass Tag 把前发区域画为白色，背景为黑色
+2. **设全局贴图** `_HairShadowMask`，供 Face shader 采样
+3. **Face Forward Pass**：在 `_HAIR_SHADOW` 开启时按屏幕 UV 采样 mask，
+   `mask=1` 的脸部像素叠加 `_HairShadowColor` 染色
+
+#### 推荐使用方式
+
+> ⚠️ 这个 Feature 的设计意图是**替代** Hair 在脸上的 CSM 阴影，不是叠加在它上面。
+> 如果两个都开，脸上会同时有 CSM 硬阴影 + 屏幕空间软 mask，效果重叠且 CSM 阴影会
+> "穿模"出现在不该有的位置。
+
+正确启用步骤：
+1. 在 URP Renderer 中添加 `HairShadowRenderFeature`
+2. 把 Hair 物体的 `MeshRenderer.Cast Shadows` 设为 **Off**（关掉 CSM 投脸路径）
+3. Hair 物体所在 Layer 加进 `HairShadowRenderFeature` 的 `hairLayerMask`
+4. Hair shader 必须实现 Pass Tag = `HairShadowMask` 的 Pass（`PBRToonHair.shader` 已带）
+5. Face Material 上勾选 `_EnableHairShadow`、调 `_HairShadowColor`
+
+#### Disable 时的清理（已修复）
+
+`ScriptableRendererFeature` 顶部那个 enabled checkbox 实际调的是 `SetActive(false)`，
+URP 内部**只改字段不触发任何回调**，导致 `_HairShadowMask` 全局贴图槽里的旧 RT
+引用残留，Face shader 在 `_HAIR_SHADOW` 仍开启时会继续采到上一次烘进去的 mask。
+
+修复覆盖三条 disable 路径：
+
+| 关闭方式 | 触发机制 | 处理 |
+|---|---|---|
+| 顶部 RenderFeature checkbox（`SetActive(false)`） | URP 不触发任何回调，靠 `EditorApplication.update` 每帧轮询 `isActive` | 切换瞬间清理 |
+| 内层 `settings.enabled` | URP `OnValidate` → `Create()` + `AddRenderPasses` 状态机 | 双保险清理 |
+| 删除 Feature / 切 Pipeline / Domain Reload | `Dispose(disposing)` + `OnDisable` | 兜底清理 |
+
+清理动作 = 释放 `RTHandle` + `Shader.SetGlobalTexture(_HairShadowMask, Texture2D.blackTexture)`，
+Face shader 在 `_HAIR_SHADOW` 仍开启时采到的 mask 永远是 0，等价于"无前发遮挡"。
+
+#### 跟 CSM 主光阴影的区分
+
+如果发现脸上还有头发形状的阴影残留，先排除 CSM：临时把 Hair 物体的
+`MeshRenderer.Cast Shadows` 设为 Off：
+- 阴影**完全消失** → 是 URP 主光 CSM 投影，跟本 Feature 无关
+- 阴影**仍在** → 才是 `_HairShadowMask` RT 残留，按上面的 disable 路径排查
+
 ### 描边系统
 - **算法**：原神风格背面法线外扩描边
 - **平滑法线来源**：固定从 UV3 (TEXCOORD3).xy 解码（2 通道编码，z 由勾股定理重建）
@@ -210,3 +273,32 @@ shadowRamp = Shadow Edge Color  // 可选
 
 **已知修复**：
 - Play Mode 切换时 Inspector 点击无响应的问题：通过检测 `EditorApplication.isPlaying` 状态变化，强制重新初始化 GUI（重置 `m_FirstTimeApply`）
+
+## TODO / 已知问题
+
+### 前发投影（HairShadowRenderFeature）
+
+- [ ] **马尾穿透前发投影**：当前 `HairShadowMask` Pass 不区分头发部位，
+  把所有进 `hairLayerMask` 的头发都画成白色 mask，导致脸后面的马尾也被算
+  作"前发遮挡"，从摄像机视角看脸上会出现马尾形状的阴影"穿透"。
+  - 可能方案 A：让 mask Pass 写入深度并做 depth test，只保留比脸近的发束
+  - 可能方案 B：在 Hair shader 上加一个 `_IsFrontHair` 属性，mask Pass 用
+    `clip()` 把非前发部位剔掉（需要美术在材质上手动标记）
+  - 可能方案 C：把前发拆成单独的 SubMesh / 单独 GameObject，只让前发参与 mask
+
+### Hair Shader
+
+- [ ] **高光采样 UV1 但模型缺 UV1**：`PBRToonHair.shader` 的各向异性头发高光
+  纹理 (`HairSpecTex`) 默认从 UV1 (TEXCOORD1) 采样，目前角色模型尚未烘焙
+  UV1，开启高光会得到错误结果或 fallback 全黑。
+  - 短期：在 Hair shader 里加 `_USE_UV0_FOR_SPEC` 之类的 fallback keyword
+  - 长期：由美术补 UV1，约定写入"头发流向贴图（HairSpecTex）"专用 UV
+  - 也可考虑改用程序化噪声/渐变代替 HairSpecTex（不依赖 UV）
+
+### 其他待补
+
+- [ ] Face / Hair 暂未独立 Outline Pass（Hair 通过 `UsePass` 复用 Base 的
+  Outline，但 UV3 平滑法线如果只烘了身体没烘头发，描边会回退到 Tangent 方向）
+- [ ] PBRToonSkin 目前是基于视角 (Fresnel) 的轻量级假 SSS，没有真正的
+  Pre-integrated Skin Shading / 透光 / 厚度图支持，特写镜头的耳廓透红效果
+  仍较弱

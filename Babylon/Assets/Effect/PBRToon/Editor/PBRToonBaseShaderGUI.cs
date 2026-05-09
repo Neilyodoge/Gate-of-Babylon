@@ -64,6 +64,11 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
         private MaterialProperty directRimWidthProp;
         private MaterialProperty punctualRimWidthProp;
 
+        // SSS Skin
+        private MaterialProperty enableSkinProp;
+        private MaterialProperty sssColorProp;
+        private MaterialProperty sssAreaProp;
+
         // Outline
         private MaterialProperty enableOutlineProp;
         private MaterialProperty outlineWidthProp;
@@ -153,6 +158,10 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             directRimBackColProp = FindProperty("_DirectRimBackCol", properties, false);
             directRimWidthProp = FindProperty("_DirectRimWidth", properties, false);
             punctualRimWidthProp = FindProperty("_PunctualRimWidth", properties, false);
+
+            enableSkinProp = FindProperty("_EnableSkin", properties, false);
+            sssColorProp = FindProperty("_SSSColor", properties, false);
+            sssAreaProp = FindProperty("_SSSArea", properties, false);
 
             enableOutlineProp = FindProperty("_EnableOutline", properties, false);
             outlineWidthProp = FindProperty("_OutlineWidth", properties, false);
@@ -358,6 +367,26 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             if (directRimBackColProp != null) materialEditor.ShaderProperty(directRimBackColProp, "Back Rim Color");
             if (directRimWidthProp != null) materialEditor.ShaderProperty(directRimWidthProp, "Direct Rim Width");
             if (punctualRimWidthProp != null) materialEditor.ShaderProperty(punctualRimWidthProp, "Punctual Rim Width");
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("SSS Skin", EditorStyles.boldLabel);
+            if (enableSkinProp != null)
+            {
+                materialEditor.ShaderProperty(enableSkinProp, "Enable Skin SSS");
+                if (enableSkinProp.floatValue > 0)
+                {
+                    EditorGUI.indentLevel++;
+                    if (sssColorProp != null) materialEditor.ShaderProperty(sssColorProp, "SSS Color (skin tint)");
+                    if (sssAreaProp != null) materialEditor.ShaderProperty(sssAreaProp, "SSS Area / Strength");
+                    EditorGUI.indentLevel--;
+                }
+            }
+            EditorGUILayout.HelpBox(
+                "基于视角 (Fresnel) 的轻量级假 SSS：\n" +
+                "掠射角处把 albedo 朝 SSS Color 偏移，模拟皮肤在耳廓 / 鼻翼 / 手指边缘的红透感\n" +
+                "SSS Color: 皮肤次表面颜色，默认偏红肉色\n" +
+                "SSS Area: 范围/强度，0 = 关闭染色，越大边缘红透越明显",
+                MessageType.Info);
         }
 
         private void DrawOutline(Material material)
@@ -450,6 +479,8 @@ namespace UnityEditor.Rendering.Universal.ShaderGUI
             }
             if (material.HasProperty("_EnableShadowEdgeColor"))
                 CoreUtils.SetKeyword(material, "_SHADOW_EDGE_COLOR", material.GetFloat("_EnableShadowEdgeColor") > 0);
+            if (material.HasProperty("_EnableSkin"))
+                CoreUtils.SetKeyword(material, "_SKIN_ON", material.GetFloat("_EnableSkin") > 0);
             // _TOON_SHADOW KeywordEnum 已更新为多级选项
             if (material.HasProperty("_DebugShadow"))
                 CoreUtils.SetKeyword(material, "_DEBUG_SHADOW", material.GetFloat("_DebugShadow") > 0);

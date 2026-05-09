@@ -14,6 +14,7 @@ Material:
   m_ValidKeywords:
   - _HAIR_SHADOW
   - _OUTLINE_ON
+  - _SKIN_ON
   - _TOON_SHADOW_PCF_3X3
   m_InvalidKeywords:
   - _TOONSHADOW_PCF_3X3
@@ -70,13 +71,14 @@ Material:
     - _EnablePCF5x5: 0
     - _EnableShadowEdgeColor: 0
     - _EnableShadowRamp: 0
+    - _EnableSkin: 1
     - _EnvColorLerp: 0.5
     - _IndirDiffIntensity: 1
     - _IndirDiffUpDirSH: 0
     - _IndirSpecCubeWeight: 0.5
     - _IndirSpecIntensity: 1
     - _MainLightColorLerp: 0.5
-    - _Metallic: 0.5
+    - _Metallic: 0
     - _NormalScale: 1
     - _NoseSpecMax: 0.5
     - _NoseSpecMin: 0
@@ -90,15 +92,16 @@ Material:
     - _PcssSoftness: 0.02
     - _PcssSoftnessFalloff: 1.5
     - _PunctualRimWidth: 2.75
+    - _SSSArea: 0.15
     - _ShadowEdgeBegin: 0.2
     - _ShadowEdgeEnd: 0.8
     - _ShadowEdgeFadeBeginWidth: 0.1
     - _ShadowEdgeFadeEndWidth: 0.1
-    - _ShadowOffset: 0
+    - _ShadowOffset: 0.2
     - _ShadowSharpness: 10
     - _ShadowSmoothScene: 0.1
     - _ShadowStrength: 1
-    - _Smoothness: 0.5
+    - _Smoothness: 0
     - _ToonShadow: 2
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
@@ -110,6 +113,7 @@ Material:
     - _OutlineColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     - _OutlineDepthNewRange: {r: 0.105, g: 0.245, b: 0.6, a: 0}
     - _OutlineDepthOldRange: {r: 0.01, g: 2, b: 6, a: 0}
+    - _SSSColor: {r: 1, g: 0.54999995, b: 0.5, a: 1}
     - _SelfEnvColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
     - _SelfLight: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowColor: {r: 0, g: 0, b: 0, a: 1}
