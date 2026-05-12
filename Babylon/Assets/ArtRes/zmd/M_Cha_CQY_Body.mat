@@ -13,6 +13,7 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _OUTLINE_ON
+  - _RAMP_USE_SHADOW_AREA
   - _SHADOW_EDGE_COLOR
   - _SHADOW_RAMP
   - _SKIN_ON
@@ -100,6 +101,7 @@ Material:
     - _PcssSoftness: 0.01
     - _PcssSoftnessFalloff: 1.5
     - _PunctualRimWidth: 2.75
+    - _RampUseShadowArea: 1
     - _SSSArea: 0.15
     - _ShadowEdgeBegin: 0.2
     - _ShadowEdgeEnd: 0.8

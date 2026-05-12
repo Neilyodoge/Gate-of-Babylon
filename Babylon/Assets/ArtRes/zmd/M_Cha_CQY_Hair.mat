@@ -13,6 +13,7 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _OUTLINE_ON
+  - _RAMP_USE_SHADOW_AREA
   - _TOON_SHADOW_PCF_3X3
   m_InvalidKeywords:
   - _TOONSHADOW_PCF_3X3
@@ -96,6 +97,7 @@ Material:
     - _PcssSoftness: 0.02
     - _PcssSoftnessFalloff: 1.5
     - _PunctualRimWidth: 2.75
+    - _RampUseShadowArea: 1
     - _ShadowEdgeBegin: 0.2
     - _ShadowEdgeEnd: 0.8
     - _ShadowEdgeFadeBeginWidth: 0.1
