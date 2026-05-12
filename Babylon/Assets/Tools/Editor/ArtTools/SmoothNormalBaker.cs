@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Outline 平滑法线烘焙工具：
@@ -14,7 +16,7 @@ using UnityEngine.Rendering;
 ///   UV0 (TEXCOORD0) : 主纹理坐标
 ///   UV1 (TEXCOORD1) : Lightmap / 自定义数据
 ///   UV2 (TEXCOORD2) : Bent Normal 数据 (由 Bent Normal Baker 写入)
-///   UV3 (TEXCOORD3) : 平滑法线 (由本工具写入，供 PBRToon 描边使用)
+///   UV3 (TEXCOORD3) : 平滑法线 (本工具默认写入此通道，供 PBRToon 描边使用)
 /// 工具内可选写入到 UV0~UV7 任意通道。
 /// =====================================
 ///
@@ -28,39 +30,51 @@ using UnityEngine.Rendering;
 /// 编码方式：
 ///   TEXCOORDn.xyz = tangentSpaceSmoothNormal.xyz
 ///
-/// 在 Shader 中解码：
-///   float3 snTS = uvN.xyz;  // 切线空间平滑法线
+/// 在 Shader 中解码（默认 UV3）：
+///   float3 snTS = uv3.xyz;  // 切线空间平滑法线
 ///   float3 smoothNormalOS = snTS.x * tangentOS.xyz + snTS.y * bitangentOS + snTS.z * normalOS;
 ///
-/// 输出策略：
-///   · 始终在源 Mesh 同目录生成 _SmoothN.asset（不会修改原始 .asset 或 FBX 文件）
-///   · [H] (Hierarchy): 烘焙后会自动把 GameObject 的 MeshFilter / SkinnedMeshRenderer 引用
-///     替换为新生成的 _SmoothN.asset
-///   · [P] (Project)  : 仅生成 _SmoothN.asset，不修改场景中的引用
+/// ========== 来源类型与输出策略 ==========
+///   [P] PrefabAsset           : Project 中的 .prefab 资源（Regular / Variant）
+///                                烘焙后直接修改原 prefab：在 PreviewScene 中实例化原 prefab，
+///                                把所有需要平滑法线的 SMR/MF.sharedMesh 替换为 _SmoothN，然后用
+///                                TryApplyMeshOverrideToPrefab 沿 prefab 嵌套链「逐层 Apply」，
+///                                确保 outer prefab 与所有嵌套 prefab（包括嵌套 FBX Variant）都被改写。
+///
+///   [S] ScenePrefabInstance   : 场景中的 prefab 实例
+///                                烘焙后修改场景对象的 MeshFilter / SkinnedMeshRenderer 引用，
+///                                并用同样的「逐层 Apply」机制写回所有相关 prefab 源文件。
+///
+///   [O] Other                 : 普通场景 GameObject / Mesh.asset / FBX 子 Mesh / 其他
+///                                工具无法将修改保存到原始资源；烘焙仅在源 Mesh 同目录生成 _SmoothN.asset，
+///                                不修改任何引用。列表中以红色 ⛔ 标注以提示。
+///
+/// FBX PrefabVariant 功能（可选开关）：
+///   烘焙完成后，自动扫描源 prefab 中嵌套的 FBX，为每个 FBX 生成同名 PrefabVariant 并替换进 prefab。
+///   Variant 命名 = FBX 原文件名，生成在 FBX 同目录。Variant 包含 prefab 对 FBX 子树的所有修改。
+///   之后原 prefab 内嵌套的就是 Variant 而非 FBX，后续烘焙作用于 Variant，原 prefab 自动用上平滑法线版。
+///
+/// SkinnedMesh 处理：完整保留 boneWeights / bindposes / blendShapes，骨骼绑定与表情动画不受影响。
 ///
 /// 还原功能（↺ 用原始资源替换）：
-///   · 仅作用于 [H] 条目；将场景对象当前引用的 _SmoothN Mesh 替换回原始 Mesh（不带后缀）
-///   · 不会修改 .asset 文件本身，只更新场景 / Prefab 上的引用
+///   · [P] 与烘焙完全相同的写回机制，只是把 _SmoothN 换回原 mesh
+///   · [S] 写回原始引用并逐层 Apply 到所有相关 prefab 源文件
+///   · [O] 跳过
+///   · 勾选「删除原始资源」会在删除前主动扫描场景把仍引用 _SmoothN 的组件切回原 mesh，使用中的不会被删除
 /// </summary>
 public class SmoothNormalBaker : EditorWindow
 {
     private const string OutputSuffix = "_SmoothN";
 
-    /// <summary>
-    /// 带权重的法线结构
-    /// </summary>
     private struct WeightedNormal
     {
         public Vector3 normal;
         public float weight;
     }
 
-    /// <summary>
-    /// 通用 UV 通道数据缓存（保留原有维度：2D / 3D / 4D）
-    /// </summary>
     private struct UVChannelData
     {
-        public int dimension; // 0 = 无数据，2 / 3 / 4
+        public int dimension;
         public List<Vector2> uv2;
         public List<Vector3> uv3;
         public List<Vector4> uv4;
@@ -70,37 +84,57 @@ public class SmoothNormalBaker : EditorWindow
             (uv4 != null && uv4.Count > 0);
     }
 
-    // ========== UI 状态 ==========
+    private struct BlendShapeFrame
+    {
+        public string shapeName;
+        public float weight;
+        public Vector3[] deltaVertices;
+        public Vector3[] deltaNormals;
+        public Vector3[] deltaTangents;
+    }
 
-    /// <summary>
-    /// 资源列表项
-    /// </summary>
+    private enum MeshOwnerType
+    {
+        PrefabAsset,
+        ScenePrefabInstance,
+        Other,
+    }
+
+    private enum ComponentKind
+    {
+        None,
+        MeshFilter,
+        SkinnedMeshRenderer,
+    }
+
     private class MeshEntry
     {
-        public Object sourceObject;     // 源对象（GameObject / Mesh / Model 文件）
-        public Mesh mesh;               // 实际的 Mesh 引用
-        public string displayName;      // 显示名称
-        public string assetPath;        // 资源路径
-        public bool selected = true;    // 是否勾选
-        public string status;           // 状态文本（如 "需要烘焙"、"已有 _SmoothN"）
-        public MeshEntrySource entrySource; // 来源类型
+        public Object sourceObject;
+        public Mesh mesh;
+        public string displayName;
+        public string assetPath;
+        public bool selected = true;
+        public string status;
+        public MeshOwnerType ownerType;
+        public ComponentKind componentKind;
+
+        public string prefabAssetPath;
+        public string componentTransformPath;
+
+        public GameObject sceneOwner;
+
+        public string lastBakedAssetPath;
     }
 
-    private enum MeshEntrySource
-    {
-        Hierarchy,  // 来自 Hierarchy 选中的 GameObject
-        Project,    // 来自 Project 选中的资源
-    }
-
-    // 写入的 UV 通道（0~7，默认 UV3 = TEXCOORD3）
     private int targetUVChannel = 3;
-    // 还原时是否同步删除被替换掉的 _SmoothN.asset 文件，默认关闭以防误删
     private bool deleteSmoothNAssetOnRestore = false;
+    private bool generateFbxVariantOnDrop = false;
 
     private List<MeshEntry> meshEntries = new List<MeshEntry>();
     private Vector2 scrollPosition;
     private bool showHelp = false;
-    private bool autoTrackSelection = true; // 是否自动跟踪选中对象
+    private bool autoTrackSelection = true;
+    private Object lastDroppedObject = null;
 
     private const string WindowTitle = "Outline平滑法线烘焙";
 
@@ -108,12 +142,11 @@ public class SmoothNormalBaker : EditorWindow
     public static void ShowWindow()
     {
         var win = GetWindow<SmoothNormalBaker>(WindowTitle);
-        win.minSize = new Vector2(440, 460);
+        win.minSize = new Vector2(460, 480);
     }
 
     private void OnEnable()
     {
-        // 强制刷新 titleContent；防止旧布局缓存里的旧标题（如"平滑法线烘焙工具"）残留
         titleContent = new GUIContent(WindowTitle);
         Selection.selectionChanged += OnSelectionChanged;
         SyncFromSelection();
@@ -124,9 +157,6 @@ public class SmoothNormalBaker : EditorWindow
         Selection.selectionChanged -= OnSelectionChanged;
     }
 
-    /// <summary>
-    /// Unity 选中对象变化时自动同步列表
-    /// </summary>
     private void OnSelectionChanged()
     {
         if (autoTrackSelection)
@@ -136,9 +166,12 @@ public class SmoothNormalBaker : EditorWindow
         }
     }
 
+    // ============================================================
+    //                          UI
+    // ============================================================
+
     private void OnGUI()
     {
-        // ====== 标题栏 ======
         GUILayout.Space(4);
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label("Outline 平滑法线烘焙", EditorStyles.boldLabel);
@@ -147,20 +180,18 @@ public class SmoothNormalBaker : EditorWindow
 
         GUILayout.Space(4);
 
-        // ====== 拖拽区域 ======
         DrawDragDropArea();
 
         GUILayout.Space(4);
 
-        // ====== 设置区 ======
         DrawSettingsArea();
 
         GUILayout.Space(2);
 
-        // 操作栏：清空 / 自动跟踪
         EditorGUILayout.BeginHorizontal();
         autoTrackSelection = EditorGUILayout.ToggleLeft(
-            new GUIContent("自动识别选中", "勾选后，Unity 中选择对象会自动同步到列表。"),
+            new GUIContent("自动识别选中",
+                "勾选后，Unity 中选择对象会自动同步到列表（仅识别合法的 Prefab 资源 / Prefab 实例；非 Prefab 仅在拖入时才会弹窗提示）。"),
             autoTrackSelection,
             GUILayout.Width(110));
         GUILayout.FlexibleSpace();
@@ -172,19 +203,19 @@ public class SmoothNormalBaker : EditorWindow
 
         GUILayout.Space(4);
 
-        // ====== 列表标题栏 ======
         int totalCount = meshEntries.Count;
         int selectedCount = meshEntries.Count(e => e.selected);
         int warningCount = meshEntries.Count(e => e.selected && MeshHasUVData(e.mesh, targetUVChannel));
+        int otherCount = meshEntries.Count(e => e.selected && e.ownerType == MeshOwnerType.Other);
 
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         string toolbarText = $"Mesh 列表 (共 {totalCount} 个, 已选 {selectedCount} 个";
         if (warningCount > 0) toolbarText += $", ⚠ {warningCount} 个目标 UV 已有数据";
+        if (otherCount > 0) toolbarText += $", ⛔ {otherCount} 个无法写回原始资源";
         toolbarText += ")";
         GUILayout.Label(toolbarText, EditorStyles.miniLabel);
         EditorGUILayout.EndHorizontal();
 
-        // ====== 全选 / 取消全选 ======
         if (totalCount > 0)
         {
             EditorGUILayout.BeginHorizontal();
@@ -198,7 +229,6 @@ public class SmoothNormalBaker : EditorWindow
             EditorGUILayout.EndHorizontal();
         }
 
-        // ====== 可滚动资源列表 ======
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
 
         if (totalCount == 0)
@@ -206,7 +236,7 @@ public class SmoothNormalBaker : EditorWindow
             GUILayout.Space(20);
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            GUILayout.Label("列表为空，请在 Hierarchy / Project 中选中对象，或拖入此处", EditorStyles.centeredGreyMiniLabel);
+            GUILayout.Label("列表为空，推荐拖入 Prefab 资源（也可拖入场景对象 / Mesh / FBX）", EditorStyles.centeredGreyMiniLabel);
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
             GUILayout.Space(20);
@@ -214,12 +244,10 @@ public class SmoothNormalBaker : EditorWindow
         else
         {
             int removeIndex = -1;
-
             for (int i = 0; i < meshEntries.Count; i++)
             {
                 DrawMeshEntryRow(meshEntries[i], i, ref removeIndex);
             }
-
             if (removeIndex >= 0 && removeIndex < meshEntries.Count)
             {
                 meshEntries.RemoveAt(removeIndex);
@@ -230,10 +258,10 @@ public class SmoothNormalBaker : EditorWindow
 
         GUILayout.Space(4);
 
-        // ====== 底部按钮：烘焙 / 还原 ======
         GUI.enabled = selectedCount > 0;
         string bakeBtnLabel = $"▶ 烘焙选中的 {selectedCount} 个 Mesh 到 UV{targetUVChannel}";
-        if (warningCount > 0) bakeBtnLabel += $"  (⚠ 将覆盖 {warningCount} 个已有数据)";
+        if (warningCount > 0) bakeBtnLabel += $"  (⚠ 覆盖 {warningCount} 个已有 UV 数据)";
+        if (otherCount > 0) bakeBtnLabel += $"  (⛔ {otherCount} 个仅生成 _SmoothN)";
         if (GUILayout.Button(bakeBtnLabel, GUILayout.Height(36)))
         {
             BakeSelectedEntries();
@@ -245,9 +273,10 @@ public class SmoothNormalBaker : EditorWindow
 
         var restoreBtnContent = new GUIContent(
             $"↺ 用原始资源替换选中的 {selectedCount} 个",
-            "把选中的场景对象当前引用的 mesh_SmoothN 还原成原始 mesh（去掉 _SmoothN 后缀的同名资源）。\n" +
-            "仅修改场景 / Prefab 上的引用，不会动 .asset 文件。\n" +
-            "对 [P] Project 条目和已经是原始资源的条目，会自动跳过。");
+            "把选中条目当前引用的 mesh_SmoothN 还原成原始 mesh（去掉 _SmoothN 后缀）。\n" +
+            "  · [P] 在 PreviewScene 中实例化原 prefab，把 sharedMesh 改回原 mesh，逐层 Apply 写回所有嵌套层\n" +
+            "  · [S] 写回场景引用并自动逐层 Apply 到所有相关 prefab 源文件\n" +
+            "  · [O] 跳过（无引用可改，仅可选删除 _SmoothN.asset）");
         if (GUILayout.Button(restoreBtnContent, GUILayout.ExpandWidth(true), GUILayout.Height(26)))
         {
             RestoreSelectedToOriginal();
@@ -255,9 +284,12 @@ public class SmoothNormalBaker : EditorWindow
 
         deleteSmoothNAssetOnRestore = EditorGUILayout.ToggleLeft(
             new GUIContent("删除原始资源",
-                "勾选后：还原成功的条目，会连带从硬盘上删除被替换掉的 _SmoothN.asset 文件。\n" +
-                "为防误删，仅当工具列表中没有其它条目仍引用该资源时才会真正删除。\n" +
-                "默认不勾选，仅断开场景引用、保留 _SmoothN.asset。"),
+                "勾选后：还原成功的条目，会连带从硬盘上删除被替换掉的 _SmoothN.asset 文件。\n\n" +
+                "安全策略（不会误删使用中的资源）：\n" +
+                "  · 删除前会先扫描所有打开的场景，把仍引用待删 _SmoothN 的 SMR/MF 自动切回原 mesh\n" +
+                "  · 仅当工具列表中没有其它条目仍引用该资源时才会真正删除\n" +
+                "  · 使用中的（仍被场景或工具列表引用的）不会被删除，会保留并在 Console 给出提示\n\n" +
+                "默认不勾选：只断开引用、保留 _SmoothN.asset。"),
             deleteSmoothNAssetOnRestore,
             GUILayout.Width(110), GUILayout.Height(26));
 
@@ -267,19 +299,14 @@ public class SmoothNormalBaker : EditorWindow
 
         GUILayout.Space(4);
 
-        // ====== 使用说明（折叠在最下方） ======
         DrawHelpFooter();
     }
 
-    /// <summary>
-    /// 绘制顶部设置区：UV 通道、替换原文件
-    /// </summary>
     private void DrawSettingsArea()
     {
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         GUILayout.Label("烘焙设置", EditorStyles.miniBoldLabel);
 
-        // UV 通道选择
         GUIContent[] channelOptions =
         {
             new GUIContent("UV0 (TEXCOORD0)"),
@@ -297,18 +324,26 @@ public class SmoothNormalBaker : EditorWindow
             new GUIContent("写入 UV 通道",
                 "选择平滑法线写入到哪个 UV 通道（TEXCOORD0~7）。\n" +
                 "默认 UV3，配合 PBRToon 描边使用。\n" +
-                "若选中通道在某些 Mesh 上已有数据，将在列表中标注 ⚠。"),
+                "若选中通道在某些 Mesh 上已有数据（如 Lightmap UV），将在列表中标注 ⚠。"),
             targetUVChannel,
             channelOptions,
             channelValues);
         targetUVChannel = Mathf.Clamp(targetUVChannel, 0, 7);
 
+        GUILayout.Space(2);
+
+        generateFbxVariantOnDrop = EditorGUILayout.ToggleLeft(
+            new GUIContent("烘焙后为嵌套 FBX 生成 PrefabVariant",
+                "烘焙完成后，自动扫描源 prefab 中嵌套的 FBX，生成同名 PrefabVariant 并替换进 prefab。\n" +
+                "  · Variant 命名 = FBX 原文件名，生成在 FBX 同目录\n" +
+                "  · Variant 包含 prefab 对 FBX 子树的所有修改（组件 / 属性 / 子物体）\n" +
+                "  · 原 prefab 中的 FBX 嵌套会被替换为 Variant 嵌套\n" +
+                "  · 无嵌套 FBX 的 prefab 不受影响"),
+            generateFbxVariantOnDrop);
+
         EditorGUILayout.EndVertical();
     }
 
-    /// <summary>
-    /// 底部使用说明
-    /// </summary>
     private void DrawHelpFooter()
     {
         EditorGUILayout.BeginHorizontal();
@@ -321,83 +356,89 @@ public class SmoothNormalBaker : EditorWindow
         if (showHelp)
         {
             EditorGUILayout.HelpBox(
-                "将模型的平滑法线（角度加权 + 切线空间）烘焙到指定 UV 通道的 xyz 中。\n\n" +
-                "[添加 Mesh]\n" +
-                "  · 在 Hierarchy / Project 中选中对象会自动加入列表\n" +
-                "  · 也可将 GameObject / Mesh / FBX 拖到上方拖拽区\n" +
-                "  · [H] = 来自场景对象，[P] = 来自 Project 资源\n\n" +
-                "[输出策略]\n" +
-                "  · 始终在源 Mesh 同目录生成 _SmoothN.asset，不修改任何原文件\n" +
-                "  · [H] 烘焙后会自动把场景对象的 MeshFilter / SkinnedMeshRenderer 引用换为新 _SmoothN\n" +
-                "  · [P] 仅生成 _SmoothN.asset，不动场景\n\n" +
-                "[还原原始资源 ↺]\n" +
-                "  · 仅作用于 [H] 条目（场景对象）\n" +
-                "  · 将当前引用的 mesh_SmoothN 替换回原始 mesh（去掉 _SmoothN 后缀的同名资源）\n" +
-                "  · 在同/上级目录、最后回退到全工程依次搜索原始 Mesh\n" +
-                "  · 默认仅改场景 / Prefab 上的引用，不动 .asset 文件\n" +
-                "  · 勾选 \"删除原始资源\" 会在还原成功后顺手删掉对应的 _SmoothN.asset（前提是工具列表里没人再引用它）\n\n" +
-                "[UV 通道]\n" +
-                "  · 默认 UV3 (TEXCOORD3)，可选 UV0~UV7\n" +
-                "  · 若目标通道在某些 Mesh 上已有数据，列表中会显示 ⚠（仍可烘焙，会覆盖该通道）\n\n" +
-                "[算法]\n" +
-                "  角度加权平滑法线 → 转换到切线空间 → 写入 UVN.xyz\n\n" +
-                "[Shader 解码]\n" +
-                "  float3 snTS = uvN.xyz;\n" +
+                "角度加权平滑法线 → 切线空间 → 写入 UV 通道 xyz，供描边 Shader 使用。\n\n" +
+                "[来源] [P] Prefab 资源  [S] 场景 Prefab 实例  [O] 其他（仅生成 _SmoothN.asset）\n" +
+                "[输出] 在源 Mesh 同目录生成 _SmoothN.asset；[P]/[S] 自动逐层 Apply 写回所有嵌套 prefab\n" +
+                "[FBX Variant] 勾选开关后，烘焙完成会为嵌套 FBX 生成同名 PrefabVariant 并替换进 prefab\n" +
+                "[还原] ↺ 按钮把 mesh 改回原始；勾选「删除原始资源」会顺手删掉 _SmoothN.asset（使用中的不删）\n" +
+                "[SkinnedMesh] 完整保留 boneWeights / bindposes / blendShapes\n\n" +
+                "[Shader 解码] float3 snTS = uv3.xyz;\n" +
                 "  float3 smoothNormalOS = snTS.x*tangentOS + snTS.y*bitangentOS + snTS.z*normalOS;",
                 MessageType.Info);
         }
     }
 
-    /// <summary>
-    /// 绘制单个 Mesh 条目行
-    /// </summary>
     private void DrawMeshEntryRow(MeshEntry entry, int index, ref int removeIndex)
     {
         const float rowHeight = 22f;
 
         Rect rowRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(rowHeight));
-        if (index % 2 == 0)
+        bool hasVerifyError = entry.status != null && entry.status.Contains("未替换");
+        if (hasVerifyError)
+        {
+            EditorGUI.DrawRect(rowRect, new Color(0.5f, 0.15f, 0.15f, 0.45f));
+        }
+        else if (index % 2 == 0)
         {
             EditorGUI.DrawRect(rowRect, new Color(0.22f, 0.22f, 0.22f, 0.4f));
         }
 
-        // 勾选框
         entry.selected = EditorGUILayout.Toggle(entry.selected, GUILayout.Width(16), GUILayout.Height(rowHeight));
 
-        // UV 占用警告（实时检测，不缓存）
         bool hasUVConflict = MeshHasUVData(entry.mesh, targetUVChannel);
-        string warningTip = hasUVConflict
-            ? $"该 Mesh 的 UV{targetUVChannel} 已存在数据，烘焙将覆盖原有数据。"
-            : null;
+        bool isOther = entry.ownerType == MeshOwnerType.Other;
 
-        // 名称（可点击定位）
+        var tipParts = new List<string>();
+        if (isOther) tipParts.Add("该对象不是 Prefab，工具无法将修改保存到原始资源；烘焙仅会生成 _SmoothN.asset。");
+        if (hasUVConflict) tipParts.Add($"该 Mesh 的 UV{targetUVChannel} 已存在数据，烘焙将覆盖原有数据。");
+        string warningTip = tipParts.Count > 0 ? string.Join("\n", tipParts) : null;
+
         var nameStyle = new GUIStyle(EditorStyles.label)
         {
             richText = true,
             alignment = TextAnchor.MiddleLeft,
             padding = new RectOffset(2, 2, 0, 0)
         };
-        string sourceIcon = entry.entrySource == MeshEntrySource.Hierarchy
-            ? "<color=#88ccff>[H]</color>"
-            : "<color=#ffcc88>[P]</color>";
-        string warnIcon = hasUVConflict ? "<color=#ffaa44>⚠</color> " : "";
+
+        string sourceIcon;
+        switch (entry.ownerType)
+        {
+            case MeshOwnerType.PrefabAsset:
+                sourceIcon = "<color=#88ccff>[P]</color>";
+                break;
+            case MeshOwnerType.ScenePrefabInstance:
+                sourceIcon = "<color=#aaee88>[S]</color>";
+                break;
+            default:
+                sourceIcon = "<color=#ff8866>[O]</color>";
+                break;
+        }
+
+        string warnIcon = "";
+        if (isOther) warnIcon += "<color=#ff6644>⛔</color> ";
+        if (hasUVConflict) warnIcon += "<color=#ffaa44>⚠</color> ";
         string displayText = $"{sourceIcon} {warnIcon}{entry.displayName}";
 
         if (GUILayout.Button(new GUIContent(displayText, warningTip),
                 nameStyle, GUILayout.ExpandWidth(true), GUILayout.Height(rowHeight)))
         {
-            if (entry.mesh != null)
+            if (entry.sceneOwner != null)
+                EditorGUIUtility.PingObject(entry.sceneOwner);
+            else if (entry.mesh != null)
                 EditorGUIUtility.PingObject(entry.mesh);
             else if (entry.sourceObject != null)
                 EditorGUIUtility.PingObject(entry.sourceObject);
         }
 
-        // 状态标签
         if (!string.IsNullOrEmpty(entry.status))
         {
             Color statusColor;
-            if (entry.status.Contains("已完成"))
+            if (entry.status.Contains("失败") || entry.status.StartsWith("跳过") || entry.status.Contains("未替换"))
+                statusColor = new Color(1f, 0.5f, 0.45f);
+            else if (entry.status.Contains("已完成") || entry.status.Contains("已写回") || entry.status.Contains("已 Apply"))
                 statusColor = new Color(0.4f, 0.9f, 0.4f);
+            else if (entry.status.Contains("已还原"))
+                statusColor = new Color(0.6f, 0.85f, 1f);
             else if (entry.status.Contains("已有"))
                 statusColor = new Color(0.5f, 0.8f, 0.5f);
             else
@@ -409,10 +450,9 @@ public class SmoothNormalBaker : EditorWindow
                 normal = { textColor = statusColor },
                 padding = new RectOffset(0, 4, 0, 0)
             };
-            GUILayout.Label(entry.status, statusStyle, GUILayout.Width(80), GUILayout.Height(rowHeight));
+            GUILayout.Label(entry.status, statusStyle, GUILayout.Width(140), GUILayout.Height(rowHeight));
         }
 
-        // 删除按钮
         if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(20), GUILayout.Height(rowHeight)))
         {
             removeIndex = index;
@@ -421,9 +461,6 @@ public class SmoothNormalBaker : EditorWindow
         EditorGUILayout.EndHorizontal();
     }
 
-    /// <summary>
-    /// 检测 Mesh 在指定 UV 通道是否已有数据
-    /// </summary>
     private static bool MeshHasUVData(Mesh mesh, int channel)
     {
         if (mesh == null || channel < 0 || channel > 7) return false;
@@ -431,115 +468,47 @@ public class SmoothNormalBaker : EditorWindow
         return mesh.HasVertexAttribute(attr);
     }
 
-    /// <summary>
-    /// 自动同步当前选中对象到列表（替换模式，非追加）
-    /// </summary>
+    // ============================================================
+    //                       拖拽 / 选中 / 添加
+    // ============================================================
+
     private void SyncFromSelection()
     {
-        // 保留已烘焙完成的条目
-        meshEntries.RemoveAll(e => e.status != "已完成 ✓");
+        meshEntries.RemoveAll(e =>
+            string.IsNullOrEmpty(e.status)
+            || (!e.status.Contains("已完成") && !e.status.Contains("已还原") && !e.status.Contains("已写回") && !e.status.Contains("已 Apply")));
 
-        // 从 Hierarchy 选中的 GameObject 添加
         GameObject[] selectedGOs = Selection.gameObjects;
         if (selectedGOs != null)
         {
             foreach (var go in selectedGOs)
             {
-                AddMeshesFromGameObject(go, MeshEntrySource.Hierarchy);
+                AddObject(go, silentSkipOther: true);
             }
         }
 
-        // 从 Project 选中的资源添加
         Object[] selectedAssets = Selection.objects;
         if (selectedAssets != null)
         {
             foreach (var obj in selectedAssets)
             {
-                if (obj is GameObject) continue; // 已在上面处理
-                AddMeshesFromObject(obj, MeshEntrySource.Project);
+                if (obj is GameObject) continue;
+                AddObject(obj, silentSkipOther: true);
             }
         }
     }
 
-    /// <summary>
-    /// 从 GameObject 提取 Mesh 并添加到列表（递归遍历所有子级）
-    /// </summary>
-    private void AddMeshesFromGameObject(GameObject go, MeshEntrySource source)
-    {
-        if (go == null) return;
-
-        AddMeshesFromSingleGameObject(go, source);
-
-        foreach (Transform child in go.transform)
-        {
-            AddMeshesFromGameObject(child.gameObject, source);
-        }
-    }
-
-    /// <summary>
-    /// 从单个 GameObject 提取 Mesh（不递归）
-    /// </summary>
-    private void AddMeshesFromSingleGameObject(GameObject go, MeshEntrySource source)
-    {
-        if (go == null) return;
-
-        MeshFilter mf = go.GetComponent<MeshFilter>();
-        if (mf != null && mf.sharedMesh != null && !IsMeshAlreadyInList(mf.sharedMesh))
-        {
-            var entry = CreateEntryFromMesh(mf.sharedMesh, go, source);
-            meshEntries.Add(entry);
-        }
-
-        SkinnedMeshRenderer smr = go.GetComponent<SkinnedMeshRenderer>();
-        if (smr != null && smr.sharedMesh != null && !IsMeshAlreadyInList(smr.sharedMesh))
-        {
-            var entry = CreateEntryFromMesh(smr.sharedMesh, go, source);
-            meshEntries.Add(entry);
-        }
-    }
-
-    /// <summary>
-    /// 从 Object（Mesh / 模型文件 / GameObject）提取 Mesh 并添加到列表
-    /// </summary>
-    private void AddMeshesFromObject(Object obj, MeshEntrySource source)
-    {
-        if (obj == null) return;
-
-        if (obj is Mesh mesh)
-        {
-            if (!IsMeshAlreadyInList(mesh))
-            {
-                var entry = CreateEntryFromMesh(mesh, obj, source);
-                meshEntries.Add(entry);
-            }
-        }
-        else
-        {
-            string path = AssetDatabase.GetAssetPath(obj);
-            if (!string.IsNullOrEmpty(path))
-            {
-                var importer = AssetImporter.GetAtPath(path) as ModelImporter;
-                if (importer != null)
-                {
-                    Object[] subAssets = AssetDatabase.LoadAllAssetsAtPath(path);
-                    foreach (var sub in subAssets)
-                    {
-                        if (sub is Mesh subMesh && !IsMeshAlreadyInList(subMesh))
-                        {
-                            var entry = CreateEntryFromMesh(subMesh, obj, source);
-                            meshEntries.Add(entry);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// 绘制拖拽放置区域
-    /// </summary>
     private void DrawDragDropArea()
     {
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("拖入对象", GUILayout.Width(56));
+        GUI.enabled = false;
+        EditorGUILayout.ObjectField(lastDroppedObject, typeof(Object), true);
+        GUI.enabled = true;
+        EditorGUILayout.EndHorizontal();
+
+        GUILayout.Space(2);
+
         Rect dropRect = GUILayoutUtility.GetRect(0, 36, GUILayout.ExpandWidth(true));
 
         var bgStyle = new GUIStyle("Box")
@@ -549,7 +518,7 @@ public class SmoothNormalBaker : EditorWindow
             fontSize = 11
         };
         bgStyle.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
-        GUI.Box(dropRect, "将 GameObject / Mesh / FBX 拖拽到此处添加", bgStyle);
+        GUI.Box(dropRect, "推荐拖入 Prefab；其他对象（场景物体 / Mesh / FBX）会先弹窗提示", bgStyle);
 
         Event evt = Event.current;
         if (dropRect.Contains(evt.mousePosition))
@@ -566,34 +535,18 @@ public class SmoothNormalBaker : EditorWindow
 
                 case EventType.DragPerform:
                     DragAndDrop.AcceptDrag();
+                    if (DragAndDrop.objectReferences != null && DragAndDrop.objectReferences.Length > 0)
+                        lastDroppedObject = DragAndDrop.objectReferences[0];
+                    if (meshEntries.Count > 0)
+                    {
+                        Debug.Log($"[平滑法线烘焙] 拖入新对象，已自动清空之前的 {meshEntries.Count} 个条目。");
+                        meshEntries.Clear();
+                    }
                     int addedCount = 0;
                     foreach (var obj in DragAndDrop.objectReferences)
                     {
                         int before = meshEntries.Count;
-                        if (obj is GameObject go)
-                        {
-                            string dragPath = AssetDatabase.GetAssetPath(go);
-                            if (!string.IsNullOrEmpty(dragPath))
-                            {
-                                var importer = AssetImporter.GetAtPath(dragPath) as ModelImporter;
-                                if (importer != null)
-                                {
-                                    AddMeshesFromObject(go, MeshEntrySource.Project);
-                                }
-                                else
-                                {
-                                    AddMeshesFromGameObject(go, MeshEntrySource.Hierarchy);
-                                }
-                            }
-                            else
-                            {
-                                AddMeshesFromGameObject(go, MeshEntrySource.Hierarchy);
-                            }
-                        }
-                        else
-                        {
-                            AddMeshesFromObject(obj, MeshEntrySource.Project);
-                        }
+                        AddObject(obj, silentSkipOther: false);
                         addedCount += meshEntries.Count - before;
                     }
                     if (addedCount > 0)
@@ -604,22 +557,554 @@ public class SmoothNormalBaker : EditorWindow
         }
     }
 
-    /// <summary>
-    /// 检查 Mesh 是否已在列表中（避免重复添加）
-    /// </summary>
-    private bool IsMeshAlreadyInList(Mesh mesh)
+    private void AddObject(Object obj, bool silentSkipOther)
+    {
+        if (obj == null) return;
+
+        if (obj is GameObject go)
+        {
+            if (PrefabUtility.IsPartOfPrefabAsset(go))
+            {
+                PrefabAssetType assetType = PrefabUtility.GetPrefabAssetType(go);
+                string prefabPath = AssetDatabase.GetAssetPath(go);
+
+                if ((assetType == PrefabAssetType.Regular || assetType == PrefabAssetType.Variant)
+                    && !string.IsNullOrEmpty(prefabPath)
+                    && prefabPath.EndsWith(".prefab", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    GameObject prefabRoot = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                    if (prefabRoot != null)
+                    {
+                        AddPrefabAssetEntries(prefabRoot, prefabPath);
+                        return;
+                    }
+                }
+
+                AddOtherFromObject(obj, silentSkipOther);
+                return;
+            }
+
+            if (PrefabUtility.IsPartOfPrefabInstance(go))
+            {
+                AddScenePrefabInstanceEntries(go);
+                return;
+            }
+
+            AddOtherFromGameObject(go, silentSkipOther);
+            return;
+        }
+
+        AddOtherFromObject(obj, silentSkipOther);
+    }
+
+    private void AddPrefabAssetEntries(GameObject prefabRoot, string prefabAssetPath)
+    {
+        if (prefabRoot == null || string.IsNullOrEmpty(prefabAssetPath)) return;
+
+        var meshFilters = prefabRoot.GetComponentsInChildren<MeshFilter>(true);
+        foreach (var mf in meshFilters)
+        {
+            if (mf == null || mf.sharedMesh == null) continue;
+            if (IsMeshAlreadyInList(mf.sharedMesh, prefabAssetPath: prefabAssetPath)) continue;
+
+            string transformPath = GetTransformPath(prefabRoot.transform, mf.transform);
+            var entry = CreateEntryFromMesh(mf.sharedMesh, prefabRoot, MeshOwnerType.PrefabAsset);
+            entry.componentKind = ComponentKind.MeshFilter;
+            entry.prefabAssetPath = prefabAssetPath;
+            entry.componentTransformPath = transformPath;
+            entry.displayName = $"{prefabRoot.name}/{(string.IsNullOrEmpty(transformPath) ? mf.gameObject.name : transformPath)} : {mf.sharedMesh.name}";
+            meshEntries.Add(entry);
+        }
+
+        var skinned = prefabRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        foreach (var smr in skinned)
+        {
+            if (smr == null || smr.sharedMesh == null) continue;
+            if (IsMeshAlreadyInList(smr.sharedMesh, prefabAssetPath: prefabAssetPath)) continue;
+
+            string transformPath = GetTransformPath(prefabRoot.transform, smr.transform);
+            var entry = CreateEntryFromMesh(smr.sharedMesh, prefabRoot, MeshOwnerType.PrefabAsset);
+            entry.componentKind = ComponentKind.SkinnedMeshRenderer;
+            entry.prefabAssetPath = prefabAssetPath;
+            entry.componentTransformPath = transformPath;
+            entry.displayName = $"{prefabRoot.name}/{(string.IsNullOrEmpty(transformPath) ? smr.gameObject.name : transformPath)} : {smr.sharedMesh.name} (Skinned)";
+            meshEntries.Add(entry);
+        }
+    }
+
+    // ============================================================
+    //   嵌套 FBX → PrefabVariant 自动生成
+    // ============================================================
+
+    private static List<KeyValuePair<GameObject, string>> FindNestedFbxInstanceRootsInPrefab(GameObject prefabInstance)
+    {
+        var result = new List<KeyValuePair<GameObject, string>>();
+        if (prefabInstance == null) return result;
+
+        var seenFbx = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        var allTransforms = prefabInstance.GetComponentsInChildren<Transform>(true);
+        Debug.Log($"[平滑法线烘焙] FindNestedFbx：开始扫描，根='{prefabInstance.name}'，共 {allTransforms.Length} 个 Transform");
+
+        foreach (var t in allTransforms)
+        {
+            if (t == null) continue;
+            var go = t.gameObject;
+            if (go == prefabInstance) continue;
+
+            GameObject originalSrc = PrefabUtility.GetCorrespondingObjectFromOriginalSource(go);
+            GameObject directSrc = PrefabUtility.GetCorrespondingObjectFromSource(go);
+            bool isInstanceRoot = PrefabUtility.IsAnyPrefabInstanceRoot(go);
+
+            string directPath = directSrc != null ? AssetDatabase.GetAssetPath(directSrc) : null;
+            string originalPath = originalSrc != null ? AssetDatabase.GetAssetPath(originalSrc) : null;
+            string nearestPath = null;
+            try { nearestPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(go); } catch { }
+
+            bool isDirectChild = go.transform.parent == prefabInstance.transform;
+            if (isDirectChild || isInstanceRoot)
+            {
+                Debug.Log($"[平滑法线烘焙] FindNestedFbx：'{go.name}' " +
+                    $"isDirectChild={isDirectChild}, " +
+                    $"isInstanceRoot={isInstanceRoot}, " +
+                    $"directSrc={(directSrc != null ? directSrc.name : "null")} @ '{directPath}', " +
+                    $"originalSrc={(originalSrc != null ? originalSrc.name : "null")} @ '{originalPath}', " +
+                    $"nearestPath='{nearestPath}'");
+            }
+
+            string fbxPath = null;
+            if (originalSrc != null && !string.IsNullOrEmpty(originalPath) && IsModelAssetPath(originalPath) && originalSrc.transform.parent == null)
+            {
+                fbxPath = originalPath;
+            }
+            if (fbxPath == null && directSrc != null && !string.IsNullOrEmpty(directPath) && IsModelAssetPath(directPath) && directSrc.transform.parent == null)
+            {
+                fbxPath = directPath;
+            }
+            if (fbxPath == null && isInstanceRoot && !string.IsNullOrEmpty(nearestPath) && IsModelAssetPath(nearestPath))
+            {
+                fbxPath = nearestPath;
+            }
+
+            if (string.IsNullOrEmpty(fbxPath)) continue;
+
+            if (!HasAnyMeshComponent(go)) continue;
+
+            if (seenFbx.Add(fbxPath))
+            {
+                result.Add(new KeyValuePair<GameObject, string>(go, fbxPath));
+                Debug.Log($"[平滑法线烘焙] ✓ 检测到嵌套 FBX：'{go.name}' → {fbxPath}");
+            }
+        }
+
+        Debug.Log($"[平滑法线烘焙] FindNestedFbx：共检测到 {result.Count} 个嵌套 FBX 子树根。");
+        return result;
+    }
+
+    private static bool IsModelAssetPath(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return false;
+        return path.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".obj", System.StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".dae", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasAnyMeshComponent(GameObject root)
+    {
+        if (root == null) return false;
+        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+            if (mf != null && mf.sharedMesh != null) return true;
+        foreach (var smr in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            if (smr != null && smr.sharedMesh != null) return true;
+        return false;
+    }
+
+    private List<string> GenerateFbxVariantsFromPrefab(string originalPrefabPath)
+    {
+        var generatedPaths = new List<string>();
+        var fbxToVariantMap = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(originalPrefabPath)) return generatedPaths;
+
+        GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(originalPrefabPath);
+        if (prefabAsset == null)
+        {
+            Debug.LogWarning($"[平滑法线烘焙] 无法加载 prefab：{originalPrefabPath}");
+            return generatedPaths;
+        }
+
+        var previewSceneA = EditorSceneManager.NewPreviewScene();
+        GameObject outerInstanceA = null;
+        try
+        {
+            outerInstanceA = (GameObject)PrefabUtility.InstantiatePrefab(prefabAsset, previewSceneA);
+            if (outerInstanceA == null)
+            {
+                Debug.LogWarning($"[平滑法线烘焙] InstantiatePrefab 失败：{originalPrefabPath}");
+                return generatedPaths;
+            }
+
+            var fbxRoots = FindNestedFbxInstanceRootsInPrefab(outerInstanceA);
+            if (fbxRoots.Count == 0)
+            {
+                Debug.Log($"[平滑法线烘焙] 「{Path.GetFileName(originalPrefabPath)}」 中未发现可生成 Variant 的嵌套 FBX，按原 prefab 烘焙。");
+                return generatedPaths;
+            }
+
+            PrefabUtility.UnpackPrefabInstance(outerInstanceA, PrefabUnpackMode.OutermostRoot, InteractionMode.AutomatedAction);
+
+            foreach (var pair in fbxRoots)
+            {
+                GameObject fbxInstanceRoot = pair.Key;
+                string fbxPath = pair.Value;
+                if (fbxInstanceRoot == null || string.IsNullOrEmpty(fbxPath)) continue;
+
+                try
+                {
+                    string fbxName = Path.GetFileNameWithoutExtension(fbxPath);
+                    string fbxDir = (Path.GetDirectoryName(fbxPath) ?? "").Replace('\\', '/');
+                    if (string.IsNullOrEmpty(fbxDir) || string.IsNullOrEmpty(fbxName))
+                    {
+                        Debug.LogWarning($"[平滑法线烘焙] FBX 路径解析失败，跳过：{fbxPath}");
+                        continue;
+                    }
+
+                    string variantPath = $"{fbxDir}/{fbxName}.prefab";
+
+                    if (AssetDatabase.LoadAssetAtPath<GameObject>(variantPath) != null)
+                    {
+                        AssetDatabase.DeleteAsset(variantPath);
+                    }
+
+                    fbxInstanceRoot.transform.SetParent(null, true);
+                    fbxInstanceRoot.name = fbxName;
+
+                    bool ok;
+                    GameObject variantAsset = PrefabUtility.SaveAsPrefabAsset(fbxInstanceRoot, variantPath, out ok);
+                    if (!ok || variantAsset == null)
+                    {
+                        Debug.LogWarning($"[平滑法线烘焙] 生成 PrefabVariant 失败：{variantPath}（来源 FBX：{fbxPath}）");
+                        continue;
+                    }
+
+                    string actualPath = AssetDatabase.GetAssetPath(variantAsset);
+                    if (!string.IsNullOrEmpty(actualPath)
+                        && !string.Equals(actualPath, variantPath, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (AssetDatabase.LoadAssetAtPath<GameObject>(variantPath) != null)
+                            AssetDatabase.DeleteAsset(variantPath);
+                        string moveErr = AssetDatabase.MoveAsset(actualPath, variantPath);
+                        if (string.IsNullOrEmpty(moveErr))
+                        {
+                            Debug.Log($"[平滑法线烘焙] Unity 默认追加了 \" Variant\" 后缀，已自动重命名：{actualPath} → {variantPath}");
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[平滑法线烘焙] 期望路径 {variantPath} 重命名失败：{moveErr}，沿用 {actualPath}");
+                            variantPath = actualPath;
+                        }
+                    }
+
+                    var savedVariant = AssetDatabase.LoadAssetAtPath<GameObject>(variantPath);
+                    if (savedVariant != null && savedVariant.name != fbxName)
+                    {
+                        var so = new SerializedObject(savedVariant);
+                        var nameProp = so.FindProperty("m_Name");
+                        if (nameProp != null)
+                        {
+                            nameProp.stringValue = fbxName;
+                            so.ApplyModifiedPropertiesWithoutUndo();
+                            EditorUtility.SetDirty(savedVariant);
+                        }
+                    }
+
+                    if (!generatedPaths.Contains(variantPath))
+                        generatedPaths.Add(variantPath);
+                    fbxToVariantMap[fbxPath] = variantPath;
+
+                    Debug.Log($"[平滑法线烘焙] 已生成 PrefabVariant：{variantPath}（来源 FBX：{fbxPath}，原 prefab：{originalPrefabPath}），Variant 已包含 prefab 给 FBX 子树的所有 override（含添加的组件）。");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[平滑法线烘焙] 生成 FBX Variant 时异常：{e.Message}\n{e.StackTrace}");
+                }
+            }
+        }
+        finally
+        {
+            if (outerInstanceA != null) Object.DestroyImmediate(outerInstanceA);
+            EditorSceneManager.ClosePreviewScene(previewSceneA);
+        }
+
+        if (generatedPaths.Count == 0) return generatedPaths;
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        try
+        {
+            int replaced = ReplaceFbxInstancesInPrefabWithVariants(originalPrefabPath, fbxToVariantMap);
+            if (replaced > 0)
+            {
+                Debug.Log($"[平滑法线烘焙] 已将原 prefab 「{Path.GetFileName(originalPrefabPath)}」 中嵌套的 {replaced} 个 FBX 实例替换为 Variant 实例。");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[平滑法线烘焙] 替换原 prefab 中的 FBX 嵌套时异常：{e.Message}\n{e.StackTrace}");
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        return generatedPaths;
+    }
+
+    private int ReplaceFbxInstancesInPrefabWithVariants(string outerPrefabPath, Dictionary<string, string> fbxToVariantMap)
+    {
+        if (string.IsNullOrEmpty(outerPrefabPath) || fbxToVariantMap == null || fbxToVariantMap.Count == 0)
+        {
+            Debug.Log($"[平滑法线烘焙] Phase B：跳过（outerPrefabPath 为空或 map 为空，map.Count={fbxToVariantMap?.Count ?? 0}）");
+            return 0;
+        }
+
+        Debug.Log($"[平滑法线烘焙] Phase B：开始替换 '{outerPrefabPath}' 中的 FBX 嵌套，map 有 {fbxToVariantMap.Count} 条映射：");
+        foreach (var kv in fbxToVariantMap)
+            Debug.Log($"  {kv.Key} → {kv.Value}");
+
+        GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(outerPrefabPath);
+        if (prefabAsset == null)
+        {
+            Debug.LogWarning($"[平滑法线烘焙] Phase B：加载 prefab 失败：{outerPrefabPath}");
+            return 0;
+        }
+
+        GameObject prefabContents = PrefabUtility.LoadPrefabContents(outerPrefabPath);
+        if (prefabContents == null)
+        {
+            Debug.LogWarning($"[平滑法线烘焙] Phase B：LoadPrefabContents 失败：{outerPrefabPath}");
+            return 0;
+        }
+
+        int replaced = 0;
+        try
+        {
+            var fbxRoots = FindNestedFbxInstanceRootsInPrefab(prefabContents);
+            Debug.Log($"[平滑法线烘焙] Phase B：在 prefab 内容中检测到 {fbxRoots.Count} 个嵌套 FBX 子树根。");
+
+            if (fbxRoots.Count == 0)
+            {
+                PrefabUtility.UnloadPrefabContents(prefabContents);
+                return 0;
+            }
+
+            foreach (var pair in fbxRoots)
+            {
+                GameObject fbxInstanceRoot = pair.Key;
+                string fbxPath = pair.Value;
+                if (fbxInstanceRoot == null || string.IsNullOrEmpty(fbxPath)) continue;
+
+                if (!fbxToVariantMap.TryGetValue(fbxPath, out string variantPath) || string.IsNullOrEmpty(variantPath))
+                {
+                    Debug.LogWarning($"[平滑法线烘焙] Phase B：fbxToVariantMap 中找不到 '{fbxPath}' 对应的 Variant");
+                    continue;
+                }
+
+                GameObject variantAsset = AssetDatabase.LoadAssetAtPath<GameObject>(variantPath);
+                if (variantAsset == null)
+                {
+                    Debug.LogWarning($"[平滑法线烘焙] Phase B：找不到刚生成的 Variant：{variantPath}");
+                    continue;
+                }
+
+                Transform parent = fbxInstanceRoot.transform.parent;
+                int siblingIndex = fbxInstanceRoot.transform.GetSiblingIndex();
+                Vector3 localPos = fbxInstanceRoot.transform.localPosition;
+                Quaternion localRot = fbxInstanceRoot.transform.localRotation;
+                Vector3 localScale = fbxInstanceRoot.transform.localScale;
+                bool active = fbxInstanceRoot.activeSelf;
+                int layer = fbxInstanceRoot.layer;
+                string tagName = "Untagged";
+                try { tagName = fbxInstanceRoot.tag; } catch { }
+                string oldName = fbxInstanceRoot.name;
+                StaticEditorFlags staticFlags = GameObjectUtility.GetStaticEditorFlags(fbxInstanceRoot);
+
+                Debug.Log($"[平滑法线烘焙] Phase B：替换 '{oldName}'（FBX: {fbxPath}）→ Variant: {variantPath}");
+
+                Object.DestroyImmediate(fbxInstanceRoot);
+
+                GameObject variantInstance = (GameObject)PrefabUtility.InstantiatePrefab(variantAsset);
+                if (variantInstance == null)
+                {
+                    Debug.LogWarning($"[平滑法线烘焙] Phase B：InstantiatePrefab(Variant) 失败：{variantPath}");
+                    continue;
+                }
+
+                if (parent != null)
+                {
+                    variantInstance.transform.SetParent(parent, false);
+                    variantInstance.transform.SetSiblingIndex(siblingIndex);
+                }
+                variantInstance.transform.localPosition = localPos;
+                variantInstance.transform.localRotation = localRot;
+                variantInstance.transform.localScale = localScale;
+                variantInstance.SetActive(active);
+                variantInstance.layer = layer;
+                try { variantInstance.tag = tagName; } catch { }
+                GameObjectUtility.SetStaticEditorFlags(variantInstance, staticFlags);
+
+                replaced++;
+                Debug.Log($"[平滑法线烘焙] Phase B：成功替换 '{oldName}'");
+            }
+
+            if (replaced > 0)
+            {
+                PrefabUtility.SaveAsPrefabAsset(prefabContents, outerPrefabPath);
+                Debug.Log($"[平滑法线烘焙] Phase B：已保存修改后的 prefab：{outerPrefabPath}，共替换 {replaced} 个");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[平滑法线烘焙] Phase B 内部异常：{e.Message}\n{e.StackTrace}");
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(prefabContents);
+        }
+
+        return replaced;
+    }
+
+    private void AddScenePrefabInstanceEntries(GameObject sceneRoot)
+    {
+        if (sceneRoot == null) return;
+
+        var meshFilters = sceneRoot.GetComponentsInChildren<MeshFilter>(true);
+        foreach (var mf in meshFilters)
+        {
+            if (mf == null || mf.sharedMesh == null) continue;
+            if (IsMeshAlreadyInList(mf.sharedMesh, sceneOwner: mf.gameObject)) continue;
+
+            var entry = CreateEntryFromMesh(mf.sharedMesh, mf.gameObject, MeshOwnerType.ScenePrefabInstance);
+            entry.componentKind = ComponentKind.MeshFilter;
+            entry.sceneOwner = mf.gameObject;
+            entry.displayName = $"{mf.gameObject.name} : {mf.sharedMesh.name}";
+            meshEntries.Add(entry);
+        }
+
+        var skinned = sceneRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        foreach (var smr in skinned)
+        {
+            if (smr == null || smr.sharedMesh == null) continue;
+            if (IsMeshAlreadyInList(smr.sharedMesh, sceneOwner: smr.gameObject)) continue;
+
+            var entry = CreateEntryFromMesh(smr.sharedMesh, smr.gameObject, MeshOwnerType.ScenePrefabInstance);
+            entry.componentKind = ComponentKind.SkinnedMeshRenderer;
+            entry.sceneOwner = smr.gameObject;
+            entry.displayName = $"{smr.gameObject.name} : {smr.sharedMesh.name} (Skinned)";
+            meshEntries.Add(entry);
+        }
+    }
+
+    private void AddOtherFromGameObject(GameObject go, bool silentSkip)
+    {
+        if (go == null) return;
+        if (silentSkip) return;
+        if (!PromptOtherWarning(go.name)) return;
+
+        var meshFilters = go.GetComponentsInChildren<MeshFilter>(true);
+        foreach (var mf in meshFilters)
+        {
+            if (mf == null || mf.sharedMesh == null) continue;
+            if (IsMeshAlreadyInList(mf.sharedMesh)) continue;
+
+            var entry = CreateEntryFromMesh(mf.sharedMesh, go, MeshOwnerType.Other);
+            entry.componentKind = ComponentKind.MeshFilter;
+            entry.sceneOwner = mf.gameObject;
+            meshEntries.Add(entry);
+        }
+
+        var skinned = go.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        foreach (var smr in skinned)
+        {
+            if (smr == null || smr.sharedMesh == null) continue;
+            if (IsMeshAlreadyInList(smr.sharedMesh)) continue;
+
+            var entry = CreateEntryFromMesh(smr.sharedMesh, go, MeshOwnerType.Other);
+            entry.componentKind = ComponentKind.SkinnedMeshRenderer;
+            entry.sceneOwner = smr.gameObject;
+            meshEntries.Add(entry);
+        }
+    }
+
+    private void AddOtherFromObject(Object obj, bool silentSkip)
+    {
+        if (obj == null) return;
+
+        if (obj is Mesh mesh)
+        {
+            if (silentSkip) return;
+            if (!PromptOtherWarning(mesh.name)) return;
+            if (IsMeshAlreadyInList(mesh)) return;
+            var entry = CreateEntryFromMesh(mesh, obj, MeshOwnerType.Other);
+            entry.componentKind = ComponentKind.None;
+            meshEntries.Add(entry);
+            return;
+        }
+
+        string path = AssetDatabase.GetAssetPath(obj);
+        if (string.IsNullOrEmpty(path)) return;
+
+        var importer = AssetImporter.GetAtPath(path);
+        if (importer is ModelImporter)
+        {
+            if (silentSkip) return;
+            if (!PromptOtherWarning(obj.name + " (Model)")) return;
+
+            Object[] subAssets = AssetDatabase.LoadAllAssetsAtPath(path);
+            foreach (var sub in subAssets)
+            {
+                if (sub is Mesh subMesh && !IsMeshAlreadyInList(subMesh))
+                {
+                    var entry = CreateEntryFromMesh(subMesh, obj, MeshOwnerType.Other);
+                    entry.componentKind = ComponentKind.None;
+                    meshEntries.Add(entry);
+                }
+            }
+        }
+    }
+
+    private bool PromptOtherWarning(string objName)
+    {
+        return EditorUtility.DisplayDialog(
+            "无法保存到原始资源",
+            $"对象「{objName}」不是 Prefab，工具无法将平滑法线写回到原始资源。\n\n" +
+            "如果继续，烘焙会在源 Mesh 同目录生成 _SmoothN.asset，但不会修改任何 Prefab / 场景 / FBX / Mesh.asset 引用，需要你自行手动使用结果。\n\n" +
+            "建议：直接拖入 .prefab 资源，工具会自动写回。",
+            "继续添加",
+            "取消");
+    }
+
+    private bool IsMeshAlreadyInList(Mesh mesh, string prefabAssetPath = null, GameObject sceneOwner = null)
     {
         foreach (var entry in meshEntries)
         {
-            if (entry.mesh == mesh) return true;
+            if (entry.mesh != mesh) continue;
+            if (prefabAssetPath != null)
+            {
+                if (entry.prefabAssetPath == prefabAssetPath) return true;
+            }
+            else if (sceneOwner != null)
+            {
+                if (entry.sceneOwner == sceneOwner) return true;
+            }
+            else
+            {
+                return true;
+            }
         }
         return false;
     }
 
-    /// <summary>
-    /// 从 Mesh 创建列表条目
-    /// </summary>
-    private MeshEntry CreateEntryFromMesh(Mesh mesh, Object source, MeshEntrySource entrySource)
+    private MeshEntry CreateEntryFromMesh(Mesh mesh, Object source, MeshOwnerType ownerType)
     {
         var entry = new MeshEntry();
         entry.mesh = mesh;
@@ -627,7 +1112,7 @@ public class SmoothNormalBaker : EditorWindow
         entry.displayName = mesh.name;
         entry.assetPath = AssetDatabase.GetAssetPath(mesh);
         entry.selected = true;
-        entry.entrySource = entrySource;
+        entry.ownerType = ownerType;
 
         if (mesh.name.EndsWith(OutputSuffix))
         {
@@ -639,14 +1124,7 @@ public class SmoothNormalBaker : EditorWindow
             if (!string.IsNullOrEmpty(dir))
             {
                 string smoothNPath = Path.Combine(dir, mesh.name + OutputSuffix + ".asset").Replace("\\", "/");
-                if (File.Exists(smoothNPath))
-                {
-                    entry.status = "已有输出";
-                }
-                else
-                {
-                    entry.status = "需要烘焙";
-                }
+                entry.status = File.Exists(smoothNPath) ? "已有输出" : "需要烘焙";
             }
             else
             {
@@ -657,9 +1135,26 @@ public class SmoothNormalBaker : EditorWindow
         return entry;
     }
 
-    /// <summary>
-    /// 烘焙列表中已勾选的条目
-    /// </summary>
+    private static string GetTransformPath(Transform root, Transform target)
+    {
+        if (root == null || target == null) return "";
+        if (target == root) return "";
+
+        var sb = new System.Text.StringBuilder();
+        Transform current = target;
+        while (current != null && current != root)
+        {
+            if (sb.Length > 0) sb.Insert(0, '/');
+            sb.Insert(0, current.name);
+            current = current.parent;
+        }
+        return sb.ToString();
+    }
+
+    // ============================================================
+    //                          烘焙
+    // ============================================================
+
     private void BakeSelectedEntries()
     {
         var selectedEntries = meshEntries.Where(e => e.selected).ToList();
@@ -670,51 +1165,144 @@ public class SmoothNormalBaker : EditorWindow
 
         try
         {
-            for (int i = 0; i < selectedEntries.Count; i++)
-            {
-                var entry = selectedEntries[i];
+            var prefabEntries = selectedEntries
+                .Where(e => e.ownerType == MeshOwnerType.PrefabAsset && !string.IsNullOrEmpty(e.prefabAssetPath))
+                .ToList();
 
+            var bakedForPrefab = new Dictionary<MeshEntry, Mesh>();
+            for (int i = 0; i < prefabEntries.Count; i++)
+            {
+                var entry = prefabEntries[i];
                 EditorUtility.DisplayProgressBar("平滑法线烘焙",
-                    $"正在处理 ({i + 1}/{total}): {entry.displayName}",
-                    (float)i / total);
+                    $"烘焙 [P] ({i + 1}/{prefabEntries.Count}): {entry.displayName}",
+                    (float)i / Mathf.Max(prefabEntries.Count, 1));
 
                 Mesh srcMesh = ResolveSourceMesh(entry.mesh);
                 Mesh newMesh = BakeSmoothNormals(srcMesh, targetUVChannel);
-                if (newMesh == null) continue;
+                if (newMesh == null) { entry.status = "失败 (烘焙)"; continue; }
 
                 Mesh savedMesh = SaveMeshAsset(srcMesh, newMesh);
-                if (savedMesh == null) continue;
+                if (savedMesh == null) { entry.status = "失败 (保存)"; continue; }
 
-                // [H] 模式：把场景对象的 Mesh 引用换成新生成的 _SmoothN.asset
-                if (entry.entrySource == MeshEntrySource.Hierarchy
-                    && entry.sourceObject is GameObject go)
+                entry.lastBakedAssetPath = AssetDatabase.GetAssetPath(savedMesh);
+                bakedForPrefab[entry] = savedMesh;
+            }
+
+            AssetDatabase.SaveAssets();
+
+            var prefabGroups = prefabEntries
+                .Where(e => bakedForPrefab.ContainsKey(e))
+                .GroupBy(e => e.prefabAssetPath)
+                .ToList();
+
+            int groupIdx = 0;
+            foreach (var group in prefabGroups)
+            {
+                groupIdx++;
+                string sourcePrefabPath = group.Key;
+
+                EditorUtility.DisplayProgressBar("平滑法线烘焙",
+                    $"写回 Prefab ({groupIdx}/{prefabGroups.Count}): {Path.GetFileName(sourcePrefabPath)}",
+                    (float)groupIdx / prefabGroups.Count);
+
+                bool ok = ApplyBakedMeshesToOriginalPrefab(sourcePrefabPath, group, bakedForPrefab,
+                    out int updated, out var verifyExpect, out var touchedPrefabPaths);
+
+                if (!ok)
                 {
-                    MeshFilter mf = go.GetComponent<MeshFilter>();
-                    if (mf != null && mf.sharedMesh == entry.mesh)
+                    foreach (var entry in group)
                     {
-                        Undo.RecordObject(mf, "Bake Smooth Normals");
-                        mf.sharedMesh = savedMesh;
-                        EditorUtility.SetDirty(mf);
+                        if (string.IsNullOrEmpty(entry.status) || (!entry.status.Contains("已完成") && !entry.status.Contains("失败")))
+                            entry.status = "失败 (写回 Prefab 失败)";
                     }
-
-                    SkinnedMeshRenderer smr = go.GetComponent<SkinnedMeshRenderer>();
-                    if (smr != null && smr.sharedMesh == entry.mesh)
-                    {
-                        Undo.RecordObject(smr, "Bake Smooth Normals");
-                        smr.sharedMesh = savedMesh;
-                        EditorUtility.SetDirty(smr);
-                    }
+                    continue;
                 }
 
-                // 同步更新 entry，让后续重复烘焙能命中正确的对象
+                processed += updated;
+
+                foreach (var prefabPath in touchedPrefabPaths)
+                {
+                    VerifyPrefabPersistence(prefabPath, group, verifyExpect);
+                }
+            }
+
+            var sceneAndOtherEntries = selectedEntries
+                .Where(e => e.ownerType != MeshOwnerType.PrefabAsset)
+                .ToList();
+
+            for (int i = 0; i < sceneAndOtherEntries.Count; i++)
+            {
+                var entry = sceneAndOtherEntries[i];
+                EditorUtility.DisplayProgressBar("平滑法线烘焙",
+                    $"处理 ({i + 1}/{sceneAndOtherEntries.Count}): {entry.displayName}",
+                    (float)i / sceneAndOtherEntries.Count);
+
+                Mesh srcMesh = ResolveSourceMesh(entry.mesh);
+                Mesh newMesh = BakeSmoothNormals(srcMesh, targetUVChannel);
+                if (newMesh == null) { entry.status = "失败"; continue; }
+
+                Mesh savedMesh = SaveMeshAsset(srcMesh, newMesh);
+                if (savedMesh == null) { entry.status = "失败"; continue; }
+
+                entry.lastBakedAssetPath = AssetDatabase.GetAssetPath(savedMesh);
+
+                if (entry.ownerType == MeshOwnerType.ScenePrefabInstance && entry.sceneOwner != null)
+                {
+                    Component target = null;
+                    if (entry.componentKind == ComponentKind.MeshFilter)
+                    {
+                        var mf = entry.sceneOwner.GetComponent<MeshFilter>();
+                        if (mf != null && mf.sharedMesh == entry.mesh)
+                        {
+                            Undo.RecordObject(mf, "Bake Smooth Normals");
+                            mf.sharedMesh = savedMesh;
+                            EditorUtility.SetDirty(mf);
+                            target = mf;
+                        }
+                    }
+                    else if (entry.componentKind == ComponentKind.SkinnedMeshRenderer)
+                    {
+                        var smr = entry.sceneOwner.GetComponent<SkinnedMeshRenderer>();
+                        if (smr != null && smr.sharedMesh == entry.mesh)
+                        {
+                            Undo.RecordObject(smr, "Bake Smooth Normals");
+                            smr.sharedMesh = savedMesh;
+                            EditorUtility.SetDirty(smr);
+                            target = smr;
+                        }
+                    }
+
+                    bool applied = false;
+                    List<string> appliedPaths = null;
+                    if (target != null && PrefabUtility.IsPartOfPrefabInstance(entry.sceneOwner))
+                    {
+                        applied = TryApplyMeshOverrideToPrefab(target, out appliedPaths);
+                    }
+
+                    if (target == null)
+                    {
+                        entry.status = "失败 (组件未找到)";
+                        Debug.LogWarning($"[平滑法线烘焙] [S] {entry.sceneOwner.name} 上未找到引用 {entry.mesh?.name} 的 {entry.componentKind}，跳过引用替换。");
+                    }
+                    else
+                    {
+                        string layersDesc = (appliedPaths != null && appliedPaths.Count > 0)
+                            ? string.Join(" → ", appliedPaths.Select(Path.GetFileName))
+                            : "<无>";
+                        entry.status = applied
+                            ? $"已完成 ✓ → 已 Apply 到 {(appliedPaths.Count == 1 ? Path.GetFileName(appliedPaths[0]) : appliedPaths.Count + " 层 prefab")}"
+                            : "已完成 ✓ (Apply 失败)";
+                        Debug.Log($"[平滑法线烘焙] [S] {entry.sceneOwner.name}: {entry.mesh?.name} → {savedMesh.name} (Apply={applied}, layers={layersDesc})");
+                    }
+                }
+                else if (entry.ownerType == MeshOwnerType.Other)
+                {
+                    entry.status = "已完成 ✓ (仅 _SmoothN)";
+                    Debug.Log($"[平滑法线烘焙] [O] {entry.displayName} → {AssetDatabase.GetAssetPath(savedMesh)} (未修改任何引用)");
+                }
+
                 entry.mesh = savedMesh;
                 entry.assetPath = AssetDatabase.GetAssetPath(savedMesh);
-                entry.displayName = savedMesh.name;
-
-                string outPath = AssetDatabase.GetAssetPath(savedMesh);
-                Debug.Log($"[平滑法线烘焙] {entry.displayName} → {outPath} (UV{targetUVChannel}, 切线空间)");
-
-                entry.status = "已完成 ✓";
                 processed++;
             }
         }
@@ -726,13 +1314,469 @@ public class SmoothNormalBaker : EditorWindow
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log($"[平滑法线烘焙] 完成，共处理 {processed}/{total} 个 Mesh。");
+
+        if (generateFbxVariantOnDrop && processed > 0)
+        {
+            var prefabPathsToProcess = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in selectedEntries)
+            {
+                if (entry.ownerType == MeshOwnerType.PrefabAsset && !string.IsNullOrEmpty(entry.prefabAssetPath))
+                    prefabPathsToProcess.Add(entry.prefabAssetPath);
+                else if (entry.ownerType == MeshOwnerType.ScenePrefabInstance && entry.sceneOwner != null)
+                {
+                    var outermost = PrefabUtility.GetOutermostPrefabInstanceRoot(entry.sceneOwner);
+                    if (outermost == null) outermost = entry.sceneOwner;
+                    string srcPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(outermost);
+                    if (!string.IsNullOrEmpty(srcPath) && srcPath.EndsWith(".prefab", System.StringComparison.OrdinalIgnoreCase))
+                        prefabPathsToProcess.Add(srcPath);
+                }
+            }
+
+            foreach (string prefabPath in prefabPathsToProcess)
+            {
+                Debug.Log($"[平滑法线烘焙] 烘焙后：为 '{prefabPath}' 扫描嵌套 FBX 并生成 Variant…");
+                var variantPaths = GenerateFbxVariantsFromPrefab(prefabPath);
+                if (variantPaths != null && variantPaths.Count > 0)
+                {
+                    Debug.Log($"[平滑法线烘焙] 已为 '{Path.GetFileName(prefabPath)}' 生成 {variantPaths.Count} 个 FBX Variant 并替换原 prefab 中的嵌套。");
+                }
+            }
+        }
+
+        if (processed > 0)
+        {
+            PostBakeVerifyMeshNames(selectedEntries);
+        }
+
         Repaint();
     }
 
-    /// <summary>
-    /// 把选中的场景对象当前引用的 mesh_SmoothN 还原为原始 mesh（去掉 _SmoothN 后缀的同名资源）。
-    /// 仅修改场景 / Prefab 上的 MeshFilter / SkinnedMeshRenderer 引用，不会修改任何 .asset 文件。
-    /// </summary>
+    private void PostBakeVerifyMeshNames(List<MeshEntry> entries)
+    {
+        var prefabCache = new Dictionary<string, GameObject>();
+
+        foreach (var entry in entries)
+        {
+            if (entry.status != null && entry.status.Contains("失败")) continue;
+            if (entry.status != null && entry.status.Contains("跳过")) continue;
+            if (entry.ownerType == MeshOwnerType.Other) continue;
+
+            Mesh actualMesh = null;
+
+            if (entry.ownerType == MeshOwnerType.PrefabAsset && !string.IsNullOrEmpty(entry.prefabAssetPath))
+            {
+                if (!prefabCache.TryGetValue(entry.prefabAssetPath, out GameObject prefabRoot))
+                {
+                    prefabRoot = AssetDatabase.LoadAssetAtPath<GameObject>(entry.prefabAssetPath);
+                    prefabCache[entry.prefabAssetPath] = prefabRoot;
+                }
+                if (prefabRoot == null) continue;
+
+                Transform target = string.IsNullOrEmpty(entry.componentTransformPath)
+                    ? prefabRoot.transform
+                    : prefabRoot.transform.Find(entry.componentTransformPath);
+                if (target == null) continue;
+
+                if (entry.componentKind == ComponentKind.SkinnedMeshRenderer)
+                {
+                    var smr = target.GetComponent<SkinnedMeshRenderer>();
+                    if (smr != null) actualMesh = smr.sharedMesh;
+                }
+                else
+                {
+                    var mf = target.GetComponent<MeshFilter>();
+                    if (mf != null) actualMesh = mf.sharedMesh;
+                }
+            }
+            else if (entry.ownerType == MeshOwnerType.ScenePrefabInstance && entry.sceneOwner != null)
+            {
+                if (entry.componentKind == ComponentKind.SkinnedMeshRenderer)
+                {
+                    var smr = entry.sceneOwner.GetComponent<SkinnedMeshRenderer>();
+                    if (smr != null) actualMesh = smr.sharedMesh;
+                }
+                else
+                {
+                    var mf = entry.sceneOwner.GetComponent<MeshFilter>();
+                    if (mf != null) actualMesh = mf.sharedMesh;
+                }
+            }
+
+            if (actualMesh == null) continue;
+
+            if (!actualMesh.name.EndsWith(OutputSuffix))
+            {
+                entry.status = "⚠ Mesh 未替换";
+                Debug.LogWarning($"[平滑法线烘焙] 验证失败: '{entry.displayName}' 的 mesh 仍为 '{actualMesh.name}'，未替换为 _SmoothN");
+            }
+        }
+    }
+
+    private static bool TryApplyMeshOverrideToPrefab(Component component, out List<string> outAppliedPaths)
+    {
+        outAppliedPaths = new List<string>();
+        if (component == null) return false;
+        if (!PrefabUtility.IsPartOfPrefabInstance(component.gameObject)) return false;
+
+        Mesh targetMesh = null;
+        if (component is MeshFilter mf) targetMesh = mf.sharedMesh;
+        else if (component is SkinnedMeshRenderer smr) targetMesh = smr.sharedMesh;
+        if (targetMesh == null) return false;
+
+        bool anyApplied = false;
+        GameObject cursor = component.gameObject;
+        var visited = new HashSet<string>();
+
+        while (cursor != null && PrefabUtility.IsPartOfPrefabInstance(cursor))
+        {
+            GameObject nearestRoot = PrefabUtility.GetNearestPrefabInstanceRoot(cursor);
+            if (nearestRoot == null) break;
+
+            string layerPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(nearestRoot);
+            if (string.IsNullOrEmpty(layerPath) || visited.Contains(layerPath))
+            {
+                if (nearestRoot.transform.parent == null) break;
+                cursor = nearestRoot.transform.parent.gameObject;
+                continue;
+            }
+            visited.Add(layerPath);
+
+            if (IsModelAssetPath(layerPath))
+            {
+                Debug.Log($"[平滑法线烘焙] 跳过 Model Prefab 层：'{layerPath}'（FBX/Model 不可修改，继续向外层 Apply）");
+                if (nearestRoot.transform.parent == null) break;
+                cursor = nearestRoot.transform.parent.gameObject;
+                continue;
+            }
+
+            try
+            {
+                if (component is MeshFilter mfc) mfc.sharedMesh = targetMesh;
+                else if (component is SkinnedMeshRenderer smrc) smrc.sharedMesh = targetMesh;
+                EditorUtility.SetDirty(component);
+                PrefabUtility.RecordPrefabInstancePropertyModifications(component);
+
+                var so = new SerializedObject(component);
+                var prop = so.FindProperty("m_Mesh");
+                if (prop == null) break;
+
+                PrefabUtility.ApplyPropertyOverride(prop, layerPath, InteractionMode.AutomatedAction);
+                outAppliedPaths.Add(layerPath);
+                anyApplied = true;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[平滑法线烘焙] ApplyPropertyOverride 到 '{layerPath}' 失败: {e.Message}");
+            }
+
+            if (nearestRoot.transform.parent == null) break;
+            cursor = nearestRoot.transform.parent.gameObject;
+        }
+
+        return anyApplied;
+    }
+
+    private static bool SetSharedMeshSafely(Component component, Mesh newMesh,
+        out string outBeforeName, out bool outIsNested)
+    {
+        outBeforeName = "<null>";
+        outIsNested = false;
+        if (component == null) return false;
+
+        Mesh before = null;
+        if (component is MeshFilter mf) before = mf.sharedMesh;
+        else if (component is SkinnedMeshRenderer smr) before = smr.sharedMesh;
+        outBeforeName = before != null ? before.name : "<null>";
+        outIsNested = PrefabUtility.IsPartOfPrefabInstance(component.gameObject);
+
+        if (component is MeshFilter mfSet) mfSet.sharedMesh = newMesh;
+        else if (component is SkinnedMeshRenderer smrSet) smrSet.sharedMesh = newMesh;
+
+        var so = new SerializedObject(component);
+        var prop = so.FindProperty("m_Mesh");
+        if (prop != null)
+        {
+            prop.objectReferenceValue = newMesh;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        if (outIsNested)
+        {
+            PrefabUtility.RecordPrefabInstancePropertyModifications(component);
+        }
+
+        EditorUtility.SetDirty(component);
+
+        Mesh after = null;
+        if (component is MeshFilter mfChk) after = mfChk.sharedMesh;
+        else if (component is SkinnedMeshRenderer smrChk) after = smrChk.sharedMesh;
+        return after == newMesh;
+    }
+
+    private static int ReplaceSharedMeshReferences(GameObject root, Mesh oldMesh, Mesh newMesh, Transform excludeComponentOwner)
+    {
+        if (root == null || oldMesh == null || newMesh == null || oldMesh == newMesh) return 0;
+
+        int count = 0;
+        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+        {
+            if (mf == null || mf.sharedMesh != oldMesh) continue;
+            if (mf.transform == excludeComponentOwner) continue;
+            if (SetSharedMeshSafely(mf, newMesh, out _, out _)) count++;
+        }
+        foreach (var smr in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            if (smr == null || smr.sharedMesh != oldMesh) continue;
+            if (smr.transform == excludeComponentOwner) continue;
+            if (SetSharedMeshSafely(smr, newMesh, out _, out _)) count++;
+        }
+        return count;
+    }
+
+    private static void VerifyPrefabPersistence(string prefabPath,
+        IEnumerable<MeshEntry> entries,
+        Dictionary<MeshEntry, Mesh> expectedMeshByEntry)
+    {
+        if (string.IsNullOrEmpty(prefabPath)) return;
+
+        AssetDatabase.ImportAsset(prefabPath, ImportAssetOptions.ForceUpdate);
+        var verifyRoot = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (verifyRoot == null)
+        {
+            Debug.LogError($"[平滑法线烘焙] 持久化验证: 无法重新加载 Prefab '{prefabPath}'");
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            if (entry.status == null || (!entry.status.Contains("已完成") && !entry.status.Contains("已还原"))) continue;
+            if (!expectedMeshByEntry.TryGetValue(entry, out Mesh expectedMesh) || expectedMesh == null) continue;
+
+            Transform vt = string.IsNullOrEmpty(entry.componentTransformPath)
+                ? verifyRoot.transform
+                : verifyRoot.transform.Find(entry.componentTransformPath);
+            if (vt == null)
+            {
+                Debug.LogError($"[平滑法线烘焙] ⚠ 持久化验证: '{entry.componentTransformPath}' 在重新加载的 Prefab 中找不到");
+                entry.status = "失败 (验证: 路径丢失)";
+                continue;
+            }
+
+            Mesh actualMesh = null;
+            if (entry.componentKind == ComponentKind.MeshFilter)
+                actualMesh = vt.GetComponent<MeshFilter>()?.sharedMesh;
+            else if (entry.componentKind == ComponentKind.SkinnedMeshRenderer)
+                actualMesh = vt.GetComponent<SkinnedMeshRenderer>()?.sharedMesh;
+
+            if (actualMesh == expectedMesh)
+            {
+                Debug.Log($"[平滑法线烘焙] ✓ 持久化验证通过: '{entry.componentTransformPath}' → '{actualMesh.name}'");
+            }
+            else
+            {
+                Debug.LogError($"[平滑法线烘焙] ⚠ 持久化验证失败: '{entry.componentTransformPath}' 实际 = '{actualMesh?.name ?? "<null>"}', 期望 '{expectedMesh.name}'");
+                entry.status = "失败 (持久化未生效)";
+            }
+        }
+    }
+
+    // ============================================================
+    //              Prefab 写回（直接修改原 prefab，含嵌套层）
+    // ============================================================
+
+    private bool ApplyBakedMeshesToOriginalPrefab(string originalPrefabPath,
+        IEnumerable<MeshEntry> entries,
+        Dictionary<MeshEntry, Mesh> bakedMeshes,
+        out int updatedCount,
+        out Dictionary<MeshEntry, Mesh> verifyExpect,
+        out HashSet<string> touchedPrefabPaths)
+    {
+        updatedCount = 0;
+        verifyExpect = new Dictionary<MeshEntry, Mesh>();
+        touchedPrefabPaths = new HashSet<string>();
+
+        if (string.IsNullOrEmpty(originalPrefabPath)) return false;
+
+        GameObject originalPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(originalPrefabPath);
+        if (originalPrefab == null)
+        {
+            Debug.LogError($"[平滑法线烘焙] 无法加载源 Prefab: {originalPrefabPath}");
+            return false;
+        }
+
+        var previewScene = EditorSceneManager.NewPreviewScene();
+        GameObject instance = null;
+        try
+        {
+            instance = (GameObject)PrefabUtility.InstantiatePrefab(originalPrefab, previewScene);
+            if (instance == null)
+            {
+                Debug.LogError($"[平滑法线烘焙] InstantiatePrefab 失败: {originalPrefabPath}");
+                return false;
+            }
+
+            foreach (var entry in entries)
+            {
+                if (!bakedMeshes.TryGetValue(entry, out Mesh savedMesh) || savedMesh == null) continue;
+
+                Transform target = string.IsNullOrEmpty(entry.componentTransformPath)
+                    ? instance.transform
+                    : instance.transform.Find(entry.componentTransformPath);
+                if (target == null)
+                {
+                    Debug.LogWarning($"[平滑法线烘焙] 在实例化 prefab 中找不到子物体 '{entry.componentTransformPath}'");
+                    entry.status = "跳过 (路径未找到)";
+                    continue;
+                }
+
+                Component comp = null;
+                if (entry.componentKind == ComponentKind.MeshFilter)
+                    comp = target.GetComponent<MeshFilter>();
+                else if (entry.componentKind == ComponentKind.SkinnedMeshRenderer)
+                    comp = target.GetComponent<SkinnedMeshRenderer>();
+
+                if (comp == null)
+                {
+                    Debug.LogWarning($"[平滑法线烘焙] 在实例化 prefab 中找不到 {entry.componentKind} 组件 @'{entry.componentTransformPath}'");
+                    entry.status = "失败 (组件未找到)";
+                    continue;
+                }
+
+                string componentTag = entry.componentKind == ComponentKind.SkinnedMeshRenderer ? "SMR" : "MF";
+
+                string beforeName = comp is MeshFilter mfb ? mfb.sharedMesh?.name
+                                  : comp is SkinnedMeshRenderer smrb ? smrb.sharedMesh?.name
+                                  : null;
+                if (comp is MeshFilter mfa) mfa.sharedMesh = savedMesh;
+                else if (comp is SkinnedMeshRenderer smra) smra.sharedMesh = savedMesh;
+                EditorUtility.SetDirty(comp);
+
+                bool applied = TryApplyMeshOverrideToPrefab(comp, out List<string> appliedPaths);
+                if (!applied || appliedPaths.Count == 0)
+                {
+                    Debug.LogError($"[平滑法线烘焙] [P] {componentTag}@'{entry.componentTransformPath}' Apply 全部失败");
+                    entry.status = "失败 (Apply 失败)";
+                    continue;
+                }
+
+                foreach (var p in appliedPaths)
+                {
+                    if (!string.IsNullOrEmpty(p)) touchedPrefabPaths.Add(p);
+                }
+
+                entry.mesh = savedMesh;
+                entry.assetPath = AssetDatabase.GetAssetPath(savedMesh);
+                string layerLabel = appliedPaths.Count == 1
+                    ? Path.GetFileName(appliedPaths[0])
+                    : $"{appliedPaths.Count} 层 prefab";
+                entry.status = $"已完成 ✓ → 已写回 {layerLabel}";
+                verifyExpect[entry] = savedMesh;
+                updatedCount++;
+                Debug.Log($"[平滑法线烘焙] [P] {componentTag}@'{entry.componentTransformPath}': '{beforeName}' → '{savedMesh.name}', layers=[{string.Join(", ", appliedPaths.Select(Path.GetFileName))}]");
+            }
+
+            if (updatedCount == 0)
+            {
+                Debug.LogWarning($"[平滑法线烘焙] '{originalPrefabPath}' 没有任何 mesh 引用被修改。");
+                return false;
+            }
+
+            return true;
+        }
+        finally
+        {
+            if (instance != null) Object.DestroyImmediate(instance);
+            EditorSceneManager.ClosePreviewScene(previewScene);
+        }
+    }
+
+    // ============================================================
+    //              场景扫描：删除 _SmoothN.asset 前的安全网
+    // ============================================================
+
+    private int SweepScenesAndRedirectFromSmoothN(HashSet<string> smoothNAssetPaths)
+    {
+        if (smoothNAssetPaths == null || smoothNAssetPaths.Count == 0) return 0;
+        var pathSet = new HashSet<string>(smoothNAssetPaths, System.StringComparer.OrdinalIgnoreCase);
+
+        int redirected = 0;
+        var rootObjects = new List<GameObject>();
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+        {
+            var scene = SceneManager.GetSceneAt(i);
+            if (!scene.isLoaded) continue;
+            rootObjects.AddRange(scene.GetRootGameObjects());
+        }
+
+        var prefabsToReimport = new HashSet<string>();
+        foreach (var root in rootObjects)
+        {
+            if (root == null) continue;
+
+            var meshFilters = root.GetComponentsInChildren<MeshFilter>(true);
+            foreach (var mf in meshFilters)
+            {
+                if (TryRedirectComponent(mf, pathSet, prefabsToReimport)) redirected++;
+            }
+
+            var skinned = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            foreach (var smr in skinned)
+            {
+                if (TryRedirectComponent(smr, pathSet, prefabsToReimport)) redirected++;
+            }
+        }
+
+        return redirected;
+    }
+
+    private bool TryRedirectComponent(Component comp, HashSet<string> targetPaths, HashSet<string> outPrefabsTouched)
+    {
+        if (comp == null) return false;
+
+        Mesh current = null;
+        if (comp is MeshFilter mf) current = mf.sharedMesh;
+        else if (comp is SkinnedMeshRenderer smr) current = smr.sharedMesh;
+        if (current == null) return false;
+
+        string p = AssetDatabase.GetAssetPath(current);
+        if (string.IsNullOrEmpty(p) || !targetPaths.Contains(p)) return false;
+
+        Mesh original = FindOriginalMesh(current);
+        if (original == null || original == current)
+        {
+            Debug.LogWarning($"[平滑法线烘焙] 场景扫描: 找不到 '{current.name}' 对应的原始 Mesh，{comp.gameObject.name} 上的引用未重定向，删除 _SmoothN 后会变 missing");
+            return false;
+        }
+
+        Undo.RecordObject(comp, "Redirect _SmoothN to Original (sweep)");
+        if (comp is MeshFilter mfc) mfc.sharedMesh = original;
+        else if (comp is SkinnedMeshRenderer smrc) smrc.sharedMesh = original;
+        EditorUtility.SetDirty(comp);
+
+        List<string> appliedPaths = null;
+        if (PrefabUtility.IsPartOfPrefabInstance(comp.gameObject))
+        {
+            TryApplyMeshOverrideToPrefab(comp, out appliedPaths);
+            if (appliedPaths != null)
+            {
+                foreach (var appliedPath in appliedPaths)
+                {
+                    if (!string.IsNullOrEmpty(appliedPath)) outPrefabsTouched.Add(appliedPath);
+                }
+            }
+        }
+
+        string layersDesc = (appliedPaths != null && appliedPaths.Count > 0)
+            ? " (Apply→" + string.Join(",", appliedPaths.Select(Path.GetFileName)) + ")"
+            : "";
+        Debug.Log($"[平滑法线烘焙] 场景扫描: {comp.gameObject.name}.{comp.GetType().Name} '{current.name}' → '{original.name}'" + layersDesc);
+        return true;
+    }
+
+    // ============================================================
+    //                          还原
+    // ============================================================
+
     private void RestoreSelectedToOriginal()
     {
         var selectedEntries = meshEntries.Where(e => e.selected).ToList();
@@ -742,76 +1786,163 @@ public class SmoothNormalBaker : EditorWindow
         int skipped = 0;
         int total = selectedEntries.Count;
 
-        // 收集本次还原中被替换掉的 _SmoothN.asset 路径，在循环结束后统一检查 / 删除
         var disconnectedAssetPaths = new HashSet<string>();
 
         try
         {
-            for (int i = 0; i < total; i++)
+            var prefabGroups = selectedEntries
+                .Where(e => e.ownerType == MeshOwnerType.PrefabAsset
+                            && !string.IsNullOrEmpty(e.prefabAssetPath))
+                .GroupBy(e => e.prefabAssetPath)
+                .ToList();
+
+            int groupIdx = 0;
+            foreach (var group in prefabGroups)
             {
-                var entry = selectedEntries[i];
+                groupIdx++;
+                string sourcePrefabPath = group.Key;
+
+                EditorUtility.DisplayProgressBar("用原始资源替换",
+                    $"还原 Prefab ({groupIdx}/{prefabGroups.Count}): {Path.GetFileName(sourcePrefabPath)}",
+                    (float)groupIdx / prefabGroups.Count);
+
+                if (deleteSmoothNAssetOnRestore)
+                {
+                    foreach (var entry in group)
+                    {
+                        if (entry.mesh != null)
+                        {
+                            string assetPath = AssetDatabase.GetAssetPath(entry.mesh);
+                            if (!string.IsNullOrEmpty(assetPath)
+                                && assetPath.EndsWith(OutputSuffix + ".asset", System.StringComparison.OrdinalIgnoreCase))
+                            {
+                                disconnectedAssetPaths.Add(assetPath);
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(entry.lastBakedAssetPath)
+                            && entry.lastBakedAssetPath.EndsWith(OutputSuffix + ".asset", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            disconnectedAssetPaths.Add(entry.lastBakedAssetPath);
+                        }
+                    }
+                }
+
+                var restoreTargets = new Dictionary<MeshEntry, Mesh>();
+                foreach (var entry in group)
+                {
+                    if (entry.mesh == null) { entry.status = "跳过 (mesh 为空)"; skipped++; continue; }
+                    Mesh originalMesh = FindOriginalMesh(entry.mesh);
+                    if (originalMesh == null || originalMesh == entry.mesh)
+                    {
+                        Debug.LogWarning($"[平滑法线烘焙] [P] 找不到 {entry.displayName} 对应的原始 Mesh，跳过");
+                        entry.status = "跳过 (未找到原始)";
+                        skipped++;
+                        continue;
+                    }
+                    restoreTargets[entry] = originalMesh;
+                }
+
+                if (restoreTargets.Count == 0) continue;
+
+                bool ok = ApplyBakedMeshesToOriginalPrefab(sourcePrefabPath, restoreTargets.Keys, restoreTargets,
+                    out int updated, out var verifyExpect, out var touchedPrefabPaths);
+
+                if (!ok)
+                {
+                    foreach (var entry in restoreTargets.Keys)
+                    {
+                        if (string.IsNullOrEmpty(entry.status) || (!entry.status.Contains("已完成") && !entry.status.Contains("失败")))
+                            entry.status = "失败 (还原写回失败)";
+                    }
+                    continue;
+                }
+
+                foreach (var entry in restoreTargets.Keys)
+                {
+                    if (entry.status != null && entry.status.StartsWith("已完成"))
+                    {
+                        entry.status = entry.status.Replace("已完成 ✓", "已还原 ↺");
+                    }
+                    entry.lastBakedAssetPath = null;
+                    entry.displayName = entry.mesh != null ? entry.mesh.name : entry.displayName;
+                }
+
+                processed += updated;
+
+                foreach (var prefabPath in touchedPrefabPaths)
+                {
+                    VerifyPrefabPersistence(prefabPath, restoreTargets.Keys, verifyExpect);
+                }
+            }
+
+            var others = selectedEntries
+                .Where(e => e.ownerType != MeshOwnerType.PrefabAsset)
+                .ToList();
+
+            for (int i = 0; i < others.Count; i++)
+            {
+                var entry = others[i];
+
                 if (entry.mesh == null) { skipped++; continue; }
 
                 EditorUtility.DisplayProgressBar("用原始资源替换",
-                    $"正在处理 ({i + 1}/{total}): {entry.displayName}",
-                    (float)i / total);
+                    $"正在处理 ({i + 1}/{others.Count}): {entry.displayName}",
+                    (float)i / others.Count);
 
-                // 仅作用于场景对象
-                if (entry.entrySource != MeshEntrySource.Hierarchy
-                    || !(entry.sourceObject is GameObject go))
+                if (entry.ownerType == MeshOwnerType.Other)
                 {
-                    Debug.Log($"[平滑法线烘焙] {entry.displayName} 不是场景对象（[P] 项无场景引用可换），跳过。");
-                    skipped++;
-                    continue;
+                    Debug.Log($"[平滑法线烘焙] [O] {entry.displayName} 不修改任何引用，跳过还原。");
+                    entry.status = "跳过 ([O] 无引用)";
+                    skipped++; continue;
                 }
 
-                // 仅处理名称带 _SmoothN 后缀的 Mesh
                 if (!entry.mesh.name.EndsWith(OutputSuffix))
                 {
                     Debug.Log($"[平滑法线烘焙] {entry.displayName} 已经是非 _SmoothN 资源，无需还原。");
-                    skipped++;
-                    continue;
+                    entry.status = "跳过 (非 _SmoothN)";
+                    skipped++; continue;
                 }
+
+                if (entry.sceneOwner == null) { entry.status = "跳过 (场景对象丢失)"; skipped++; continue; }
 
                 Mesh originalMesh = FindOriginalMesh(entry.mesh);
                 if (originalMesh == null || originalMesh == entry.mesh)
                 {
                     Debug.LogWarning($"[平滑法线烘焙] 未找到 {entry.displayName} 对应的原始 Mesh，跳过。");
-                    skipped++;
-                    continue;
+                    entry.status = "跳过 (未找到原始)";
+                    skipped++; continue;
                 }
 
-                // 在改写引用之前，记录旧 _SmoothN.asset 的磁盘路径
                 string oldAssetPath = AssetDatabase.GetAssetPath(entry.mesh);
+                Component target = null;
 
-                // 仅替换场景 / Prefab 上的引用，不动任何资产
-                bool changed = false;
-                MeshFilter mf = go.GetComponent<MeshFilter>();
-                if (mf != null && mf.sharedMesh == entry.mesh)
+                if (entry.componentKind == ComponentKind.MeshFilter)
                 {
-                    Undo.RecordObject(mf, "Restore Original Mesh");
-                    mf.sharedMesh = originalMesh;
-                    EditorUtility.SetDirty(mf);
-                    changed = true;
+                    var mf = entry.sceneOwner.GetComponent<MeshFilter>();
+                    if (mf != null && mf.sharedMesh == entry.mesh)
+                    {
+                        Undo.RecordObject(mf, "Restore Original Mesh");
+                        mf.sharedMesh = originalMesh;
+                        EditorUtility.SetDirty(mf);
+                        target = mf;
+                    }
+                }
+                else if (entry.componentKind == ComponentKind.SkinnedMeshRenderer)
+                {
+                    var smr = entry.sceneOwner.GetComponent<SkinnedMeshRenderer>();
+                    if (smr != null && smr.sharedMesh == entry.mesh)
+                    {
+                        Undo.RecordObject(smr, "Restore Original Mesh");
+                        smr.sharedMesh = originalMesh;
+                        EditorUtility.SetDirty(smr);
+                        target = smr;
+                    }
                 }
 
-                SkinnedMeshRenderer smr = go.GetComponent<SkinnedMeshRenderer>();
-                if (smr != null && smr.sharedMesh == entry.mesh)
-                {
-                    Undo.RecordObject(smr, "Restore Original Mesh");
-                    smr.sharedMesh = originalMesh;
-                    EditorUtility.SetDirty(smr);
-                    changed = true;
-                }
+                if (target == null) { entry.status = "跳过 (组件未找到)"; skipped++; continue; }
 
-                if (!changed)
-                {
-                    Debug.LogWarning($"[平滑法线烘焙] {go.name} 上未找到引用 {entry.mesh.name} 的渲染组件，跳过。");
-                    skipped++;
-                    continue;
-                }
-
-                Debug.Log($"[平滑法线烘焙] {go.name}: {entry.mesh.name} → {originalMesh.name} (原始来源: {AssetDatabase.GetAssetPath(originalMesh)})");
+                bool applied = TryApplyMeshOverrideToPrefab(target, out List<string> appliedPaths);
 
                 if (deleteSmoothNAssetOnRestore
                     && !string.IsNullOrEmpty(oldAssetPath)
@@ -823,7 +1954,13 @@ public class SmoothNormalBaker : EditorWindow
                 entry.mesh = originalMesh;
                 entry.assetPath = AssetDatabase.GetAssetPath(originalMesh);
                 entry.displayName = originalMesh.name;
-                entry.status = "已还原 ↺";
+                string layersDesc = (appliedPaths != null && appliedPaths.Count > 0)
+                    ? string.Join(" → ", appliedPaths.Select(Path.GetFileName))
+                    : "<无>";
+                entry.status = applied
+                    ? $"已还原 ↺ → 已 Apply 到 {(appliedPaths.Count == 1 ? Path.GetFileName(appliedPaths[0]) : appliedPaths.Count + " 层 prefab")}"
+                    : "已还原 ↺ (Apply 失败)";
+                Debug.Log($"[平滑法线烘焙] [S] {entry.sceneOwner.name}: → {originalMesh.name} (Apply={applied}, layers={layersDesc})");
                 processed++;
             }
         }
@@ -832,7 +1969,16 @@ public class SmoothNormalBaker : EditorWindow
             EditorUtility.ClearProgressBar();
         }
 
-        // 统一处理删除：仅当工具列表中没有其它条目仍引用该资源时才删除
+        int sweptRedirected = 0;
+        if (deleteSmoothNAssetOnRestore && disconnectedAssetPaths.Count > 0)
+        {
+            sweptRedirected = SweepScenesAndRedirectFromSmoothN(disconnectedAssetPaths);
+            if (sweptRedirected > 0)
+            {
+                Debug.Log($"[平滑法线烘焙] 场景扫描：删除前主动重定向 {sweptRedirected} 个仍引用 _SmoothN 的组件到原 mesh");
+            }
+        }
+
         int deleted = 0, kept = 0;
         if (deleteSmoothNAssetOnRestore && disconnectedAssetPaths.Count > 0)
         {
@@ -866,17 +2012,16 @@ public class SmoothNormalBaker : EditorWindow
         if (deleteSmoothNAssetOnRestore && disconnectedAssetPaths.Count > 0)
         {
             summary += $" 删除 _SmoothN.asset: {deleted} 个" + (kept > 0 ? $"，保留 {kept} 个（仍被引用）" : "");
+            if (sweptRedirected > 0) summary += $"，场景扫描重定向 {sweptRedirected} 个组件";
         }
         Debug.Log(summary);
         Repaint();
     }
 
-    /// <summary>
-    /// 查找带 _SmoothN 后缀的 Mesh 对应的原始 Mesh（不带后缀的同名资源）。
-    /// 搜索顺序：所在目录 → 上一级目录 → 全工程；优先返回 FBX 等 Model 子 Mesh，
-    /// 其次是任意带该名称的 Mesh。
-    /// 若 Mesh 名称不带 _SmoothN 后缀，返回 null。
-    /// </summary>
+    // ============================================================
+    //                       通用工具方法
+    // ============================================================
+
     private Mesh FindOriginalMesh(Mesh smoothMesh)
     {
         if (smoothMesh == null) return null;
@@ -896,7 +2041,7 @@ public class SmoothNormalBaker : EditorWindow
             if (!string.IsNullOrEmpty(parent))
                 searchDirs.Add(parent.Replace("\\", "/"));
         }
-        searchDirs.Add("Assets"); // 全工程兜底
+        searchDirs.Add("Assets");
 
         Mesh fallback = null;
         foreach (string searchDir in searchDirs)
@@ -907,9 +2052,7 @@ public class SmoothNormalBaker : EditorWindow
             foreach (string guid in guids)
             {
                 string candidatePath = AssetDatabase.GUIDToAssetPath(guid);
-                // 跳过本身
                 if (candidatePath == assetPath) continue;
-                // 跳过同样以 _SmoothN.asset 结尾的输出文件
                 if (candidatePath.EndsWith(OutputSuffix + ".asset", System.StringComparison.OrdinalIgnoreCase)) continue;
 
                 bool isModel = AssetImporter.GetAtPath(candidatePath) is ModelImporter;
@@ -918,14 +2061,12 @@ public class SmoothNormalBaker : EditorWindow
                 {
                     if (sub is Mesh m && m.name == originalName)
                     {
-                        // 优先返回 Model 子 Mesh（FBX/OBJ 等），最贴近"最原始"
                         if (isModel) return m;
                         if (fallback == null) fallback = m;
                     }
                 }
             }
 
-            // 在当前目录已找到 Model 子 Mesh 就直接返回；fallback 留待外层兜底
             if (fallback != null && AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(fallback)) is ModelImporter)
                 return fallback;
         }
@@ -933,10 +2074,6 @@ public class SmoothNormalBaker : EditorWindow
         return fallback;
     }
 
-    /// <summary>
-    /// 如果当前 Mesh 已经是 _SmoothN 后缀的输出 Mesh，尝试找到原始源 Mesh（FBX 中的 Mesh）。
-    /// 这样可以确保始终从原始数据烘焙，避免从空数据的旧 _SmoothN 资源重复烘焙。
-    /// </summary>
     private Mesh ResolveSourceMesh(Mesh mesh)
     {
         if (mesh == null) return null;
@@ -972,15 +2109,11 @@ public class SmoothNormalBaker : EditorWindow
         return mesh;
     }
 
-    /// <summary>
-    /// 核心算法：角度加权平滑法线 + 切线空间转换，写入指定 UV 通道的 xyz（3通道编码）
-    /// </summary>
     private Mesh BakeSmoothNormals(Mesh sourceMesh, int targetChannel)
     {
         if (sourceMesh == null) return null;
         targetChannel = Mathf.Clamp(targetChannel, 0, 7);
 
-        // ====== 第一阶段：确保源 Mesh 可读 ======
         bool wasReadable = sourceMesh.isReadable;
         string assetPath = AssetDatabase.GetAssetPath(sourceMesh);
         string sourceMeshName = sourceMesh.name;
@@ -1027,7 +2160,6 @@ public class SmoothNormalBaker : EditorWindow
             }
         }
 
-        // 提取顶点数据
         Vector3[] vertices = sourceMesh.vertices;
         Vector3[] normals = sourceMesh.normals;
         Vector4[] tangents = sourceMesh.tangents;
@@ -1035,14 +2167,12 @@ public class SmoothNormalBaker : EditorWindow
         Matrix4x4[] bindposes = sourceMesh.bindposes;
         int subMeshCount = sourceMesh.subMeshCount;
 
-        // 提取所有 UV 通道（保留维度）
         UVChannelData[] originalUVs = new UVChannelData[8];
         for (int c = 0; c < 8; c++)
         {
             originalUVs[c] = ReadUVChannel(sourceMesh, c);
         }
 
-        // 提取所有子网格的三角形索引
         int[][] subMeshTriangles = new int[subMeshCount][];
         List<int> allTrianglesList = new List<int>();
         for (int s = 0; s < subMeshCount; s++)
@@ -1054,7 +2184,11 @@ public class SmoothNormalBaker : EditorWindow
 
         int vertexCount = vertices.Length;
 
-        Debug.Log($"[平滑法线烘焙] 源Mesh: {sourceMeshName}, 顶点数: {vertexCount}, 三角形索引数: {allTriangles.Length}, subMeshCount: {subMeshCount}");
+        List<BlendShapeFrame> blendShapeFrames = ExtractBlendShapes(sourceMesh, vertexCount);
+
+        Debug.Log($"[平滑法线烘焙] 源Mesh: {sourceMeshName}, 顶点数: {vertexCount}, 三角形索引数: {allTriangles.Length}, " +
+                  $"subMeshCount: {subMeshCount}, BoneWeights: {boneWeights?.Length ?? 0}, BindPoses: {bindposes?.Length ?? 0}, " +
+                  $"BlendShape帧数: {blendShapeFrames.Count}");
 
         if (vertexCount == 0)
         {
@@ -1084,7 +2218,6 @@ public class SmoothNormalBaker : EditorWindow
             return null;
         }
 
-        // ====== 第二阶段：角度加权平滑法线计算 ======
         Dictionary<Vector3, List<WeightedNormal>> normalDict = new Dictionary<Vector3, List<WeightedNormal>>();
 
         for (int i = 0; i <= allTriangles.Length - 3; i += 3)
@@ -1110,23 +2243,10 @@ public class SmoothNormalBaker : EditorWindow
                 }
 
                 Vector3 lineA, lineB;
-                if (j == 0)
-                {
-                    lineA = v1 - v0;
-                    lineB = v2 - v0;
-                }
-                else if (j == 1)
-                {
-                    lineA = v2 - v1;
-                    lineB = v0 - v1;
-                }
-                else
-                {
-                    lineA = v0 - v2;
-                    lineB = v1 - v2;
-                }
+                if (j == 0) { lineA = v1 - v0; lineB = v2 - v0; }
+                else if (j == 1) { lineA = v2 - v1; lineB = v0 - v1; }
+                else { lineA = v0 - v2; lineB = v1 - v2; }
 
-                // 精度优化：放大边向量避免浮点精度问题
                 lineA *= 10000.0f;
                 lineB *= 10000.0f;
 
@@ -1144,7 +2264,6 @@ public class SmoothNormalBaker : EditorWindow
             }
         }
 
-        // ====== 第三阶段：归一化 + 转换到切线空间 ======
         Vector3[] smoothNormals = new Vector3[vertexCount];
 
         for (int i = 0; i < vertexCount; i++)
@@ -1160,15 +2279,11 @@ public class SmoothNormalBaker : EditorWindow
 
             float weightSum = 0f;
             for (int j = 0; j < normalList.Count; j++)
-            {
                 weightSum += normalList[j].weight;
-            }
 
             Vector3 smoothNormal = Vector3.zero;
             for (int j = 0; j < normalList.Count; j++)
-            {
                 smoothNormal += normalList[j].normal * normalList[j].weight / weightSum;
-            }
 
             smoothNormal = smoothNormal.normalized;
 
@@ -1186,7 +2301,6 @@ public class SmoothNormalBaker : EditorWindow
             smoothNormals[i] = TBN.MultiplyVector(smoothNormal).normalized;
         }
 
-        // ====== 第四阶段：编码平滑法线（3通道，切线空间） ======
         Vector3[] uvData = new Vector3[vertexCount];
         int nonZeroCount = 0;
         for (int i = 0; i < vertexCount; i++)
@@ -1205,10 +2319,8 @@ public class SmoothNormalBaker : EditorWindow
             return null;
         }
 
-        // 数据已全部提取，恢复 isReadable
         RestoreReadable(wasReadable, modelImporter, sourceMesh, assetPath);
 
-        // ====== 第五阶段：构建最终输出 Mesh ======
         Mesh mesh = new Mesh();
         mesh.name = sourceMeshName.Replace(OutputSuffix, "") + OutputSuffix;
 
@@ -1223,11 +2335,8 @@ public class SmoothNormalBaker : EditorWindow
 
         mesh.subMeshCount = subMeshCount;
         for (int s = 0; s < subMeshCount; s++)
-        {
             mesh.SetTriangles(subMeshTriangles[s], s);
-        }
 
-        // 写回所有非目标通道（保留原维度），目标通道写入平滑法线（3维）
         for (int c = 0; c < 8; c++)
         {
             if (c == targetChannel) continue;
@@ -1235,7 +2344,8 @@ public class SmoothNormalBaker : EditorWindow
         }
         mesh.SetUVs(targetChannel, uvData);
 
-        // 验证写入是否成功
+        WriteBlendShapes(mesh, blendShapeFrames);
+
         List<Vector3> verifyUV = new List<Vector3>();
         mesh.GetUVs(targetChannel, verifyUV);
         if (verifyUV.Count == 0)
@@ -1257,9 +2367,43 @@ public class SmoothNormalBaker : EditorWindow
         return mesh;
     }
 
-    /// <summary>
-    /// 读取指定 UV 通道，保留其原始维度（2/3/4）
-    /// </summary>
+    private static List<BlendShapeFrame> ExtractBlendShapes(Mesh sourceMesh, int vertexCount)
+    {
+        var result = new List<BlendShapeFrame>();
+        if (sourceMesh == null) return result;
+
+        int blendShapeCount = sourceMesh.blendShapeCount;
+        for (int s = 0; s < blendShapeCount; s++)
+        {
+            string shapeName = sourceMesh.GetBlendShapeName(s);
+            int frameCount = sourceMesh.GetBlendShapeFrameCount(s);
+            for (int f = 0; f < frameCount; f++)
+            {
+                var frame = new BlendShapeFrame
+                {
+                    shapeName = shapeName,
+                    weight = sourceMesh.GetBlendShapeFrameWeight(s, f),
+                    deltaVertices = new Vector3[vertexCount],
+                    deltaNormals = new Vector3[vertexCount],
+                    deltaTangents = new Vector3[vertexCount],
+                };
+                sourceMesh.GetBlendShapeFrameVertices(s, f, frame.deltaVertices, frame.deltaNormals, frame.deltaTangents);
+                result.Add(frame);
+            }
+        }
+        return result;
+    }
+
+    private static void WriteBlendShapes(Mesh mesh, List<BlendShapeFrame> frames)
+    {
+        if (mesh == null || frames == null || frames.Count == 0) return;
+        mesh.ClearBlendShapes();
+        foreach (var f in frames)
+        {
+            mesh.AddBlendShapeFrame(f.shapeName, f.weight, f.deltaVertices, f.deltaNormals, f.deltaTangents);
+        }
+    }
+
     private static UVChannelData ReadUVChannel(Mesh mesh, int channel)
     {
         var data = new UVChannelData();
@@ -1292,9 +2436,6 @@ public class SmoothNormalBaker : EditorWindow
         return data;
     }
 
-    /// <summary>
-    /// 将缓存的 UV 数据写回 Mesh 的指定通道
-    /// </summary>
     private static void WriteUVChannel(Mesh mesh, int channel, UVChannelData data)
     {
         if (mesh == null || !data.HasData) return;
@@ -1306,9 +2447,6 @@ public class SmoothNormalBaker : EditorWindow
             mesh.SetUVs(channel, data.uv4);
     }
 
-    /// <summary>
-    /// 恢复 Mesh 的 isReadable 状态
-    /// </summary>
     private void RestoreReadable(bool wasReadable, ModelImporter modelImporter, Mesh sourceMesh, string assetPath)
     {
         if (wasReadable) return;
@@ -1331,12 +2469,6 @@ public class SmoothNormalBaker : EditorWindow
         }
     }
 
-    /// <summary>
-    /// 持久化烘焙结果：始终在源 Mesh 同目录生成 _SmoothN.asset（已存在则覆盖其数据，保留命名）。
-    /// 不会修改任何原始 .asset 或 FBX 文件。
-    /// </summary>
-    /// <param name="srcMesh">实际用于计算的源 Mesh（FBX 子 Mesh 或 .asset），决定输出目录</param>
-    /// <param name="newMesh">新构建的 Mesh 对象</param>
     private Mesh SaveMeshAsset(Mesh srcMesh, Mesh newMesh)
     {
         string anchorPath = AssetDatabase.GetAssetPath(srcMesh);
