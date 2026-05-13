@@ -107,6 +107,29 @@ public class ChannelRemapper : EditorWindow
     private OutputFormat outputFormat = OutputFormat.KeepOriginal;
     private string outputSuffix = DefaultSuffix;
 
+    // ===== 双贴图输出 =====
+    private bool dualOutput = false;
+
+    private InputSource out2R_Input = InputSource.A;
+    private ChannelLetter out2R_Channel = ChannelLetter.R;
+    private bool out2R_Invert = false;
+
+    private InputSource out2G_Input = InputSource.A;
+    private ChannelLetter out2G_Channel = ChannelLetter.G;
+    private bool out2G_Invert = false;
+
+    private InputSource out2B_Input = InputSource.A;
+    private ChannelLetter out2B_Channel = ChannelLetter.B;
+    private bool out2B_Invert = false;
+
+    private InputSource out2A_Input = InputSource.A;
+    private ChannelLetter out2A_Channel = ChannelLetter.A;
+    private bool out2A_Invert = false;
+
+    private string outputSuffix2 = DefaultSuffix;
+    private Texture2D previewOut2;
+    private ChannelView viewOut2 = ChannelView.RGBA;
+
     // ===== 模板系统（共享） =====
     private string newTemplateName = "";
     private int selectedTemplateIndex = -1;
@@ -179,6 +202,7 @@ public class ChannelRemapper : EditorWindow
         DisposePreview(ref previewA);
         DisposePreview(ref previewB);
         DisposePreview(ref previewOut);
+        DisposePreview(ref previewOut2);
     }
 
     private void OnSelectionChange()
@@ -241,6 +265,11 @@ public class ChannelRemapper : EditorWindow
             DrawBSlot();
             GUILayout.Space(6);
             DrawOutputPreviewSlot();
+            if (dualOutput)
+            {
+                GUILayout.Space(6);
+                DrawOutputPreviewSlot2();
+            }
             EditorGUILayout.EndHorizontal();
 
             GUILayout.Space(4);
@@ -346,7 +375,23 @@ public class ChannelRemapper : EditorWindow
     {
         EditorGUILayout.BeginVertical(GUILayout.Width(PreviewMaxSize + 12));
 
-        GUILayout.Label("输出预览", EditorStyles.miniBoldLabel);
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label(dualOutput ? "输出1" : "输出预览", EditorStyles.miniBoldLabel);
+        GUILayout.FlexibleSpace();
+        bool newDualOutput = EditorGUILayout.ToggleLeft("双贴图", dualOutput, GUILayout.Width(58));
+        if (newDualOutput != dualOutput)
+        {
+            dualOutput = newDualOutput;
+            if (dualOutput && singleEnableB)
+            {
+                out2R_Input = InputSource.B; out2R_Channel = ChannelLetter.R; out2R_Invert = false;
+                out2G_Input = InputSource.B; out2G_Channel = ChannelLetter.G; out2G_Invert = false;
+                out2B_Input = InputSource.B; out2B_Channel = ChannelLetter.B; out2B_Invert = false;
+                out2A_Input = InputSource.B; out2A_Channel = ChannelLetter.A; out2A_Invert = false;
+            }
+            lastPreviewHash = 0;
+        }
+        EditorGUILayout.EndHorizontal();
 
         Rect previewRect = GUILayoutUtility.GetRect(PreviewMaxSize, PreviewMaxSize, GUILayout.Width(PreviewMaxSize), GUILayout.Height(PreviewMaxSize));
         DrawPreviewBox(previewRect, previewOut, singleTexA != null);
@@ -366,6 +411,31 @@ public class ChannelRemapper : EditorWindow
 
         EditorGUILayout.EndVertical();
         }
+
+    /// <summary>输出2 预览槽（双贴图模式专用）</summary>
+    private void DrawOutputPreviewSlot2()
+    {
+        EditorGUILayout.BeginVertical(GUILayout.Width(PreviewMaxSize + 12));
+
+        GUILayout.Label("输出2 预览", EditorStyles.miniBoldLabel);
+
+        Rect previewRect = GUILayoutUtility.GetRect(PreviewMaxSize, PreviewMaxSize, GUILayout.Width(PreviewMaxSize), GUILayout.Height(PreviewMaxSize));
+        DrawPreviewBox(previewRect, previewOut2, singleTexA != null);
+
+        GUILayout.Space(EditorGUIUtility.singleLineHeight + 4);
+
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("视图", EditorStyles.miniLabel, GUILayout.Width(28));
+        var newView = (ChannelView)EditorGUILayout.EnumPopup(viewOut2, GUILayout.Width(PreviewMaxSize - 30));
+        if (newView != viewOut2)
+        {
+            viewOut2 = newView;
+            lastPreviewHash = 0;
+        }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.EndVertical();
+    }
 
     /// <summary>通用单张预览槽（A 槽用）</summary>
     private void DrawSinglePreviewSlot(string label, ref Texture2D tex, ref ChannelView view, Texture2D preview, bool drawDropArea)
@@ -471,6 +541,10 @@ public class ChannelRemapper : EditorWindow
         GeneratePreview(singleTexA, viewA, ref previewA, isOutputPreview: false);
         GeneratePreview(singleEnableB ? singleTexB : null, viewB, ref previewB, isOutputPreview: false);
         GenerateOutputPreview();
+        if (dualOutput)
+            GenerateOutputPreview2();
+        else
+            DisposePreview(ref previewOut2);
 
         Repaint();
     }
@@ -490,6 +564,13 @@ public class ChannelRemapper : EditorWindow
             h = h * 31 + (int)outG_Input * 13 + (int)outG_Channel * 7 + (outG_Invert ? 1 : 0);
             h = h * 31 + (int)outB_Input * 13 + (int)outB_Channel * 7 + (outB_Invert ? 1 : 0);
             h = h * 31 + (int)outA_Input * 13 + (int)outA_Channel * 7 + (outA_Invert ? 1 : 0);
+            // dual output
+            h = h * 31 + (dualOutput ? 1 : 0);
+            h = h * 31 + (int)viewOut2;
+            h = h * 31 + (int)out2R_Input * 13 + (int)out2R_Channel * 7 + (out2R_Invert ? 1 : 0);
+            h = h * 31 + (int)out2G_Input * 13 + (int)out2G_Channel * 7 + (out2G_Invert ? 1 : 0);
+            h = h * 31 + (int)out2B_Input * 13 + (int)out2B_Channel * 7 + (out2B_Invert ? 1 : 0);
+            h = h * 31 + (int)out2A_Input * 13 + (int)out2A_Channel * 7 + (out2A_Invert ? 1 : 0);
             return h;
         }
     }
@@ -547,6 +628,41 @@ public class ChannelRemapper : EditorWindow
         previewOut.hideFlags = HideFlags.HideAndDontSave;
         previewOut.SetPixels32(displayPixels);
         previewOut.Apply();
+    }
+
+    /// <summary>生成输出2 预览（双贴图模式，使用 out2R/G/B 映射规则）</summary>
+    private void GenerateOutputPreview2()
+    {
+        DisposePreview(ref previewOut2);
+        if (singleTexA == null) return;
+
+        var (w, h) = ComputePreviewSize(singleTexA);
+        Color32[] aPixels = BlitReadPixels(singleTexA, w, h);
+
+        Color32[] bPixels = null;
+        if (singleEnableB && singleTexB != null)
+            bPixels = BlitReadPixels(singleTexB, w, h);
+
+        var outPixels = new Color32[aPixels.Length];
+        for (int i = 0; i < aPixels.Length; i++)
+        {
+            Color32 a = aPixels[i];
+            Color32 b = bPixels != null ? bPixels[i] : default(Color32);
+            outPixels[i] = new Color32(
+                SampleByte(a, b, out2R_Input, out2R_Channel, out2R_Invert),
+                SampleByte(a, b, out2G_Input, out2G_Channel, out2G_Invert),
+                SampleByte(a, b, out2B_Input, out2B_Channel, out2B_Invert),
+                SampleByte(a, b, out2A_Input, out2A_Channel, out2A_Invert));
+        }
+
+        Color32[] displayPixels = ApplyChannelView(outPixels, viewOut2);
+
+        previewOut2 = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        previewOut2.filterMode = FilterMode.Bilinear;
+        previewOut2.wrapMode = TextureWrapMode.Clamp;
+        previewOut2.hideFlags = HideFlags.HideAndDontSave;
+        previewOut2.SetPixels32(displayPixels);
+        previewOut2.Apply();
     }
 
     private static (int w, int h) ComputePreviewSize(Texture2D src)
@@ -1248,59 +1364,164 @@ public class ChannelRemapper : EditorWindow
             }
         }
 
-        Color32[] outPixels = new Color32[w * h];
-        for (int i = 0; i < pixA.Length; i++)
-        {
-            Color32 a = pixA[i];
-            Color32 b = pixB != null ? pixB[i] : default(Color32);
-            outPixels[i] = new Color32(
-                SampleByte(a, b, outR_Input, outR_Channel, outR_Invert),
-                SampleByte(a, b, outG_Input, outG_Channel, outG_Invert),
-                SampleByte(a, b, outB_Input, outB_Channel, outB_Invert),
-                SampleByte(a, b, outA_Input, outA_Channel, outA_Invert));
-        }
-
-        Texture2D outTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-        outTex.SetPixels32(outPixels);
-        outTex.Apply();
-
-        string suffix = string.IsNullOrEmpty(outputSuffix) ? DefaultSuffix : outputSuffix;
-        string srcExt = Path.GetExtension(aPath).ToLowerInvariant();
-        string outExt = ResolveOutputExtension(srcExt);
-
-        byte[] bytes = outExt switch
-        {
-            ".tga" => outTex.EncodeToTGA(),
-            ".exr" => outTex.EncodeToEXR(),
-            _      => outTex.EncodeToPNG(),
-        };
-
         string fullPath = Path.Combine(
             Application.dataPath.Substring(0, Application.dataPath.Length - "Assets".Length),
             aPath);
         string directory = Path.GetDirectoryName(fullPath);
         string filename = Path.GetFileNameWithoutExtension(fullPath);
-        string outFullPath = Path.Combine(directory, filename + suffix + outExt);
-        File.WriteAllBytes(outFullPath, bytes);
+        string srcExt = Path.GetExtension(aPath).ToLowerInvariant();
+        string outExt = ResolveOutputExtension(srcExt);
+        string assetDir = Path.GetDirectoryName(aPath).Replace("\\", "/");
 
-        string outAssetPath = Path.GetDirectoryName(aPath).Replace("\\", "/")
-                              + "/" + filename + suffix + outExt;
-        AssetDatabase.ImportAsset(outAssetPath);
+        // ---- 输出图 1 ----
+        {
+            Color32[] outPixels = new Color32[w * h];
+            for (int i = 0; i < pixA.Length; i++)
+            {
+                Color32 a = pixA[i];
+                Color32 b = pixB != null ? pixB[i] : default(Color32);
+                outPixels[i] = new Color32(
+                    SampleByte(a, b, outR_Input, outR_Channel, outR_Invert),
+                    SampleByte(a, b, outG_Input, outG_Channel, outG_Invert),
+                    SampleByte(a, b, outB_Input, outB_Channel, outB_Invert),
+                    SampleByte(a, b, outA_Input, outA_Channel, outA_Invert));
+            }
 
-        Object.DestroyImmediate(outTex);
+            Texture2D outTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            outTex.SetPixels32(outPixels);
+            outTex.Apply();
 
-        string mappingDesc =
-            $"R←{DescribeSource(outR_Input, outR_Channel, outR_Invert)} " +
-            $"G←{DescribeSource(outG_Input, outG_Channel, outG_Invert)} " +
-            $"B←{DescribeSource(outB_Input, outB_Channel, outB_Invert)} " +
-            $"A←{DescribeSource(outA_Input, outA_Channel, outA_Invert)}";
+            string suffix1 = string.IsNullOrEmpty(outputSuffix) ? DefaultSuffix : outputSuffix;
+            byte[] bytes = outExt switch { ".tga" => outTex.EncodeToTGA(), ".exr" => outTex.EncodeToEXR(), _ => outTex.EncodeToPNG() };
+            string outFullPath = Path.Combine(directory, filename + suffix1 + outExt);
+            File.WriteAllBytes(outFullPath, bytes);
+            string outAssetPath = $"{assetDir}/{filename}{suffix1}{outExt}";
+            AssetDatabase.ImportAsset(outAssetPath);
+            ApplySourceImportSettings(aPath, outAssetPath);
+            Object.DestroyImmediate(outTex);
 
-        if (texB != null)
-            Debug.Log($"[通道重映射] {Path.GetFileName(aPath)} + {Path.GetFileName(bPath)} → {Path.GetFileName(outAssetPath)}  | {mappingDesc}");
-        else
-            Debug.Log($"[通道重映射] {Path.GetFileName(aPath)} → {Path.GetFileName(outAssetPath)}  | {mappingDesc}");
+            string desc1 = $"R←{DescribeSource(outR_Input, outR_Channel, outR_Invert)} " +
+                           $"G←{DescribeSource(outG_Input, outG_Channel, outG_Invert)} " +
+                           $"B←{DescribeSource(outB_Input, outB_Channel, outB_Invert)}" +
+                           (dualOutput ? "" : $" A←{DescribeSource(outA_Input, outA_Channel, outA_Invert)}");
+            string srcDesc = texB != null ? $"{Path.GetFileName(aPath)} + {Path.GetFileName(bPath)}" : Path.GetFileName(aPath);
+            Debug.Log($"[通道重映射] {srcDesc} → {Path.GetFileName(outAssetPath)}  | {desc1}");
+        }
+
+        // ---- 输出图 2（dual 模式） ----
+        if (dualOutput)
+        {
+            Color32[] outPixels2 = new Color32[w * h];
+            for (int i = 0; i < pixA.Length; i++)
+            {
+                Color32 a = pixA[i];
+                Color32 b = pixB != null ? pixB[i] : default(Color32);
+                outPixels2[i] = new Color32(
+                    SampleByte(a, b, out2R_Input, out2R_Channel, out2R_Invert),
+                    SampleByte(a, b, out2G_Input, out2G_Channel, out2G_Invert),
+                    SampleByte(a, b, out2B_Input, out2B_Channel, out2B_Invert),
+                    SampleByte(a, b, out2A_Input, out2A_Channel, out2A_Invert));
+            }
+
+            Texture2D outTex2 = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            outTex2.SetPixels32(outPixels2);
+            outTex2.Apply();
+
+            string suffix2 = string.IsNullOrEmpty(outputSuffix2) ? DefaultSuffix : outputSuffix2;
+
+            // Image 2 base name: use B texture name when available, fall back to A
+            bool hasBForImg2 = !string.IsNullOrEmpty(bPath);
+            string base2Filename = hasBForImg2 ? Path.GetFileNameWithoutExtension(bPath) : filename;
+            string base2FullDir  = hasBForImg2
+                ? Path.GetDirectoryName(Path.Combine(
+                    Application.dataPath.Substring(0, Application.dataPath.Length - "Assets".Length), bPath))
+                : directory;
+            string base2AssetDir = hasBForImg2
+                ? Path.GetDirectoryName(bPath).Replace("\\", "/")
+                : assetDir;
+
+            // Determine output extension from B source when naming after B
+            string outExt2 = hasBForImg2 ? ResolveOutputExtension(Path.GetExtension(bPath).ToLowerInvariant()) : outExt;
+
+            byte[] bytes2 = outExt2 switch { ".tga" => outTex2.EncodeToTGA(), ".exr" => outTex2.EncodeToEXR(), _ => outTex2.EncodeToPNG() };
+            string outFullPath2 = Path.Combine(base2FullDir, base2Filename + suffix2 + outExt2);
+            File.WriteAllBytes(outFullPath2, bytes2);
+            string outAssetPath2 = $"{base2AssetDir}/{base2Filename}{suffix2}{outExt2}";
+            AssetDatabase.ImportAsset(outAssetPath2);
+            // Import settings reference: use B as source when image 2 is named after B
+            ApplySourceImportSettings(hasBForImg2 ? bPath : aPath, outAssetPath2);
+            Object.DestroyImmediate(outTex2);
+
+            string desc2 = $"R←{DescribeSource(out2R_Input, out2R_Channel, out2R_Invert)} " +
+                           $"G←{DescribeSource(out2G_Input, out2G_Channel, out2G_Invert)} " +
+                           $"B←{DescribeSource(out2B_Input, out2B_Channel, out2B_Invert)}";
+            string srcDesc2 = texB != null ? $"{Path.GetFileName(aPath)} + {Path.GetFileName(bPath)}" : Path.GetFileName(aPath);
+            Debug.Log($"[通道重映射] {srcDesc2} → {Path.GetFileName(outAssetPath2)}  | {desc2}");
+        }
 
         return true;
+    }
+
+    /// <summary>
+    /// 将输出贴图的 TextureImporter 关键设置对齐到源贴图，避免默认 DXT 压缩产生伪影。
+    /// 对齐项：压缩格式、sRGB、最大尺寸、Alpha Is Transparency、Mipmap。
+    /// 若源贴图没有 TextureImporter（如 NativeFormatImporter 的 .texture2D），
+    /// 则设置为 None 压缩，并尝试从源 Texture2D 对象读取 colorSpace。
+    /// </summary>
+    private static void ApplySourceImportSettings(string srcAssetPath, string dstAssetPath)
+    {
+        var dstImp = AssetImporter.GetAtPath(dstAssetPath) as TextureImporter;
+        if (dstImp == null) return;
+
+        var srcImp = AssetImporter.GetAtPath(srcAssetPath) as TextureImporter;
+        if (srcImp != null)
+        {
+            // 源贴图走 TextureImporter：直接复制核心设置
+            dstImp.sRGBTexture          = srcImp.sRGBTexture;
+            dstImp.alphaIsTransparency  = srcImp.alphaIsTransparency;
+            dstImp.mipmapEnabled        = srcImp.mipmapEnabled;
+            dstImp.filterMode           = srcImp.filterMode;
+            dstImp.anisoLevel           = srcImp.anisoLevel;
+            dstImp.maxTextureSize       = srcImp.maxTextureSize;
+
+            // 复制各平台压缩设置
+            foreach (var buildTarget in new[] { "DefaultTexturePlatform", "Standalone", "Android", "iPhone" })
+            {
+                var srcPlat = srcImp.GetPlatformTextureSettings(buildTarget);
+                if (srcPlat.overridden || buildTarget == "DefaultTexturePlatform")
+                {
+                    var dstPlat = dstImp.GetPlatformTextureSettings(buildTarget);
+                    dstPlat.overridden         = srcPlat.overridden;
+                    dstPlat.format             = srcPlat.format;
+                    dstPlat.textureCompression = srcPlat.textureCompression;
+                    dstPlat.compressionQuality = srcPlat.compressionQuality;
+                    dstPlat.crunchedCompression = srcPlat.crunchedCompression;
+                    dstPlat.maxTextureSize     = srcPlat.maxTextureSize;
+                    dstImp.SetPlatformTextureSettings(dstPlat);
+                }
+            }
+        }
+        else
+        {
+            // 源是 NativeFormatImporter（如 .texture2D 资产）：
+            // 读取运行时 Texture2D 对象上的信息
+            var srcTex = AssetDatabase.LoadAssetAtPath<Texture2D>(srcAssetPath);
+            if (srcTex != null)
+            {
+                // 颜色空间：m_ColorSpace 0=Gamma/sRGB, 1=Linear
+                bool isSRGB = srcTex.isDataSRGB;
+                dstImp.sRGBTexture = isSRGB;
+            }
+
+            // 原始贴图无压缩（或未知）→ 输出也设置为 None，保证视觉一致
+            var def = dstImp.GetPlatformTextureSettings("DefaultTexturePlatform");
+            def.overridden          = true;
+            def.format              = TextureImporterFormat.Automatic;
+            def.textureCompression  = TextureImporterCompression.Uncompressed;
+            dstImp.SetPlatformTextureSettings(def);
+        }
+
+        dstImp.SaveAndReimport();
     }
 
     /// <summary>批量切 isReadable 为指定值；返回需要恢复的备份</summary>
@@ -1392,7 +1613,10 @@ public class ChannelRemapper : EditorWindow
             normal = { textColor = new Color(0.85f, 0.85f, 0.85f) }
         };
         GUI.Label(new Rect(canvas.x + 8, canvas.y + 4, 100, 16), "输入", headerStyle);
-        GUI.Label(new Rect(canvas.xMax - 50, canvas.y + 4, 50, 16), "输出", headerStyle);
+        if (!dualOutput)
+            GUI.Label(new Rect(canvas.xMax - 50, canvas.y + 4, 50, 16), "输出", headerStyle);
+        else
+            GUI.Label(new Rect(canvas.xMax - 80, canvas.y + 4, 80, 16), "输出 (双贴图)", headerStyle);
 
         var groupLabelStyle = new GUIStyle(EditorStyles.miniLabel)
         {
@@ -1404,7 +1628,7 @@ public class ChannelRemapper : EditorWindow
 
         if (Event.current.type == EventType.Repaint)
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < outputs.Count; i++)
             {
                 var (src, ch, inv) = GetOutputBinding(i);
                 int inputIdx = GetInputPinIndex(src, ch);
@@ -1475,6 +1699,49 @@ public class ChannelRemapper : EditorWindow
             if (hoverOutputIndex >= 0) dragHoverOutput = true;
         }
 
+        // Dual mode: group headers and separator line between Img1 and Img2
+        if (dualOutput && outputs.Count == 8 && Event.current.type == EventType.Repaint)
+        {
+            float sepX0 = outputs[0].center.x - 6f;
+            var grpStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleLeft };
+
+            grpStyle.normal.textColor = new Color(0.5f, 0.85f, 0.5f);
+            GUI.Label(new Rect(sepX0, outputs[0].center.y - 18, 60, 14), "图片 1", grpStyle);
+
+            float sepY = outputs[3].center.y + 12f;
+            Handles.color = new Color(0.55f, 0.55f, 0.55f, 0.35f);
+            Handles.DrawLine(new Vector3(sepX0, sepY), new Vector3(canvas.xMax - 4, sepY));
+            Handles.color = Color.white;
+
+            grpStyle.normal.textColor = new Color(1f, 0.72f, 0.35f);
+            GUI.Label(new Rect(sepX0, outputs[4].center.y - 18, 60, 14), "图片 2", grpStyle);
+        }
+
+        // Build channel-reuse map: count how many output pins share the same (src, channel) binding.
+        // Constants (White / Black) are excluded — reusing them is always intentional.
+        var reuseCount = new Dictionary<(InputSource, ChannelLetter), int>();
+        for (int i = 0; i < outputs.Count; i++)
+        {
+            var (s, c, _) = GetOutputBinding(i);
+            if (s == InputSource.White || s == InputSource.Black) continue;
+            var key = (s, c);
+            reuseCount[key] = reuseCount.TryGetValue(key, out int cnt) ? cnt + 1 : 1;
+        }
+
+        // Output pins — compact single-line style mirroring the input section
+        // Layout: [pin circle]  [channel letter, colored]  [binding "A.R"]
+        var chLabelStyle = new GUIStyle(EditorStyles.miniLabel)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            fontStyle = FontStyle.Bold,
+        };
+        var bindLabelStyle = new GUIStyle(EditorStyles.miniLabel)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            fontSize = 9,
+        };
+        string[] chLetters = { "R", "G", "B", "A" };
+
         for (int i = 0; i < outputs.Count; i++)
         {
             var pin = outputs[i];
@@ -1482,16 +1749,40 @@ public class ChannelRemapper : EditorWindow
             bool highlight = (isDraggingFromOutput && i == draggingOutputIndex)
                            || (dragHoverOutput && i == hoverOutputIndex);
             DrawPin(pin.center, color, highlight);
-            GUI.Label(
-                new Rect(pin.center.x + PinRadius + 6, pin.center.y - 16, 100, 14),
-                "Out." + ((ChannelLetter)i).ToString(), outLabelStyle);
+
+            float labelX = pin.center.x + PinRadius + 5f;
+            float labelY = pin.center.y - 7f;
+
             var (src, ch, inv) = GetOutputBinding(i);
-            outBindStyle.normal.textColor = inv
-                ? new Color(1f, 0.75f, 0.4f)
-                : new Color(0.7f, 0.85f, 1f);
-            GUI.Label(
-                new Rect(pin.center.x + PinRadius + 6, pin.center.y + 1, 110, 14),
-                "← " + DescribeSource(src, ch, inv), outBindStyle);
+
+            // Reuse warning: same (src, channel) used by more than one output pin
+            bool isReused = src != InputSource.White && src != InputSource.Black
+                            && reuseCount.TryGetValue((src, ch), out int rc) && rc > 1;
+
+            // Single mode: "Out.R" name + "← A.R" binding (two-line)
+            if (!dualOutput)
+            {
+                outLabelStyle.normal.textColor = new Color(0.95f, 0.95f, 0.95f);
+                GUI.Label(new Rect(labelX, pin.center.y - 16, 100, 14),
+                    "Out." + ((ChannelLetter)i), outLabelStyle);
+                outBindStyle.normal.textColor = isReused  ? new Color(1f, 0.32f, 0.32f)
+                                              : inv        ? new Color(1f, 0.75f, 0.4f)
+                                              :               new Color(0.7f, 0.85f, 1f);
+                GUI.Label(new Rect(labelX, pin.center.y + 1, 110, 14),
+                    "← " + DescribeSource(src, ch, inv), outBindStyle);
+            }
+            else
+            {
+                // Dual mode: compact single-line "R  A.R"
+                chLabelStyle.normal.textColor = color;
+                GUI.Label(new Rect(labelX, labelY, 14, 14), chLetters[i % 4], chLabelStyle);
+
+                string bindText = DescribeSource(src, ch, inv);
+                bindLabelStyle.normal.textColor = isReused  ? new Color(1f, 0.32f, 0.32f)
+                                                : inv        ? new Color(1f, 0.75f, 0.35f)
+                                                :               new Color(0.65f, 0.82f, 1f);
+                GUI.Label(new Rect(labelX + 14, labelY, 80, 14), bindText, bindLabelStyle);
+            }
         }
 
         var hintStyle = new GUIStyle(EditorStyles.miniLabel)
@@ -1534,14 +1825,43 @@ public class ChannelRemapper : EditorWindow
 
     private List<PinInfo> ComputeOutputPins(Rect canvas)
     {
-        var pins = new List<PinInfo>(4);
         float pinX = canvas.xMax - 110f;
-        float topY = canvas.y + 56f;
-        float rowH = 56f;
-        for (int i = 0; i < 4; i++)
-            pins.Add(new PinInfo { channel = (ChannelLetter)i,
-                center = new Vector2(pinX, topY + rowH * i), label = "Out." + (ChannelLetter)i, enabled = true });
-        return pins;
+
+        if (!dualOutput)
+        {
+            var pins = new List<PinInfo>(4);
+            float topY = canvas.y + 56f;
+            float rowH = 56f;
+            for (int i = 0; i < 4; i++)
+                pins.Add(new PinInfo { channel = (ChannelLetter)i,
+                    center = new Vector2(pinX, topY + rowH * i), label = "Out." + (ChannelLetter)i, enabled = true });
+            return pins;
+        }
+        else
+        {
+            // Dual mode: 8 pins — Image1 RGBA (idx 0-3) + Image2 RGBA (idx 4-7)
+            // Compact layout matching the input section (rowH = 26)
+            var pins = new List<PinInfo>(8);
+            float topY = canvas.y + 32f;
+            float rowH = 26f;
+            float groupGap = 46f;  // gap between the two RGBA groups
+            string[] labels = { "Img1.R", "Img1.G", "Img1.B", "Img1.A",
+                                 "Img2.R", "Img2.G", "Img2.B", "Img2.A" };
+            for (int i = 0; i < 8; i++)
+            {
+                float y = i < 4
+                    ? topY + rowH * i
+                    : topY + rowH * 3 + groupGap + rowH * (i - 4);
+                pins.Add(new PinInfo
+                {
+                    channel = (ChannelLetter)(i % 4),
+                    center = new Vector2(pinX, y),
+                    label = labels[i],
+                    enabled = true
+                });
+            }
+            return pins;
+        }
     }
 
     private static int GetInputPinIndex(InputSource src, ChannelLetter ch)
@@ -1683,36 +2003,90 @@ public class ChannelRemapper : EditorWindow
 
     private (InputSource src, ChannelLetter ch, bool inv) GetOutputBinding(int idx)
     {
-        switch (idx)
+        if (!dualOutput)
         {
-            case 0: return (outR_Input, outR_Channel, outR_Invert);
-            case 1: return (outG_Input, outG_Channel, outG_Invert);
-            case 2: return (outB_Input, outB_Channel, outB_Invert);
-            case 3: return (outA_Input, outA_Channel, outA_Invert);
-            default: return (InputSource.A, ChannelLetter.R, false);
+            switch (idx)
+            {
+                case 0: return (outR_Input, outR_Channel, outR_Invert);
+                case 1: return (outG_Input, outG_Channel, outG_Invert);
+                case 2: return (outB_Input, outB_Channel, outB_Invert);
+                case 3: return (outA_Input, outA_Channel, outA_Invert);
+                default: return (InputSource.A, ChannelLetter.R, false);
+            }
+        }
+        else
+        {
+            switch (idx)
+            {
+                case 0: return (outR_Input,  outR_Channel,  outR_Invert);
+                case 1: return (outG_Input,  outG_Channel,  outG_Invert);
+                case 2: return (outB_Input,  outB_Channel,  outB_Invert);
+                case 3: return (outA_Input,  outA_Channel,  outA_Invert);
+                case 4: return (out2R_Input, out2R_Channel, out2R_Invert);
+                case 5: return (out2G_Input, out2G_Channel, out2G_Invert);
+                case 6: return (out2B_Input, out2B_Channel, out2B_Invert);
+                case 7: return (out2A_Input, out2A_Channel, out2A_Invert);
+                default: return (InputSource.A, ChannelLetter.R, false);
+            }
         }
     }
 
     private void SetOutputBinding(int idx, InputSource src, ChannelLetter ch)
     {
-        switch (idx)
+        if (!dualOutput)
         {
-            case 0: outR_Input = src; outR_Channel = ch; break;
-            case 1: outG_Input = src; outG_Channel = ch; break;
-            case 2: outB_Input = src; outB_Channel = ch; break;
-            case 3: outA_Input = src; outA_Channel = ch; break;
+            switch (idx)
+            {
+                case 0: outR_Input = src; outR_Channel = ch; break;
+                case 1: outG_Input = src; outG_Channel = ch; break;
+                case 2: outB_Input = src; outB_Channel = ch; break;
+                case 3: outA_Input = src; outA_Channel = ch; break;
+            }
         }
+        else
+        {
+            switch (idx)
+            {
+                case 0: outR_Input  = src; outR_Channel  = ch; break;
+                case 1: outG_Input  = src; outG_Channel  = ch; break;
+                case 2: outB_Input  = src; outB_Channel  = ch; break;
+                case 3: outA_Input  = src; outA_Channel  = ch; break;
+                case 4: out2R_Input = src; out2R_Channel = ch; break;
+                case 5: out2G_Input = src; out2G_Channel = ch; break;
+                case 6: out2B_Input = src; out2B_Channel = ch; break;
+                case 7: out2A_Input = src; out2A_Channel = ch; break;
+            }
+        }
+        lastPreviewHash = 0;
     }
 
     private void ToggleOutputInvert(int idx)
     {
-        switch (idx)
+        if (!dualOutput)
         {
-            case 0: outR_Invert = !outR_Invert; break;
-            case 1: outG_Invert = !outG_Invert; break;
-            case 2: outB_Invert = !outB_Invert; break;
-            case 3: outA_Invert = !outA_Invert; break;
+            switch (idx)
+            {
+                case 0: outR_Invert = !outR_Invert; break;
+                case 1: outG_Invert = !outG_Invert; break;
+                case 2: outB_Invert = !outB_Invert; break;
+                case 3: outA_Invert = !outA_Invert; break;
+            }
         }
+        else
+        {
+            switch (idx)
+            {
+                case 0: outR_Invert  = !outR_Invert;  break;
+                case 1: outG_Invert  = !outG_Invert;  break;
+                case 2: outB_Invert  = !outB_Invert;  break;
+                case 3: outA_Invert  = !outA_Invert;  break;
+                case 4: out2R_Invert = !out2R_Invert; break;
+                case 5: out2G_Invert = !out2G_Invert; break;
+                case 6: out2B_Invert = !out2B_Invert; break;
+                case 7: out2A_Invert = !out2A_Invert; break;
+            }
+        }
+        lastPreviewHash = 0;
     }
 
     private static void DrawPin(Vector2 center, Color color, bool highlight)
@@ -1764,12 +2138,15 @@ public class ChannelRemapper : EditorWindow
 
     private static Color OutputPinColor(int idx)
     {
-        switch (idx)
+        // Both single (0-3) and dual (0-7) modes share the same RGBA palette
+        // idx % 4 → R/G/B/A; idx < 4 → bright (Img1), idx >= 4 → slightly dimmer (Img2)
+        float dim = idx < 4 ? 1f : 0.72f;
+        switch (idx % 4)
         {
-            case 0: return new Color(1f, 0.4f, 0.4f);
-            case 1: return new Color(0.4f, 1f, 0.4f);
-            case 2: return new Color(0.4f, 0.6f, 1f);
-            case 3: return new Color(1f, 1f, 1f);
+            case 0: return new Color(1f * dim, 0.35f * dim, 0.35f * dim);   // R — red
+            case 1: return new Color(0.35f * dim, 1f * dim, 0.35f * dim);   // G — green
+            case 2: return new Color(0.4f * dim, 0.6f * dim, 1f * dim);     // B — blue
+            case 3: return new Color(0.9f * dim, 0.9f * dim, 0.9f * dim);   // A — white/grey
             default: return Color.gray;
         }
     }
@@ -1784,6 +2161,15 @@ public class ChannelRemapper : EditorWindow
         outG_Input = InputSource.A; outG_Channel = ChannelLetter.G; outG_Invert = false;
         outB_Input = InputSource.A; outB_Channel = ChannelLetter.B; outB_Invert = false;
         outA_Input = InputSource.A; outA_Channel = ChannelLetter.A; outA_Invert = false;
+
+        if (dualOutput)
+        {
+            InputSource img2Src = singleEnableB ? InputSource.B : InputSource.A;
+            out2R_Input = img2Src; out2R_Channel = ChannelLetter.R; out2R_Invert = false;
+            out2G_Input = img2Src; out2G_Channel = ChannelLetter.G; out2G_Invert = false;
+            out2B_Input = img2Src; out2B_Channel = ChannelLetter.B; out2B_Invert = false;
+            out2A_Input = img2Src; out2A_Channel = ChannelLetter.A; out2A_Invert = false;
+        }
     }
 
     private static byte SampleByte(Color32 a, Color32 b, InputSource src, ChannelLetter ch, bool invert)
@@ -1913,14 +2299,26 @@ public class ChannelRemapper : EditorWindow
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("后缀", GUILayout.Width(60));
+            EditorGUILayout.LabelField(dualOutput ? "后缀 (图1)" : "后缀", GUILayout.Width(70));
             outputSuffix = EditorGUILayout.TextField(outputSuffix, GUILayout.Width(140));
             if (GUILayout.Button("还原默认 (_Fix)", EditorStyles.miniButton, GUILayout.Width(110)))
                 outputSuffix = DefaultSuffix;
             EditorGUILayout.EndHorizontal();
 
+            if (dualOutput)
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("后缀 (图2)", GUILayout.Width(70));
+                outputSuffix2 = EditorGUILayout.TextField(outputSuffix2, GUILayout.Width(140));
+                if (GUILayout.Button($"还原默认 ({DefaultSuffix})", EditorStyles.miniButton, GUILayout.Width(110)))
+                    outputSuffix2 = DefaultSuffix;
+                EditorGUILayout.EndHorizontal();
+            }
+
             EditorGUILayout.HelpBox(
-                "上半段单张另存、下半段批量产出都使用同一后缀。\n例如 body.png + 后缀 _Fix → body_Fix.png。",
+                dualOutput
+                    ? "双贴图模式：每次保存产出两张图，分别使用图1/图2后缀。\n例如 body.png → body_Fix.png + body_Fix2.png。"
+                    : "上半段单张另存、下半段批量产出都使用同一后缀。\n例如 body.png + 后缀 _Fix → body_Fix.png。",
                 MessageType.None);
 
             EditorGUILayout.EndVertical();
