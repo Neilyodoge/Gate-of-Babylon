@@ -749,6 +749,69 @@ public class SmoothNormalBaker : EditorWindow
                 return generatedPaths;
             }
 
+            // ★ 二次烘焙保护：在 Unpack 之前先剔除「当前嵌套已经就是本工具要生成的 Variant 实例」的项。
+            // 典型场景：第一次烘焙时已经为 FBX 生成了同名 Variant 并替换了 prefab 内的嵌套，
+            // 第二次烘焙时 FindNestedFbx 通过 originalSrc 仍能追溯到 FBX，但这一层其实是 Variant 包装。
+            // 如果继续走 DeleteAsset+SaveAsPrefabAsset 流程，会先删掉已有的 Variant 资源（GUID 重新生成），
+            // 导致原 prefab 内对这个 Variant 的嵌套引用变 missing。
+            // 同时把这些条目登记进 fbxToVariantMap，让 Phase B 能识别它们「已经是 Variant 实例」、不再替换。
+            var filteredFbxRoots = new List<KeyValuePair<GameObject, string>>();
+            foreach (var pair in fbxRoots)
+            {
+                GameObject root = pair.Key;
+                string fbxPath = pair.Value;
+                if (root == null || string.IsNullOrEmpty(fbxPath))
+                {
+                    filteredFbxRoots.Add(pair);
+                    continue;
+                }
+
+                string fbxName = Path.GetFileNameWithoutExtension(fbxPath);
+                string fbxDir = (Path.GetDirectoryName(fbxPath) ?? "").Replace('\\', '/');
+                if (string.IsNullOrEmpty(fbxDir) || string.IsNullOrEmpty(fbxName))
+                {
+                    filteredFbxRoots.Add(pair);
+                    continue;
+                }
+                string expectedVariantPath = $"{fbxDir}/{fbxName}.prefab";
+
+                GameObject existingVariantAsset = AssetDatabase.LoadAssetAtPath<GameObject>(expectedVariantPath);
+                if (existingVariantAsset == null)
+                {
+                    // 首次烘焙：目标路径上还没有 Variant，正常走生成流程
+                    filteredFbxRoots.Add(pair);
+                    continue;
+                }
+
+                // ★ 用 GetPrefabAssetPathOfNearestInstanceRoot 判断 root 是哪个 prefab 资源的实例。
+                // 注意：不能用 GetCorrespondingObjectFromSource — 嵌套场景下它返回的是「外层 prefab 视角下的
+                // 同名 GameObject」，AssetPath 给出的是外层 prefab 路径，而不是真正的 Variant 路径，
+                // 会导致 guard 误判 → DeleteAsset 删掉已有 Variant → outer prefab 留下 missing 嵌套引用。
+                string nearestInstancePath = null;
+                try { nearestInstancePath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root); } catch { }
+                bool alreadyIsTargetVariant = !string.IsNullOrEmpty(nearestInstancePath)
+                    && string.Equals(nearestInstancePath, expectedVariantPath, System.StringComparison.OrdinalIgnoreCase);
+
+                if (alreadyIsTargetVariant)
+                {
+                    Debug.Log($"[平滑法线烘焙] '{root.name}' 已经是目标 Variant '{expectedVariantPath}' 的实例（nearestPath={nearestInstancePath}），跳过重新生成（避免误删原 prefab 内嵌套）。");
+                    fbxToVariantMap[fbxPath] = expectedVariantPath;
+                    if (!generatedPaths.Contains(expectedVariantPath))
+                        generatedPaths.Add(expectedVariantPath);
+                    continue;
+                }
+
+                filteredFbxRoots.Add(pair);
+            }
+
+            if (filteredFbxRoots.Count == 0)
+            {
+                Debug.Log($"[平滑法线烘焙] 「{Path.GetFileName(originalPrefabPath)}」 内所有嵌套 FBX 都已经是对应 Variant 的实例，无需重新生成。");
+                return generatedPaths;
+            }
+
+            fbxRoots = filteredFbxRoots;
+
             PrefabUtility.UnpackPrefabInstance(outerInstanceA, PrefabUnpackMode.OutermostRoot, InteractionMode.AutomatedAction);
 
             foreach (var pair in fbxRoots)
@@ -912,6 +975,18 @@ public class SmoothNormalBaker : EditorWindow
                 if (variantAsset == null)
                 {
                     Debug.LogWarning($"[平滑法线烘焙] Phase B：找不到刚生成的 Variant：{variantPath}");
+                    continue;
+                }
+
+                // ★ 二次烘焙保护：如果当前嵌套已经就是目标 Variant 的实例，跳过销毁/重建。
+                // 用 GetPrefabAssetPathOfNearestInstanceRoot 判断（嵌套场景下 GetCorrespondingObjectFromSource
+                // 会返回外层视角的 GameObject，AssetPath 是外层 prefab 而不是 Variant 自身，不可靠）。
+                string nearestInstancePathB = null;
+                try { nearestInstancePathB = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(fbxInstanceRoot); } catch { }
+                if (!string.IsNullOrEmpty(nearestInstancePathB)
+                    && string.Equals(nearestInstancePathB, variantPath, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.Log($"[平滑法线烘焙] Phase B：'{fbxInstanceRoot.name}' 已经是 Variant '{variantPath}' 的实例（nearestPath={nearestInstancePathB}），跳过替换。");
                     continue;
                 }
 
@@ -1220,10 +1295,12 @@ public class SmoothNormalBaker : EditorWindow
 
                 processed += updated;
 
-                foreach (var prefabPath in touchedPrefabPaths)
-                {
-                    VerifyPrefabPersistence(prefabPath, group, verifyExpect);
-                }
+                // 持久化校验：只对源 prefab 校验。
+                // entry.componentTransformPath 是相对源 prefab 根记录的（如 "Root/SM_xxx/part_yyy"），
+                // 嵌套层 prefab（Variant、子 prefab 等）的内部层级根节点不同，把同一个 path 喂给嵌套层
+                // 会得到 "路径未找到" 的误报。源 prefab 是用户最终面对的资源，验证它就足够。
+                // 嵌套层已经由 ApplyPropertyOverride 写回，不必单独再验证。
+                VerifyPrefabPersistence(sourcePrefabPath, group, verifyExpect);
             }
 
             var sceneAndOtherEntries = selectedEntries
@@ -1870,10 +1947,8 @@ public class SmoothNormalBaker : EditorWindow
 
                 processed += updated;
 
-                foreach (var prefabPath in touchedPrefabPaths)
-                {
-                    VerifyPrefabPersistence(prefabPath, restoreTargets.Keys, verifyExpect);
-                }
+                // 同烘焙：只验证源 prefab，避免拿外层相对路径去校验嵌套层 prefab 时误报「路径未找到」
+                VerifyPrefabPersistence(sourcePrefabPath, restoreTargets.Keys, verifyExpect);
             }
 
             var others = selectedEntries
@@ -2500,19 +2575,28 @@ public class SmoothNormalBaker : EditorWindow
         string outputPath = Path.Combine(directory, baseName + OutputSuffix + ".asset").Replace("\\", "/");
         Debug.Log($"[平滑法线烘焙] 保存路径: {outputPath}");
 
+        // ★ 二次烘焙：原地用 CopySerialized 整体覆盖现有 _SmoothN.asset 的全部序列化字段，
+        // 保留原 GUID。这样指向该资源的引用（含 Variant 层 m_Mesh override）都不会失效。
+        // 不能改成 DeleteAsset + CreateAsset —— 那会让旧 GUID 失效，多层嵌套 prefab 场景下
+        // ApplyPropertyOverride 无法稳定地把新 GUID 写回到 Variant 层，导致 MeshRenderer 上 mesh missing。
         Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(outputPath);
         if (existing != null)
         {
+            Debug.Log($"[平滑法线烘焙] 检测到已有 _SmoothN，原地覆盖（保留 GUID 避免引用 missing）：{outputPath}");
             string oldName = existing.name;
             EditorUtility.CopySerialized(newMesh, existing);
             existing.name = oldName;
             EditorUtility.SetDirty(existing);
             AssetDatabase.SaveAssets();
+            // 强制重导，确保 Unity 内存中的 mesh 数据与磁盘一致，避免后续 ApplyPropertyOverride
+            // 拿到旧数据视图（旧版本上确认过的偶发问题）
+            AssetDatabase.ImportAsset(outputPath, ImportAssetOptions.ForceUpdate);
             Object.DestroyImmediate(newMesh);
             return existing;
         }
 
         AssetDatabase.CreateAsset(newMesh, outputPath);
+        AssetDatabase.SaveAssets();
         return newMesh;
     }
 }
