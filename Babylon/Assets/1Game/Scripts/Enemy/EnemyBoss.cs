@@ -784,6 +784,11 @@ namespace XianTu
 
             DestroyWarningIndicator();
             TryDropItem();
+
+            // v0.5 搜打撤：Boss 必定掉一件【洞府素材】（境界 Boss 是搜打撤的关键收益点）
+            CaveMaterialPool.SpawnRandom(transform.position + new Vector3(1.5f, 0, 0), 1f);
+            CaveMaterialPool.SpawnRandom(transform.position + new Vector3(-1.5f, 0, 0), 1f);
+
             GameEvents.Publish(new GameEvents.EnemyKilled
             {
                 Enemy = gameObject, Position = transform.position

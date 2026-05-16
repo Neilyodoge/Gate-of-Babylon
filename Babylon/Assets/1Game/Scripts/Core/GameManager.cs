@@ -96,6 +96,7 @@ namespace XianTu
             EnterVillageHub();
             StatusEffectHUD.EnsureExists();
             SpiritRootMechanicHUD.EnsureExists();
+            RunHUD.Ensure();
         }
 
         /// <summary>
@@ -152,6 +153,12 @@ namespace XianTu
             Debug.Log("<color=magenta>═══════════════════════════</color>");
             Debug.Log("<color=magenta>  入梦... 仙途梦境开始</color>");
             Debug.Log("<color=magenta>═══════════════════════════</color>");
+
+            // v0.5：自动应用所有跨局已解锁的化身天赋
+            if (PlayerController.Instance != null)
+            {
+                PermanentTalentLoader.Apply(PlayerController.Instance);
+            }
 
             // 生成整局的房间布局
             GenerateLevelLayout();
@@ -377,27 +384,16 @@ namespace XianTu
 
             if (levelComplete)
             {
-                // 当前层所有房间通关，进入下一层
-                _currentLevel++;
-                _currentRoomInLevel = 0;
-
-                if (_currentLevel >= _realmNames.Length)
-                {
-                    // 通关！
-                    Debug.Log("<color=yellow>✨✨✨ 渡劫成功！飞升成仙！✨✨✨</color>");
-                    _gameOver = true;
-                    GameEvents.Publish(new GameEvents.GameWon());
-                    return;
-                }
-
-                Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
+                // v0.5 搜打撤：当前层全部通关 → 在房间内 spawn【出梦点】，玩家可选择撤离 vs 闯下一层
+                SpawnExtractPointAndPortal();
+                return;
             }
             else
             {
                 Debug.Log($"<color=cyan>进入下一个房间：{CurrentRealmName} 房间 {_currentRoomInLevel + 1}/{_levelRooms[_currentLevel].Count}</color>");
             }
 
-            // 在房间北侧生成传送门
+            // 在房间北侧生成传送门（同层内房间过渡）
             if (LevelTransition.Instance != null)
             {
                 float roomHalfDepth = GetCurrentRoomHalfDepth();
@@ -409,6 +405,64 @@ namespace XianTu
             else
             {
                 Invoke(nameof(SpawnCurrentRoom), 2f);
+            }
+        }
+
+        /// <summary>
+        /// v0.5 搜打撤：每境界结束时同时生成【出梦点】（撤离）和【下一境界传送门】（继续），让玩家做决策。
+        /// </summary>
+        private void SpawnExtractPointAndPortal()
+        {
+            Vector3 roomCenter = _currentRoomGo != null ? _currentRoomGo.transform.position : Vector3.zero;
+            float roomHalfDepth = GetCurrentRoomHalfDepth();
+
+            // 检查是否已通关最后一层
+            bool isLastRealm = _currentLevel >= _realmNames.Length - 1;
+
+            // 渡劫台：放在房间正北（玩家可选，不强制）
+            var tribGo = new GameObject($"HeavenTribulation_Level{_currentLevel}");
+            tribGo.transform.position = roomCenter + new Vector3(0, 0, 6f);
+            var trib = tribGo.AddComponent<HeavenTribulation>();
+            trib.Build(() => { });
+
+            // 出梦点：放在房间西侧（左边）
+            var extractGo = new GameObject($"ExtractPoint_Level{_currentLevel}");
+            extractGo.transform.position = roomCenter + new Vector3(-6f, 0, 0);
+            var ep = extractGo.AddComponent<ExtractPoint>();
+            ep.Build(() =>
+            {
+                // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 清丹药 → 回 VillageHub
+                CaveInventory.Instance.CommitCurrentRun();
+                InsightSystem.Instance.CommitOnExtract();
+                PendingPillCarry.ClearActive();
+                EnterVillageHub();
+                _transitioning = false;
+                _gameOver = false;
+                Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府</color>");
+            });
+
+            if (isLastRealm)
+            {
+                // 最后一层：直接通关
+                _currentLevel++;
+                _currentRoomInLevel = 0;
+                Debug.Log("<color=yellow>✨✨✨ 渡劫成功！飞升成仙！✨✨✨</color>");
+                _gameOver = true;
+                GameEvents.Publish(new GameEvents.GameWon());
+                return;
+            }
+
+            // 下一境界传送门：放在房间东侧（右边）
+            if (LevelTransition.Instance != null)
+            {
+                Vector3 portalPos = roomCenter + new Vector3(6f, 0, 0);
+                LevelTransition.Instance.SpawnPortal(portalPos, () =>
+                {
+                    _currentLevel++;
+                    _currentRoomInLevel = 0;
+                    Debug.Log($"<color=magenta>═══ 闯入下一层：{CurrentRealmName} ═══</color>");
+                    SpawnCurrentRoom();
+                });
             }
         }
 
@@ -438,7 +492,21 @@ namespace XianTu
         private void OnPlayerDied(GameEvents.PlayerDied evt)
         {
             _gameOver = true;
-            Debug.Log("<color=red>梦境破碎... 惊醒回到现实</color>");
+
+            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；丹药 + 悟性也消失
+            int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
+            PendingPillCarry.ClearActive();
+            InsightSystem.Instance.AbandonOnDeath();
+
+            // 增加死亡统计
+            SaveSystem.Instance.Data.totalDeaths++;
+
+            // 挂"魂伤" debuff（跨局，洞府里慢慢消除）
+            var saveData = SaveSystem.Instance.Data;
+            saveData.soulHurtRemainingSec = 3f * 3600f;  // 3 游戏内小时
+            SaveSystem.Instance.Save();
+
+            Debug.Log($"<color=red>梦境破碎... 惊醒回到现实（残魂转化 {qiCompensation} 灵气 + 3 小时魂伤）</color>");
         }
 
         /// <summary>敌人被击杀时奖励灵力碎片</summary>
@@ -454,6 +522,16 @@ namespace XianTu
             int totalShards = baseShards + levelBonus;     // 1..4
 
             PlayerResources.Instance.AddShards(totalShards);
+
+            // v0.5 顿悟系统：按怪物类型加悟性
+            int insightAmount = 1;
+            if (evt.Enemy != null)
+            {
+                string n = evt.Enemy.name;
+                if (n.Contains("Boss")) insightAmount = 10;
+                else if (n.Contains("Elite")) insightAmount = 3;
+            }
+            InsightSystem.Instance.AddRunInsight(insightAmount, "击杀");
         }
 
         /// <summary>清理场景中残留的掉落物（上一关未拾取的灵物和功法）</summary>

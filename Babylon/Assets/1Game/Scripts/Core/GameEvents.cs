@@ -310,6 +310,76 @@ namespace XianTu
             public float ExplosionRadius;
         }
 
+        // ========== v0.5 搜打撤核心事件 ==========
+
+        /// <summary>洞府灵气资源变化（HUD / UI 监听）</summary>
+        public struct CaveQiChanged
+        {
+            public int NewQi;
+            public int Delta;
+        }
+
+        /// <summary>玩家请求开始撤离（按 F 走近出梦点时触发）</summary>
+        public struct ExtractRequested
+        {
+            public UnityEngine.GameObject ExtractPoint;
+        }
+
+        /// <summary>撤离蓄力成功 —— 玩家完成 5s 蓄力，准备回洞府</summary>
+        public struct ExtractSuccess
+        {
+            public int CaveMaterialsCommitted;  // 上交的洞府素材总件数（用于 UI 显示）
+            public int RealmReachedIndex;       // 撤离时所在境界 0~5
+        }
+
+        /// <summary>撤离被中断（蓄力期间被敌人攻击等）</summary>
+        public struct ExtractInterrupted
+        {
+            public string Reason;  // "Damaged" / "Moved" / "Cancelled"
+        }
+
+        /// <summary>洞府素材已拾取（UI 提示用）</summary>
+        public struct CaveMaterialPickedUp
+        {
+            public ItemData Item;
+            public int Amount;
+            public int CurrentBufferTotal;
+        }
+
+        /// <summary>灵气浓度变化（HUD 弹房间属性提示用）</summary>
+        public struct SpiritDensityChanged
+        {
+            public SpiritDensityLevel NewLevel;
+            public string DisplayName;
+            public UnityEngine.Color Tint;
+        }
+
+        /// <summary>悟性变化（HUD 监听显示）</summary>
+        public struct InsightChanged
+        {
+            public int NewRunInsight;
+            public int Delta;
+            public string Reason;
+            public int NextThreshold;
+        }
+
+        /// <summary>顿悟时刻触发（RealmRewardController 监听 → 弹 3 选 1）</summary>
+        public struct InsightMomentTriggered
+        {
+            public int Threshold;
+            public int MomentIndex;
+        }
+
+        // ========== 天劫渡劫（修仙独有战斗机制 #3）==========
+
+        public struct TribulationStarted { public int BoltCount; }
+        public struct TribulationBoltTelegraph { public int BoltIndex; }
+        public struct TribulationFinished
+        {
+            public TribulationOutcome Outcome;
+            public int HitCount;
+        }
+
         // ========== v0.4 融合层事件 ==========
 
         /// <summary>闪避动作结束（水化身影息斩 / 金化身灵压窗口 30% 概率出现 等订阅）</summary>

@@ -219,6 +219,17 @@ namespace XianTu
             }
         }
 
+        /// <summary>立即把全部 3 个技能槽 CD 清零（顿悟时刻 / 灵机一动 buff 用）。</summary>
+        public void ResetAllCooldowns()
+        {
+            SkillData[] skills = { skillQ, skillE, skillR };
+            for (int i = 0; i < 3; i++)
+            {
+                _skillRechargeTimer[i] = 0f;
+                PublishSkillChargeUpdate(i, skills[i]);
+            }
+        }
+
         /// <summary>
         /// 融合层 · 减少一个正在 CD 中的随机技能的 cooldown（按当前 timer 的百分比）。
         /// </summary>

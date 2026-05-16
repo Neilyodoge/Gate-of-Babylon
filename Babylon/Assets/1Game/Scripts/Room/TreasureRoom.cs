@@ -215,6 +215,13 @@ namespace XianTu
                 }
             }
 
+            // v0.5 搜打撤：宝藏房必定额外出 2 件【洞府素材】（搜打撤"打"通宝藏的高收益锚点）
+            for (int i = 0; i < 2; i++)
+            {
+                Vector3 caveOffset = new Vector3(Random.Range(-1.8f, 1.8f), 0, Random.Range(-1.8f, 1.8f));
+                CaveMaterialPool.SpawnRandom(transform.position + caveOffset, 1f);
+            }
+
             // 开箱动画：箱盖飞起
             if (_chest != null)
             {

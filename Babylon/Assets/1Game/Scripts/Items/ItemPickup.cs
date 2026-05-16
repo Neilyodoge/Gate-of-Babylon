@@ -163,11 +163,28 @@ namespace XianTu
             HidePrompt();
         }
 
-        /// <summary>??????F???? ?????????</summary>
+        /// <summary>按 F 拾取（v0.5 按 ItemScope 分叉为：洞府素材 → CaveInventory 缓冲 / 局内灵物 → SpiritSlotSystem + ItemInventory）</summary>
         private void ManualPickup()
         {
             if (itemData == null || _nearbyPlayer == null) return;
 
+            // v0.5 搜打撤分叉：洞府素材走 CaveInventory，不走槽位 / 战斗背包
+            if (itemData.scope == ItemScope.CaveMaterial)
+            {
+                CaveInventory.Instance.AddToBuffer(itemData, 1);
+                GameEvents.Publish(new GameEvents.CaveMaterialPickedUp
+                {
+                    Item = itemData,
+                    Amount = 1,
+                    CurrentBufferTotal = CaveInventory.Instance.TotalPendingCount
+                });
+                // 洞府素材拾取后直接销毁拾取物（不进背包不进槽位）
+                if (ObjectPool.Instance != null) ObjectPool.Instance.Return(gameObject);
+                else Destroy(gameObject);
+                return;
+            }
+
+            // 局内灵物：保持原有逻辑
             // ?????????????
             if (itemData.linkedSkill != null)
             {

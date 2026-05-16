@@ -26,11 +26,39 @@ namespace XianTu
         private void OnEnable()
         {
             GameEvents.Subscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
+            GameEvents.Subscribe<GameEvents.InsightMomentTriggered>(OnInsightMoment);
         }
 
         private void OnDisable()
         {
             GameEvents.Unsubscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
+            GameEvents.Unsubscribe<GameEvents.InsightMomentTriggered>(OnInsightMoment);
+        }
+
+        /// <summary>顿悟时刻 —— 复用 RealmRewardSelectUI 显示轻量 3 选 1 buff。</summary>
+        private void OnInsightMoment(GameEvents.InsightMomentTriggered evt)
+        {
+            // 如果境界突破 UI 正在显示，延后到下一帧再弹（避免 UI 冲突）
+            if (RealmRewardSelectUI.IsVisible)
+            {
+                StartCoroutine(DelayedInsightMoment(evt));
+                return;
+            }
+            ShowInsightMoment(evt);
+        }
+
+        private System.Collections.IEnumerator DelayedInsightMoment(GameEvents.InsightMomentTriggered evt)
+        {
+            while (RealmRewardSelectUI.IsVisible) yield return null;
+            yield return new WaitForSeconds(0.4f);
+            ShowInsightMoment(evt);
+        }
+
+        private void ShowInsightMoment(GameEvents.InsightMomentTriggered evt)
+        {
+            var options = InsightMomentLibrary.Roll3(_takenIds);
+            if (options == null || options.Count == 0) return;
+            RealmRewardSelectUI.Show($"顿悟 · 第 {evt.MomentIndex} 次", options, OnRewardSelected);
         }
 
         private void OnRealmBreakthrough(GameEvents.RealmBreakthrough evt)

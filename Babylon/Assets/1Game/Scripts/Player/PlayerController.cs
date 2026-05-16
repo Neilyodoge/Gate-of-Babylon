@@ -72,6 +72,27 @@ namespace XianTu
         public bool IsDashing => _isDashing;
         public int DashCharges => _dashCharges;
         public int DashMaxCharges => _dashMaxCharges;
+        public int MaxDashCharges => _dashMaxCharges;
+
+        /// <summary>调整闪避充能上限（顿悟时刻 / RealmReward 用）</summary>
+        public void SetMaxDashCharges(int newMax)
+        {
+            _dashMaxCharges = Mathf.Max(1, newMax);
+            if (_dashCharges > _dashMaxCharges) _dashCharges = _dashMaxCharges;
+        }
+
+        /// <summary>把闪避充能补满（顿悟时刻 / 渡劫后用）</summary>
+        public void RestoreDashCharge()
+        {
+            _dashCharges = _dashMaxCharges;
+        }
+
+        private bool _dashDisabled;
+        /// <summary>开关闪避能力（渡劫期间禁用闪避用）</summary>
+        public void SetDashEnabled(bool enabled)
+        {
+            _dashDisabled = !enabled;
+        }
 
         // 单例（Demo1 简化用）
         public static PlayerController Instance { get; private set; }
@@ -173,9 +194,38 @@ namespace XianTu
             HandleDash();
             HandleMovementInput();
             HandleAiming();
+            HandlePillConsume();
             UpdateTimers();
             ApplyMovement();
             UpdateAnimation();
+        }
+
+        /// <summary>v0.5：按 G 消耗一颗携入梦境的丹药（即时回 40% 最大生命）</summary>
+        private void HandlePillConsume()
+        {
+            if (PendingPillCarry.TotalActive == 0) return;
+            var kb = Keyboard.current;
+            if (kb == null || !kb.gKey.wasPressedThisFrame) return;
+
+            if (PendingPillCarry.ConsumeOne(out var pillName))
+            {
+                float healAmount = stats.maxHp * 0.40f;
+                stats.Heal(healAmount);
+                GameEvents.Publish(new GameEvents.HealthChanged
+                {
+                    CurrentHp = stats.currentHp,
+                    MaxHp = stats.maxHp
+                });
+                GameEvents.Publish(new GameEvents.DamageNumberRequested
+                {
+                    WorldPosition = transform.position + Vector3.up * 1.5f,
+                    Damage = healAmount,
+                    IsCrit = false,
+                    IsPlayerDamage = false,
+                    SpecialTag = $"服丹·{pillName}"
+                });
+                Debug.Log($"<color=#ffaa66>[Pill] 服用 {pillName}，回 {healAmount:F0} HP（剩余 {PendingPillCarry.TotalActive} 颗）</color>");
+            }
         }
 
         /// <summary>WASD 移动输入</summary>
@@ -235,6 +285,7 @@ namespace XianTu
         private void HandleDash()
         {
             if (_isDashing) return;
+            if (_dashDisabled) return;  // v0.5 渡劫期间禁用
 
             var kb = Keyboard.current;
             if (kb != null && kb.spaceKey.wasPressedThisFrame)
@@ -488,6 +539,9 @@ namespace XianTu
                 RawDamage = damage,
                 Attacker = attacker
             });
+
+            // v0.5：受到伤害时中断蓄力中的撤离
+            ExtractPoint.NotifyPlayerDamaged();
 
             GameEvents.Publish(new GameEvents.HealthChanged
             {

@@ -184,5 +184,12 @@ namespace XianTu
         }
 
         public static int Count => _allRewards.Count;
+
+        /// <summary>按 id 取奖励定义（含完整 apply）。供 PermanentTalentLoader / WuDaoCushion 用。</summary>
+        public static RealmReward GetById(string id)
+        {
+            foreach (var r in _allRewards) if (r.id == id) return r;
+            return null;
+        }
     }
 }

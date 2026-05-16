@@ -19,12 +19,33 @@ namespace XianTu
     /// </summary>
     public enum ItemCategory
     {
-        Attack,     // ⚔️ 攻伐灵物
-        Defense,    // 🛡️ 护体灵物
-        Movement,   // 👟 身法灵物
-        Anomaly,    // 🔮 异变灵物
-        Pill,       // 💊 丹药
-        Skill       // 📜 功法
+        Attack,         // ⚔️ 攻伐灵物
+        Defense,        // 🛡️ 护体灵物
+        Movement,       // 👟 身法灵物
+        Anomaly,        // 🔮 异变灵物
+        Pill,           // 💊 丹药
+        Skill,          // 📜 功法
+
+        // === v0.5 洞府素材类（搜打撤核心，需活着撤离才能带回洞府）===
+        Herb,           // 🌿 灵药（炼丹房原料）
+        Ore,            // 🪨 灵矿（炼器房原料）
+        BeastMaterial,  // 🐉 妖兽材料（灵兽园 / 炼器房原料）
+        ScripturePage,  // 📃 古籍残页（藏经阁拼合功法）
+        PlantSeed,      // 🌱 灵植种子（灵田种植）
+        ArraySigil      // 🪶 阵法符（阵法台部署）
+    }
+
+    /// <summary>
+    /// 灵物用途分类（v0.5 搜打撤核心）。
+    /// - <see cref="RunOnly"/>：战斗中捡到立即生效，整局参与 build；梦醒消失。
+    /// - <see cref="CaveMaterial"/>：战斗中捡到背在背包；必须活着撤离才能带回洞府转化为永久资源；死亡丢失。
+    /// </summary>
+    public enum ItemScope
+    {
+        /// <summary>局内灵物：捡到立即生效，梦醒消失（现有 17 件灵物默认归这里）</summary>
+        RunOnly = 0,
+        /// <summary>洞府素材：撤离才能带回，死亡丢失（灵药 / 灵矿 / 妖兽材料 / 古籍残页 / 灵植种子 / 阵法符）</summary>
+        CaveMaterial = 1
     }
 
     /// <summary>
@@ -41,6 +62,13 @@ namespace XianTu
         public Sprite icon;
         public ItemRarity rarity = ItemRarity.Fan;
         public ItemCategory category = ItemCategory.Attack;
+        /// <summary>
+        /// v0.5 搜打撤核心：用途分类。
+        /// 决定拾取后进入"局内背包（ItemInventory）" 还是"洞府素材背包（CaveInventory）"，
+        /// 后者需要活着撤离才能持久化保留，死亡则全部丢失。
+        /// </summary>
+        [Tooltip("v0.5 搜打撤分类：局内灵物（梦醒消失）vs 洞府素材（撤离才能带回，死亡丢失）")]
+        public ItemScope scope = ItemScope.RunOnly;
         /// <summary>
         /// 元素 / 类型标签（GDD 5.6 元素反应、GDD 6.5 技能修饰共用）。
         /// 装入技能槽时，与该技能 modifierDefs 匹配可激活变体。

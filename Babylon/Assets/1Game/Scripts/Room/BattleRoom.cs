@@ -43,8 +43,12 @@ namespace XianTu
         {
             _roomIndex = roomIndex;
             this.enemyCount = enemyCount;
-            hpMultiplier = hpMul;
-            dmgMultiplier = dmgMul;
+
+            // v0.5 修仙独有战斗机制 #1：先决定本房间的灵气浓度，再据此叠加敌人难度
+            SpiritDensity.Set(SpiritDensity.Roll(roomIndex));
+
+            hpMultiplier = hpMul * SpiritDensity.EnemyHpMultiplier;
+            dmgMultiplier = dmgMul * SpiritDensity.EnemyDamageMultiplier;
             rewardPool = rewards;
             roomWidth = width;
             roomDepth = depth;
@@ -54,6 +58,39 @@ namespace XianTu
 
             // 构建房间视觉和碰撞体
             BuildRoom();
+
+            // 灵脉房：地面铺一层金光氛围
+            if (SpiritDensity.Current == SpiritDensityLevel.Vein)
+            {
+                BuildSpiritVeinAura();
+            }
+        }
+
+        /// <summary>灵脉房特效：地面金光 + 持续粒子感（用地砖增强自发光实现）</summary>
+        private void BuildSpiritVeinAura()
+        {
+            var aura = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            aura.name = "SpiritVeinAura";
+            aura.transform.SetParent(transform, false);
+            aura.transform.localPosition = new Vector3(0, 0.04f, 0);
+            aura.transform.localScale = new Vector3(spawnRadius * 1.5f, 0.04f, spawnRadius * 1.5f);
+            var col = aura.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            var rend = aura.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.SetFloat("_Surface", 1);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                mat.color = new Color(1f, 0.92f, 0.55f, 0.25f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(1f, 0.92f, 0.55f) * 1.4f);
+                rend.material = mat;
+            }
         }
 
         /// <summary>构建房间的地面、墙壁、障碍物</summary>

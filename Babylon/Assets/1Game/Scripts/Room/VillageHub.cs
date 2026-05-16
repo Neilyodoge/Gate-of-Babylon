@@ -108,6 +108,24 @@ namespace XianTu
             portalGo.transform.localPosition = new Vector3(0f, 0f, RoomDepth / 2f - 4f);
             _portal = portalGo.AddComponent<VillagePortal>();
             _portal.Build(onPortalEntered);
+
+            // ===== 灵田模块（v0.5 第一个洞府模块，右侧近）=====
+            var lingTianGo = new GameObject("LingTian");
+            lingTianGo.transform.SetParent(transform, false);
+            lingTianGo.transform.localPosition = new Vector3(7f, 0f, 2f);
+            lingTianGo.AddComponent<LingTian>();
+
+            // ===== 炼丹房模块（v0.5 第二个洞府模块，右侧远）=====
+            var alchemyGo = new GameObject("AlchemyRoom");
+            alchemyGo.transform.SetParent(transform, false);
+            alchemyGo.transform.localPosition = new Vector3(10f, 0f, -3f);
+            alchemyGo.AddComponent<AlchemyRoom>();
+
+            // ===== 悟道蒲团模块（v0.5 第三个洞府模块，左侧近）=====
+            var wuDaoGo = new GameObject("WuDaoCushion");
+            wuDaoGo.transform.SetParent(transform, false);
+            wuDaoGo.transform.localPosition = new Vector3(-7f, 0f, -3f);
+            wuDaoGo.AddComponent<WuDaoCushion>();
         }
 
         // ==================== 工具：世界空间贴文字 ====================
@@ -385,12 +403,38 @@ namespace XianTu
             if (!IsRoutedActive) return;
             if (SpiritRootSelectUI.IsVisible) return;
 
+            // v0.5：魂伤未消退时拒绝入梦
+            float soulHurt = SaveSystem.Instance.Data.soulHurtRemainingSec;
+            if (soulHurt > 0f)
+            {
+                if (_headCard != null) _headCard.SetHintVisible(false);
+                var kb0 = UnityEngine.InputSystem.Keyboard.current;
+                if (kb0 != null && kb0.fKey.wasPressedThisFrame)
+                {
+                    Debug.Log($"<color=#ff8866>[VillagePortal] 魂伤未愈，无法入梦（剩 {GameTime.FormatDuration(soulHurt)}）</color>");
+                }
+                return;
+            }
+
+            // 携丹面板打开时屏蔽其他输入
+            if (PillCarryUI.IsVisible) return;
+
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
             {
-                _triggered = true;
+                // v0.5：先弹携丹面板，确认后再入梦
                 if (_headCard != null) _headCard.SetHintVisible(false);
-                _onEnter?.Invoke();
+                PillCarryUI.Show(
+                    onConfirm: () =>
+                    {
+                        PendingPillCarry.Commit();
+                        _triggered = true;
+                        _onEnter?.Invoke();
+                    },
+                    onCancel: () =>
+                    {
+                        PendingPillCarry.ClearPending();
+                    });
             }
         }
 

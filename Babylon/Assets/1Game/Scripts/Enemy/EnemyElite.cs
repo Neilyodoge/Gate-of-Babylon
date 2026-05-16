@@ -472,6 +472,11 @@ namespace XianTu
             TryDropItem(true);
             TryDropSkill();
 
+            // v0.5 搜打撤：精英怪 40% 概率额外掉一件【洞府素材】（独立 roll，不抢灵物槽位）
+            // 灵气浓度叠加
+            float eliteCaveChance = 0.4f + SpiritDensity.CaveMaterialBonusChance;
+            CaveMaterialPool.SpawnRandom(transform.position + new Vector3(Random.Range(-1.2f, 1.2f), 0, Random.Range(-1.2f, 1.2f)), eliteCaveChance);
+
             // 分裂词缀：死亡时分裂为2个小怪
             if (_hasSplitting)
             {
