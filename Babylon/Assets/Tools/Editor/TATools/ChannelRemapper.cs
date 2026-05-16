@@ -1432,6 +1432,10 @@ public class ChannelRemapper : EditorWindow
             // Image 2 base name: use B texture name when available, fall back to A
             bool hasBForImg2 = !string.IsNullOrEmpty(bPath);
             string base2Filename = hasBForImg2 ? Path.GetFileNameWithoutExtension(bPath) : filename;
+
+            // Safety: if image 2 would write to the same path as image 1, append "_2" to the suffix
+            if (!hasBForImg2 && suffix2 == (string.IsNullOrEmpty(outputSuffix) ? DefaultSuffix : outputSuffix))
+                suffix2 += "_2";
             string base2FullDir  = hasBForImg2
                 ? Path.GetDirectoryName(Path.Combine(
                     Application.dataPath.Substring(0, Application.dataPath.Length - "Assets".Length), bPath))
