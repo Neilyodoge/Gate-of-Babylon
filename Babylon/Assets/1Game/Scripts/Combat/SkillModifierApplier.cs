@@ -166,7 +166,8 @@ namespace XianTu
 
         /// <summary>
         /// 技能自身 elementTag 命中表现。与"槽位灵物 modifier"无关——
-        /// 只要 SkillData.elementTag != None，命中所有目标都会产生对应元素效果（灼烧/冻结/雷击/颜色 cube）。
+        /// 只要 SkillData.elementTag != None，命中所有目标都会产生对应元素效果（灼烧/冻结/雷击/差异化 VFX）。
+        /// v0.3.3：使用 FxFactory 按元素生成有显著区别的粒子效果（火橙球 / 冰蓝晶 / 雷黄锯齿 / 风青绿环 / 土棕方 / 木绿球 / 穿刺白线）。
         /// </summary>
         public static void ApplyElementImpact(
             ElementTag tag,
@@ -176,8 +177,8 @@ namespace XianTu
         {
             if (tag == ElementTag.None) return;
 
-            // 落点弹一个颜色 cube 作为元素提示
-            SpawnCubeVfx(impactPos + Vector3.up * 0.1f, ColorOf(tag), 0.8f, 0.5f);
+            // 落点用元素特色爆发（主形状 + 4 绕飞子球 + AOE 圆环）
+            FxFactory.SpawnElementBurst(impactPos, tag, 1.2f, 0.5f);
 
             if (hitTargets == null || player == null) return;
 
@@ -190,11 +191,11 @@ namespace XianTu
                 {
                     case ElementTag.Fire:
                         ApplyBurn(col.gameObject, 3f, 2f);
-                        SpawnCubeVfx(pos, ColorOf(tag), 0.4f, 0.3f);
+                        FxFactory.SpawnPrimitive(pos, PrimitiveType.Sphere, 0.5f, FxFactory.ElementColor(tag), 0.35f, true);
                         break;
                     case ElementTag.Ice:
                         if (Random.value < 0.35f) ApplyFreeze(col.gameObject, 0.6f);
-                        SpawnCubeVfx(pos, ColorOf(tag), 0.4f, 0.3f);
+                        FxFactory.SpawnPrimitive(pos, PrimitiveType.Cube, 0.45f, FxFactory.ElementColor(tag), 0.4f, true);
                         break;
                     case ElementTag.Thunder:
                         var dmgable = col.GetComponent<IDamageable>();
@@ -209,18 +210,30 @@ namespace XianTu
                                 SpecialTag = "雷击"
                             });
                         }
-                        SpawnCubeVfx(pos, ColorOf(tag), 0.5f, 0.3f);
+                        // 锯齿：用纵向拉长 Cube + 闪烁
+                        var thunder = FxFactory.SpawnPrimitive(pos + Vector3.up * 0.5f, PrimitiveType.Cube, 0.5f, FxFactory.ElementColor(tag), 0.3f, true);
+                        if (thunder != null) thunder.transform.localScale = new Vector3(0.1f, 1.2f, 0.1f);
                         break;
                     case ElementTag.Wind:
-                        // 风：轻微击退（这里用 cube 提示，击退由 IDamageable 内部处理过了）
-                        SpawnCubeVfx(pos, ColorOf(tag), 0.5f, 0.25f);
+                        // 风：拉长胶囊，朝玩家朝向冲一下
+                        FxFactory.SpawnPrimitive(pos, PrimitiveType.Capsule, 0.5f, FxFactory.ElementColor(tag), 0.3f, true);
                         break;
                     case ElementTag.Pierce:
-                        // 穿透：白色 cube 标记一下
-                        SpawnCubeVfx(pos, ColorOf(tag), 0.35f, 0.25f);
+                        // 穿透：白色横向胶囊，模拟剑气穿过
+                        var pierce = FxFactory.SpawnPrimitive(pos, PrimitiveType.Capsule, 0.4f, FxFactory.ElementColor(tag), 0.3f, true);
+                        if (pierce != null) pierce.transform.localScale = new Vector3(0.15f, 0.15f, 0.9f);
+                        break;
+                    case ElementTag.Water:
+                        FxFactory.SpawnPrimitive(pos, PrimitiveType.Sphere, 0.5f, FxFactory.ElementColor(tag), 0.4f, true);
+                        break;
+                    case ElementTag.Wood:
+                        FxFactory.SpawnPrimitive(pos, PrimitiveType.Sphere, 0.4f, FxFactory.ElementColor(tag), 0.4f, true);
+                        break;
+                    case ElementTag.Earth:
+                        FxFactory.SpawnPrimitive(pos, PrimitiveType.Cube, 0.55f, FxFactory.ElementColor(tag), 0.4f, true);
                         break;
                     default:
-                        SpawnCubeVfx(pos, ColorOf(tag), 0.4f, 0.3f);
+                        FxFactory.SpawnPrimitive(pos, PrimitiveType.Sphere, 0.4f, FxFactory.ElementColor(tag), 0.3f, true);
                         break;
                 }
             }

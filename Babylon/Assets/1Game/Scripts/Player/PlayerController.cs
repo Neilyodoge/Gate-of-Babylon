@@ -102,7 +102,7 @@ namespace XianTu
             if (GetComponent<StatusEffectController>() == null)
                 gameObject.AddComponent<StatusEffectController>();
 
-            // 灵根控制器（自动挂载，未选择灵根时无副作用）
+            // 化身控制器（自动挂载，未选择化身时无副作用）
             if (GetComponent<SpiritRootController>() == null)
                 gameObject.AddComponent<SpiritRootController>();
 
@@ -343,7 +343,15 @@ namespace XianTu
                 velocity = _dashDirection * (dashDistance / dashDuration);
                 _dashTimer -= Time.deltaTime;
                 if (_dashTimer <= 0)
+                {
                     _isDashing = false;
+                    // v0.4 融合层：闪避结束事件（水化身影息斩 / 金化身灵压窗口 30% 概率出现）
+                    GameEvents.Publish(new GameEvents.DodgeFinished
+                    {
+                        EndPosition = transform.position,
+                        EndDirection = _dashDirection
+                    });
+                }
             }
             else
             {
@@ -418,7 +426,7 @@ namespace XianTu
         {
             if (_invincible || !stats.IsAlive) return;
 
-            // 土灵根：地脉护盾优先抵挡（仅消耗一次伤害，无视伤害大小）
+            // 土化身：地脉护盾优先抵挡（仅消耗一次伤害，无视伤害大小）
             var rootCtrl = GetComponent<SpiritRootController>();
             if (rootCtrl != null && rootCtrl.TryConsumeEarthShield())
             {

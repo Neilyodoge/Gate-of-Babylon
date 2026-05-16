@@ -7,7 +7,7 @@ namespace XianTu
     /// <summary>
     /// 村庄 Hub —— 玩家入梦后的"现实"出生点（参考 Hades 2 的 Mourning Fields）。
     /// 不属于 6 层境界的任何一层，玩家在此进行：
-    ///   1. 通过 NPC 选择 / 重选灵根（默认金灵根，玩家可不交互直接出发）
+    ///   1. 通过 NPC 选择 / 重选化身（默认金化身，玩家可不交互直接出发）
     ///   2. 走山门 → 调 GameManager.StartNewRun() 进入第一关
     ///
     /// 视觉上比常规战斗房间更大、更暖、装饰性更强；不会清残留拾取物（Hub 本身没有掉落）。
@@ -149,7 +149,7 @@ namespace XianTu
     }
 
     // ============================================================
-    //                    NPC：司命使（灵根选择）
+    //                    NPC：司命使（化身选择）
     // ============================================================
 
     /// <summary>
@@ -165,7 +165,7 @@ namespace XianTu
         public bool IsRoutedActive { get; set; }
 
         private bool _playerInRange;
-        private GameObject _hint;
+        private NpcHeadCard _headCard;
         private GameObject _bodyGo;
 
         public void Build()
@@ -188,9 +188,17 @@ namespace XianTu
                 bodyRend.material = mat;
             }
 
-            // 头顶标牌：司命使
-            CreateLabel(transform, "司命使", new Vector3(0, 2.6f, 0),
-                new Color(0.85f, 0.7f, 1f), 22);
+            // 统一 NPC 头顶卡片（紫色主题 · 化身选择）
+            _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
+            {
+                displayName = "司命使",
+                icon = "✦",
+                roleSub = "化身选择",
+                hintText = "按 [F] 选择化身",
+                themeColor = new Color(0.78f, 0.55f, 1f),
+                yOffset = 2.6f,
+                showLongRangeMarker = true
+            });
 
             // 触发器（更大一点，方便玩家走过去）
             var trig = new GameObject("InteractTrigger");
@@ -205,17 +213,14 @@ namespace XianTu
             var bridge = trig.AddComponent<TriggerBridge>();
             bridge.OnEnter = OnPlayerEnter;
             bridge.OnExit = OnPlayerExit;
-
-            // 交互提示
-            CreateHint();
         }
 
         private void Update()
         {
-            if (_hint != null)
+            if (_headCard != null)
             {
                 bool wantHint = IsRoutedActive && !SpiritRootSelectUI.IsVisible;
-                if (_hint.activeSelf != wantHint) _hint.SetActive(wantHint);
+                _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
@@ -236,83 +241,12 @@ namespace XianTu
         {
             _playerInRange = false;
             InteractionRouter.Unregister(this);
-            if (_hint != null) _hint.SetActive(false);
+            if (_headCard != null) _headCard.SetHintVisible(false);
         }
 
         private void OnDestroy()
         {
             InteractionRouter.Unregister(this);
-            if (_hint != null) Destroy(_hint);
-        }
-
-        private void CreateHint()
-        {
-            var canvasGo = new GameObject("Hint");
-            canvasGo.transform.SetParent(transform, false);
-            canvasGo.transform.localPosition = new Vector3(0, 3.2f, 0);
-
-            var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.WorldSpace;
-            var rt = canvasGo.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(5f, 0.5f);
-            canvasGo.transform.localScale = Vector3.one * 0.03f;
-
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(canvasGo.transform, false);
-            var trt = textGo.AddComponent<RectTransform>();
-            trt.anchorMin = Vector2.zero;
-            trt.anchorMax = Vector2.one;
-            trt.offsetMin = Vector2.zero;
-            trt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
-            text.text = "按 [F] 选择灵根";
-            text.fontSize = 18;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.color = new Color(0.9f, 0.75f, 1f);
-            text.fontStyle = FontStyle.Bold;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            var outline = textGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.8f);
-            outline.effectDistance = new Vector2(1, -1);
-
-            canvasGo.AddComponent<BillboardUI>();
-
-            _hint = canvasGo;
-            _hint.SetActive(false);
-        }
-
-        private static void CreateLabel(Transform parent, string text, Vector3 localPos, Color color, int fontSize)
-        {
-            var canvasGo = new GameObject($"Label_{text}");
-            canvasGo.transform.SetParent(parent, false);
-            canvasGo.transform.localPosition = localPos;
-            var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.WorldSpace;
-            var rt = canvasGo.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(5f, 0.6f);
-            canvasGo.transform.localScale = Vector3.one * 0.035f;
-
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(canvasGo.transform, false);
-            var trt = textGo.AddComponent<RectTransform>();
-            trt.anchorMin = Vector2.zero;
-            trt.anchorMax = Vector2.one;
-            trt.offsetMin = Vector2.zero;
-            trt.offsetMax = Vector2.zero;
-            var t = textGo.AddComponent<Text>();
-            t.text = text;
-            t.fontSize = fontSize;
-            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            t.color = color;
-            t.fontStyle = FontStyle.Bold;
-            t.alignment = TextAnchor.MiddleCenter;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
-            var outline = textGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.8f);
-            outline.effectDistance = new Vector2(1, -1);
-
-            canvasGo.AddComponent<BillboardUI>();
         }
     }
 
@@ -337,7 +271,7 @@ namespace XianTu
         private bool _triggered;
         private float _enterTimer;
         private Action _onEnter;
-        private GameObject _hint;
+        private NpcHeadCard _headCard;
 
         public void Build(Action onEnter)
         {
@@ -402,7 +336,17 @@ namespace XianTu
             bridge.OnEnter = OnPlayerEnter;
             bridge.OnExit = OnPlayerExit;
 
-            CreateHint();
+            // 统一卡片 UI（紫色 · 入梦）—— 让山门远距离就能看到，玩家明白这里是出口
+            _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
+            {
+                displayName = "梦境之门",
+                icon = "✦",
+                roleSub = "入梦 · 进入第一关",
+                hintText = "按 [F] 入梦",
+                themeColor = new Color(0.7f, 0.4f, 1f),
+                yOffset = 4.5f,
+                showLongRangeMarker = true
+            });
         }
 
         private void BuildPillar(Vector3 localPos)
@@ -425,42 +369,6 @@ namespace XianTu
             }
         }
 
-        private void CreateHint()
-        {
-            var canvasGo = new GameObject("PortalHint");
-            canvasGo.transform.SetParent(transform, false);
-            canvasGo.transform.localPosition = new Vector3(0, 4f, 0);
-
-            var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.WorldSpace;
-            var rt = canvasGo.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(6f, 0.6f);
-            canvasGo.transform.localScale = Vector3.one * 0.03f;
-
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(canvasGo.transform, false);
-            var trt = textGo.AddComponent<RectTransform>();
-            trt.anchorMin = Vector2.zero;
-            trt.anchorMax = Vector2.one;
-            trt.offsetMin = Vector2.zero;
-            trt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
-            text.text = "按 [F] 入梦 · 进入第一关";
-            text.fontSize = 20;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.color = new Color(1f, 0.85f, 0.3f);
-            text.fontStyle = FontStyle.Bold;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            var outline = textGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.9f);
-            outline.effectDistance = new Vector2(1.2f, -1.2f);
-
-            canvasGo.AddComponent<BillboardUI>();
-            _hint = canvasGo;
-            _hint.SetActive(false);
-        }
-
         private void Update()
         {
             if (_triggered || !_playerInRange) return;
@@ -468,10 +376,10 @@ namespace XianTu
             _enterTimer += Time.deltaTime;
             if (_enterTimer < ENTER_DELAY) return;
 
-            if (_hint != null)
+            if (_headCard != null)
             {
                 bool wantHint = IsRoutedActive && !SpiritRootSelectUI.IsVisible;
-                if (_hint.activeSelf != wantHint) _hint.SetActive(wantHint);
+                _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
@@ -481,7 +389,7 @@ namespace XianTu
             if (kb != null && kb.fKey.wasPressedThisFrame)
             {
                 _triggered = true;
-                if (_hint != null) _hint.SetActive(false);
+                if (_headCard != null) _headCard.SetHintVisible(false);
                 _onEnter?.Invoke();
             }
         }
@@ -498,7 +406,7 @@ namespace XianTu
             _playerInRange = false;
             _enterTimer = 0f;
             InteractionRouter.Unregister(this);
-            if (_hint != null) _hint.SetActive(false);
+            if (_headCard != null) _headCard.SetHintVisible(false);
         }
 
         private void OnDestroy()

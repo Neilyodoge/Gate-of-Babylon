@@ -3,8 +3,8 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 玩家身上当前所有 StatusEffect / 灵根的可视化（顶部 IMGUI 小条）。
-    /// 包括：当前选中灵根的标签 + 所有激活中的 BUFF 列表（带层数 / 倒计时）。
+    /// 玩家身上当前所有 StatusEffect / 化身的可视化（顶部 IMGUI 小条）。
+    /// 包括：当前选中化身的标签 + 所有激活中的 BUFF 列表（带层数 / 倒计时）。
     /// </summary>
     public class StatusEffectHUD : MonoBehaviour
     {
@@ -28,11 +28,10 @@ namespace XianTu
 
             // 顶部居中条
             float barW = 480f;
-            float barH = 56f;
             float x = (Screen.width - barW) * 0.5f;
             float y = 8f;
 
-            // 灵根标签
+            // 化身标签
             if (rootCtrl != null && rootCtrl.CurrentDef != null)
             {
                 var def = rootCtrl.CurrentDef;
@@ -49,7 +48,7 @@ namespace XianTu
                     alignment = TextAnchor.MiddleCenter,
                     normal = { textColor = def.displayColor }
                 };
-                GUI.Label(rect, $"灵根·{def.name}　·　{def.passive}", style);
+                GUI.Label(rect, $"化身·{def.name}　·　{def.passive}", style);
                 y += 26f;
             }
 

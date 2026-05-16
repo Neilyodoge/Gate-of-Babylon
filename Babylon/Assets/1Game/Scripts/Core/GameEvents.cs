@@ -62,7 +62,7 @@ namespace XianTu
             public float Damage;
             public float CurrentHp;
             public float MaxHp;
-            /// <summary>未经减伤的原始伤害（用于水灵根反伤等）</summary>
+            /// <summary>未经减伤的原始伤害（用于水化身反伤等）</summary>
             public float RawDamage;
             /// <summary>攻击者 GameObject（可空）</summary>
             public UnityEngine.GameObject Attacker;
@@ -244,7 +244,7 @@ namespace XianTu
             public SkillData Skill;
         }
 
-        /// <summary>灵根选择完成（开局或调试切换时）</summary>
+        /// <summary>化身选择完成（开局或调试切换时）</summary>
         public struct SpiritRootSelected
         {
             public SpiritRootType Root;
@@ -258,6 +258,88 @@ namespace XianTu
             public int SlotIndex;          // 0=Q, 1=E, 2=R
             public string ModifiedSkillName; // 例如"陨石术"
             public ElementTag PrimaryTag;
+        }
+
+        // ========== v0.3.3 普攻↔技能融合层事件 ==========
+
+        /// <summary>普攻命中（每段攻击命中至少 1 个敌人时发布一次）</summary>
+        public struct MeleeHitConnected
+        {
+            public int ComboStep;   // 0=一段, 1=二段, 2=三段
+            public UnityEngine.Vector3 HitPoint;
+            public UnityEngine.GameObject Target;  // 主要命中的目标（通常是离玩家最近的）
+        }
+
+        /// <summary>主动技能开始释放（触发灵压窗口等）</summary>
+        public struct SkillCastStarted
+        {
+            public int SlotIndex;
+            public SkillData Skill;
+        }
+
+        /// <summary>主动技能命中敌人（每次技能命中至少 1 个敌人时发布一次）</summary>
+        public struct SkillHitConnected
+        {
+            public int SlotIndex;
+            public SkillData Skill;
+            public UnityEngine.Vector3 HitPoint;
+            public UnityEngine.GameObject Target;
+        }
+
+        /// <summary>金化身 · 灵压窗口打开（VFX / HUD 用）</summary>
+        public struct PerfectStrikeWindowOpened
+        {
+            public float WindowDuration;  // 窗口持续时长（秒）
+            public UnityEngine.Vector3 PlayerHeadPos;  // 玩家头顶世界坐标（VFX 用）
+            public string SourceTag;  // "Melee" / "Skill" / "Dodge" / "Sword Heart"
+        }
+
+        /// <summary>金化身 · 灵压爆发触发（完美收刀成功）</summary>
+        public struct PerfectStrikeTriggered
+        {
+            public UnityEngine.Vector3 HitPoint;
+            public int ConsecutiveCount;  // 连续完美次数
+            public bool EnteredSwordHeart;  // 是否进入剑心通明
+        }
+
+        /// <summary>木化身 · 寄生种子引爆（VFX 用）</summary>
+        public struct ParasiteSeedDetonated
+        {
+            public UnityEngine.Vector3 Position;
+            public int SeedCount;     // 引爆的种子数量
+            public float ExplosionRadius;
+        }
+
+        // ========== v0.4 融合层事件 ==========
+
+        /// <summary>闪避动作结束（水化身影息斩 / 金化身灵压窗口 30% 概率出现 等订阅）</summary>
+        public struct DodgeFinished
+        {
+            public UnityEngine.Vector3 EndPosition;
+            public UnityEngine.Vector3 EndDirection;
+        }
+
+        /// <summary>水化身 · 影息斩触发（命中目标后留下水痕印 + 视觉反馈）</summary>
+        public struct ShadowStrikeTriggered
+        {
+            public UnityEngine.Vector3 HitPoint;
+            public UnityEngine.GameObject Target;
+            public float DamageDealt;
+        }
+
+        /// <summary>火化身 · 怒气变化（HUD 用，与 ResourceChanged 区分以避免混淆灵力碎片）</summary>
+        public struct RageChanged
+        {
+            public int CurrentRage;
+            public int MaxRage;
+        }
+
+        /// <summary>火化身 · 狂火开始 / 结束（视觉用）</summary>
+        public struct FireFrenzyState
+        {
+            public bool IsActive;        // true=进入狂火，false=狂火结束
+            public float Duration;       // 持续时长（IsActive=false 时为 0）
+            public bool IsForced;        // 是否强制爆发（怒气满 100 闲置 5s 触发）
         }
     }
 }

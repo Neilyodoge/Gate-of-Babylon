@@ -31,7 +31,7 @@ namespace XianTu
 
         // 交互
         private bool _playerInRange;
-        private GameObject _interactHint;
+        private NpcHeadCard _headCard; // 统一头顶 UI（v0.3.3）
 
         // 技能升级追踪（运行时，每个槽位的升级次数）
         private int[] _upgradeCount = new int[3]; // Q=0, E=1, R=2
@@ -121,30 +121,17 @@ namespace XianTu
                 npcRend.material = mat;
             }
 
-            // NPC名字
-            var nameCanvas = new GameObject("MasterName");
-            nameCanvas.transform.SetParent(npc.transform);
-            nameCanvas.transform.localPosition = new Vector3(0, 1.5f, 0);
-            var c = nameCanvas.AddComponent<Canvas>();
-            c.renderMode = RenderMode.WorldSpace;
-            c.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0.4f);
-            nameCanvas.transform.localScale = Vector3.one * 0.035f;
-
-            var textGo = new GameObject("Name");
-            textGo.transform.SetParent(nameCanvas.transform, false);
-            var rt = textGo.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
-            text.text = "功法宗师";
-            text.fontSize = 20;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.color = new Color(0.5f, 1f, 0.6f);
-            text.alignment = TextAnchor.MiddleCenter;
-
-            nameCanvas.AddComponent<BillboardUI>();
+            // 统一 NPC 头顶卡片（绿色主题 · 功法修炼）
+            _headCard = NpcHeadCard.Attach(npc.transform, new NpcHeadCard.Config
+            {
+                displayName = "功法宗师",
+                icon = "✦",
+                roleSub = "功法修炼",
+                hintText = "按 [F] 修炼功法",
+                themeColor = new Color(0.4f, 1f, 0.55f),
+                yOffset = 2.0f,
+                showLongRangeMarker = true
+            });
 
             // 交互触发器
             var triggerGo = new GameObject("UpgradeInteractTrigger");
@@ -159,9 +146,6 @@ namespace XianTu
 
             var interactTrigger = triggerGo.AddComponent<UpgradeInteractTrigger>();
             interactTrigger.Initialize(this);
-
-            // 交互提示
-            CreateInteractHint(npc.transform);
 
             // 出口触发器
             CreateExitTrigger();
@@ -211,35 +195,6 @@ namespace XianTu
             }
         }
 
-        private void CreateInteractHint(Transform npcTransform)
-        {
-            var hintCanvas = new GameObject("InteractHint");
-            hintCanvas.transform.SetParent(npcTransform);
-            hintCanvas.transform.localPosition = new Vector3(0, 2.5f, 0);
-            var c = hintCanvas.AddComponent<Canvas>();
-            c.renderMode = RenderMode.WorldSpace;
-            c.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0.5f);
-            hintCanvas.transform.localScale = Vector3.one * 0.035f;
-
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(hintCanvas.transform, false);
-            var rt = textGo.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
-            text.text = "按 [F] 修炼功法";
-            text.fontSize = 20;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.color = new Color(0.5f, 1f, 0.7f);
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-
-            hintCanvas.AddComponent<BillboardUI>();
-            _interactHint = hintCanvas;
-            _interactHint.SetActive(false);
-        }
 
         // ==================== 升级UI ====================
 
@@ -672,11 +627,10 @@ namespace XianTu
         private void Update()
         {
             // 同步交互提示：被路由器选中时才显示「按 F」提示
-            if (_interactHint != null)
+            if (_headCard != null)
             {
                 bool wantHint = _playerInRange && !_panelOpen && IsRoutedActive;
-                if (_interactHint.activeSelf != wantHint)
-                    _interactHint.SetActive(wantHint);
+                _headCard.SetHintVisible(wantHint);
             }
 
             if (_playerInRange && !_panelOpen && IsRoutedActive)
@@ -704,7 +658,7 @@ namespace XianTu
         {
             _playerInRange = false;
             InteractionRouter.Unregister(this);
-            if (_interactHint != null) _interactHint.SetActive(false);
+            if (_headCard != null) _headCard.SetHintVisible(false);
         }
 
         // ==================== 工具方法 ====================

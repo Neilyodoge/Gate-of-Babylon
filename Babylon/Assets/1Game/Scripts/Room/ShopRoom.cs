@@ -59,7 +59,7 @@ namespace XianTu
 
         // 交互状态
         private bool _playerInRange;
-        private GameObject _interactHint; // 靠近商人时的提示UI
+        private NpcHeadCard _headCard; // 统一头顶 UI（v0.3.3）
 
         public void Initialize(int roomIndex, ItemData[] itemPool, SkillData[] skillPool = null)
         {
@@ -125,30 +125,17 @@ namespace XianTu
                 npcRend.material = mat;
             }
 
-            // 商人名字
-            var nameCanvas = new GameObject("ShopkeeperName");
-            nameCanvas.transform.SetParent(npc.transform);
-            nameCanvas.transform.localPosition = new Vector3(0, 1.5f, 0);
-            var c = nameCanvas.AddComponent<Canvas>();
-            c.renderMode = RenderMode.WorldSpace;
-            c.GetComponent<RectTransform>().sizeDelta = new Vector2(3f, 0.4f);
-            nameCanvas.transform.localScale = Vector3.one * 0.035f;
-
-            var textGo = new GameObject("Name");
-            textGo.transform.SetParent(nameCanvas.transform, false);
-            var rt = textGo.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
-            text.text = "散修商人";
-            text.fontSize = 20;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.color = new Color(1f, 0.9f, 0.5f);
-            text.alignment = TextAnchor.MiddleCenter;
-
-            nameCanvas.AddComponent<BillboardUI>();
+            // 统一 NPC 头顶卡片（金色主题 · 商人）
+            _headCard = NpcHeadCard.Attach(npc.transform, new NpcHeadCard.Config
+            {
+                displayName = "散修商人",
+                icon = "✦",
+                roleSub = "灵物交易",
+                hintText = "按 [F] 交易",
+                themeColor = new Color(1f, 0.82f, 0.35f),
+                yOffset = 2.0f,
+                showLongRangeMarker = true
+            });
 
             // 商人交互触发器（靠近按F打开商店）
             var shopTriggerGo = new GameObject("ShopInteractTrigger");
@@ -163,9 +150,6 @@ namespace XianTu
 
             var interactTrigger = shopTriggerGo.AddComponent<ShopInteractTrigger>();
             interactTrigger.Initialize(this);
-
-            // 交互提示（世界空间，商人头顶）
-            CreateInteractHint(npc.transform);
 
             // 出口触发器
             CreateExitTrigger();
@@ -1006,11 +990,10 @@ namespace XianTu
         private void Update()
         {
             // 同步交互提示：被路由器选中时才显示「按 F 交易」提示
-            if (_interactHint != null)
+            if (_headCard != null)
             {
                 bool wantHint = _playerInRange && !_shopOpen && IsRoutedActive;
-                if (_interactHint.activeSelf != wantHint)
-                    _interactHint.SetActive(wantHint);
+                _headCard.SetHintVisible(wantHint);
             }
 
             // 仅在被路由器选中时响应 F（避免与拾取物等其他交互体重叠时同时触发）
@@ -1043,37 +1026,7 @@ namespace XianTu
         {
             _playerInRange = false;
             InteractionRouter.Unregister(this);
-            if (_interactHint != null) _interactHint.SetActive(false);
-        }
-
-        private void CreateInteractHint(Transform npcTransform)
-        {
-            var hintCanvas = new GameObject("InteractHint");
-            hintCanvas.transform.SetParent(npcTransform);
-            hintCanvas.transform.localPosition = new Vector3(0, 2.5f, 0);
-            var c = hintCanvas.AddComponent<Canvas>();
-            c.renderMode = RenderMode.WorldSpace;
-            c.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0.5f);
-            hintCanvas.transform.localScale = Vector3.one * 0.035f;
-
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(hintCanvas.transform, false);
-            var rt = textGo.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
-            text.text = "按 [F] 交易";
-            text.fontSize = 20;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.color = new Color(0.6f, 0.9f, 1f);
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-
-            hintCanvas.AddComponent<BillboardUI>();
-            _interactHint = hintCanvas;
-            _interactHint.SetActive(false); // 初始隐藏
+            if (_headCard != null) _headCard.SetHintVisible(false);
         }
 
         // ==================== 工具方法 ====================

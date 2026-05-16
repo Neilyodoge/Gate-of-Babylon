@@ -53,7 +53,7 @@ namespace XianTu
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
         public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "飞升";
 
-        /// <summary>按 itemName 在 itemPool 中查找灵物（灵根起手灵物 / 调试用）</summary>
+        /// <summary>按 itemName 在 itemPool 中查找灵物（化身起手灵物 / 调试用）</summary>
         public ItemData FindItemByName(string itemName)
         {
             if (string.IsNullOrEmpty(itemName) || itemPool == null) return null;
@@ -90,15 +90,16 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
 
             // 启动 → 进入村庄 Hub。玩家在村里：
-            //   1. 默认已选好金灵根（不去 NPC 也能直接玩）
-            //   2. 想换灵根 → 走司命使按 F
+            //   1. 默认已选好金化身（不去 NPC 也能直接玩）
+            //   2. 想换化身 → 走司命使按 F
             //   3. 出发 → 走山门按 F → StartNewRun()
             EnterVillageHub();
             StatusEffectHUD.EnsureExists();
+            SpiritRootMechanicHUD.EnsureExists();
         }
 
         /// <summary>
-        /// 生成村庄 Hub，把玩家放到中央，并自动激活默认灵根（金）。
+        /// 生成村庄 Hub，把玩家放到中央，并自动激活默认化身（金）。
         /// 山门触发后会调 <see cref="StartNewRun"/>。
         /// </summary>
         private void EnterVillageHub()
@@ -118,16 +119,16 @@ namespace XianTu
             var hub = _currentRoomGo.AddComponent<VillageHub>();
             hub.Initialize(onPortalEntered: StartNewRun);
 
-            // 默认灵根：金。玩家可以走到司命使那里重选。
+            // 默认化身：金。玩家可以走到司命使那里重选。
             ApplyDefaultSpiritRootIfNone();
 
             TeleportPlayer(spawnPos);
 
-            Debug.Log("<color=magenta>═══ 入梦之村 · 选择灵根后从山门入梦 ═══</color>");
+            Debug.Log("<color=magenta>═══ 入梦之村 · 选择化身后从山门入梦 ═══</color>");
         }
 
         /// <summary>
-        /// 玩家此前没选过灵根 → 自动应用默认（金）；已经选过则跳过，避免重置玩家手选的灵根。
+        /// 玩家此前没选过化身 → 自动应用默认（金）；已经选过则跳过，避免重置玩家手选的化身。
         /// </summary>
         private void ApplyDefaultSpiritRootIfNone()
         {

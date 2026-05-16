@@ -3,8 +3,8 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 灵根选择面板（v0.3 MVP 临时 IMGUI 实现）
-    /// 进入新一局时由 GameManager 调用 <see cref="Show"/>，玩家从 5 个基础灵根中选一个。
+    /// 化身选择面板（v0.3 MVP 临时 IMGUI 实现）
+    /// 进入新一局时由 GameManager 调用 <see cref="Show"/>，玩家从 5 个基础化身中选一个。
     /// 后续可替换为基于 UGUI 的卡牌选择面板（参考 Risk of Rain / 杀戮尖塔）。
     /// </summary>
     public class SpiritRootSelectUI : MonoBehaviour
@@ -74,7 +74,7 @@ namespace XianTu
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
             };
-            GUI.Label(new Rect(x, y + 18, panelW, 36), "选择灵根", titleStyle);
+            GUI.Label(new Rect(x, y + 18, panelW, 36), "选择化身", titleStyle);
 
             var subStyle = new GUIStyle(GUI.skin.label)
             {
@@ -83,7 +83,7 @@ namespace XianTu
                 normal = { textColor = new Color(0.85f, 0.85f, 0.85f) }
             };
             GUI.Label(new Rect(x, y + 54, panelW, 24),
-                "灵根决定本局的「被动规则」（Hades 风格的角色差异化）。同一件灵物在不同灵根下表现不同。", subStyle);
+                "化身决定本局的「被动规则」（Hades 风格的角色差异化）。同一件灵物在不同化身下表现不同。", subStyle);
 
             // 5 张卡片
             var defs = SpiritRootRegistry.All;
@@ -107,7 +107,7 @@ namespace XianTu
                 normal = { textColor = new Color(0.7f, 0.7f, 0.7f) }
             };
             GUI.Label(new Rect(x, y + panelH - 30f, panelW, 20),
-                "[Esc] 默认选「金灵根」 · 选完可在村庄内回到司命使重新选择", bottomStyle);
+                "[Esc] 默认选「金化身」 · 选完可在村庄内回到司命使重新选择", bottomStyle);
 
             // ESC 关闭（默认选第一个）
             if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)

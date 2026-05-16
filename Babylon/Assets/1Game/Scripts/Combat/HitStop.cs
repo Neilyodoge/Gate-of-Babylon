@@ -82,7 +82,7 @@ namespace XianTu
 
         /// <summary>
         /// 强制中止当前顿帧并恢复时间。
-        /// 用于打开暂停式 UI（灵根选择等）前调用，避免协程半路把
+        /// 用于打开暂停式 UI（化身选择等）前调用，避免协程半路把
         /// timeScale 留在 0.05/0.02/0.01 被 UI 捕获，导致关闭后卡在慢动作。
         /// </summary>
         public void ForceClear()

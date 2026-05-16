@@ -93,6 +93,15 @@ namespace XianTu
                     SkillModifierApplier.ApplyElementImpact(_elementTag, transform.position, list, _ownerPlayer);
                 }
 
+                // v0.3.3 融合层：投射物命中也算技能命中（御剑术等）
+                GameEvents.Publish(new GameEvents.SkillHitConnected
+                {
+                    SlotIndex = -1,  // 投射物来源槽位未跟踪，置 -1
+                    Skill = null,
+                    HitPoint = transform.position,
+                    Target = other.gameObject
+                });
+
                 // 穿透判定
                 if (_pierceRemaining > 0)
                 {

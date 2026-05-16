@@ -17,6 +17,9 @@ namespace XianTu
         [SerializeField] private Transform attackOrigin;
         [SerializeField] private LayerMask enemyLayer;
 
+        /// <summary>暴露给其他战斗组件（如金化身灵压爆发）使用，避免重复配置 LayerMask 引发自伤 bug</summary>
+        public LayerMask EnemyLayer => enemyLayer;
+
         [Header("刀光特效")]
         [SerializeField] private GameObject slashVFXPrefab;
         [SerializeField] private Transform slashVFXSpawnPoint;
@@ -152,6 +155,8 @@ namespace XianTu
 
             var colliders = Physics.OverlapSphere(origin, meleeRange, enemyLayer);
             bool hitAny = false;
+            GameObject firstHitTarget = null;
+            Vector3 firstHitPoint = origin;
 
             foreach (var col in colliders)
             {
@@ -185,6 +190,11 @@ namespace XianTu
                         // 播放打击特效
                         SpawnHitVFX(hitPoint);
                         hitAny = true;
+                        if (firstHitTarget == null)
+                        {
+                            firstHitTarget = col.gameObject;
+                            firstHitPoint = hitPoint;
+                        }
                     }
                 }
             }
@@ -193,7 +203,54 @@ namespace XianTu
             {
                 _hasHitThisSwing = true;
                 _lastHitComboStep = _playerAnim.ComboStep;
+
+                // v0.3.3 融合层：发布命中事件（木化身种种子、金化身触发完美窗口等订阅）
+                int comboStep = _playerAnim.ComboStep;
+                GameEvents.Publish(new GameEvents.MeleeHitConnected
+                {
+                    ComboStep = comboStep,
+                    HitPoint = firstHitPoint,
+                    Target = firstHitTarget
+                });
+
+                // v0.3.3 融合层维度一·A：Attack3 命中 → 随机减 1 个 CD 中技能 10%
+                if (comboStep == 2)
+                    ReduceRandomSkillCooldown(0.10f);
             }
+        }
+
+        /// <summary>
+        /// 融合层 · 减少一个正在 CD 中的随机技能的 cooldown（按当前 timer 的百分比）。
+        /// </summary>
+        private void ReduceRandomSkillCooldown(float percent)
+        {
+            // 收集所有处于充能中的技能槽位
+            System.Collections.Generic.List<int> activeSlots = null;
+            for (int i = 0; i < 3; i++)
+            {
+                if (_skillRechargeTimer[i] > 0.01f)
+                {
+                    activeSlots ??= new System.Collections.Generic.List<int>();
+                    activeSlots.Add(i);
+                }
+            }
+            if (activeSlots == null || activeSlots.Count == 0) return;
+
+            int pickSlot = activeSlots[Random.Range(0, activeSlots.Count)];
+            float before = _skillRechargeTimer[pickSlot];
+            _skillRechargeTimer[pickSlot] = Mathf.Max(0f, _skillRechargeTimer[pickSlot] - before * percent);
+
+            // 同步刷新 HUD
+            SkillData[] skills = { skillQ, skillE, skillR };
+            PublishSkillChargeUpdate(pickSlot, skills[pickSlot]);
+
+            // 飘字反馈
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.4f,
+                Damage = 0,
+                SpecialTag = $"-{(before * percent):F1}s CD"
+            });
         }
 
         /// <summary>连招段数伤害倍率</summary>
@@ -463,6 +520,10 @@ namespace XianTu
                     rechargeTime *= (1f - cdReduction);
                 }
 
+                // v0.4 融合层：火化身狂火期间技能 CD ×0.7
+                var fire = GetComponent<SpiritRootFireController>();
+                if (fire != null) rechargeTime *= fire.SkillCdMultiplier;
+
                 _skillRechargeTimer[slotIndex] = rechargeTime;
                 _skillRechargeDuration[slotIndex] = rechargeTime;
             }
@@ -566,6 +627,13 @@ namespace XianTu
         private bool UseSkill(SkillData skill, int slotIndex, int chargeLevel = 1)
         {
             if (skill == null) return false;
+
+            // v0.3.3 融合层：发布技能开始事件（金化身灵压窗口订阅）
+            GameEvents.Publish(new GameEvents.SkillCastStarted
+            {
+                SlotIndex = slotIndex,
+                Skill = skill
+            });
 
             // Buff类技能立即生效，不需要播放技能动画
             if (skill.skillType == SkillType.Buff)
@@ -680,15 +748,13 @@ namespace XianTu
                 }
                 else if (showDebugVisuals)
                 {
-                    // 没有VFX时创建Debug可视化：用半透明Cube表示落石
-                    Color areaColor = damageMul > 1f
-                        ? new Color(1f, 0.5f, 0.1f, 0.8f)  // 蓄力：更亮的橙色
-                        : new Color(0.8f, 0.3f, 0.1f, 0.6f);
-                    CreateDebugAreaIndicator(targetPos, actualRadius, skill.vfxDuration, areaColor);
+                    // v0.3.3 视觉差异化：按 ElementTag 出不同颜色 / 形状的元素爆发，而不是统一红 cube
+                    FxFactory.SpawnElementBurst(targetPos + Vector3.up * 0.05f, skill.elementTag, actualRadius, Mathf.Max(0.4f, skill.vfxDuration * 0.8f));
                 }
 
                 var hits = Physics.OverlapSphere(targetPos, actualRadius, enemyLayer);
                 hitList = new System.Collections.Generic.List<Collider>(hits);
+                GameObject firstSkillHit = null;
                 foreach (var hit in hits)
                 {
                     var damageable = hit.GetComponent<IDamageable>();
@@ -696,7 +762,20 @@ namespace XianTu
                     {
                         float damage = (skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
                         damageable.OnDamage(damage, hit.transform.position, gameObject);
+                        if (firstSkillHit == null) firstSkillHit = hit.gameObject;
                     }
+                }
+
+                // v0.3.3 融合层：技能命中事件（木化身种子引爆 / 水化身水痕收割 等）
+                if (firstSkillHit != null)
+                {
+                    GameEvents.Publish(new GameEvents.SkillHitConnected
+                    {
+                        SlotIndex = slotIndex,
+                        Skill = skill,
+                        HitPoint = firstSkillHit.transform.position,
+                        Target = firstSkillHit
+                    });
                 }
 
                 // 技能自身元素命中表现（cube 颜色提示 + 灼烧 / 冻结 / 雷击）
@@ -1269,19 +1348,33 @@ namespace XianTu
             Debug.Log($"<color=cyan>召唤！持续 {duration:F0} 秒，每次攻击 {damage:F0} 伤害</color>");
         }
 
-        /// <summary>创建Debug投射物（无Prefab时的可视化），按 elementTag 上色</summary>
+        /// <summary>创建Debug投射物（无Prefab时的可视化），按 elementTag 上色 + 选用差异化形状（v0.3.3）</summary>
         private void CreateDebugProjectile(Vector3 spawnPos, Vector3 direction, float speed, float damage, float lifetime, ElementTag elementTag = ElementTag.None)
         {
-            var proj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            // v0.3.3：根据 elementTag 选择形状（火球 / 冰晶 / 雷柱 / 风刺 / 木球 / 水球 / 土块 / 穿透标枪）
+            PrimitiveType shape = FxFactory.ElementShape(elementTag);
+            var proj = GameObject.CreatePrimitive(shape);
             proj.name = $"[Debug] 投射物·{elementTag}";
             proj.transform.position = spawnPos;
-            proj.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+
+            // 元素特色缩放
+            Vector3 baseScale = new Vector3(0.4f, 0.4f, 0.4f);
+            switch (elementTag)
+            {
+                case ElementTag.Thunder: baseScale = new Vector3(0.18f, 0.7f, 0.18f); break;
+                case ElementTag.Pierce:
+                case ElementTag.Wind:
+                    baseScale = new Vector3(0.2f, 0.2f, 0.8f);
+                    proj.transform.rotation = Quaternion.LookRotation(direction);
+                    break;
+            }
+            proj.transform.localScale = baseScale;
             proj.layer = 0; // Default层，避免自伤
 
             // 元素颜色（None 走默认蓝白）
             Color body = elementTag == ElementTag.None
-                ? new Color(0.3f, 0.7f, 1f, 0.9f)
-                : SkillModifierApplier.ColorOf(elementTag);
+                ? new Color(0.3f, 0.7f, 1f, 0.95f)
+                : FxFactory.ElementColor(elementTag);
             body.a = 0.95f;
 
             // 设置材质
@@ -1291,7 +1384,7 @@ namespace XianTu
                 var mat = new Material(MaterialHelper.GetLitShader());
                 mat.color = body;
                 mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", new Color(body.r, body.g, body.b) * 2f);
+                mat.SetColor("_EmissionColor", new Color(body.r, body.g, body.b) * 2.5f);
                 rend.material = mat;
             }
 

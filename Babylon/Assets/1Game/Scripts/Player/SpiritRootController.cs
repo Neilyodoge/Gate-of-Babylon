@@ -3,32 +3,37 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 灵根控制器 —— 监听玩家事件，把灵根的"被动规则"翻译为：
+    /// 化身控制器 —— 监听玩家事件，把化身的"被动规则"翻译为：
     ///   1. 起手时改 _baseStats（永久基础修正）
     ///   2. 运行期产出 StatusEffect（连杀 BUFF / 地脉护盾 / 反伤标记…）
     ///
     /// 所有"持续生效"的部分都走 StatusEffectController，
-    /// 这样灵根的 modifiers 与协同 / 质变 / 灵物 走同一个属性聚合管线，避免冲突。
+    /// 这样化身的 modifiers 与协同 / 质变 / 灵物 走同一个属性聚合管线，避免冲突。
     /// </summary>
     public class SpiritRootController : MonoBehaviour
     {
         public SpiritRootType CurrentRoot { get; private set; } = SpiritRootType.None;
         public SpiritRootDef CurrentDef => SpiritRootRegistry.Get(CurrentRoot);
 
-        // 火灵根：连杀
+        // 业火：连杀（v0.3.2 副词条层降级：12% → 7%）
         private const string FireKillStreakId = "Root_FireKillStreak";
         private const float FireStreakDuration = 4f;
-        private const float FireStreakAtkPerStack = 0.12f;
+        private const float FireStreakAtkPerStack = 0.07f;
         private const int FireStreakMaxStacks = 3;
 
-        // 水灵根：反伤标记（无 modifier，仅作为"开关"标识，逻辑在 OnPlayerDamaged 钩子）
+        // 影刃：反伤标记（无 modifier，仅作为"开关"标识，逻辑在 OnPlayerDamaged 钩子）
+        // v0.3.2 副词条层降级：25% → 10%
         private const string WaterRetaliateId = "Root_WaterRetaliate";
+        private const float WaterRetaliatePercent = 0.10f;
 
-        // 土灵根：地脉护盾
+        // 御物：地脉护盾
         private const string EarthShieldId = "Root_EarthShield";
         private const int EarthShieldEvery = 5;
 
-        // 木灵根：清房回血在房间清掉时直接回血，不挂 status
+        // 青囊：清房回血（v0.3.2 副词条层降级：8% → 3%）
+        private const float WoodHealOnRoomClear = 0.03f;
+
+        // 青囊：清房回血在房间清掉时直接回血，不挂 status
 
         private PlayerController _player;
         private StatusEffectController _status;
@@ -40,6 +45,21 @@ namespace XianTu
             _player = GetComponent<PlayerController>();
             _status = GetComponent<StatusEffectController>();
             _inventory = GetComponent<ItemInventory>();
+
+            // v0.3.2/v0.3.3/v0.4 机制版化身专属控制器（按 CurrentRoot 自激活，可重复挂载无副作用）
+            EnsureComponent<SpiritRootGoldController>();
+            EnsureComponent<SpiritRootWoodController>();
+            EnsureComponent<SpiritRootWaterController>();
+            EnsureComponent<SpiritRootFireController>();
+
+            // v0.4：境界突破 3 选 1 奖励系统
+            EnsureComponent<RealmRewardController>();
+        }
+
+        private void EnsureComponent<T>() where T : Component
+        {
+            if (GetComponent<T>() == null)
+                gameObject.AddComponent<T>();
         }
 
         private void OnEnable()
@@ -59,7 +79,7 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 选择灵根（开局或调试用）。会清掉之前的灵根状态，重新应用 baseModifiers。
+        /// 选择化身（开局或调试用）。会清掉之前的化身状态，重新应用 baseModifiers。
         /// </summary>
         public void Select(SpiritRootType type, CombatStats baseStats)
         {
@@ -74,7 +94,7 @@ namespace XianTu
             // 把 baseModifiers 直接合并到 baseStats（这是"永久"修正，不进 StatusEffect）
             ApplyBaseModifiersToBase(def, baseStats, +1);
 
-            // 水灵根：挂一个常驻"反伤标记"以便 HUD 显示
+            // 影刃：挂一个常驻"反伤标记"以便 HUD 显示
             if (type == SpiritRootType.Water)
             {
                 _status?.Apply(new StatusEffect
@@ -87,7 +107,7 @@ namespace XianTu
                     defaultDuration = -1f,
                     duration = -1f,
                     displayName = "上善若水",
-                    description = "受击时反弹 25% 伤害",
+                    description = $"受击时反弹 {WaterRetaliatePercent * 100:F0}% 伤害（副词条层）",
                     uiColor = def.displayColor
                 });
             }
@@ -103,16 +123,16 @@ namespace XianTu
                 }
                 else
                 {
-                    Debug.LogWarning($"<color=yellow>灵根起手灵物未找到：{def.starterItemName}（请把它加入 GameManager.itemPool）</color>");
+                    Debug.LogWarning($"<color=yellow>化身起手灵物未找到：{def.starterItemName}（请把它加入 GameManager.itemPool）</color>");
                 }
             }
 
-            // 立刻刷新土灵根护盾层数
+            // 立刻刷新御物护盾层数
             UpdateEarthShield();
 
             if (_inventory != null) _inventory.RecalculatePlayerStats();
 
-            Debug.Log($"<color=#{ColorUtility.ToHtmlStringRGB(def.displayColor)}>选定灵根：{def.name} —— {def.passive}</color>");
+            Debug.Log($"<color=#{ColorUtility.ToHtmlStringRGB(def.displayColor)}>选定化身：{def.name} —— {def.passive}</color>");
 
             GameEvents.Publish(new GameEvents.SpiritRootSelected
             {
@@ -198,7 +218,7 @@ namespace XianTu
                         StatModifier.Percent(StatType.AttackDamage, FireStreakAtkPerStack)
                     },
                     displayName = "燎原之火",
-                    description = $"连杀加成（每层 +{FireStreakAtkPerStack * 100:F0}% 攻击）",
+                    description = $"连杀加成（每层 +{FireStreakAtkPerStack * 100:F0}% 攻击，副词条层）",
                     uiColor = def != null ? def.displayColor : new Color(1f, 0.4f, 0.1f)
                 });
             }
@@ -206,13 +226,13 @@ namespace XianTu
 
         private void OnPlayerDamaged(GameEvents.PlayerDamaged evt)
         {
-            // 水灵根反伤
+            // 影刃反伤
             if (CurrentRoot != SpiritRootType.Water) return;
             if (evt.Attacker == null) return;
             var dmgable = evt.Attacker.GetComponent<IDamageable>();
             if (dmgable == null) return;
 
-            float retaliate = evt.RawDamage * 0.25f;
+            float retaliate = evt.RawDamage * WaterRetaliatePercent;
             if (retaliate <= 0f) return;
 
             dmgable.OnDamage(retaliate, evt.Attacker.transform.position, gameObject);
@@ -226,10 +246,10 @@ namespace XianTu
 
         private void OnRoomCleared(GameEvents.RoomCleared evt)
         {
-            // 木灵根：清房回血 8% 当前最大生命
+            // 青囊：清房回血 3% 当前最大生命（v0.3.2 副词条层降级版）
             if (CurrentRoot == SpiritRootType.Wood && _player != null)
             {
-                float heal = _player.Stats.maxHp * 0.08f;
+                float heal = _player.Stats.maxHp * WoodHealOnRoomClear;
                 _player.Stats.Heal(heal);
                 GameEvents.Publish(new GameEvents.HealthChanged
                 {

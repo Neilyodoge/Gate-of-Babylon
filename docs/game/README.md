@@ -67,7 +67,6 @@ Assets/1Game/Scripts/
 └── Editor/                        # Editor 工具
     ├── Demo1DataCreator.cs        #   一键创建灵物/功法/配置数据
     ├── GameConfigEditor.cs        #   GameConfig 自定义 Inspector
-    ├── FixPinkMaterials.cs        #   修复粉色材质（Built-in → URP）
     └── ToolSearchWindow.cs        #   工具搜索窗口
 ```
 
@@ -133,7 +132,7 @@ docs/game/
 | **击杀回复** | ✅ 完成 | 灵物叠加 |
 | **顿帧反馈** | ✅ 完成 | HitStop 打击感 |
 | **Debug 控制台** | ✅ 完成 | Tab 键呼出，无敌/锁血/秒杀/房间跳转等 |
-| **材质兼容** | ✅ 完成 | MaterialHelper + 粉色材质一键修复 |
+| **材质兼容** | ✅ 完成 | MaterialHelper（Shader 查找带 fallback，避免粉色材质） |
 
 ### 快速开始
 
