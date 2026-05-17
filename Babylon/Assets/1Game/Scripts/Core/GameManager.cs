@@ -27,6 +27,9 @@ namespace XianTu
         [Header("灵物池（在 Inspector 中配置）")]
         [SerializeField] private ItemData[] itemPool;
 
+        // v0.5 Week 4：保留 Inspector 原始 pool，每局重置后再叠加已解锁的炼器灵物
+        private ItemData[] _basePool;
+
         [Header("功法池（在 Inspector 中配置）")]
         [SerializeField] private SkillData[] skillPool;
 
@@ -60,6 +63,36 @@ namespace XianTu
             foreach (var it in itemPool)
                 if (it != null && it.itemName == itemName) return it;
             return null;
+        }
+
+        /// <summary>
+        /// v0.5 Week 4：把炼器房已解锁的灵物注入 itemPool（每局开始时调用）。
+        /// 第一次调用时备份 Inspector 原始 pool；之后每次都从备份+解锁集重建，
+        /// 避免上一局的运行时 SO 被反复追加。
+        /// </summary>
+        private void AugmentItemPoolFromForge()
+        {
+            if (_basePool == null) _basePool = itemPool;
+
+            // v0.5 Week 6：基础池如果空 / 全 null，从 ItemPool 自动注册器（Resources/Items）兜底加载
+            bool baseEmpty = _basePool == null || _basePool.Length == 0;
+            if (!baseEmpty)
+            {
+                bool allNull = true;
+                foreach (var x in _basePool) if (x != null) { allNull = false; break; }
+                if (allNull) baseEmpty = true;
+            }
+            if (baseEmpty)
+            {
+                var auto = ItemPool.All;
+                if (auto != null && auto.Length > 0)
+                {
+                    Debug.Log($"<color=cyan>[GameManager] Inspector itemPool 为空 → 自动从 ItemPool 注册 {auto.Length} 件灵物</color>");
+                    _basePool = auto;
+                }
+            }
+
+            itemPool = UnlockedItemPoolLoader.Augment(_basePool);
         }
 
         private void Awake()
@@ -158,7 +191,14 @@ namespace XianTu
             if (PlayerController.Instance != null)
             {
                 PermanentTalentLoader.Apply(PlayerController.Instance);
+                // v0.5 Week 4：起手功法 / 阵法台增益 / 灵兽伙伴 —— 三个一次性 / 持久效果
+                StartSkillLoader.Apply(PlayerController.Instance);
+                FormationBuffApplier.Apply(PlayerController.Instance);
+                SpiritBeastLoader.Apply(PlayerController.Instance);
             }
+
+            // v0.5 Week 4：把已解锁的炼器灵物注入本局梦境掉落池
+            AugmentItemPoolFromForge();
 
             // 生成整局的房间布局
             GenerateLevelLayout();
@@ -425,16 +465,28 @@ namespace XianTu
             var trib = tribGo.AddComponent<HeavenTribulation>();
             trib.Build(() => { });
 
+            // v0.5 Week 4 心魔劫：化神期（idx=4）/ 渡劫期（idx=5）每境界结束后必出心魔台，
+            // 与渡劫台 + 出梦点 + 下一境界传送门 共存，让玩家在四选一中决定。
+            // 放在 NE 角，与渡劫台（正北）的 2.5m 交互触发器留足距离，避免互抢路由。
+            if (_currentLevel >= 4)
+            {
+                var demonGo = new GameObject($"InnerDemonCatalyst_Level{_currentLevel}");
+                demonGo.transform.position = roomCenter + new Vector3(6f, 0, 8f);
+                var demon = demonGo.AddComponent<InnerDemonCatalyst>();
+                demon.Build();
+            }
+
             // 出梦点：放在房间西侧（左边）
             var extractGo = new GameObject($"ExtractPoint_Level{_currentLevel}");
             extractGo.transform.position = roomCenter + new Vector3(-6f, 0, 0);
             var ep = extractGo.AddComponent<ExtractPoint>();
             ep.Build(() =>
             {
-                // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 清丹药 → 回 VillageHub
+                // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 清丹药 → 回收灵兽 → 回 VillageHub
                 CaveInventory.Instance.CommitCurrentRun();
                 InsightSystem.Instance.CommitOnExtract();
                 PendingPillCarry.ClearActive();
+                SpiritBeastLoader.Despawn();
                 EnterVillageHub();
                 _transitioning = false;
                 _gameOver = false;
@@ -493,10 +545,11 @@ namespace XianTu
         {
             _gameOver = true;
 
-            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；丹药 + 悟性也消失
+            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；丹药 + 悟性也消失；灵兽伙伴一并销毁
             int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
             PendingPillCarry.ClearActive();
             InsightSystem.Instance.AbandonOnDeath();
+            SpiritBeastLoader.Despawn();
 
             // 增加死亡统计
             SaveSystem.Instance.Data.totalDeaths++;

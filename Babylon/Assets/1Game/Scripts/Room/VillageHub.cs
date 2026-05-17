@@ -126,6 +126,30 @@ namespace XianTu
             wuDaoGo.transform.SetParent(transform, false);
             wuDaoGo.transform.localPosition = new Vector3(-7f, 0f, -3f);
             wuDaoGo.AddComponent<WuDaoCushion>();
+
+            // ===== 炼器房模块（v0.5 Week 4 第四个洞府模块，右后）=====
+            var forgeGo = new GameObject("ForgeRoom");
+            forgeGo.transform.SetParent(transform, false);
+            forgeGo.transform.localPosition = new Vector3(10f, 0f, 4f);
+            forgeGo.AddComponent<ForgeRoom>();
+
+            // ===== 藏经阁模块（v0.5 Week 4 第五个洞府模块，左后）=====
+            var scriptureGo = new GameObject("ScripturePavilion");
+            scriptureGo.transform.SetParent(transform, false);
+            scriptureGo.transform.localPosition = new Vector3(-10f, 0f, 4f);
+            scriptureGo.AddComponent<ScripturePavilion>();
+
+            // ===== 灵兽园模块（v0.5 Week 4 第六个洞府模块，正北偏左）=====
+            var beastGo = new GameObject("SpiritBeastGarden");
+            beastGo.transform.SetParent(transform, false);
+            beastGo.transform.localPosition = new Vector3(-3f, 0f, 8f);
+            beastGo.AddComponent<SpiritBeastGarden>();
+
+            // ===== 阵法台模块（v0.5 Week 4 第七个洞府模块，正北偏右）=====
+            var formationGo = new GameObject("FormationPlatform");
+            formationGo.transform.SetParent(transform, false);
+            formationGo.transform.localPosition = new Vector3(3f, 0f, 8f);
+            formationGo.AddComponent<FormationPlatform>();
         }
 
         // ==================== 工具：世界空间贴文字 ====================

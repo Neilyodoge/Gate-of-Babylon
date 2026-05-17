@@ -81,6 +81,7 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             GameEvents.Subscribe<GameEvents.PlayerDamaged>(OnPlayerDamaged);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Subscribe<GameEvents.FireBrandExploded>(OnFireBrandExploded);
         }
 
         private void OnDisable()
@@ -89,6 +90,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             GameEvents.Unsubscribe<GameEvents.PlayerDamaged>(OnPlayerDamaged);
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Unsubscribe<GameEvents.FireBrandExploded>(OnFireBrandExploded);
         }
 
         private void Update()
@@ -145,6 +147,13 @@ namespace XianTu
         {
             if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
             AddRage(rageOnAttackHit);
+
+            // v0.5 Week 6 · 业焰印：普攻命中给敌人 +1（狂火期间 +2）
+            if (evt.Target != null)
+            {
+                int delta = _inFrenzy ? 2 : 1;
+                FireBrandStack.AddStacks(evt.Target, delta, _inFrenzy);
+            }
         }
 
         private void OnSkillHit(GameEvents.SkillHitConnected evt)
@@ -152,6 +161,26 @@ namespace XianTu
             if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
             // 融合点：技能命中也回怒气
             AddRage(rageOnSkillHit);
+
+            // v0.5 Week 6 · 业焰印：技能命中给敌人 +1（狂火期间 +2）
+            if (evt.Target != null)
+            {
+                int delta = _inFrenzy ? 2 : 1;
+                FireBrandStack.AddStacks(evt.Target, delta, _inFrenzy);
+            }
+        }
+
+        private void OnFireBrandExploded(GameEvents.FireBrandExploded evt)
+        {
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
+            // 业焰印引爆 → 玩家小额回怒气（爽快感反馈）+ 飘字
+            AddRage(8);
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = evt.EnemyPos + Vector3.up * 1.6f,
+                Damage = 0,
+                SpecialTag = $"业焰印 ×{evt.StacksConsumed} 引爆！"
+            });
         }
 
         private void OnPlayerDamaged(GameEvents.PlayerDamaged evt)
@@ -282,8 +311,13 @@ namespace XianTu
                 if (col == null || col.transform == transform || col.transform.IsChildOf(transform) || col.CompareTag("Player")) continue;
                 var dmgable = col.GetComponent<IDamageable>();
                 if (dmgable == null) continue;
-                float dmg = _player.Stats.attackDamage * ratio;
+                // 业焰印放大：火灵根伤害对带业焰印的敌人造成 +10% × N 层
+                float brandMul = FireBrandStack.GetFireDamageMultiplier(col.gameObject);
+                float dmg = _player.Stats.attackDamage * ratio * brandMul;
                 dmgable.OnDamage(dmg, col.transform.position, gameObject);
+
+                // 狂火脚下 AOE 也算"命中" → 给敌人 +1 层业焰印（让满层引爆速度更快）
+                FireBrandStack.AddStacks(col.gameObject, 1, true);
             }
 
             // 视觉：脚下一圈短暂火环

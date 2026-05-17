@@ -45,6 +45,20 @@ namespace XianTu
         public int totalRunsCompleted = 0;
         /// <summary>累积死亡次数</summary>
         public int totalDeaths = 0;
+
+        // ========== v0.5 Week 4：剩余洞府模块（阵法台 / 灵兽园 / 藏经阁起手） ==========
+
+        /// <summary>
+        /// 已布置但尚未消耗的阵法 buff id（来自阵法台 <c>FormationLibrary</c>）。
+        /// 入梦时被 <see cref="GameManager.StartNewRun"/> 一次性应用并清空，仅作用于下一局。
+        /// </summary>
+        public string pendingFormationBuffId = "";
+
+        /// <summary>当前活跃的灵兽伙伴 id（来自灵兽园 <c>SpiritBeastLibrary</c>）。入梦时 spawn 跟随玩家。</summary>
+        public string activeSpiritBeastId = "";
+
+        /// <summary>下一次入梦时希望起手装备的功法 id（来自藏经阁解锁库）。入梦时由 RealmRewardController 装入 0 号槽位。</summary>
+        public string pendingStartSkillId = "";
     }
 
     /// <summary>洞府素材 / 灵物库存条目（itemName → count）</summary>

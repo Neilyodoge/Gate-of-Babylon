@@ -380,6 +380,35 @@ namespace XianTu
             public int HitCount;
         }
 
+        // ========== 心魔劫（修仙独有战斗机制 #4，Week 4）==========
+
+        /// <summary>心魔劫开战 —— RunHUD 用于显示横幅 / 全屏遮罩</summary>
+        public struct InnerDemonStarted { public int RealmLevel; }
+        /// <summary>心魔劫结束 —— 镜像被斩 or 玩家被反杀</summary>
+        public struct InnerDemonFinished { public bool Defeated; }
+
+        // ========== 洞府模块（Week 4）==========
+
+        /// <summary>炼器房成功炼制一件灵物 —— RunHUD 弹"新解锁"提示</summary>
+        public struct ForgeItemUnlocked
+        {
+            public string ItemName;
+            public int TotalUnlocked;
+        }
+
+        /// <summary>藏经阁成功拼合一卷功法</summary>
+        public struct ScriptureSkillUnlocked
+        {
+            public string SkillName;
+            public int TotalUnlocked;
+        }
+
+        /// <summary>灵兽园成功孕育一只灵兽</summary>
+        public struct SpiritBeastHatched { public string BeastName; }
+
+        /// <summary>阵法台预置一种阵法（等待下次入梦时激活）</summary>
+        public struct FormationDeployed { public string FormationId; }
+
         // ========== v0.4 融合层事件 ==========
 
         /// <summary>闪避动作结束（水化身影息斩 / 金化身灵压窗口 30% 概率出现 等订阅）</summary>
@@ -410,6 +439,48 @@ namespace XianTu
             public bool IsActive;        // true=进入狂火，false=狂火结束
             public float Duration;       // 持续时长（IsActive=false 时为 0）
             public bool IsForced;        // 是否强制爆发（怒气满 100 闲置 5s 触发）
+        }
+
+        // ==================== v0.5 Week 6：业焰印 / 火灵根重设计 ====================
+
+        /// <summary>火灵根 · 业焰印层数变化（用于 HUD 提示"当前接触的敌人有几层"等）</summary>
+        public struct FireBrandStackChanged
+        {
+            public GameObject Enemy;
+            public int NewStacks;
+            public int MaxStacks;
+        }
+
+        /// <summary>火灵根 · 业焰印满 5 层引爆 ——  HUD 弹"引爆！" + 视觉钩子</summary>
+        public struct FireBrandExploded
+        {
+            public Vector3 EnemyPos;
+            public int StacksConsumed;
+            public float Radius;
+        }
+
+        // ==================== v0.5 Week 7：土化身 · 山岳承负 ====================
+
+        /// <summary>土化身 · 扎根状态切换（进入 = true / 退出 = false）—— HUD + 视觉钩子</summary>
+        public struct EarthRootedStateChanged
+        {
+            public bool IsRooted;
+            public float AttackBonus;       // 仅 IsRooted=true 时有意义
+            public float DamageReduction;
+        }
+
+        /// <summary>土化身 · 地脉烙印被技能引爆（HUD 飘字 + 视觉）</summary>
+        public struct EarthSigilDetonated
+        {
+            public Vector3 Position;
+            public int StacksConsumed;
+            public int EnemiesAffected;
+        }
+
+        /// <summary>土化身 · 地脉护盾"某层被破"（视觉：让对应那块岩石板碎裂）</summary>
+        public struct EarthShieldStackConsumed
+        {
+            public int StacksRemaining;
         }
     }
 }

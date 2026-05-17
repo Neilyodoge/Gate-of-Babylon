@@ -22,6 +22,9 @@ namespace XianTu
 
         private const int FurnaceCount = 2;
         private const float DefaultRefineDuration = 480f;  // 默认 8 游戏分钟
+        // v0.5 Week 6 · 灵砂催化（直接推进 30% 进度，1 颗 / 次）
+        private const string CatalystMaterial = "灵砂";
+        private const float CatalystProgressBoost = 0.30f;
 
         [System.Serializable]
         public class Furnace
@@ -130,11 +133,34 @@ namespace XianTu
             {
                 float prog = f.Progress(now);
                 float remaining = f.refineDuration - (now - f.startedAt);
-                GUILayout.Label($"{f.herbItemName} → {f.pillItemName}  {(prog * 100f):F0}%（剩 {GameTime.FormatDuration(remaining)}）", GUILayout.Width(320));
-                if (GUILayout.Button("加速 15灵气", GUILayout.Width(110))) Accelerate(idx);
+                GUILayout.Label($"{f.herbItemName} → {f.pillItemName}  {(prog * 100f):F0}%（剩 {GameTime.FormatDuration(remaining)}）", GUILayout.Width(220));
+                if (GUILayout.Button("灵气×15", GUILayout.Width(90))) Accelerate(idx);
+
+                int sandCount = SaveSystem.Instance.GetCaveItemCount(CatalystMaterial);
+                GUI.enabled = sandCount > 0;
+                if (GUILayout.Button($"灵砂 ×1（+{(CatalystProgressBoost * 100):F0}%）", GUILayout.Width(140)))
+                    UseCatalyst(idx);
+                GUI.enabled = true;
             }
 
             GUILayout.EndHorizontal();
+        }
+
+        /// <summary>v0.5 Week 6 · 用 1 颗灵砂催化：直接推进 CatalystProgressBoost 比例的进度。</summary>
+        private void UseCatalyst(int idx)
+        {
+            if (!SaveSystem.Instance.ConsumeCaveItem(CatalystMaterial, 1))
+            {
+                Debug.Log($"<color=red>[炼丹房] {CatalystMaterial} 不足</color>");
+                return;
+            }
+            var f = _furnaces[idx];
+            if (f == null || f.IsEmpty) return;
+
+            float boost = f.refineDuration * CatalystProgressBoost;
+            f.startedAt -= boost;
+            SaveSystem.Instance.Save();
+            Debug.Log($"<color=#ffaa66>[炼丹房] 灵砂催化丹炉 {idx + 1}：进度 +{(CatalystProgressBoost * 100):F0}%</color>");
         }
 
         private void OnGUI_HerbPicker()

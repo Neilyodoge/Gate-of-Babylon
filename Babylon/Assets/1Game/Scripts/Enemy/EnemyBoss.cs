@@ -690,16 +690,27 @@ namespace XianTu
             var wRend = _warningIndicator.GetComponent<Renderer>();
             if (wRend != null)
             {
-                var mat = new Material(MaterialHelper.GetLitShader());
-                mat.SetFloat("_Surface", 1);
-                mat.SetOverrideTag("RenderType", "Transparent");
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetInt("_ZWrite", 0);
-                mat.renderQueue = 3000;
-                mat.color = new Color(1f, 0.2f, 0.1f, 0.2f);
+                Color warnColor = isCharge
+                    ? new Color(1f, 0.2f, 0.08f, 0.35f)   // 冲锋：橙红
+                    : new Color(0.95f, 0.15f, 0.2f, 0.32f); // AOE：血红
+                var mat = MaterialHelper.CreateLitTransparent(warnColor);
+                if (mat.HasProperty("_EmissionColor"))
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    Color emissive = isCharge
+                        ? new Color(1f, 0.25f, 0.1f) * 1.8f
+                        : new Color(1f, 0.2f, 0.25f) * 1.6f;
+                    mat.SetColor("_EmissionColor", emissive);
+                }
                 wRend.material = mat;
+                wRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
+
+            // Boss telegraph 起手就先爆一个大爆环，更强烈的"危险"信号
+            FxFactory.SpawnAOERing(transform.position + Vector3.up * 0.05f,
+                isCharge ? 2.0f : 3.0f,
+                isCharge ? new Color(1f, 0.3f, 0.1f, 1f) : new Color(1f, 0.2f, 0.3f, 1f),
+                lifetime: 0.6f);
         }
 
         private void UpdateChargeWarning()
@@ -788,6 +799,13 @@ namespace XianTu
             // v0.5 搜打撤：Boss 必定掉一件【洞府素材】（境界 Boss 是搜打撤的关键收益点）
             CaveMaterialPool.SpawnRandom(transform.position + new Vector3(1.5f, 0, 0), 1f);
             CaveMaterialPool.SpawnRandom(transform.position + new Vector3(-1.5f, 0, 0), 1f);
+
+            // v0.5 Week 6：境界 Boss 必定掉 1 颗"妖丹"（高价值素材，专属 Boss 掉落）
+            var yaodan = Resources.Load<ItemData>("CaveMaterials/妖丹");
+            if (yaodan != null)
+            {
+                ItemPickup.Spawn(yaodan, transform.position + new Vector3(0, 0, 1.8f));
+            }
 
             GameEvents.Publish(new GameEvents.EnemyKilled
             {

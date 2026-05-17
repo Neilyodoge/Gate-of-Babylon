@@ -50,6 +50,7 @@ namespace XianTu
 
         // 预警
         private GameObject _warningIndicator;
+        private float _chargeAfterimageTimer;
         private EnemyHealthBar _healthBar;
 
         public CombatStats Stats => stats;
@@ -130,12 +131,26 @@ namespace XianTu
                     vel.y = -9.8f;
                     _cc.Move(vel * Time.deltaTime);
 
+                    // 冲锋期间每 0.08s 留一道红色残影
+                    _chargeAfterimageTimer -= Time.deltaTime;
+                    if (_chargeAfterimageTimer <= 0f)
+                    {
+                        _chargeAfterimageTimer = 0.08f;
+                        CaveVfx.SpawnAfterimage(transform.position, transform.rotation,
+                            new Vector3(0.95f, 1.05f, 0.95f),
+                            new Color(1f, 0.25f, 0.15f, 0.55f), lifetime: 0.32f);
+                    }
+
                     // 冲锋中检测碰撞玩家
                     if (distToTarget < meleeDamageRange)
                     {
                         var damageable = _target.GetComponent<IDamageable>();
                         if (damageable != null)
                             damageable.OnDamage(stats.attackDamage, transform.position, gameObject);
+                        // 命中爆环 + 镜头中震
+                        FxFactory.SpawnAOERing(transform.position + Vector3.up * 0.05f, 1.6f,
+                            new Color(1f, 0.35f, 0.2f, 1f), lifetime: 0.4f);
+                        CameraShake.TriggerMedium();
                         EndCharge();
                     }
 
@@ -211,16 +226,20 @@ namespace XianTu
             var rend = _warningIndicator.GetComponent<Renderer>();
             if (rend != null)
             {
-                var mat = new Material(MaterialHelper.GetLitShader());
-                mat.SetFloat("_Surface", 1);
-                mat.SetOverrideTag("RenderType", "Transparent");
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetInt("_ZWrite", 0);
-                mat.renderQueue = 3000;
-                mat.color = new Color(1f, 0.2f, 0.1f, 0.25f);
+                // 升级：用 CreateLitTransparent + Emission，比手动设 Blend 更稳定
+                Color warnColor = new Color(1f, 0.2f, 0.1f, 0.32f);
+                var mat = MaterialHelper.CreateLitTransparent(warnColor);
+                if (mat.HasProperty("_EmissionColor"))
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", new Color(1f, 0.25f, 0.12f) * 1.6f);
+                }
                 rend.material = mat;
+                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
+            // 起点位置爆一个小爆环作为"蓄力起步"信号
+            FxFactory.SpawnAOERing(transform.position + Vector3.up * 0.05f, 1.4f,
+                new Color(1f, 0.3f, 0.15f, 1f), lifetime: 0.45f);
         }
 
         private void UpdateWarningIndicator()

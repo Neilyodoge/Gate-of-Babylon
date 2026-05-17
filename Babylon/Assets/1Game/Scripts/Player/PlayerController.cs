@@ -485,6 +485,13 @@ namespace XianTu
                 return;
             }
 
+            // v0.5 Week 7 · 土化身扎根：在扎根状态下输入伤害额外 ×0.7
+            var earthCtrl = GetComponent<SpiritRootEarthController>();
+            if (earthCtrl != null && earthCtrl.IsRooted)
+            {
+                damage = earthCtrl.ScaleIncomingDamage(damage);
+            }
+
             // 金刚不坏协同：30%概率完全格挡并反弹伤害
             if (SynergySystem.IsVajraActive && Random.value < 0.3f)
             {

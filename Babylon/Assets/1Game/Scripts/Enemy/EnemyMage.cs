@@ -172,16 +172,26 @@ namespace XianTu
             var rend = _warningCircle.GetComponent<Renderer>();
             if (rend != null)
             {
-                var mat = new Material(MaterialHelper.GetLitShader());
-                mat.SetFloat("_Surface", 1);
-                mat.SetOverrideTag("RenderType", "Transparent");
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetInt("_ZWrite", 0);
-                mat.renderQueue = 3000;
-                mat.color = new Color(0.8f, 0.1f, 0.1f, 0.2f);
+                Color warnColor = new Color(0.85f, 0.15f, 0.15f, 0.28f);
+                var mat = MaterialHelper.CreateLitTransparent(warnColor);
+                if (mat.HasProperty("_EmissionColor"))
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", new Color(1f, 0.2f, 0.2f) * 1.6f);
+                }
                 rend.material = mat;
+                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
+
+            // 同步生成一道紫色 AOE 圆环（外圈高亮，从开始时就能看清"圈在哪"）
+            FxFactory.SpawnAOERing(_castTargetPos + Vector3.up * 0.05f, aoeRadius,
+                new Color(0.85f, 0.2f, 0.85f, 1f), lifetime: warningDuration);
+
+            // 法师身上向目标点引一条紫色魔气线（视觉上有"导引"感）
+            FxFactory.SpawnSliceLine(transform.position + Vector3.up * 1.4f,
+                (_castTargetPos - transform.position),
+                Vector3.Distance(transform.position, _castTargetPos),
+                new Color(0.85f, 0.2f, 0.85f, 1f), lifetime: warningDuration * 0.8f);
         }
 
         private void UpdateWarningCircle()
@@ -207,7 +217,14 @@ namespace XianTu
         {
             RestoreColors();
 
-            // 创建爆炸视觉效果
+            // 升级：用 FxFactory.SpawnElementBurst（紫色作为"魔法"系视觉）+ AOE 爆环 + 镜头中震
+            FxFactory.SpawnElementBurst(_castTargetPos + Vector3.up * 0.3f,
+                ElementTag.Pierce,  // 用 Pierce 拿到接近紫白的颜色（Pierce: 0.92, 0.92, 0.95）
+                aoeRadius * 1.1f, lifetime: 0.55f);
+            FxFactory.SpawnAOERing(_castTargetPos + Vector3.up * 0.05f, aoeRadius * 1.05f,
+                new Color(0.85f, 0.2f, 0.85f, 1f), lifetime: 0.55f);
+
+            // 紫色爆炸球（保留原 vibe，但用更稳的 CreateLitTransparent + emission）
             var explosion = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             explosion.name = "[VFX] AOE_Explosion";
             explosion.transform.position = _castTargetPos + Vector3.up * 0.5f;
@@ -218,22 +235,20 @@ namespace XianTu
             var expRend = explosion.GetComponent<Renderer>();
             if (expRend != null)
             {
-                var mat = new Material(MaterialHelper.GetLitShader());
-                mat.SetFloat("_Surface", 1);
-                mat.SetOverrideTag("RenderType", "Transparent");
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetInt("_ZWrite", 0);
-                mat.renderQueue = 3000;
-                mat.color = new Color(0.8f, 0.2f, 0.8f, 0.6f);
-                mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", new Color(0.8f, 0.2f, 0.8f) * 3f);
+                var mat = MaterialHelper.CreateLitTransparent(new Color(0.8f, 0.2f, 0.8f, 0.55f));
+                if (mat.HasProperty("_EmissionColor"))
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", new Color(0.85f, 0.25f, 0.95f) * 3.2f);
+                }
                 expRend.material = mat;
+                expRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
             Destroy(explosion, 0.5f);
 
+            CameraShake.TriggerLight();
+
             // 范围伤害
-            int playerLayer = LayerMask.GetMask("Default"); // 玩家在Default层
             var hits = Physics.OverlapSphere(_castTargetPos, aoeRadius);
             foreach (var hit in hits)
             {
@@ -241,7 +256,10 @@ namespace XianTu
                 {
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
+                    {
                         damageable.OnDamage(stats.attackDamage, _castTargetPos, gameObject);
+                        CameraShake.TriggerMedium();
+                    }
                 }
             }
         }

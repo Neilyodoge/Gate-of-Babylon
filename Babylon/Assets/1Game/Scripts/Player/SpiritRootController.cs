@@ -46,11 +46,12 @@ namespace XianTu
             _status = GetComponent<StatusEffectController>();
             _inventory = GetComponent<ItemInventory>();
 
-            // v0.3.2/v0.3.3/v0.4 机制版化身专属控制器（按 CurrentRoot 自激活，可重复挂载无副作用）
+            // v0.3.2/v0.3.3/v0.4/v0.5 机制版化身专属控制器（按 CurrentRoot 自激活，可重复挂载无副作用）
             EnsureComponent<SpiritRootGoldController>();
             EnsureComponent<SpiritRootWoodController>();
             EnsureComponent<SpiritRootWaterController>();
             EnsureComponent<SpiritRootFireController>();
+            EnsureComponent<SpiritRootEarthController>();
 
             // v0.4：境界突破 3 选 1 奖励系统
             EnsureComponent<RealmRewardController>();
@@ -317,6 +318,13 @@ namespace XianTu
             var eff = _status.Get(EarthShieldId);
             if (eff == null || eff.stacks <= 0) return false;
             _status.Consume(EarthShieldId, 1);
+
+            // v0.5 Week 7：通知视觉层（EarthShieldVfx 让对应那块岩石板炸开）
+            int remaining = 0;
+            var after = _status.Get(EarthShieldId);
+            if (after != null) remaining = after.stacks;
+            GameEvents.Publish(new GameEvents.EarthShieldStackConsumed { StacksRemaining = remaining });
+
             GameEvents.Publish(new GameEvents.DamageNumberRequested
             {
                 WorldPosition = transform.position + Vector3.up * 2f,
