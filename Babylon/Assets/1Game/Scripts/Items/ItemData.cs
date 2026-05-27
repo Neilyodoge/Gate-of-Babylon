@@ -70,6 +70,14 @@ namespace XianTu
         [Tooltip("v0.5 搜打撤分类：局内灵物（梦醒消失）vs 洞府素材（撤离才能带回，死亡丢失）")]
         public ItemScope scope = ItemScope.RunOnly;
         /// <summary>
+        /// 加工后的产物 itemName（v0.5 Week 8 技术债清理）。
+        /// 链式管线：种子(<see cref="ItemCategory.PlantSeed"/>) → 灵药(<see cref="ItemCategory.Herb"/>) → 丹药(<see cref="ItemCategory.Pill"/>)。
+        /// 留空表示该物品没有下游产物（如丹药本身，或纯展示型素材）。
+        /// 替代旧的 <c>seedName.Replace("种子","灵药")</c> 字符串硬替换。
+        /// </summary>
+        [Tooltip("加工链下游产物的 itemName（种子→灵药→丹药）。留空表示无下游产物。")]
+        public string processedProductName = "";
+        /// <summary>
         /// 元素 / 类型标签（GDD 5.6 元素反应、GDD 6.5 技能修饰共用）。
         /// 装入技能槽时，与该技能 modifierDefs 匹配可激活变体。
         /// </summary>

@@ -74,5 +74,23 @@ namespace XianTu
 
         /// <summary>测试 / Hot reload 时清缓存（重新从 Resources 加载）</summary>
         public static void ClearCache() => _cached = null;
+
+        /// <summary>按 itemName 查找 CaveMaterial 池中的 SO（用于读取 processedProductName / category）</summary>
+        public static ItemData GetByName(string itemName)
+        {
+            if (string.IsNullOrEmpty(itemName)) return null;
+            foreach (var it in All)
+            {
+                if (it != null && it.itemName == itemName) return it;
+            }
+            return null;
+        }
+
+        /// <summary>判断 itemName 对应的 CaveMaterial 是否为指定分类（PlantSeed / Herb / Pill ...）</summary>
+        public static bool IsCategory(string itemName, ItemCategory category)
+        {
+            var it = GetByName(itemName);
+            return it != null && it.category == category;
+        }
     }
 }

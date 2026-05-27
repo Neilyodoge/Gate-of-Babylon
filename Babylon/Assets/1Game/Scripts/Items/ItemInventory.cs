@@ -151,6 +151,8 @@ namespace XianTu
 
         private void RecalculateStats()
         {
+            if (_playerStats == null || _baseStats == null) return;
+
             float hpRatio = _playerStats.maxHp > 0 ? _playerStats.currentHp / _playerStats.maxHp : 1f;
 
             _playerStats.attackDamage = _baseStats.attackDamage;

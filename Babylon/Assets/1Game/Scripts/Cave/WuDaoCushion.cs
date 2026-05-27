@@ -151,25 +151,42 @@ namespace XianTu
         {
             get
             {
-                if (_cache == null)
-                {
-                    _cache = new List<TalentEntry>();
-                    // 用反射 / 简单遍历 RealmRewardLibrary（私有 list 没暴露），改为
-                    // 直接 hardcode 6 个天赋。后续如果加 RealmRewardLibrary.AllTalents 公开访问，可切换。
-                    AddByTalentId("Talent_Gold_PowerBreak", 80);
-                    AddByTalentId("Talent_Wood_FertileSoil", 80);
-                    AddByTalentId("Talent_Water_DoubleShadow", 80);
-                    AddByTalentId("Talent_Fire_BurningChain", 80);
-                    AddByTalentId("Talent_Earth_StoneSkin", 80);
-                }
+                if (_cache == null) Rebuild();
                 return _cache;
             }
         }
 
-        private static void AddByTalentId(string id, int cost)
+        /// <summary>
+        /// 自动从 <see cref="RealmRewardLibrary"/> 拉所有 SpiritTalent 类别奖励。
+        /// 后续在 RealmRewardLibrary 加新天赋时无需再改本注册表（v0.5 Week 8 技术债 7 清理）。
+        ///
+        /// 悟性消耗规则（可后续做成数据驱动）：
+        /// - 默认 80（与原版一致）
+        /// - 后续若加"高阶天赋"，可在 reward.id 命名约定中加 "_Tier2" / "_Tier3" 等标识来分级
+        /// </summary>
+        public static void Rebuild()
         {
-            var def = RealmRewardLibrary.GetById(id);
-            if (def != null) _cache.Add(new TalentEntry { reward = def, insightCost = cost });
+            _cache = new List<TalentEntry>();
+            var all = RealmRewardLibrary.ListByCategory(RealmRewardCategory.SpiritTalent);
+            foreach (var def in all)
+            {
+                int cost = ResolveCost(def.id);
+                _cache.Add(new TalentEntry { reward = def, insightCost = cost });
+            }
         }
+
+        private static int ResolveCost(string id)
+        {
+            // 命名约定：含 _Tier2 → 160 / _Tier3 → 320 / 其他 → 80
+            if (id != null)
+            {
+                if (id.Contains("_Tier3")) return 320;
+                if (id.Contains("_Tier2")) return 160;
+            }
+            return 80;
+        }
+
+        /// <summary>测试 / Editor 热重载用</summary>
+        public static void ClearCache() => _cache = null;
     }
 }

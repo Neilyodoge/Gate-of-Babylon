@@ -56,6 +56,11 @@ namespace XianTu
         private Vector3 _attackLungeVelocity;
         private float _attackLungeTimer;
 
+        // GDD 7.1：每段近战攻击触发后短暂停顿玩家位移，停顿过后允许在攻击动画中继续行走
+        // 停顿不会打断 _moveInput 的采集，所以玩家"持续按 WASD"的操作不会被吃掉
+        private float _attackMoveLockTimer;
+        private const float ATTACK_MOVE_LOCK_TIME = 0.1f;
+
         // 攻击朝向锁定（攻击瞬间锁定朝向，攻击过程中不跟随鼠标）
         private bool _aimLocked;
 
@@ -168,6 +173,9 @@ namespace XianTu
             _attackLungeVelocity = _aimDirection * evt.LungeSpeed;
             _attackLungeTimer = evt.LungeDuration;
             _aimLocked = true; // 攻击瞬间锁定朝向
+
+            // GDD 7.1：每段攻击都会出现 0.1s 移动停顿（每段独立刷新）
+            _attackMoveLockTimer = ATTACK_MOVE_LOCK_TIME;
         }
 
         /// <summary>
@@ -200,7 +208,7 @@ namespace XianTu
             UpdateAnimation();
         }
 
-        /// <summary>v0.5：按 G 消耗一颗携入梦境的丹药（即时回 40% 最大生命）</summary>
+        /// <summary>v0.5：按 G 消耗一颗携入梦境的丹药。效果按丹药 modTag 差异化（火/冰/雷/土/生命）</summary>
         private void HandlePillConsume()
         {
             if (PendingPillCarry.TotalActive == 0) return;
@@ -209,23 +217,92 @@ namespace XianTu
 
             if (PendingPillCarry.ConsumeOne(out var pillName))
             {
-                float healAmount = stats.maxHp * 0.40f;
-                stats.Heal(healAmount);
-                GameEvents.Publish(new GameEvents.HealthChanged
-                {
-                    CurrentHp = stats.currentHp,
-                    MaxHp = stats.maxHp
-                });
-                GameEvents.Publish(new GameEvents.DamageNumberRequested
-                {
-                    WorldPosition = transform.position + Vector3.up * 1.5f,
-                    Damage = healAmount,
-                    IsCrit = false,
-                    IsPlayerDamage = false,
-                    SpecialTag = $"服丹·{pillName}"
-                });
-                Debug.Log($"<color=#ffaa66>[Pill] 服用 {pillName}，回 {healAmount:F0} HP（剩余 {PendingPillCarry.TotalActive} 颗）</color>");
+                ApplyPillEffect(pillName);
             }
+        }
+
+        /// <summary>按 itemName 找丹药 SO，分发对应效果（无 SO 时退化为原 40% 回血）</summary>
+        private void ApplyPillEffect(string pillName)
+        {
+            var so = CaveMaterialPool.GetByName(pillName);
+            ElementTag tag = so != null ? so.modTag : ElementTag.None;
+
+            float healPercent;
+            string buffSummary;
+
+            switch (tag)
+            {
+                case ElementTag.Fire:    // 火灵丹：回 25% + 10s 攻击 +30%
+                    healPercent = 0.25f;
+                    ApplyPillBuff("Pill_Fire", "火灵丹", "10s 攻击 +30%",
+                        new Color(1f, 0.45f, 0.20f), 10f,
+                        StatModifier.Percent(StatType.AttackDamage, 0.30f));
+                    buffSummary = "+30% ATK 10s";
+                    break;
+                case ElementTag.Ice:     // 寒霜丹：回 30% + 8s 减伤 +25%
+                    healPercent = 0.30f;
+                    ApplyPillBuff("Pill_Ice", "寒霜丹", "8s 减伤 +25%",
+                        new Color(0.45f, 0.85f, 1f), 8f,
+                        StatModifier.Flat(StatType.DamageReduction, 0.25f));
+                    buffSummary = "+25% REDU 8s";
+                    break;
+                case ElementTag.Thunder: // 雷霆丹：回 20% + 10s 攻速 +40%
+                    healPercent = 0.20f;
+                    ApplyPillBuff("Pill_Thunder", "雷霆丹", "10s 攻速 +40%",
+                        new Color(0.60f, 0.50f, 1f), 10f,
+                        StatModifier.Percent(StatType.AttackSpeed, 0.40f));
+                    buffSummary = "+40% ASPD 10s";
+                    break;
+                case ElementTag.Earth:   // 玄铁丹：回 35% + 8s 减伤 +35%
+                    healPercent = 0.35f;
+                    ApplyPillBuff("Pill_Earth", "玄铁丹", "8s 减伤 +35%",
+                        new Color(0.85f, 0.70f, 0.35f), 8f,
+                        StatModifier.Flat(StatType.DamageReduction, 0.35f));
+                    buffSummary = "+35% REDU 8s";
+                    break;
+                case ElementTag.Life:    // 回灵丹：纯回血 60%
+                    healPercent = 0.60f;
+                    buffSummary = "+60% HEAL";
+                    break;
+                default:                  // 旧丹药 / 无 SO：保留原 40% 回血兜底
+                    healPercent = 0.40f;
+                    buffSummary = "+40% HEAL";
+                    break;
+            }
+
+            float healAmount = stats.maxHp * healPercent;
+            stats.Heal(healAmount);
+            GameEvents.Publish(new GameEvents.HealthChanged { CurrentHp = stats.currentHp, MaxHp = stats.maxHp });
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 1.5f,
+                Damage = healAmount,
+                IsCrit = false,
+                IsPlayerDamage = false,
+                SpecialTag = $"服丹·{pillName}"
+            });
+
+            Debug.Log($"<color=#ffaa66>[Pill] 服用 {pillName}（{buffSummary}），回 {healAmount:F0} HP（剩余 {PendingPillCarry.TotalActive} 颗）</color>");
+        }
+
+        /// <summary>挂一个限时 StatusEffect（替换重复 id）</summary>
+        private void ApplyPillBuff(string id, string name, string desc, Color color, float duration, StatModifier mod)
+        {
+            var status = GetComponent<StatusEffectController>();
+            if (status == null) return;
+            status.Apply(new StatusEffect
+            {
+                id = id,
+                isBuff = true,
+                elementTag = ElementTag.None,
+                stacks = 1, maxStacks = 1,
+                defaultDuration = duration,
+                duration = duration,
+                modifiers = new System.Collections.Generic.List<StatModifier> { mod },
+                displayName = name,
+                description = desc,
+                uiColor = color
+            });
         }
 
         /// <summary>WASD 移动输入</summary>
@@ -406,13 +483,23 @@ namespace XianTu
             }
             else
             {
-                // 哈迪斯/梦之行风格：攻击/技能/受击中完全停止玩家输入移动
+                // GDD 7.1：
+                // - 近战攻击：移动不打断攻击，每段攻击后玩家停顿 0.1s，之后可正常移动
+                // - 技能 / 受击：仍保持完全停止移动
                 float speedMul = 1f;
                 var priority = _playerAnim.CurrentPriority;
-                if (priority >= AnimationPriority.Attack)
+                if (priority == AnimationPriority.Attack)
                 {
-                    speedMul = 0f; // 攻击/技能/受击中完全不能移动
+                    speedMul = _attackMoveLockTimer > 0 ? 0f : 1f;
                 }
+                else if (priority > AnimationPriority.Attack)
+                {
+                    speedMul = 0f;
+                }
+
+                if (_attackMoveLockTimer > 0)
+                    _attackMoveLockTimer -= Time.deltaTime;
+
                 velocity = _moveInput * stats.moveSpeed * speedMul;
 
                 // 叠加攻击前冲位移（代码驱动的位移脉冲，替代 Root Motion）

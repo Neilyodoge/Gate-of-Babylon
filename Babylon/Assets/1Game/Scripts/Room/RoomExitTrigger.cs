@@ -57,9 +57,13 @@ namespace XianTu
             }
         }
 
-        private void OnTriggerEnter(Collider other)
+        private void OnTriggerEnter(Collider other) => TryEnter(other);
+
+        private void OnTriggerStay(Collider other) => TryEnter(other);
+
+        private void TryEnter(Collider other)
         {
-            if (_triggered) return;
+            if (_triggered || _playerInRange) return;
             if (!other.CompareTag("Player")) return;
 
             _playerInRange = true;
@@ -71,6 +75,7 @@ namespace XianTu
         private void OnTriggerExit(Collider other)
         {
             if (!other.CompareTag("Player")) return;
+            if (!_playerInRange) return;
 
             _playerInRange = false;
             _enterTimer = 0f;

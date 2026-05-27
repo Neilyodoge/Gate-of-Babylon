@@ -62,6 +62,9 @@ namespace XianTu
         private float _evadeBufferTimer;   // 闪避输入缓冲计时器
         private const float INPUT_BUFFER_TIME = 0.25f; // 输入缓冲窗口（250ms，更宽容）
 
+        // GDD 7.1：3s 未进行下一段连招则重置回 Attack1
+        private const float COMBO_RESET_TIME = 3f;
+
         // 霸体（超级护甲）
         private bool _superArmor;  // 攻击/技能中是否拥有霸体
 
@@ -276,10 +279,15 @@ namespace XianTu
                 return true;
             }
 
-            // 如果不在攻击中，直接开始第一段
+            // GDD 7.1：如果不在攻击中，根据"连招延续窗口"决定从哪一段开始
+            // - 上一段攻击动画结束后 3s 内继续按 → 接 _comboStep+1（连招不断）
+            // - 超过 3s 或没有未完成段 → 从 Attack1 重新开始
             if (_currentPriority != AnimationPriority.Attack)
             {
-                StartAttack(0);
+                int nextStep = (_comboResetTimer > 0f && _comboStep >= 0 && _comboStep < 2)
+                    ? _comboStep + 1
+                    : 0;
+                StartAttack(nextStep);
                 return true;
             }
 
@@ -322,8 +330,8 @@ namespace XianTu
             // 设置攻击动画播放速度（受玩家攻击速度属性影响）
             animator.speed = _attackSpeed;
 
-            // 设置连招超时（如果玩家不继续攻击，超时后重置）
-            _comboResetTimer = 1.5f;
+            // GDD 7.1：3s 内未继续连招则重置。这里作为攻击进行中的兜底，正式重置阈值在 OnAttackEnd 设置
+            _comboResetTimer = COMBO_RESET_TIME;
 
             // 发布连招段数变化事件
             GameEvents.Publish(new GameEvents.ComboStepChanged
@@ -534,8 +542,8 @@ namespace XianTu
             // 恢复动画播放速度
             animator.speed = 1f;
 
-            // 给一小段时间让玩家可以继续连招
-            _comboResetTimer = 0.4f;
+            // GDD 7.1：连招结束后 3s 内继续按攻击可衔接下一段，否则重置到 Attack1
+            _comboResetTimer = COMBO_RESET_TIME;
 
             // 回到空闲状态
             _currentPriority = AnimationPriority.None;

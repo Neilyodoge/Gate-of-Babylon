@@ -124,6 +124,152 @@ namespace XianTu
                 requiredCounts = new[] { 2, 2, 1 },
                 displayColor = new Color(0.3f, 0.1f, 0.3f)
             });
+
+            // =====================================================
+            // v0.5 Week 8 内容扩充：新增 20 个协同（共 30 个）
+            // 数值加成统一在 ApplyActiveSynergyStatModifiers 末尾的新 case 中实现
+            // =====================================================
+
+            // ---- 单类高数量（5 个）----
+            _synergies.Add(new SynergyDef
+            {
+                name = "剑势如山", description = "攻伐x6 → 攻击力+30%、暴击伤害+25%",
+                requiredCategories = new[] { ItemCategory.Attack }, requiredCounts = new[] { 6 },
+                displayColor = new Color(1f, 0.7f, 0.2f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "玄龟铁衣", description = "护体x4 → 减伤+18%、最大生命+15%",
+                requiredCategories = new[] { ItemCategory.Defense }, requiredCounts = new[] { 4 },
+                displayColor = new Color(0.5f, 0.65f, 0.85f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "风行天下", description = "身法x4 → 移速+25%、攻速+20%",
+                requiredCategories = new[] { ItemCategory.Movement }, requiredCounts = new[] { 4 },
+                displayColor = new Color(0.5f, 1f, 0.85f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "诡道", description = "异变x4 → 暴击率+18%、暴击伤害+50%",
+                requiredCategories = new[] { ItemCategory.Anomaly }, requiredCounts = new[] { 4 },
+                displayColor = new Color(0.7f, 0.3f, 0.95f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "丹元归元", description = "丹药x3 → 最大生命+25%、减伤+8%",
+                requiredCategories = new[] { ItemCategory.Pill }, requiredCounts = new[] { 3 },
+                displayColor = new Color(1f, 0.55f, 0.7f)
+            });
+
+            // ---- 双类（10 个）----
+            _synergies.Add(new SynergyDef
+            {
+                name = "山岳镇魂", description = "攻伐x3 + 护体x2 → 攻击+15%、最大生命+20%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense },
+                requiredCounts = new[] { 3, 2 },
+                displayColor = new Color(0.85f, 0.65f, 0.35f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "剑光如电", description = "攻伐x2 + 身法x2 → 攻击+12%、攻速+25%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Movement },
+                requiredCounts = new[] { 2, 2 },
+                displayColor = new Color(1f, 0.85f, 0.4f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "杀阵噬血", description = "攻伐x3 + 异变x1 → 攻击+18%、暴击率+8%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly },
+                requiredCounts = new[] { 3, 1 },
+                displayColor = new Color(0.95f, 0.3f, 0.45f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "御体长生", description = "护体x3 + 丹药x1 → 最大生命+22%、减伤+8%",
+                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Pill },
+                requiredCounts = new[] { 3, 1 },
+                displayColor = new Color(0.55f, 0.9f, 0.7f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "霜雪重身", description = "护体x2 + 异变x2 → 最大生命+15%、减伤+12%",
+                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Anomaly },
+                requiredCounts = new[] { 2, 2 },
+                displayColor = new Color(0.45f, 0.7f, 1f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "御风踏雪", description = "身法x2 + 护体x2 → 移速+18%、减伤+10%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Defense },
+                requiredCounts = new[] { 2, 2 },
+                displayColor = new Color(0.7f, 0.95f, 1f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "千里追风", description = "身法x3 + 丹药x1 → 移速+18%、攻速+15%、最大生命+8%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Pill },
+                requiredCounts = new[] { 3, 1 },
+                displayColor = new Color(0.85f, 1f, 0.7f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "邪锋", description = "身法x2 + 异变x3 → 暴击伤害+60%、暴击率+12%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly },
+                requiredCounts = new[] { 2, 3 },
+                displayColor = new Color(0.65f, 0.35f, 0.95f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "丹魂凝结", description = "异变x2 + 丹药x2 → 暴击率+10%、攻击+15%",
+                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Pill },
+                requiredCounts = new[] { 2, 2 },
+                displayColor = new Color(0.85f, 0.45f, 0.85f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "铁壁长虹", description = "护体x4 + 异变x1 → 减伤+18%、最大生命+20%",
+                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Anomaly },
+                requiredCounts = new[] { 4, 1 },
+                displayColor = new Color(0.7f, 0.75f, 0.55f)
+            });
+
+            // ---- 三类（5 个）----
+            _synergies.Add(new SynergyDef
+            {
+                name = "三才阵", description = "攻伐x2 + 护体x2 + 身法x1 → 全能：攻击+10%、减伤+10%、移速+10%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense, ItemCategory.Movement },
+                requiredCounts = new[] { 2, 2, 1 },
+                displayColor = new Color(1f, 0.95f, 0.55f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "狂剑诀", description = "攻伐x3 + 护体x1 + 异变x1 → 攻击+22%、暴击率+10%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense, ItemCategory.Anomaly },
+                requiredCounts = new[] { 3, 1, 1 },
+                displayColor = new Color(1f, 0.5f, 0.35f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "御灵护身", description = "护体x2 + 身法x2 + 丹药x1 → 减伤+10%、移速+12%、最大生命+12%",
+                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Movement, ItemCategory.Pill },
+                requiredCounts = new[] { 2, 2, 1 },
+                displayColor = new Color(0.55f, 0.95f, 0.85f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "杀生丹诀", description = "攻伐x2 + 异变x2 + 丹药x1 → 暴击伤害+65%、攻击+10%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly, ItemCategory.Pill },
+                requiredCounts = new[] { 2, 2, 1 },
+                displayColor = new Color(0.95f, 0.35f, 0.55f)
+            });
+            _synergies.Add(new SynergyDef
+            {
+                name = "风雷诀", description = "身法x2 + 异变x2 + 丹药x1 → 攻速+22%、暴击率+10%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Pill },
+                requiredCounts = new[] { 2, 2, 1 },
+                displayColor = new Color(0.85f, 0.75f, 1f)
+            });
         }
 
         /// <summary>
@@ -173,6 +319,69 @@ namespace XianTu
                         st.critDamage += 0.8f;
                         st.critRate = Mathf.Clamp01(st.critRate + 0.08f);
                         break;
+
+                    // ===== v0.5 Week 8 新增 20 个协同 =====
+
+                    // 单类高数量
+                    case "剑势如山":
+                        st.attackDamage *= 1.30f; st.critDamage += 0.25f; break;
+                    case "玄龟铁衣":
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.18f);
+                        st.maxHp *= 1.15f; break;
+                    case "风行天下":
+                        st.moveSpeed *= 1.25f; st.attackSpeed *= 1.20f; break;
+                    case "诡道":
+                        st.critRate = Mathf.Clamp01(st.critRate + 0.18f);
+                        st.critDamage += 0.50f; break;
+                    case "丹元归元":
+                        st.maxHp *= 1.25f;
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.08f); break;
+
+                    // 双类
+                    case "山岳镇魂":
+                        st.attackDamage *= 1.15f; st.maxHp *= 1.20f; break;
+                    case "剑光如电":
+                        st.attackDamage *= 1.12f; st.attackSpeed *= 1.25f; break;
+                    case "杀阵噬血":
+                        st.attackDamage *= 1.18f;
+                        st.critRate = Mathf.Clamp01(st.critRate + 0.08f); break;
+                    case "御体长生":
+                        st.maxHp *= 1.22f;
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.08f); break;
+                    case "霜雪重身":
+                        st.maxHp *= 1.15f;
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.12f); break;
+                    case "御风踏雪":
+                        st.moveSpeed *= 1.18f;
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.10f); break;
+                    case "千里追风":
+                        st.moveSpeed *= 1.18f; st.attackSpeed *= 1.15f; st.maxHp *= 1.08f; break;
+                    case "邪锋":
+                        st.critDamage += 0.60f;
+                        st.critRate = Mathf.Clamp01(st.critRate + 0.12f); break;
+                    case "丹魂凝结":
+                        st.critRate = Mathf.Clamp01(st.critRate + 0.10f);
+                        st.attackDamage *= 1.15f; break;
+                    case "铁壁长虹":
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.18f);
+                        st.maxHp *= 1.20f; break;
+
+                    // 三类
+                    case "三才阵":
+                        st.attackDamage *= 1.10f;
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.10f);
+                        st.moveSpeed *= 1.10f; break;
+                    case "狂剑诀":
+                        st.attackDamage *= 1.22f;
+                        st.critRate = Mathf.Clamp01(st.critRate + 0.10f); break;
+                    case "御灵护身":
+                        st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.10f);
+                        st.moveSpeed *= 1.12f; st.maxHp *= 1.12f; break;
+                    case "杀生丹诀":
+                        st.critDamage += 0.65f; st.attackDamage *= 1.10f; break;
+                    case "风雷诀":
+                        st.attackSpeed *= 1.22f;
+                        st.critRate = Mathf.Clamp01(st.critRate + 0.10f); break;
                 }
             }
         }

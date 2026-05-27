@@ -1131,22 +1131,34 @@ namespace XianTu
     public class ShopInteractTrigger : MonoBehaviour
     {
         private ShopRoom _shop;
+        private bool _inside;
 
         public void Initialize(ShopRoom shop)
         {
             _shop = shop;
         }
 
-        private void OnTriggerEnter(Collider other)
-        {
-            if (other.CompareTag("Player"))
-                _shop?.OnPlayerEnterRange();
-        }
+        private void OnTriggerEnter(Collider other) => TryEnter(other);
+
+        // 兜底：商人 NPC 在 (0,1,3.5) r=3，与玩家出生位 (0,0.1,0) 距离 ≈3.5m 处于临界，
+        // 若未来 NPC 位置调整或 r 变大，会出现 TeleportPlayer 出生即在 trigger 内的死局；
+        // 跟其他 TriggerBridge / ChestTrigger 保持一致的 Stay 兜底，结构性安全。
+        private void OnTriggerStay(Collider other) => TryEnter(other);
 
         private void OnTriggerExit(Collider other)
         {
-            if (other.CompareTag("Player"))
-                _shop?.OnPlayerExitRange();
+            if (!other.CompareTag("Player")) return;
+            if (!_inside) return;
+            _inside = false;
+            _shop?.OnPlayerExitRange();
+        }
+
+        private void TryEnter(Collider other)
+        {
+            if (_inside) return;
+            if (!other.CompareTag("Player")) return;
+            _inside = true;
+            _shop?.OnPlayerEnterRange();
         }
     }
 }

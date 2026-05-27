@@ -39,11 +39,51 @@ namespace XianTu
         [Header("引用")]
         [SerializeField] private Transform roomSpawnPoint;
 
+        [Header("v3 第 12 章 · 关卡设计")]
+        [Tooltip("启用后，房间清场时弹出 3 选 1 卡片让玩家选下一间类型（参考杀戮尖塔/哈迪斯）。F12 可运行时切换。")]
+        [SerializeField] private bool useTreeMapFlow = true;
+
         // 游戏状态
         private int _currentLevel; // 当前层数（0-5）
         private int _currentRoomInLevel; // 当前层内的房间索引
         private GameObject _currentRoomGo; // 当前房间的 GameObject
         private bool _gameOver;
+
+        /// <summary>v3：开关 TreeMap 主循环（可由 Inspector / F12 切换，自动持久化到 PlayerPrefs）</summary>
+        public bool UseTreeMapFlow
+        {
+            get => useTreeMapFlow;
+            set
+            {
+                useTreeMapFlow = value;
+                PlayerPrefs.SetInt(PrefKeyTreeMapFlow, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>
+        /// v3：在 SpawnCurrentRoom 之前强制覆盖下一间房间的类型。
+        /// 通常由 RoomChoiceUI 调用：玩家选了某张卡 → 写回 _levelRooms 对应槽位。
+        /// </summary>
+        public void OverrideNextRoomType(Minimap.RoomType type)
+        {
+            if (_levelRooms == null || _currentLevel >= _levelRooms.Count) return;
+            var layer = _levelRooms[_currentLevel];
+            if (_currentRoomInLevel < 0 || _currentRoomInLevel >= layer.Count) return;
+            var old = layer[_currentRoomInLevel];
+            if (old == type) return;
+            layer[_currentRoomInLevel] = type;
+            // 同步小地图（重建扁平化数组）
+            if (_minimap != null && _levelLayout != null)
+            {
+                int flatIdx = 0;
+                for (int r = 0; r < _currentLevel; r++) flatIdx += _levelRooms[r].Count;
+                flatIdx += _currentRoomInLevel;
+                if (flatIdx >= 0 && flatIdx < _levelLayout.Count)
+                    _levelLayout[flatIdx] = type;
+            }
+            Debug.Log($"<color=cyan>[TreeMapFlow] 玩家选择：{old} → {type}</color>");
+        }
 
         // 房间布局（二维：每层包含多个房间）
         private List<List<Minimap.RoomType>> _levelRooms; // [层][房间索引]
@@ -95,6 +135,8 @@ namespace XianTu
             itemPool = UnlockedItemPoolLoader.Augment(_basePool);
         }
 
+        private const string PrefKeyTreeMapFlow = "GoB.UseTreeMapFlow";
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -103,6 +145,15 @@ namespace XianTu
                 return;
             }
             Instance = this;
+
+            // v3：跨 session 持久化 TreeMapFlow 开关。
+            // 首次运行（无键）→ 强制开启（让玩家立刻看到 3 选 1 卡片）；
+            // 后续运行 → 沿用上次 PlayerPrefs；F12 可切换并立即保存
+            if (PlayerPrefs.HasKey(PrefKeyTreeMapFlow))
+                useTreeMapFlow = PlayerPrefs.GetInt(PrefKeyTreeMapFlow) == 1;
+            else
+                useTreeMapFlow = true;
+            Debug.Log($"<color=cyan>[GameManager] v3 房间 3 选 1：{(useTreeMapFlow ? "已开启" : "已关闭")}（F12 可切换）</color>");
         }
 
         private void Start()
@@ -121,6 +172,7 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Subscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
 
             // 启动 → 进入村庄 Hub。玩家在村里：
             //   1. 默认已选好金化身（不去 NPC 也能直接玩）
@@ -130,6 +182,9 @@ namespace XianTu
             StatusEffectHUD.EnsureExists();
             SpiritRootMechanicHUD.EnsureExists();
             RunHUD.Ensure();
+            PauseMenu.Ensure();
+            // v0.5 Week 9：启动时显示主菜单（暂停游戏直到玩家点"开始入梦"）
+            MainMenu.ShowOnBoot();
         }
 
         /// <summary>
@@ -419,6 +474,30 @@ namespace XianTu
             _currentRoomInLevel++;
             _flatRoomIndex++;
 
+            // ── TreeMap 动态扩展 ──
+            // 固定布局 _fixedLayout 每层只有 2~3 个房间，但 TreeMap 一个 Act 可能有 5~6 个节点。
+            // 如果 TreeMap 当前节点还有后续子节点（没走到 Boss），就动态往 _levelRooms 里追加槽位，
+            // 防止 _currentRoomInLevel >= layer.Count 被误判为"本境界通关"。
+            if (useTreeMapFlow)
+            {
+                var dir = LevelDesign.LevelDesignDirector.Instance;
+                if (dir != null && dir.CurrentMap != null)
+                {
+                    var curNode = dir.CurrentMapNode;
+                    bool treeHasMore = curNode != null && curNode.Next != null && curNode.Next.Count > 0;
+                    if (treeHasMore && _currentLevel < _levelRooms.Count)
+                    {
+                        var layer = _levelRooms[_currentLevel];
+                        while (_currentRoomInLevel >= layer.Count)
+                            layer.Add(Minimap.RoomType.Battle);
+                        if (_levelLayout != null)
+                            while (_flatRoomIndex >= _levelLayout.Count)
+                                _levelLayout.Add(Minimap.RoomType.Battle);
+                        Debug.Log($"<color=cyan>[TreeMapFlow] 动态扩展槽位 → layer.Count={layer.Count}  flatLayout={_levelLayout?.Count}</color>");
+                    }
+                }
+            }
+
             // 检查当前层是否还有下一个房间
             bool levelComplete = _currentRoomInLevel >= _levelRooms[_currentLevel].Count;
 
@@ -440,13 +519,181 @@ namespace XianTu
                 Vector3 roomCenter = _currentRoomGo != null ? _currentRoomGo.transform.position : Vector3.zero;
                 Vector3 portalPos = roomCenter + new Vector3(0, 0, roomHalfDepth * 0.5f);
 
-                LevelTransition.Instance.SpawnPortal(portalPos, () => SpawnCurrentRoom());
+                LevelTransition.Instance.SpawnPortal(portalPos, () => EnterNextRoomWithChoice());
             }
             else
             {
-                Invoke(nameof(SpawnCurrentRoom), 2f);
+                Invoke(nameof(EnterNextRoomWithChoice), 2f);
             }
         }
+
+        /// <summary>
+        /// v3 第 12 章：进入下一房间前的路径决策。
+        /// 优先级：TreeMap UI（走格子，依赖 LevelDesignDirector.CurrentMap）
+        ///       → RoomChoiceUI（3 选 1 卡片，TreeMap 没就绪时的退化方案）
+        ///       → 直接进入（useTreeMapFlow 关闭 或 下一间是 Boss）。
+        /// </summary>
+        private void EnterNextRoomWithChoice()
+        {
+            Debug.Log($"<color=cyan>[TreeMapFlow] EnterNextRoomWithChoice  useTreeMapFlow={useTreeMapFlow}  realm={_currentLevel}  roomIdx={_currentRoomInLevel}</color>");
+            if (useTreeMapFlow)
+            {
+                if (TryShowTreeMapNavigation()) return;
+                if (TryShowRoomChoice()) return;
+            }
+            SpawnCurrentRoom();
+        }
+
+        /// <summary>
+        /// 弹 TreeMap UI 走格子；返回 false 表示当前情境不适合（无 TreeMap / Boss 房 / 无候选节点）。
+        /// 玩家选完后 → 把节点类型映射回 Minimap.RoomType → OverrideNextRoomType + SpawnCurrentRoom。
+        /// </summary>
+        private bool TryShowTreeMapNavigation()
+        {
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            if (dir == null || dir.CurrentMap == null) return false;
+
+            var cur = dir.CurrentMap.CurrentNode;
+            if (cur == null || cur.Next == null || cur.Next.Count == 0) return false;
+
+            // Boss 房保持线性叙事
+            if (_levelRooms != null && _currentLevel < _levelRooms.Count)
+            {
+                var layer = _levelRooms[_currentLevel];
+                if (_currentRoomInLevel >= 0 && _currentRoomInLevel < layer.Count
+                    && layer[_currentRoomInLevel] == Minimap.RoomType.Boss)
+                    return false;
+            }
+
+            dir.ShowMap(node =>
+            {
+                if (node != null)
+                {
+                    var mapped = MapLevelRoomToMinimap(node.RoomType);
+                    OverrideNextRoomType(mapped);
+                }
+                SpawnCurrentRoom();
+            });
+            return true;
+        }
+
+        /// <summary>
+        /// LevelDesign 系统的 LevelRoomType（Battle/Elite/Shop/Event/Boss）→ Minimap.RoomType。
+        /// Event 房映射为 Treasure（最接近"特殊房"），Elite 仍归 Battle。
+        /// </summary>
+        private static Minimap.RoomType MapLevelRoomToMinimap(LevelDesign.LevelRoomType t)
+        {
+            return t switch
+            {
+                LevelDesign.LevelRoomType.Battle => Minimap.RoomType.Battle,
+                LevelDesign.LevelRoomType.Elite => Minimap.RoomType.Battle,
+                LevelDesign.LevelRoomType.Shop => Minimap.RoomType.Shop,
+                LevelDesign.LevelRoomType.Event => Minimap.RoomType.Treasure,
+                LevelDesign.LevelRoomType.Boss => Minimap.RoomType.Boss,
+                _ => Minimap.RoomType.Battle
+            };
+        }
+
+        /// <summary>展示 3 选 1 房间卡片。返回 false 表示当前情境不适合展示（例如下一房间是 Boss）。</summary>
+        private bool TryShowRoomChoice()
+        {
+            if (_levelRooms == null || _currentLevel >= _levelRooms.Count)
+            {
+                Debug.Log("<color=yellow>[TreeMapFlow] 跳过：_levelRooms 为空或越界</color>");
+                return false;
+            }
+            var layer = _levelRooms[_currentLevel];
+            if (_currentRoomInLevel < 0 || _currentRoomInLevel >= layer.Count)
+            {
+                Debug.Log($"<color=yellow>[TreeMapFlow] 跳过：roomIdx={_currentRoomInLevel} 越出 layer({layer.Count})</color>");
+                return false;
+            }
+
+            var currentSlot = layer[_currentRoomInLevel];
+            if (currentSlot == Minimap.RoomType.Boss)
+            {
+                Debug.Log("<color=yellow>[TreeMapFlow] 跳过：下一间是 Boss 房</color>");
+                return false;
+            }
+
+            var candidates = BuildRoomCandidates(currentSlot);
+            if (candidates == null || candidates.Length < 2)
+            {
+                Debug.Log("<color=yellow>[TreeMapFlow] 跳过：候选 < 2</color>");
+                return false;
+            }
+
+            Debug.Log($"<color=cyan>[TreeMapFlow] ★ 弹出 {candidates.Length} 选 1 房间卡片</color>");
+            LevelDesign.RoomChoiceUI.Show(candidates, picked =>
+            {
+                Debug.Log($"<color=cyan>[TreeMapFlow] 玩家选定：{picked}</color>");
+                OverrideNextRoomType(picked);
+                SpawnCurrentRoom();
+            });
+            return true;
+        }
+
+        /// <summary>构建 3 张候选卡片：包括"默认"那张 + 2 张异类</summary>
+        private LevelDesign.RoomChoiceUI.Candidate[] BuildRoomCandidates(Minimap.RoomType defaultType)
+        {
+            // 在浓灵气 / 高境界后，候选池可以增加"宝箱 / 升级 / 休息"权重
+            var pool = new System.Collections.Generic.List<Minimap.RoomType>
+            {
+                Minimap.RoomType.Battle,
+                Minimap.RoomType.Shop,
+                Minimap.RoomType.Treasure,
+                Minimap.RoomType.Rest,
+                Minimap.RoomType.Upgrade
+            };
+            // 把默认槽位也加入（这样玩家有"按设计走" 的选项）
+            pool.Add(defaultType);
+
+            // 去重 + 洗牌
+            var distinct = new System.Collections.Generic.HashSet<Minimap.RoomType>(pool);
+            var shuffled = new System.Collections.Generic.List<Minimap.RoomType>(distinct);
+            for (int i = shuffled.Count - 1; i > 0; i--)
+            {
+                int j = UnityEngine.Random.Range(0, i + 1);
+                (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
+            }
+
+            // 取前 3
+            int n = Mathf.Min(3, shuffled.Count);
+            var arr = new LevelDesign.RoomChoiceUI.Candidate[n];
+            for (int i = 0; i < n; i++)
+            {
+                var t = shuffled[i];
+                arr[i] = new LevelDesign.RoomChoiceUI.Candidate
+                {
+                    type = t,
+                    title = TypeTitle(t),
+                    tooltip = TypeTooltip(t)
+                };
+            }
+            return arr;
+        }
+
+        private static string TypeTitle(Minimap.RoomType t) => t switch
+        {
+            Minimap.RoomType.Battle => "战斗",
+            Minimap.RoomType.Shop => "商店",
+            Minimap.RoomType.Rest => "休息",
+            Minimap.RoomType.Treasure => "宝藏",
+            Minimap.RoomType.Boss => "Boss",
+            Minimap.RoomType.Upgrade => "悟道",
+            _ => "未知"
+        };
+
+        private static string TypeTooltip(Minimap.RoomType t) => t switch
+        {
+            Minimap.RoomType.Battle => "刷怪 + 拾取局内灵物 / 洞府素材",
+            Minimap.RoomType.Shop => "用本局货币购买灵物 / 丹药",
+            Minimap.RoomType.Rest => "灵泉静修，回复生命",
+            Minimap.RoomType.Treasure => "开启宝箱，获得稀有奖励",
+            Minimap.RoomType.Boss => "境界 Boss，挑战极限",
+            Minimap.RoomType.Upgrade => "拜访功法宗师，强化已有功法",
+            _ => ""
+        };
 
         /// <summary>
         /// v0.5 搜打撤：每境界结束时同时生成【出梦点】（撤离）和【下一境界传送门】（继续），让玩家做决策。
@@ -563,6 +810,19 @@ namespace XianTu
         }
 
         /// <summary>敌人被击杀时奖励灵力碎片</summary>
+        /// <summary>渡劫结束：PartialFail（中 2~3 雷）强制撤离 —— 移除下一境界传送门，只剩出梦点可走。</summary>
+        private void OnTribulationFinished(GameEvents.TribulationFinished evt)
+        {
+            if (evt.Outcome == TribulationOutcome.PartialFail)
+            {
+                if (LevelTransition.Instance != null)
+                {
+                    LevelTransition.Instance.RemovePortal();
+                    Debug.Log("<color=#ffaa66>[GameManager] 渡劫失利 · 强制撤离（下一境界传送门已撤除）</color>");
+                }
+            }
+        }
+
         private void OnEnemyKilled(GameEvents.EnemyKilled evt)
         {
             if (PlayerResources.Instance == null) return;
@@ -620,6 +880,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Unsubscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
         }
 
         /// <summary>设置小地图引用</summary>

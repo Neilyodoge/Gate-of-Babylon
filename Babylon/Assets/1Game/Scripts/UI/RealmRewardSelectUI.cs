@@ -20,6 +20,8 @@ namespace XianTu
         private List<RealmReward> _options;
         private Action<RealmReward> _onSelected;
         private string _realmName;
+        private CursorLockMode _prevLock;
+        private bool _prevVisible;
 
         public static void Show(string realmName, List<RealmReward> options, Action<RealmReward> onSelected)
         {
@@ -36,6 +38,8 @@ namespace XianTu
 
             if (_instance._visible)
             {
+                _instance._prevLock = Cursor.lockState;
+                _instance._prevVisible = Cursor.visible;
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
@@ -158,8 +162,8 @@ namespace XianTu
         private void SelectReward(RealmReward reward)
         {
             _visible = false;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Cursor.lockState = _prevLock;
+            Cursor.visible = _prevVisible;
             _onSelected?.Invoke(reward);
         }
 

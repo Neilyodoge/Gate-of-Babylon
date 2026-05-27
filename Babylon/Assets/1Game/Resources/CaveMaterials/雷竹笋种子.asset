@@ -18,6 +18,7 @@ MonoBehaviour:
   rarity: 1
   category: 10
   scope: 1
+  processedProductName: "\u96F7\u7AF9\u7B0B"
   modTag: 3
   stackable: 1
   qualitativeThresholds: 

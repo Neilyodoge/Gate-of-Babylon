@@ -914,6 +914,10 @@ namespace XianTu
             boss._roomLevel = roomLevel;
             if (drops != null) boss.possibleDrops = drops;
 
+            // GDD §12.3：根据 BossFlagSet 应用形态修正 + 出场对白
+            // 仅在 LevelDesign 系统就绪时生效；不就绪则保持原有数值（向下兼容）。
+            LevelDesign.LevelDesignDirector.Instance.ApplyBossPhase(boss, bossID: 1);
+
             return boss;
         }
 

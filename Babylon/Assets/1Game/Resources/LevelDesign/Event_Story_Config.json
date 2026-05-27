@@ -1,0 +1,101 @@
+{
+  "Rows": [
+    {
+      "ID": 1001,
+      "Name_CN": "叶修之死",
+      "Type": 1,
+      "PrereqFlag": "",
+      "Text_CN": "你击败了散修叶修，从他身上找到一颗风灵珠。他奄奄一息地望着你，眼神中既无怨恨，也无哀求——只是静静地等待着自己的命运。\n\n你该如何处置他？",
+      "Options": [
+        {
+          "Text": "取走风灵珠，吸收他残余的灵力",
+          "FlagName": "betrayed_yeXiu",
+          "FlagValue": 1,
+          "RewardID": 2001,
+          "CostID": 0,
+          "KarmaChange": 1,
+          "DaoxinChange": -5,
+          "LifespanChange": 0
+        },
+        {
+          "Text": "将他就地埋葬，立一块无字碑",
+          "FlagName": "saved_yeXiu",
+          "FlagValue": 1,
+          "RewardID": 0,
+          "CostID": 0,
+          "KarmaChange": -1,
+          "DaoxinChange": 10,
+          "LifespanChange": 0
+        },
+        {
+          "Text": "搜刮后扬长而去",
+          "FlagName": "ignored_yeXiu",
+          "FlagValue": 1,
+          "RewardID": 2001,
+          "CostID": 0,
+          "KarmaChange": 0,
+          "DaoxinChange": -2,
+          "LifespanChange": 0
+        }
+      ]
+    },
+    {
+      "ID": 1002,
+      "Name_CN": "灵药宝库",
+      "Type": 3,
+      "PrereqFlag": "saved_yeXiu=1",
+      "Text_CN": "一位白发老者悄然现身，目光柔和：\n\n「我便是叶修的师父。多谢你善待我那不成器的弟子……这是他生前为我寻得的灵药，便由你带去吧。」",
+      "Options": [
+        {
+          "Text": "拜谢前辈赐药",
+          "FlagName": "elder_gift",
+          "FlagValue": 1,
+          "RewardID": 3001,
+          "CostID": 0,
+          "KarmaChange": 0,
+          "DaoxinChange": 5,
+          "LifespanChange": 0
+        }
+      ]
+    },
+    {
+      "ID": 1003,
+      "Name_CN": "古修遗宝",
+      "Type": 1,
+      "PrereqFlag": "",
+      "Text_CN": "一座古旧石台上躺着一颗散发金光的灵物——天品级的「九转还魂丹」。\n\n但你能感觉到，台子周围弥漫着一股诡异的气息，仿佛在汲取着接近者的什么……",
+      "Options": [
+        {
+          "Text": "以寿元换取（消耗 10 年寿元）",
+          "FlagName": "took_ancient_treasure",
+          "FlagValue": 1,
+          "RewardID": 3001,
+          "CostID": 0,
+          "KarmaChange": 0,
+          "DaoxinChange": 0,
+          "LifespanChange": -10
+        },
+        {
+          "Text": "放弃，转身离去",
+          "FlagName": "",
+          "FlagValue": 0,
+          "RewardID": 0,
+          "CostID": 0,
+          "KarmaChange": 0,
+          "DaoxinChange": 3,
+          "LifespanChange": 0
+        },
+        {
+          "Text": "强行夺取（与守护者一战）",
+          "FlagName": "forced_treasure",
+          "FlagValue": 1,
+          "RewardID": 3001,
+          "CostID": 0,
+          "KarmaChange": 2,
+          "DaoxinChange": -5,
+          "LifespanChange": 0
+        }
+      ]
+    }
+  ]
+}

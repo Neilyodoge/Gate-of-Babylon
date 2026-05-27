@@ -696,22 +696,33 @@ namespace XianTu
     public class UpgradeInteractTrigger : MonoBehaviour
     {
         private UpgradeRoom _room;
+        private bool _inside;
 
         public void Initialize(UpgradeRoom room)
         {
             _room = room;
         }
 
-        private void OnTriggerEnter(Collider other)
-        {
-            if (other.CompareTag("Player"))
-                _room?.OnPlayerEnterRange();
-        }
+        private void OnTriggerEnter(Collider other) => TryEnter(other);
+
+        // 兜底：玩家被 TeleportPlayer 出生在房间中心，NPC 在 (0,1,2) r=3 内，
+        // OnTriggerEnter 不会触发；用 OnTriggerStay 保证 F 交互能注册。
+        private void OnTriggerStay(Collider other) => TryEnter(other);
 
         private void OnTriggerExit(Collider other)
         {
-            if (other.CompareTag("Player"))
-                _room?.OnPlayerExitRange();
+            if (!other.CompareTag("Player")) return;
+            if (!_inside) return;
+            _inside = false;
+            _room?.OnPlayerExitRange();
+        }
+
+        private void TryEnter(Collider other)
+        {
+            if (_inside) return;
+            if (!other.CompareTag("Player")) return;
+            _inside = true;
+            _room?.OnPlayerEnterRange();
         }
     }
 }

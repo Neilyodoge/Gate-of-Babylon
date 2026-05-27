@@ -90,16 +90,22 @@ namespace XianTu
         /// <summary>梦醒（撤离成功 / 死亡）时清空 ActiveCarry 防止穿越</summary>
         public static void ClearActive() => ActiveCarry.Clear();
 
-        /// <summary>列出洞府库存中所有可携带的丹药 itemName（含 "丹" 但不含 "灵药"）</summary>
+        /// <summary>列出洞府库存中所有可携带的丹药 itemName（优先按 SO category=Pill 判断，无 SO 时按 itemName 兜底）</summary>
         public static List<string> ListAvailablePills()
         {
             var list = new List<string>();
             foreach (var e in SaveSystem.Instance.Data.caveInventory)
             {
                 if (e.count <= 0) continue;
-                // 简化规则：名字含"丹"且不含"灵药"且不含"种子"算丹药
-                if (e.itemName.Contains("丹") && !e.itemName.Contains("灵药") && !e.itemName.Contains("种子"))
-                    list.Add(e.itemName);
+                var so = CaveMaterialPool.GetByName(e.itemName);
+                if (so != null)
+                {
+                    if (so.category == ItemCategory.Pill) list.Add(e.itemName);
+                }
+                else if (e.itemName.Contains("丹") && !e.itemName.Contains("灵药") && !e.itemName.Contains("种子"))
+                {
+                    list.Add(e.itemName);  // 旧字符串兜底
+                }
             }
             return list;
         }

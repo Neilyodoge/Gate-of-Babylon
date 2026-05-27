@@ -221,7 +221,7 @@ namespace XianTu
             string msg = evt.Outcome switch
             {
                 TribulationOutcome.Success => "◆ 渡劫成功 · 破劫者 ◆",
-                TribulationOutcome.PartialFail => "◇ 渡劫险胜 · 半残撤离 ◇",
+                TribulationOutcome.PartialFail => "◇ 渡劫失利 · 仅余撤离一途 ◇",
                 _ => "✗ 渡劫失败 · 形神俱灭 ✗"
             };
             var col = evt.Outcome switch

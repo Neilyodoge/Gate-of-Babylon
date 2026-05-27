@@ -490,20 +490,32 @@ namespace XianTu
     /// <summary>
     /// 通用 Trigger 桥接器：外部用 lambda 直接订阅 Enter/Exit 事件，
     /// 不需要再专门为每个交互体写一个 SubTrigger 类。
+    /// 兜底 OnTriggerStay：当玩家通过 TeleportPlayer 直接出现在触发器内部时
+    /// Unity 不会触发 OnTriggerEnter，必须靠 Stay 兜底（参考 RoomExitTrigger / ChestTrigger 同款 pattern）。
     /// </summary>
     public class TriggerBridge : MonoBehaviour
     {
         public Action OnEnter;
         public Action OnExit;
+        private bool _inside;
 
-        private void OnTriggerEnter(Collider other)
-        {
-            if (other.CompareTag("Player")) OnEnter?.Invoke();
-        }
+        private void OnTriggerEnter(Collider other) => TryEnter(other);
+        private void OnTriggerStay(Collider other) => TryEnter(other);
 
         private void OnTriggerExit(Collider other)
         {
-            if (other.CompareTag("Player")) OnExit?.Invoke();
+            if (!other.CompareTag("Player")) return;
+            if (!_inside) return;
+            _inside = false;
+            OnExit?.Invoke();
+        }
+
+        private void TryEnter(Collider other)
+        {
+            if (_inside) return;
+            if (!other.CompareTag("Player")) return;
+            _inside = true;
+            OnEnter?.Invoke();
         }
     }
 }

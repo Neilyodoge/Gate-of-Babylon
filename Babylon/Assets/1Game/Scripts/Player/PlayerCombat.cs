@@ -650,7 +650,7 @@ namespace XianTu
             if (skill.skillType == SkillType.Buff)
             {
                 Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
-                CastBuffSkill(skill);
+                CastBuffSkill(skill, slotIndex);
                 return true;
             }
 
@@ -851,12 +851,24 @@ namespace XianTu
         }
 
         /// <summary>增益技能（如金钟罩）</summary>
-        private void CastBuffSkill(SkillData skill)
+        private void CastBuffSkill(SkillData skill, int slotIndex = -1)
         {
             // 简单实现：临时增加减伤
             var stats = _player.Stats;
             float originalReduction = stats.damageReduction;
             stats.damageReduction = Mathf.Clamp01(stats.damageReduction + 0.5f);
+
+            // GDD 6.5：buff 类技能也支持槽位修饰。例如金钟罩 + 火灵珠 → 护火金钟（玩家周围 zone 烧敌人）
+            if (slotIndex >= 0 && skill.modifierDefs != null && skill.modifierDefs.Length > 0)
+            {
+                SkillModifierApplier.ApplyAreaSkill(
+                    skill, slotIndex,
+                    transform.position,
+                    Mathf.Max(2.5f, skill.aoeRadius),
+                    null,    // buff 技能没有命中目标列表，仅触发 zone
+                    _player,
+                    enemyLayer);
+            }
 
             // 特效
             if (skill.vfxPrefab != null)

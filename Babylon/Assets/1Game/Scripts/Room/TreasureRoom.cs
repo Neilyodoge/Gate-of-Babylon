@@ -12,6 +12,8 @@ namespace XianTu
         private ItemData[] _itemPool;
         private GameObject _roomVisuals;
         private GameObject _chest;
+        private GameObject _hintCanvas;
+        private Text _hintText;
         private bool _opened;
 
         public float RoomWidth => 18f;
@@ -100,31 +102,39 @@ namespace XianTu
             trigger.Initialize(this);
 
             // 提示
-            var hintCanvas = new GameObject("HintCanvas");
-            hintCanvas.transform.SetParent(_chest.transform);
-            hintCanvas.transform.localPosition = new Vector3(0, 2.5f, 0);
-            var c = hintCanvas.AddComponent<Canvas>();
+            _hintCanvas = new GameObject("HintCanvas");
+            _hintCanvas.transform.SetParent(_chest.transform);
+            _hintCanvas.transform.localPosition = new Vector3(0, 2.5f, 0);
+            var c = _hintCanvas.AddComponent<Canvas>();
             c.renderMode = RenderMode.WorldSpace;
             c.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0.4f);
-            hintCanvas.transform.localScale = Vector3.one * 0.02f;
+            _hintCanvas.transform.localScale = Vector3.one * 0.02f;
 
             var textGo = new GameObject("HintText");
-            textGo.transform.SetParent(hintCanvas.transform, false);
+            textGo.transform.SetParent(_hintCanvas.transform, false);
             var rt = textGo.AddComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
-            text.text = "宝箱 · 靠近开启";
-            text.fontSize = 18;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.color = new Color(1f, 0.85f, 0.3f);
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _hintText = textGo.AddComponent<Text>();
+            _hintText.text = "按 [F] 开启宝箱";
+            _hintText.fontSize = 18;
+            _hintText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _hintText.color = new Color(1f, 0.85f, 0.3f);
+            _hintText.alignment = TextAnchor.MiddleCenter;
+            _hintText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _hintCanvas.AddComponent<BillboardUI>();
+            _hintCanvas.SetActive(false); // 等玩家进入触发器路由激活时再显示
 
             // 出口触发器（房间北侧）
             CreateExitTrigger();
+        }
+
+        /// <summary>由 ChestTrigger 调用：控制宝箱头顶提示的显隐</summary>
+        public void SetHintVisible(bool visible)
+        {
+            if (_hintCanvas != null) _hintCanvas.SetActive(visible && !_opened);
         }
 
         /// <summary>在房间北侧创建出口触发器</summary>
@@ -144,7 +154,12 @@ namespace XianTu
             var exitTrigger = exitGo.AddComponent<RoomExitTrigger>();
             exitTrigger.Initialize(() =>
             {
-                if (!_opened) return; // 必须先开箱
+                if (!_opened)
+                {
+                    Debug.Log("<color=red>[TreasureRoom] 出口被按下但宝箱未开启，忽略</color>");
+                    return;
+                }
+                Debug.Log("<color=green>[TreasureRoom] 出口触发 → 发布 RoomCleared</color>");
                 GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
             });
 
@@ -177,6 +192,13 @@ namespace XianTu
         {
             if (_opened) return;
             _opened = true;
+
+            // 立即销毁头顶提示（不再显示"按 F 开启"）
+            if (_hintCanvas != null)
+            {
+                Destroy(_hintCanvas);
+                _hintCanvas = null;
+            }
 
             if (_itemPool == null || _itemPool.Length == 0) return;
 
@@ -254,20 +276,69 @@ namespace XianTu
         }
     }
 
-    /// <summary>宝箱触发器</summary>
-    public class ChestTrigger : MonoBehaviour
+    /// <summary>宝箱触发器 —— 手动按 F 开启（参与 InteractionRouter 路由）</summary>
+    public class ChestTrigger : MonoBehaviour, IInteractable
     {
         private TreasureRoom _room;
+        private bool _opened;
+        private bool _playerInRange;
+
+        // IInteractable
+        public Vector3 InteractionWorldPos => transform.position;
+        public int InteractionPriority => 30; // 高于灵物拾取 20，低于商店 40
+        public bool IsInteractionAvailable => !_opened && _playerInRange;
+        public bool IsRoutedActive { get; set; }
 
         public void Initialize(TreasureRoom room)
         {
             _room = room;
         }
 
-        private void OnTriggerEnter(Collider other)
+        private void OnTriggerEnter(Collider other) => TryRegister(other);
+
+        // 兜底：玩家通过 TeleportPlayer 出生在房间中心（= 宝箱位置）时，
+        // OnTriggerEnter 不会触发；用 OnTriggerStay 保证注册到 InteractionRouter。
+        private void OnTriggerStay(Collider other) => TryRegister(other);
+
+        private void OnTriggerExit(Collider other)
         {
-            if (other.CompareTag("Player"))
+            if (!other.CompareTag("Player")) return;
+            if (!_playerInRange) return;
+            _playerInRange = false;
+            InteractionRouter.Unregister(this);
+            _room?.SetHintVisible(false);
+        }
+
+        private void TryRegister(Collider other)
+        {
+            if (_opened || _playerInRange) return;
+            if (!other.CompareTag("Player")) return;
+            _playerInRange = true;
+            InteractionRouter.Register(this);
+        }
+
+        private void Update()
+        {
+            if (_opened) return;
+
+            // 提示跟随 Router 选中状态
+            _room?.SetHintVisible(IsRoutedActive);
+
+            if (!IsRoutedActive) return;
+
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb == null) return;
+            if (kb.fKey.wasPressedThisFrame)
+            {
+                _opened = true;
+                InteractionRouter.Unregister(this);
                 _room?.OpenChest();
+            }
+        }
+
+        private void OnDestroy()
+        {
+            InteractionRouter.Unregister(this);
         }
     }
 }

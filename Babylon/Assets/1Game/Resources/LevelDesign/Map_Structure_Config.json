@@ -1,0 +1,46 @@
+{
+  "Rows": [
+    {
+      "ID": 1,
+      "ActID": 1,
+      "MaxFloor": 6,
+      "MinNodes": 2,
+      "MaxNodes": 3,
+      "NormalWeight": 75,
+      "SpecialWeight": 25,
+      "EliteMinCount": 1,
+      "EliteMaxCount": 2,
+      "EventMinCount": 1,
+      "ShopMinCount": 1,
+      "RoomPoolID": [1, 2, 3, 4, 5, 6]
+    },
+    {
+      "ID": 2,
+      "ActID": 2,
+      "MaxFloor": 8,
+      "MinNodes": 2,
+      "MaxNodes": 4,
+      "NormalWeight": 70,
+      "SpecialWeight": 30,
+      "EliteMinCount": 2,
+      "EliteMaxCount": 3,
+      "EventMinCount": 2,
+      "ShopMinCount": 1,
+      "RoomPoolID": [1, 2, 3, 4, 5, 6]
+    },
+    {
+      "ID": 3,
+      "ActID": 3,
+      "MaxFloor": 10,
+      "MinNodes": 3,
+      "MaxNodes": 4,
+      "NormalWeight": 65,
+      "SpecialWeight": 35,
+      "EliteMinCount": 3,
+      "EliteMaxCount": 4,
+      "EventMinCount": 3,
+      "ShopMinCount": 2,
+      "RoomPoolID": [1, 2, 3, 4, 5, 6]
+    }
+  ]
+}

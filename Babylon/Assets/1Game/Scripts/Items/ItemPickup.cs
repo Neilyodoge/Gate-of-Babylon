@@ -178,7 +178,12 @@ namespace XianTu
                     Amount = 1,
                     CurrentBufferTotal = CaveInventory.Instance.TotalPendingCount
                 });
-                // 洞府素材拾取后直接销毁拾取物（不进背包不进槽位）
+                _pickedUp = true;
+                InteractionRouter.Unregister(this);
+                // Bug fix: ObjectPool.Return 只 SetActive(false)，不会触发 OnDestroy；
+                // 必须显式 HidePrompt 销毁世界空间的 ItemPromptCanvas 孤儿，否则下一回合
+                // 仍能看到悬浮 tooltip 但物品已被拿走，挡视野且让玩家以为可拾取。
+                HidePrompt();
                 if (ObjectPool.Instance != null) ObjectPool.Instance.Return(gameObject);
                 else Destroy(gameObject);
                 return;
@@ -302,7 +307,9 @@ namespace XianTu
             float panelHeight = hasEffect ? 160 : 100;
 
             var canvasGo = new GameObject("ItemPromptCanvas");
-            // ????????????????
+            // 挂到 ItemPickup 自身 transform 下：ObjectPool.Return 把父 GameObject SetActive(false) 时，
+            // 子 Canvas 也会同步隐藏，避免孤儿 tooltip。
+            canvasGo.transform.SetParent(transform, worldPositionStays: false);
             canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
 
             var canvas = canvasGo.AddComponent<Canvas>();

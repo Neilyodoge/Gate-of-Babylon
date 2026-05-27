@@ -352,8 +352,8 @@ namespace XianTu
                 float a = (i / 4f) * Mathf.PI * 2f;
                 Vector3 p = new Vector3(Mathf.Cos(a) * 1.1f, 0f, Mathf.Sin(a) * 1.1f);
                 CaveVfx.SpawnSmokeEmitter(_rootedVfxRoot.transform, p,
-                    color: earthColor, size: 0.20f, interval: 0.35f,
-                    riseSpeed: 0.7f, lifetime: 1.3f, jitter: 0.15f);
+                    color: earthColor, particleSize: 0.20f, spawnInterval: 0.35f,
+                    riseSpeed: 0.7f, lifetime: 1.3f, jitterRadius: 0.15f);
             }
 
             // 5) 进入瞬间脚下来一发大爆环

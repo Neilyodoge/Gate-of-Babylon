@@ -345,9 +345,9 @@ namespace XianTu
             if (_promptUI != null) return;
             if (skillData == null) return;
 
-            // ????????UI
+            // 创建提示UI（挂到 SkillPickup 自身 transform 下，避免 SetActive 时变成孤儿 Canvas）
             var canvasGo = new GameObject("SkillPromptCanvas");
-            // ????????????????
+            canvasGo.transform.SetParent(transform, worldPositionStays: false);
             canvasGo.transform.position = new Vector3(_startPos.x, _startPos.y + 2.0f, _startPos.z);
 
             var canvas = canvasGo.AddComponent<Canvas>();

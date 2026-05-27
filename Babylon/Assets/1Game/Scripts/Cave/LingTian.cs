@@ -224,7 +224,7 @@ namespace XianTu
             _seedPickerForPlot = plotIdx;
         }
 
-        /// <summary>从永久存档中找所有 PlantSeed 类的素材</summary>
+        /// <summary>从永久存档中找所有 PlantSeed 类的素材（优先按 SO category 判断，无 SO 时按 itemName 兜底）</summary>
         private List<string> ListAvailableSeeds()
         {
             var result = new List<string>();
@@ -232,9 +232,15 @@ namespace XianTu
             foreach (var e in data.caveInventory)
             {
                 if (e.count <= 0) continue;
-                // 简化：约定 itemName 含 "种子" 关键字的算作 PlantSeed
-                // （正式版应该从 ItemData SO 注册表里查 category == PlantSeed）
-                if (e.itemName.Contains("种子")) result.Add(e.itemName);
+                var so = CaveMaterialPool.GetByName(e.itemName);
+                if (so != null)
+                {
+                    if (so.category == ItemCategory.PlantSeed) result.Add(e.itemName);
+                }
+                else if (e.itemName.Contains("种子"))
+                {
+                    result.Add(e.itemName);  // 旧字符串兜底
+                }
             }
             return result;
         }
@@ -249,14 +255,26 @@ namespace XianTu
             }
             SaveSystem.Instance.Save();
 
-            // 种植
+            // 通过 SO 链查产物，无 SO 时按字符串替换兜底（旧种子无 processedProductName 时）
+            string harvestName;
+            var seedSo = CaveMaterialPool.GetByName(seedItemName);
+            if (seedSo != null && !string.IsNullOrEmpty(seedSo.processedProductName))
+            {
+                harvestName = seedSo.processedProductName;
+            }
+            else
+            {
+                harvestName = seedItemName.Replace("种子", "灵药");  // 旧兜底
+                Debug.LogWarning($"[灵田] 种子 {seedItemName} 缺 processedProductName，用字符串替换兜底为 {harvestName}");
+            }
+
             _plots[plotIdx].seedItemName = seedItemName;
-            _plots[plotIdx].harvestItemName = seedItemName.Replace("种子", "灵药");
+            _plots[plotIdx].harvestItemName = harvestName;
             _plots[plotIdx].plantedAt = GameTime.Instance.Time;
             _plots[plotIdx].growDuration = DefaultGrowDuration;
 
             _seedPickerForPlot = -1;
-            Debug.Log($"<color=#88ff88>[灵田] 田 {plotIdx + 1} 种下 {seedItemName}</color>");
+            Debug.Log($"<color=#88ff88>[灵田] 田 {plotIdx + 1} 种下 {seedItemName} → 将产出 {harvestName}</color>");
         }
 
         private void Harvest(int plotIdx)

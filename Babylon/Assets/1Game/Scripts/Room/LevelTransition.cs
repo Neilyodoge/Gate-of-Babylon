@@ -46,6 +46,16 @@ namespace XianTu
             _fadeOverlay.SetActive(false);
         }
 
+        /// <summary>立即销毁当前传送门（用于"渡劫失利强制撤离"等场景）</summary>
+        public void RemovePortal()
+        {
+            if (_portal != null)
+            {
+                Destroy(_portal);
+                _portal = null;
+            }
+        }
+
         /// <summary>在指定位置创建传送门（大型发光门，非常醒目）</summary>
         public void SpawnPortal(Vector3 position, System.Action onEnter)
         {

@@ -38,6 +38,12 @@ namespace XianTu
 
         public int TotalMomentsThisRun { get; private set; } = 0;
 
+        /// <summary>单局顿悟时刻最大触发次数（防刷 · v0.5 Week 8 技术债清理）</summary>
+        public const int MaxMomentsPerRun = 6;
+
+        /// <summary>本局是否已用尽顿悟次数</summary>
+        public bool IsMomentExhausted => TotalMomentsThisRun >= MaxMomentsPerRun;
+
         // ========== 永久悟性 ==========
 
         public int PermanentInsight => SaveSystem.Instance.Data.accumulatedInsight;
@@ -71,6 +77,12 @@ namespace XianTu
         private void CheckMomentTrigger()
         {
             if (RunInsight < NextMomentThreshold) return;
+            // 上限保护：超出本局最大次数后悟性继续积累（撤离能转永久），但不再弹顿悟时刻
+            if (TotalMomentsThisRun >= MaxMomentsPerRun)
+            {
+                NextMomentThreshold = int.MaxValue;  // 提到天上，不再触发
+                return;
+            }
             // 触发顿悟时刻
             TotalMomentsThisRun++;
             GameEvents.Publish(new GameEvents.InsightMomentTriggered
@@ -78,8 +90,9 @@ namespace XianTu
                 Threshold = NextMomentThreshold,
                 MomentIndex = TotalMomentsThisRun
             });
-            NextMomentThreshold += 50;  // 每次提高阈值（防止刷悟性）
-            Debug.Log($"<color=#dfcfff>[InsightSystem] 顿悟时刻 #{TotalMomentsThisRun}！下次阈值 {NextMomentThreshold}</color>");
+            // 阶梯递增 + 后期更陡：1→50, 2→120, 3→210, 4→320, 5→450, 6→600
+            NextMomentThreshold += 50 + TotalMomentsThisRun * 20;
+            Debug.Log($"<color=#dfcfff>[InsightSystem] 顿悟时刻 #{TotalMomentsThisRun}/{MaxMomentsPerRun}！下次阈值 {NextMomentThreshold}</color>");
         }
 
         // ========== 局结束 ==========

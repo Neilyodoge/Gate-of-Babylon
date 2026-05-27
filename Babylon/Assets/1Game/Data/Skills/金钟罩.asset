@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -39,3 +39,36 @@ MonoBehaviour:
   vfxDuration: 5
   castSFX: {fileID: 0}
   hitSFX: {fileID: 0}
+  modifierDefs:
+  - modifiedName: "\u62A4\u706B\u91D1\u949F"
+    requiredTag: 1
+    requiredCount: 1
+    leaveZone: 1
+    zoneRadius: 2.5
+    zoneDuration: 5
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.12
+    addBurn: 1
+    burnDPS: 3
+    burnDuration: 2
+    addFreeze: 0
+    freezeChance: 1
+    freezeDuration: 2
+    addThunderStrike: 0
+    thunderMul: 0.6
+  - modifiedName: "\u51B0\u9B44\u91D1\u949F"
+    requiredTag: 2
+    requiredCount: 1
+    leaveZone: 1
+    zoneRadius: 3
+    zoneDuration: 1.5
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.10
+    addBurn: 0
+    burnDPS: 4
+    burnDuration: 3
+    addFreeze: 1
+    freezeChance: 1
+    freezeDuration: 2
+    addThunderStrike: 0
+    thunderMul: 0.6

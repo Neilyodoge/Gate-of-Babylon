@@ -1,0 +1,44 @@
+{
+  "Rows": [
+    {
+      "ID": 2001,
+      "Name_CN": "风灵珠",
+      "Text_CN": "使用后维持 10 分钟身轻如燕，移动速度增加 20%。",
+      "Type": 1,
+      "Icon": "feng_ling_zhu",
+      "MaxStack": 5,
+      "EffectID": 1,
+      "Duration": 600
+    },
+    {
+      "ID": 2002,
+      "Name_CN": "回灵丹",
+      "Text_CN": "立即回复 30% 生命。",
+      "Type": 1,
+      "Icon": "hui_ling_dan",
+      "MaxStack": 9,
+      "EffectID": 2,
+      "Duration": 0
+    },
+    {
+      "ID": 3001,
+      "Name_CN": "九转还魂丹",
+      "Text_CN": "传说中的天品丹药，死亡后原地复活，全属性 +20% 持续 30 秒。",
+      "Type": 1,
+      "Icon": "jiu_zhuan",
+      "MaxStack": 1,
+      "EffectID": 3,
+      "Duration": 30
+    },
+    {
+      "ID": 9001,
+      "Name_CN": "逆命符",
+      "Text_CN": "消耗后可清除最近一条 Boss Flag（撤回上一次事件选择的影响）。",
+      "Type": 3,
+      "Icon": "ni_ming_fu",
+      "MaxStack": 3,
+      "EffectID": 99,
+      "Duration": 0
+    }
+  ]
+}

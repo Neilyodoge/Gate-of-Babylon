@@ -197,7 +197,15 @@ namespace XianTu
             foreach (var e in SaveSystem.Instance.Data.caveInventory)
             {
                 if (e.count <= 0) continue;
-                if (e.itemName.Contains("灵药")) result.Add(e.itemName);
+                var so = CaveMaterialPool.GetByName(e.itemName);
+                if (so != null)
+                {
+                    if (so.category == ItemCategory.Herb) result.Add(e.itemName);
+                }
+                else if (e.itemName.Contains("灵药"))
+                {
+                    result.Add(e.itemName);  // 旧字符串兜底
+                }
             }
             return result;
         }
@@ -211,13 +219,26 @@ namespace XianTu
             }
             SaveSystem.Instance.Save();
 
+            // 通过 SO 链查产物，无 SO 时按字符串替换兜底
+            string pillName;
+            var herbSo = CaveMaterialPool.GetByName(herbName);
+            if (herbSo != null && !string.IsNullOrEmpty(herbSo.processedProductName))
+            {
+                pillName = herbSo.processedProductName;
+            }
+            else
+            {
+                pillName = herbName.Replace("灵药", "丹");  // 旧兜底
+                Debug.LogWarning($"[炼丹房] 灵药 {herbName} 缺 processedProductName，用字符串替换兜底为 {pillName}");
+            }
+
             _furnaces[idx].herbItemName = herbName;
-            _furnaces[idx].pillItemName = herbName.Replace("灵药", "丹");
+            _furnaces[idx].pillItemName = pillName;
             _furnaces[idx].startedAt = GameTime.Instance.Time;
             _furnaces[idx].refineDuration = DefaultRefineDuration;
             _herbPickerForFurnace = -1;
 
-            Debug.Log($"<color=#ffaa66>[炼丹房] 丹炉 {idx + 1} 投入 {herbName}，开始烧炼</color>");
+            Debug.Log($"<color=#ffaa66>[炼丹房] 丹炉 {idx + 1} 投入 {herbName} → 将产出 {pillName}</color>");
         }
 
         private void CollectPill(int idx)

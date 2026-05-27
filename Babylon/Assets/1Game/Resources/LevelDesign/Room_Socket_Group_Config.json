@@ -1,0 +1,70 @@
+{
+  "Rows": [
+    {
+      "ID": 1,
+      "SceneName": "Demo1",
+      "RoomType": 0,
+      "EnemySquadID": [],
+      "ItemDropIDs": [],
+      "ItemDropWeights": [],
+      "EventID": 0,
+      "EventTriggerRate": 0,
+      "Weight": 100
+    },
+    {
+      "ID": 2,
+      "SceneName": "Demo1",
+      "RoomType": 1,
+      "EnemySquadID": [1],
+      "ItemDropIDs": [2001],
+      "ItemDropWeights": [100],
+      "EventID": 1001,
+      "EventTriggerRate": 25,
+      "Weight": 100
+    },
+    {
+      "ID": 3,
+      "SceneName": "Demo1",
+      "RoomType": 2,
+      "EnemySquadID": [2],
+      "ItemDropIDs": [2001, 3001],
+      "ItemDropWeights": [80, 20],
+      "EventID": 0,
+      "EventTriggerRate": 0,
+      "Weight": 100
+    },
+    {
+      "ID": 4,
+      "SceneName": "Demo1",
+      "RoomType": 3,
+      "EnemySquadID": [],
+      "ItemDropIDs": [],
+      "ItemDropWeights": [],
+      "EventID": 0,
+      "EventTriggerRate": 0,
+      "Weight": 100
+    },
+    {
+      "ID": 5,
+      "SceneName": "Demo1",
+      "RoomType": 4,
+      "EnemySquadID": [],
+      "ItemDropIDs": [],
+      "ItemDropWeights": [],
+      "EventID": 1001,
+      "EventTriggerRate": 100,
+      "Weight": 100
+    },
+    {
+      "ID": 6,
+      "SceneName": "Demo1",
+      "RoomType": 5,
+      "EnemySquadID": [],
+      "ItemDropIDs": [],
+      "ItemDropWeights": [],
+      "EventID": 0,
+      "EventTriggerRate": 0,
+      "Weight": 100
+    }
+  ]
+}
