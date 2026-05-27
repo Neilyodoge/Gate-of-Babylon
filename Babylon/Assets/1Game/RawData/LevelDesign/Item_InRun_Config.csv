@@ -1,0 +1,5 @@
+ID,Name_CN,Text_CN,Type,Icon,MaxStack,EffectID,Duration
+2001,风灵珠,使用后维持 10 分钟身轻如燕，移动速度增加 20%。,1,feng_ling_zhu,5,1,600
+2002,回灵丹,立即回复 30% 生命。,1,hui_ling_dan,9,2,0
+3001,九转还魂丹,传说中的天品丹药，死亡后原地复活，全属性 +20% 持续 30 秒。,1,jiu_zhuan,1,3,30
+9001,逆命符,消耗后可清除最近一条 Boss Flag（撤回上一次事件选择的影响）。,3,ni_ming_fu,3,99,0

@@ -1,0 +1,7 @@
+ID,SceneName,RoomType,EnemySquadID,ItemDropIDs,ItemDropWeights,EventID,EventTriggerRate,Weight
+1,Demo1,0,,,,,0,100
+2,Demo1,1,1,2001,100,1001,25,100
+3,Demo1,2,2,"2001;3001","80;20",0,0,100
+4,Demo1,3,,,,0,0,100
+5,Demo1,4,,,,1001,100,100
+6,Demo1,5,,,,0,0,100
