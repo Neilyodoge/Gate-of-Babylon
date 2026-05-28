@@ -29,10 +29,30 @@ public class SceneOptimizeTool : EditorWindow
     private Vector2 _scrollPos;
 
     // ==================== 检查标准设置====================
-    // 特效
-    private int _maxParticlesThreshold = 1000;
-    private float _emissionRateThreshold = 100f;
-    private int _lineRendererVertThreshold = 100;  // LineRenderer 顶点数标准
+    // 特效 - 阈值
+    private int _maxParticlesThreshold = 30;
+    private float _emissionRateThreshold = 12f;
+    private int _burstCountThreshold = 18;
+    private float _startLifetimeThreshold = 3f;
+    private int _maxLightsThreshold = 0;
+    private int _lineRendererVertThreshold = 60;
+
+    // 特效 - 检查项开关
+    private bool _chkMaxParticles = true;
+    private bool _chkEmissionRate = true;
+    private bool _chkBurst = true;
+    private bool _chkStartLifetime = true;
+    private bool _chkCollision = true;
+    private bool _chkSubEmitters = true;
+    private bool _chkLights = true;
+    private bool _chkMeshMode = true;
+    private bool _chkPrewarm = true;
+    private bool _chkTrails = true;
+    private bool _chkNoise = true;
+    private bool _chkTrigger = true;
+    private bool _chkShadowCasting = true;
+    private bool _chkTrailLine = true;
+    private bool _chkCullOff = true;
 
     // 材质
     private int _textureHighThreshold = 2048;
@@ -65,11 +85,21 @@ public class SceneOptimizeTool : EditorWindow
     {
         // ----- 粒子特效 -----
         { "粒子系统总览", "统计场景中所有粒子系统的数量及基本信息。\n粒子系统过多会增加 CPU/GPU 开销。" },
-        { "MaxParticles 超标", "检查粒子系统的最大粒子数量（MaxParticles）是否超过标准。\n过高的 MaxParticles 会导致大量粒子同时存在，增加 GPU 渲染和内存压力。" },
-        { "EmissionRate 超标", "检查粒子系统的发射速率（RateOverTime）是否超过标准。\n过高的发射速率会导致每帧产生大量新粒子，加重 CPU 和 GPU 负担。" },
-        { "粒子投射阴影", "检查粒子渲染器是否开启了阴影投射（CastShadows）。\n粒子通常不需要投射阴影，开启会显著增加 Draw Call 和 GPU 开销。" },
-        { "Trail/Line 渲染器", "检查场景中的 TrailRenderer 和 LineRenderer 使用情况。\n这类渲染器会动态生成 Mesh，过多会增加 CPU 和内存开销。" },
-        { "粒子材质 Cull Off", "检查粒子材质是否关闭了背面剔除（Cull Off）。\n双面渲染会使 GPU 绘制量翻倍，应仅在确实需要时使用。" },
+        { "MaxParticles 超标", "【影响: CPU + GPU】内存分配、顶点数。\n过高的 MaxParticles 会导致大量粒子同时存在，增加 GPU 渲染和内存压力。\n移动端建议 ≤50，PC 建议 ≤500。" },
+        { "EmissionRate 超标", "【影响: CPU + GPU】实际同屏粒子数。\n过高的发射速率会导致每帧产生大量新粒子，加重 CPU 模拟和 GPU 渲染负担。\n移动端建议 ≤20/s，PC 建议 ≤100/s。" },
+        { "Burst 超标", "【影响: CPU + GPU】瞬间高峰粒子数。\n单次 Burst 产生大量粒子会导致帧率瞬间下降。\n移动端单次 Burst 建议 ≤30。" },
+        { "Start Lifetime 超标", "【影响: CPU（高）】同屏存活粒子数。\n生命周期越长同屏活跃粒子越多，缩短 Lifetime 可有效降低同屏粒子数。\n移动端建议 ≤3s。" },
+        { "粒子 Collision 模块", "【影响: CPU（极高）】物理查询 Raycast/Spherecast。\n每粒子每帧做射线检测，代价极高。\n确认必要后用 World 碰撞 + 低精度，否则关闭。" },
+        { "粒子 Sub Emitters", "【影响: CPU + GPU（极高）】指数级粒子生成。\n子发射器会连锁产生大量粒子，严格限制层级和子粒子数。\n每级子发射都会使粒子总量指数增长。" },
+        { "粒子 Lights 模块", "【影响: GPU（极高）】每粒子附加一个实时点光源。\n极度昂贵！每个粒子光源都需要额外的光照计算 Pass。\n移动端建议 MaxLights ≤2 或完全禁用，改用自发光 Shader。" },
+        { "粒子 Mesh 渲染模式", "【影响: GPU（极高）】顶点数成倍增长。\nMesh 模式下顶点数 = 粒子数 × 网格顶点数。\nBillboard 模式开销最低（每粒子仅 4 个顶点），优先使用。" },
+        { "粒子 Prewarm", "【影响: CPU（高）】首帧模拟尖峰。\n启用后首帧会模拟完整生命周期的粒子，可能导致明显卡顿。\n除非确实需要一开始就有满屏粒子，否则关闭。" },
+        { "粒子 Trails 拖尾", "【影响: GPU + CPU（高）】额外顶点生成和计算。\n每粒子额外生成顶点段，同时增加 DrawCall 和顶点数。\n移动端慎用，或减少 Trail 段数。" },
+        { "粒子 Noise 模块", "【影响: CPU（高）】每帧 Perlin Noise 采样。\nQuality 越高 octave 越多，CPU 开销越大。\n建议 Quality 设为 Low（1 octave）。" },
+        { "粒子 Trigger 模块", "【影响: CPU（高）】每帧检测粒子是否在 Collider 内。\n粒子数多时代价高，按需启用。" },
+        { "粒子投射阴影", "【影响: GPU（高）】额外 Shadow Pass。\n粒子通常不需要投射阴影，开启会显著增加 Draw Call 和 GPU 开销。\n建议全部关闭。" },
+        { "Trail/Line 渲染器", "【影响: CPU + GPU】动态 Mesh 生成。\n这类渲染器会动态生成 Mesh，过多会增加 CPU 和内存开销。" },
+        { "粒子材质 Cull Off", "【影响: GPU】双面渲染使绘制量翻倍。\n双面渲染会使 GPU 绘制量翻倍，应仅在确实需要时使用。" },
 
         // ----- 材质贴图 -----
         { "空材质引用", "检查渲染器上是否存在空（Missing）材质引用。\n空材质会导致粉色显示错误并产生不必要的 Draw Call。" },
@@ -97,6 +127,10 @@ public class SceneOptimizeTool : EditorWindow
 
     // 折叠状态
     private Dictionary<string, bool> _foldoutStates = new Dictionary<string, bool>();
+
+    // ==================== VFX 检查范围（拖拽式） ====================
+    private List<GameObject> _vfxScopeTargets = new List<GameObject>();
+    private Vector2 _vfxScopeScrollPos;
 
     // ==================== 模型检查范围（拖拽式） ====================
     // 用户手动拖入的检查对象列表，为空时检查全场景
@@ -171,6 +205,7 @@ public class SceneOptimizeTool : EditorWindow
         switch (_currentTab)
         {
             case TabType.VFX:
+                DrawVFXScopePanel();
                 DrawResults(_vfxResults);
                 break;
             case TabType.Material:
@@ -279,15 +314,48 @@ public class SceneOptimizeTool : EditorWindow
             switch (_currentTab)
             {
                 case TabType.VFX:
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        _maxParticlesThreshold = EditorGUILayout.IntField(new GUIContent("粒子数量标准", "粒子系统最大粒子数超过此值将发出警告"), _maxParticlesThreshold);
-                        _emissionRateThreshold = EditorGUILayout.FloatField(new GUIContent("发射速率标准", "粒子发射速率超过此值将发出警告"), _emissionRateThreshold);
-                    }
-                    _lineRendererVertThreshold = EditorGUILayout.IntField(new GUIContent("LineRenderer 顶点数标准", "LineRenderer 顶点数超过此值将发出警告"), _lineRendererVertThreshold);
+                    DrawVFXCheckRow(ref _chkMaxParticles, "极高", "Max Particles",
+                        "【CPU + GPU】内存分配、顶点数。\n过高会导致大量粒子同时存在，增加渲染和内存压力。\n移动端建议 ≤30，PC 建议 ≤500。",
+                        ref _maxParticlesThreshold);
+                    DrawVFXCheckRow(ref _chkEmissionRate, "极高", "Emission Rate",
+                        "【CPU + GPU】实际同屏粒子数。\n过高会导致每帧产生大量新粒子，加重 CPU 模拟和 GPU 渲染。\n移动端建议 ≤12/s，PC 建议 ≤100/s。",
+                        ref _emissionRateThreshold);
+                    DrawVFXCheckRow(ref _chkBurst, "高", "Burst Count",
+                        "【CPU + GPU】瞬间高峰粒子数。\n单次 Burst 大量粒子会导致帧率瞬间下降。\n移动端建议 ≤18。",
+                        ref _burstCountThreshold);
+                    DrawVFXCheckRow(ref _chkStartLifetime, "高", "Start Lifetime (s)",
+                        "【CPU】同屏存活粒子数。\n生命周期越长同屏活跃粒子越多。\n缩短 Lifetime 可有效降低同屏粒子数。\n移动端建议 ≤3s。",
+                        ref _startLifetimeThreshold);
+                    DrawVFXCheckRow(ref _chkCollision, "极高", "Collision Module",
+                        "【CPU（极高）】物理查询 Raycast/Spherecast。\n每粒子每帧做射线检测，代价极高。\n确认必要后用 World 碰撞 + Low Quality，否则关闭。");
+                    DrawVFXCheckRow(ref _chkSubEmitters, "极高", "Sub Emitters",
+                        "【CPU + GPU（极高）】指数级粒子生成。\n子发射器会连锁产生大量粒子。\n每级子发射使粒子总量指数增长，严格限制层级。");
+                    DrawVFXCheckRow(ref _chkLights, "极高", "Lights Module",
+                        "【GPU（极高）】每粒子附加一个实时点光源。\n极度昂贵！每个粒子光源都需要额外光照 Pass。\n移动端建议 MaxLights = 0 或禁用，改用自发光 Shader。",
+                        ref _maxLightsThreshold);
+                    DrawVFXCheckRow(ref _chkMeshMode, "极高", "Mesh Render Mode",
+                        "【GPU（极高）】顶点数成倍增长。\nMesh 模式下顶点数 = 粒子数 × 网格顶点。\nBillboard 模式每粒子仅 4 顶点，优先使用。");
+                    DrawVFXCheckRow(ref _chkPrewarm, "高", "Prewarm",
+                        "【CPU（高）】首帧模拟尖峰。\n启用后首帧会模拟完整生命周期的粒子，可能导致明显卡顿。\n除非需要一开始就有满屏粒子，否则关闭。");
+                    DrawVFXCheckRow(ref _chkTrails, "高", "Trails 拖尾",
+                        "【GPU + CPU（高）】额外顶点生成和计算。\n每粒子额外生成顶点段，增加 DrawCall 和顶点数。\n移动端慎用，或减少 Trail 段数。");
+                    DrawVFXCheckRow(ref _chkNoise, "高", "Noise Module",
+                        "【CPU（高）】每帧 Perlin Noise 采样。\nQuality 越高 octave 越多，CPU 开销越大。\n建议 Quality 设为 Low（1 octave）。");
+                    DrawVFXCheckRow(ref _chkTrigger, "高", "Trigger Module",
+                        "【CPU（高）】每帧检测粒子是否在 Collider 内。\n粒子数多时代价高，按需启用。");
+                    DrawVFXCheckRow(ref _chkShadowCasting, "高", "Shadow Casting",
+                        "【GPU（高）】额外 Shadow Pass。\n粒子通常不需要投射阴影，开启会显著增加 DrawCall。\n建议全部关闭。");
+                    DrawVFXCheckRow(ref _chkTrailLine, "中", "Trail/Line Renderer",
+                        "【CPU + GPU】动态 Mesh 生成。\n这类渲染器会动态生成 Mesh，过多增加 CPU 和内存开销。",
+                        ref _lineRendererVertThreshold);
+                    DrawVFXCheckRow(ref _chkCullOff, "中", "粒子材质 Cull Off",
+                        "【GPU】双面渲染使绘制量翻倍。\n双面渲染会使 GPU 绘制量翻倍，仅在确实需要时使用。");
 
                     if (_maxParticlesThreshold < 1) _maxParticlesThreshold = 1;
                     if (_emissionRateThreshold < 1f) _emissionRateThreshold = 1f;
+                    if (_burstCountThreshold < 1) _burstCountThreshold = 1;
+                    if (_startLifetimeThreshold < 0.1f) _startLifetimeThreshold = 0.1f;
+                    if (_maxLightsThreshold < 0) _maxLightsThreshold = 0;
                     if (_lineRendererVertThreshold < 1) _lineRendererVertThreshold = 1;
                     break;
 
@@ -424,182 +492,886 @@ if (GUILayout.Button("✗", GUILayout.Width(22)))
         EditorGUILayout.Space(2);
     }
 
+    /// <summary>
+    /// 绘制 VFX 检查项行：开关 + 影响程度 + 名称 + 阈值（带 tooltip）
+    /// </summary>
+    private void DrawVFXCheckRow(ref bool toggle, string impact, string label, string tooltip)
+    {
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            toggle = EditorGUILayout.Toggle(toggle, GUILayout.Width(16));
+            DrawImpactLabel(impact);
+            EditorGUILayout.LabelField(new GUIContent(label, tooltip), GUILayout.MinWidth(130));
+        }
+    }
+
+    private void DrawVFXCheckRow(ref bool toggle, string impact, string label, string tooltip, ref int threshold)
+    {
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            toggle = EditorGUILayout.Toggle(toggle, GUILayout.Width(16));
+            DrawImpactLabel(impact);
+            EditorGUILayout.LabelField(new GUIContent(label, tooltip), GUILayout.Width(130));
+            GUI.enabled = toggle;
+            threshold = EditorGUILayout.IntField(new GUIContent("", tooltip), threshold, GUILayout.Width(60));
+            GUI.enabled = true;
+        }
+    }
+
+    private void DrawVFXCheckRow(ref bool toggle, string impact, string label, string tooltip, ref float threshold)
+    {
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            toggle = EditorGUILayout.Toggle(toggle, GUILayout.Width(16));
+            DrawImpactLabel(impact);
+            EditorGUILayout.LabelField(new GUIContent(label, tooltip), GUILayout.Width(130));
+            GUI.enabled = toggle;
+            threshold = EditorGUILayout.FloatField(new GUIContent("", tooltip), threshold, GUILayout.Width(60));
+            GUI.enabled = true;
+        }
+    }
+
+    private void DrawImpactLabel(string impact)
+    {
+        var style = new GUIStyle(EditorStyles.miniLabel);
+        style.alignment = TextAnchor.MiddleCenter;
+        style.fontStyle = FontStyle.Bold;
+
+        switch (impact)
+        {
+            case "极高":
+                style.normal.textColor = new Color(1f, 0.3f, 0.3f);
+                break;
+            case "高":
+                style.normal.textColor = new Color(1f, 0.7f, 0.2f);
+                break;
+            case "中":
+                style.normal.textColor = new Color(0.4f, 0.75f, 1f);
+                break;
+            default:
+                style.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
+                break;
+        }
+
+        EditorGUILayout.LabelField(new GUIContent($"[{impact}]"), style, GUILayout.Width(36));
+    }
+
+    // ==================================================================================
+    //  VFX 检查范围面板
+    // ==================================================================================
+    private void DrawVFXScopePanel()
+    {
+        _vfxScopeTargets.RemoveAll(obj => obj == null);
+
+        using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField("检查范围", EditorStyles.boldLabel, GUILayout.Width(60));
+                var hintStyle = new GUIStyle(EditorStyles.miniLabel);
+                if (_vfxScopeTargets.Count == 0)
+                {
+                    hintStyle.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
+                    EditorGUILayout.LabelField("未指定，将检查全场景", hintStyle);
+                }
+                else
+                {
+                    hintStyle.normal.textColor = new Color(0.3f, 0.8f, 0.4f);
+                    EditorGUILayout.LabelField($"已添加 {_vfxScopeTargets.Count} 个对象", hintStyle);
+                }
+                GUILayout.FlexibleSpace();
+                if (_vfxScopeTargets.Count > 0)
+                {
+                    if (GUILayout.Button("清空", EditorStyles.miniButton, GUILayout.Width(40)))
+                        _vfxScopeTargets.Clear();
+                }
+            }
+
+            if (_vfxScopeTargets.Count > 0)
+            {
+                float listHeight = Mathf.Min(_vfxScopeTargets.Count * 20f, 100f);
+                _vfxScopeScrollPos = EditorGUILayout.BeginScrollView(_vfxScopeScrollPos, GUILayout.Height(listHeight));
+                int removeIdx = -1;
+                for (int i = 0; i < _vfxScopeTargets.Count; i++)
+                {
+                    var obj = _vfxScopeTargets[i];
+                    if (obj == null) continue;
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        GUILayout.Space(6);
+                        if (GUILayout.Button(obj.name, EditorStyles.label, GUILayout.MinWidth(100), GUILayout.Height(18)))
+                        {
+                            Selection.activeGameObject = obj;
+                            EditorGUIUtility.PingObject(obj);
+                        }
+                        GUILayout.FlexibleSpace();
+                        int psCount = obj.GetComponentsInChildren<ParticleSystem>(true).Length;
+                        EditorGUILayout.LabelField($"{psCount} PS", new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleRight }, GUILayout.Width(50));
+                        if (GUILayout.Button("✗", EditorStyles.miniButton, GUILayout.Width(20), GUILayout.Height(16)))
+                            removeIdx = i;
+                    }
+                }
+                if (removeIdx >= 0) _vfxScopeTargets.RemoveAt(removeIdx);
+                EditorGUILayout.EndScrollView();
+            }
+
+            var dropArea = GUILayoutUtility.GetRect(0, 26, GUILayout.ExpandWidth(true));
+            var dropStyle = new GUIStyle(EditorStyles.helpBox);
+            dropStyle.alignment = TextAnchor.MiddleCenter;
+            dropStyle.fontSize = 11;
+            dropStyle.normal.textColor = new Color(0.55f, 0.55f, 0.55f);
+            bool isDraggingOver = dropArea.Contains(Event.current.mousePosition) && DragAndDrop.objectReferences.Length > 0;
+            var prevBg = GUI.backgroundColor;
+            if (isDraggingOver) GUI.backgroundColor = new Color(0.5f, 0.8f, 1f, 0.8f);
+            GUI.Box(dropArea, _vfxScopeTargets.Count == 0 ? "拖入 GameObject 指定检查范围（不添加则检查全场景）" : "+ 继续拖入", dropStyle);
+            GUI.backgroundColor = prevBg;
+            HandleVFXDropArea(dropArea);
+        }
+        EditorGUILayout.Space(2);
+    }
+
+    private void HandleVFXDropArea(Rect dropArea)
+    {
+        var evt = Event.current;
+        if (evt.type != EventType.DragUpdated && evt.type != EventType.DragPerform) return;
+        if (!dropArea.Contains(evt.mousePosition)) return;
+        if (!DragAndDrop.objectReferences.Any(o => o is GameObject)) return;
+
+        DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+        if (evt.type == EventType.DragPerform)
+        {
+            DragAndDrop.AcceptDrag();
+            foreach (var obj in DragAndDrop.objectReferences)
+            {
+                if (obj is GameObject go && !_vfxScopeTargets.Contains(go))
+                    _vfxScopeTargets.Add(go);
+            }
+        }
+        evt.Use();
+    }
+
+    /// <summary>
+    /// 根据 VFX 检查范围获取组件列表（自动去重，防止嵌套对象导致重复）
+    /// </summary>
+    private List<T> GetVFXScopedComponents<T>() where T : Component
+    {
+        _vfxScopeTargets.RemoveAll(obj => obj == null);
+        if (_vfxScopeTargets.Count == 0)
+            return FindAllComponentsInScene<T>();
+
+        var set = new HashSet<T>();
+        foreach (var root in _vfxScopeTargets)
+        {
+            if (root == null) continue;
+            foreach (var comp in root.GetComponentsInChildren<T>(true))
+                set.Add(comp);
+        }
+        return set.ToList();
+    }
+
+    // ==================================================================================
+    //  VFX 一键修复
+    // ==================================================================================
+
+    /// <summary>
+    /// 对指定分类执行一键修复
+    /// </summary>
+    private void FixVFXCategory(string category)
+    {
+        var targets = _vfxResults.Where(r =>
+            r.category == category &&
+            (r.msgType == MessageType.Warning || r.msgType == MessageType.Error) &&
+            r.targetObj != null).ToList();
+
+        if (targets.Count == 0) return;
+
+        int fixedCount = 0;
+
+        foreach (var result in targets)
+        {
+            var go = result.targetObj;
+            var ps = go.GetComponent<ParticleSystem>();
+            if (ps == null) continue;
+
+            Undo.RecordObject(ps, $"修复粒子特效 - {category}");
+
+            switch (category)
+            {
+                case "MaxParticles 超标":
+                {
+                    var main = ps.main;
+                    main.maxParticles = _maxParticlesThreshold;
+                    fixedCount++;
+                    break;
+                }
+                case "EmissionRate 超标":
+                {
+                    var emission = ps.emission;
+                    emission.rateOverTime = ClampMinMaxCurve(emission.rateOverTime, _emissionRateThreshold);
+                    fixedCount++;
+                    break;
+                }
+                case "Burst 超标":
+                {
+                    var emission = ps.emission;
+                    for (int i = 0; i < emission.burstCount; i++)
+                    {
+                        var burst = emission.GetBurst(i);
+                        if (burst.count.constantMax > _burstCountThreshold)
+                        {
+                            burst.count = new ParticleSystem.MinMaxCurve(_burstCountThreshold);
+                            emission.SetBurst(i, burst);
+                        }
+                    }
+                    fixedCount++;
+                    break;
+                }
+                case "Start Lifetime 超标":
+                {
+                    var main = ps.main;
+                    main.startLifetime = ClampMinMaxCurve(main.startLifetime, _startLifetimeThreshold);
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Collision 模块":
+                {
+                    var col = ps.collision;
+                    col.enabled = false;
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Sub Emitters":
+                {
+                    var sub = ps.subEmitters;
+                    sub.enabled = false;
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Lights 模块":
+                {
+                    var lights = ps.lights;
+                    lights.maxLights = _maxLightsThreshold;
+                    if (_maxLightsThreshold == 0)
+                        lights.enabled = false;
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Mesh 渲染模式":
+                {
+                    var psr = go.GetComponent<ParticleSystemRenderer>();
+                    if (psr != null)
+                    {
+                        Undo.RecordObject(psr, "修复粒子 Mesh 渲染模式");
+                        psr.renderMode = ParticleSystemRenderMode.Billboard;
+                    }
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Prewarm":
+                {
+                    var main = ps.main;
+                    main.prewarm = false;
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Trails 拖尾":
+                {
+                    var trails = ps.trails;
+                    trails.enabled = false;
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Noise 模块":
+                {
+                    var noise = ps.noise;
+                    noise.enabled = false;
+                    fixedCount++;
+                    break;
+                }
+                case "粒子 Trigger 模块":
+                {
+                    var trigger = ps.trigger;
+                    trigger.enabled = false;
+                    fixedCount++;
+                    break;
+                }
+                case "粒子投射阴影":
+                {
+                    var renderer = go.GetComponent<ParticleSystemRenderer>();
+                    if (renderer != null)
+                    {
+                        Undo.RecordObject(renderer, "修复粒子投射阴影");
+                        renderer.shadowCastingMode = ShadowCastingMode.Off;
+                    }
+                    fixedCount++;
+                    break;
+                }
+                case "粒子材质 Cull Off":
+                {
+                    var renderer = go.GetComponent<ParticleSystemRenderer>();
+                    if (renderer != null)
+                    {
+                        foreach (var mat in renderer.sharedMaterials)
+                        {
+                            if (mat == null) continue;
+                            if (mat.HasProperty("_Cull") && (int)mat.GetFloat("_Cull") == 0)
+                            {
+                                Undo.RecordObject(mat, "修复粒子材质 Cull Off (共享材质，影响所有引用)");
+                                mat.SetFloat("_Cull", 2f); // Back
+                                EditorUtility.SetDirty(mat);
+                            }
+                        }
+                    }
+                    fixedCount++;
+                    break;
+                }
+            }
+
+            EditorUtility.SetDirty(go);
+        }
+
+        if (fixedCount > 0)
+        {
+            Debug.Log($"[场景优化工具] 已修复 {fixedCount} 个「{category}」问题");
+            var savedFoldouts = new Dictionary<string, bool>(_foldoutStates);
+            CheckVFX();
+            foreach (var kv in savedFoldouts)
+            {
+                if (!_foldoutStates.ContainsKey(kv.Key))
+                    _foldoutStates[kv.Key] = kv.Value;
+                else
+                    _foldoutStates[kv.Key] = kv.Value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 判断某分类是否支持一键修复
+    /// </summary>
+    private bool CanFixCategory(string category)
+    {
+        switch (category)
+        {
+            case "MaxParticles 超标":
+            case "EmissionRate 超标":
+            case "Burst 超标":
+            case "Start Lifetime 超标":
+            case "粒子 Collision 模块":
+            case "粒子 Sub Emitters":
+            case "粒子 Lights 模块":
+            case "粒子 Mesh 渲染模式":
+            case "粒子 Prewarm":
+            case "粒子 Trails 拖尾":
+            case "粒子 Noise 模块":
+            case "粒子 Trigger 模块":
+            case "粒子投射阴影":
+            case "粒子材质 Cull Off":
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private void CheckVFX()
     {
         _vfxResults.Clear();
         _foldoutStates.Clear();
         _hasCheckedVFX = true;
 
-        var allParticleSystems = FindAllComponentsInScene<ParticleSystem>();
-        var allTrailRenderers = FindAllComponentsInScene<TrailRenderer>();
-        var allLineRenderers = FindAllComponentsInScene<LineRenderer>();
+        var allParticleSystems = GetVFXScopedComponents<ParticleSystem>();
+        var allTrailRenderers = GetVFXScopedComponents<TrailRenderer>();
+        var allLineRenderers = GetVFXScopedComponents<LineRenderer>();
 
         // --- 1. 粒子系统数量统计 ---
+        bool vfxIsScoped = _vfxScopeTargets.Count > 0;
+        string scopeDesc = vfxIsScoped
+            ? $"检查范围内共有 {allParticleSystems.Count} 个 ParticleSystem（{string.Join(", ", _vfxScopeTargets.Where(o => o != null).Select(o => o.name))}）"
+            : $"场景中共有 {allParticleSystems.Count} 个 ParticleSystem";
         _vfxResults.Add(new CheckResult
         {
             category = "粒子系统总览",
-            description = $"场景中共有 {allParticleSystems.Count} 个 ParticleSystem",
+            description = scopeDesc,
             msgType = MessageType.Info
         });
 
         // --- 2. MaxParticles 检查---
-        int maxParticleWarnings = 0;
-        foreach (var ps in allParticleSystems)
+        if (_chkMaxParticles)
         {
-            var main = ps.main;
-            if (main.maxParticles > _maxParticlesThreshold)
+            int maxParticleWarnings = 0;
+            foreach (var ps in allParticleSystems)
             {
-                maxParticleWarnings++;
+                var main = ps.main;
+                if (main.maxParticles > _maxParticlesThreshold)
+                {
+                    maxParticleWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "MaxParticles 超标",
+                        description = $"MaxParticles = {main.maxParticles}（标准 {_maxParticlesThreshold}）路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (maxParticleWarnings == 0)
+            {
                 _vfxResults.Add(new CheckResult
                 {
                     category = "MaxParticles 超标",
-                    description = $"MaxParticles = {main.maxParticles}（标准 {_maxParticlesThreshold}）路径: {GetHierarchyPath(ps.gameObject)}",
-                    targetObj = ps.gameObject,
-                    msgType = MessageType.Warning
+                    description = $"✓ 所有粒子系统的 MaxParticles 均在标准 {_maxParticlesThreshold} 以内",
+                    msgType = MessageType.Info
                 });
             }
-        }
-        if (maxParticleWarnings == 0)
-        {
-            _vfxResults.Add(new CheckResult
-            {
-                category = "MaxParticles 超标",
-                description = $"✓ 所有粒子系统的 MaxParticles 均在标准 {_maxParticlesThreshold} 以内",
-                msgType = MessageType.Info
-            });
         }
 
         // --- 3. Emission Rate 检查---
-        int emissionWarnings = 0;
-        foreach (var ps in allParticleSystems)
+        if (_chkEmissionRate)
         {
-            var emission = ps.emission;
-            if (!emission.enabled) continue;
-
-            float rate = emission.rateOverTime.constantMax;
-            if (rate > _emissionRateThreshold)
+            int emissionWarnings = 0;
+            foreach (var ps in allParticleSystems)
             {
-                emissionWarnings++;
+                var emission = ps.emission;
+                if (!emission.enabled) continue;
+
+                float rate = GetMinMaxCurveMax(emission.rateOverTime);
+                if (rate > _emissionRateThreshold)
+                {
+                    emissionWarnings++;
+                    string modeHint = emission.rateOverTime.mode != ParticleSystemCurveMode.Constant ? $" [{emission.rateOverTime.mode}]" : "";
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "EmissionRate 超标",
+                        description = $"RateOverTime = {rate:F1}{modeHint}（标准 {_emissionRateThreshold}）路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (emissionWarnings == 0)
+            {
                 _vfxResults.Add(new CheckResult
                 {
                     category = "EmissionRate 超标",
-                    description = $"RateOverTime = {rate:F1}（标准 {_emissionRateThreshold}）路径: {GetHierarchyPath(ps.gameObject)}",
-                    targetObj = ps.gameObject,
-                    msgType = MessageType.Warning
-                });
-            }
-        }
-        if (emissionWarnings == 0)
-        {
-            _vfxResults.Add(new CheckResult
-            {
-                category = "EmissionRate 超标",
-                description = $"✓ 所有粒子系统的 EmissionRate 均在标准 {_emissionRateThreshold} 以内",
-                msgType = MessageType.Info
-            });
-        }
-
-        // --- 4. 特效 Renderer 投射阴影检查---
-        int shadowWarnings = 0;
-        foreach (var ps in allParticleSystems)
-        {
-            var renderer = ps.GetComponent<ParticleSystemRenderer>();
-            if (renderer != null && renderer.shadowCastingMode != ShadowCastingMode.Off)
-            {
-                shadowWarnings++;
-                _vfxResults.Add(new CheckResult
-                {
-                    category = "粒子投射阴影",
-                    description = $"CastShadows = {renderer.shadowCastingMode}，路径: {GetHierarchyPath(ps.gameObject)}",
-                    targetObj = ps.gameObject,
-                    msgType = MessageType.Warning
-                });
-            }
-        }
-        if (shadowWarnings == 0)
-        {
-            _vfxResults.Add(new CheckResult
-            {
-                category = "粒子投射阴影",
-                description = "✓ 所有粒子 Renderer 均未开启投射阴影",
-                msgType = MessageType.Info
-            });
-        }
-
-        // --- 5. Trail / Line 渲染器检查---
-        _vfxResults.Add(new CheckResult
-        {
-            category = "Trail/Line 渲染器",
-            description = $"场景中共有 {allTrailRenderers.Count} 个 TrailRenderer，{allLineRenderers.Count} 个 LineRenderer",
-            msgType = MessageType.Info
-        });
-
-        foreach (var trail in allTrailRenderers)
-        {
-            if (trail.shadowCastingMode != ShadowCastingMode.Off)
-            {
-                _vfxResults.Add(new CheckResult
-                {
-                    category = "Trail/Line 渲染器",
-                    description = $"TrailRenderer 开启了阴影投射，路径: {GetHierarchyPath(trail.gameObject)}",
-                    targetObj = trail.gameObject,
-                    msgType = MessageType.Warning
+                    description = $"✓ 所有粒子系统的 EmissionRate 均在标准 {_emissionRateThreshold} 以内",
+                    msgType = MessageType.Info
                 });
             }
         }
 
-        foreach (var line in allLineRenderers)
+        // --- 4. Burst 数量检查 ---
+        if (_chkBurst)
         {
-            _vfxResults.Add(new CheckResult
+            int burstWarnings = 0;
+            foreach (var ps in allParticleSystems)
             {
-                category = "Trail/Line 渲染器",
-                description = $"LineRenderer 顶点数 {line.positionCount}，路径: {GetHierarchyPath(line.gameObject)}",
-                targetObj = line.gameObject,
-                msgType = line.positionCount > _lineRendererVertThreshold ? MessageType.Warning : MessageType.Info
-            });
-        }
-
-        // --- 6. 粒子材质 Cull 检查---
-        int cullOffCount = 0;
-        foreach (var ps in allParticleSystems)
-        {
-            var renderer = ps.GetComponent<ParticleSystemRenderer>();
-            if (renderer == null) continue;
-
-            // 检查 sharedMaterials
-            var mats = renderer.sharedMaterials;
-            foreach (var mat in mats)
-            {
-                if (mat == null) continue;
-                // 检查 Shader 中是否有 _Cull 属性，值为 0 表示 Cull Off
-                if (mat.HasProperty("_Cull"))
+                var emission = ps.emission;
+                if (!emission.enabled) continue;
+                int burstCount = emission.burstCount;
+                for (int i = 0; i < burstCount; i++)
                 {
-                    int cullValue = (int)mat.GetFloat("_Cull");
-                    if (cullValue == 0) // Cull Off
+                    var burst = emission.GetBurst(i);
+                    int maxCount = (int)burst.count.constantMax;
+                    if (maxCount > _burstCountThreshold)
                     {
-                        cullOffCount++;
+                        burstWarnings++;
                         _vfxResults.Add(new CheckResult
                         {
-                            category = "粒子材质 Cull Off",
-                            description = $"材质 \"{mat.name}\" (Shader: {mat.shader.name}) Cull Off，路径: {GetHierarchyPath(ps.gameObject)}",
+                            category = "Burst 超标",
+                            description = $"Burst[{i}] count = {maxCount}（标准 {_burstCountThreshold}）路径: {GetHierarchyPath(ps.gameObject)}",
                             targetObj = ps.gameObject,
                             msgType = MessageType.Warning
                         });
                     }
                 }
             }
+            if (burstWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "Burst 超标",
+                    description = $"✓ 所有粒子系统的 Burst 数量均在标准 {_burstCountThreshold} 以内",
+                    msgType = MessageType.Info
+                });
+            }
         }
-        if (cullOffCount == 0)
+
+        // --- 5. Start Lifetime 检查 ---
+        if (_chkStartLifetime)
+        {
+            int lifetimeWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                float lifetime = GetMinMaxCurveMax(ps.main.startLifetime);
+                if (lifetime > _startLifetimeThreshold)
+                {
+                    lifetimeWarnings++;
+                    string modeHint = ps.main.startLifetime.mode != ParticleSystemCurveMode.Constant ? $" [{ps.main.startLifetime.mode}]" : "";
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "Start Lifetime 超标",
+                        description = $"StartLifetime = {lifetime:F1}s{modeHint}（标准 {_startLifetimeThreshold}s）路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (lifetimeWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "Start Lifetime 超标",
+                    description = $"✓ 所有粒子系统的 StartLifetime 均在标准 {_startLifetimeThreshold}s 以内",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 6. Collision 模块检查 ---
+        if (_chkCollision)
+        {
+            int collisionWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                if (ps.collision.enabled)
+                {
+                    collisionWarnings++;
+                    string quality = ps.collision.quality.ToString();
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Collision 模块",
+                        description = $"Collision 已启用（Quality: {quality}），路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (collisionWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Collision 模块",
+                    description = "✓ 所有粒子系统均未启用 Collision 模块",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 7. Sub Emitters 检查 ---
+        if (_chkSubEmitters)
+        {
+            int subEmitterWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                if (ps.subEmitters.enabled && ps.subEmitters.subEmittersCount > 0)
+                {
+                    subEmitterWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Sub Emitters",
+                        description = $"Sub Emitters 数量 = {ps.subEmitters.subEmittersCount}，路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (subEmitterWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Sub Emitters",
+                    description = "✓ 所有粒子系统均未使用 Sub Emitters",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 8. Lights 模块检查 ---
+        if (_chkLights)
+        {
+            int lightsWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                if (ps.lights.enabled)
+                {
+                    int maxLights = ps.lights.maxLights;
+                    lightsWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Lights 模块",
+                        description = $"Lights 已启用，MaxLights = {maxLights}（建议 ≤{_maxLightsThreshold}），路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = maxLights > _maxLightsThreshold ? MessageType.Error : MessageType.Warning
+                    });
+                }
+            }
+            if (lightsWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Lights 模块",
+                    description = "✓ 所有粒子系统均未启用 Lights 模块",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 9. Mesh 渲染模式检查 ---
+        if (_chkMeshMode)
+        {
+            int meshModeWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                var psr = ps.GetComponent<ParticleSystemRenderer>();
+                if (psr != null && psr.renderMode == ParticleSystemRenderMode.Mesh)
+                {
+                    string meshName = psr.mesh != null ? psr.mesh.name : "(null)";
+                    int meshVerts = psr.mesh != null ? psr.mesh.vertexCount : 0;
+                    meshModeWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Mesh 渲染模式",
+                        description = $"使用 Mesh 模式（Mesh: {meshName}, 顶点数: {meshVerts}），路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (meshModeWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Mesh 渲染模式",
+                    description = "✓ 所有粒子系统均未使用 Mesh 渲染模式",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 10. Prewarm 检查 ---
+        if (_chkPrewarm)
+        {
+            int prewarmWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                if (ps.main.prewarm)
+                {
+                    prewarmWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Prewarm",
+                        description = $"Prewarm 已启用，路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (prewarmWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Prewarm",
+                    description = "✓ 所有粒子系统均未启用 Prewarm",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 11. Trails 拖尾检查 ---
+        if (_chkTrails)
+        {
+            int trailsWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                if (ps.trails.enabled)
+                {
+                    trailsWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Trails 拖尾",
+                        description = $"Trails 已启用，路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (trailsWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Trails 拖尾",
+                    description = "✓ 所有粒子系统均未启用 Trails 拖尾",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 12. Noise 模块检查 ---
+        if (_chkNoise)
+        {
+            int noiseWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                if (ps.noise.enabled)
+                {
+                    string quality = ps.noise.quality.ToString();
+                    noiseWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Noise 模块",
+                        description = $"Noise 已启用（Quality: {quality}），路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (noiseWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Noise 模块",
+                    description = "✓ 所有粒子系统均未启用 Noise 模块",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 13. Trigger 模块检查 ---
+        if (_chkTrigger)
+        {
+            int triggerWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                if (ps.trigger.enabled)
+                {
+                    triggerWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Trigger 模块",
+                        description = $"Trigger 已启用，路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (triggerWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子 Trigger 模块",
+                    description = "✓ 所有粒子系统均未启用 Trigger 模块",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 14. Shadow Casting 检查---
+        if (_chkShadowCasting)
+        {
+            int shadowWarnings = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                var renderer = ps.GetComponent<ParticleSystemRenderer>();
+                if (renderer != null && renderer.shadowCastingMode != ShadowCastingMode.Off)
+                {
+                    shadowWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子投射阴影",
+                        description = $"CastShadows = {renderer.shadowCastingMode}，路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (shadowWarnings == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子投射阴影",
+                    description = "✓ 所有粒子 Renderer 均未开启投射阴影",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 15. Trail / Line 渲染器检查---
+        if (_chkTrailLine)
         {
             _vfxResults.Add(new CheckResult
             {
-                category = "粒子材质 Cull Off",
-                description = "✓ 未发现粒子材质使用 Cull Off",
+                category = "Trail/Line 渲染器",
+                description = $"场景中共有 {allTrailRenderers.Count} 个 TrailRenderer，{allLineRenderers.Count} 个 LineRenderer",
                 msgType = MessageType.Info
             });
+
+            foreach (var trail in allTrailRenderers)
+            {
+                if (trail.shadowCastingMode != ShadowCastingMode.Off)
+                {
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "Trail/Line 渲染器",
+                        description = $"TrailRenderer 开启了阴影投射，路径: {GetHierarchyPath(trail.gameObject)}",
+                        targetObj = trail.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+
+            foreach (var line in allLineRenderers)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "Trail/Line 渲染器",
+                    description = $"LineRenderer 顶点数 {line.positionCount}，路径: {GetHierarchyPath(line.gameObject)}",
+                    targetObj = line.gameObject,
+                    msgType = line.positionCount > _lineRendererVertThreshold ? MessageType.Warning : MessageType.Info
+                });
+            }
         }
 
-Debug.Log($"[场景优化工具] 特效检查完成，共 {_vfxResults.Count} 条结果");
+        // --- 16. 粒子材质 Cull 检查---
+        if (_chkCullOff)
+        {
+            int cullOffCount = 0;
+            foreach (var ps in allParticleSystems)
+            {
+                var renderer = ps.GetComponent<ParticleSystemRenderer>();
+                if (renderer == null) continue;
+
+                var mats = renderer.sharedMaterials;
+                foreach (var mat in mats)
+                {
+                    if (mat == null) continue;
+                    if (mat.HasProperty("_Cull"))
+                    {
+                        int cullValue = (int)mat.GetFloat("_Cull");
+                        if (cullValue == 0)
+                        {
+                            cullOffCount++;
+                            _vfxResults.Add(new CheckResult
+                            {
+                                category = "粒子材质 Cull Off",
+                                description = $"材质 \"{mat.name}\" (Shader: {mat.shader.name}) Cull Off，路径: {GetHierarchyPath(ps.gameObject)}",
+                                targetObj = ps.gameObject,
+                                msgType = MessageType.Warning
+                            });
+                        }
+                    }
+                }
+            }
+            if (cullOffCount == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "粒子材质 Cull Off",
+                    description = "✓ 未发现粒子材质使用 Cull Off",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        Debug.Log($"[场景优化工具] 特效检查完成，共 {_vfxResults.Count} 条结果");
         Repaint();
     }
 
@@ -1797,16 +2569,46 @@ EditorGUILayout.LabelField("点击顶部 ▶ 按钮开始检查", _headerStyle, 
                     _categoryTooltips.TryGetValue(result.category, out catTooltip);
                     if (catTooltip == null) catTooltip = "";
 
-                    var prevColor = GUI.contentColor;
-                    if (parentWarnCnt > 0)
-                        GUI.contentColor = new Color(1f, 0.75f, 0.3f);
-                    else
-                        GUI.contentColor = new Color(0.5f, 0.9f, 0.5f);
+                    bool showFixBtn = _currentTab == TabType.VFX && parentWarnCnt > 0 && CanFixCategory(result.category);
 
-                    var headerContent = new GUIContent(foldLabel, catTooltip);
-                    _foldoutStates[result.category] = EditorGUILayout.Foldout(
-                        _foldoutStates[result.category], headerContent, true, EditorStyles.foldoutHeader);
-                    GUI.contentColor = prevColor;
+                    if (showFixBtn)
+                    {
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            var prevColor = GUI.contentColor;
+                            if (parentWarnCnt > 0)
+                                GUI.contentColor = new Color(1f, 0.75f, 0.3f);
+                            else
+                                GUI.contentColor = new Color(0.5f, 0.9f, 0.5f);
+
+                            var headerContent = new GUIContent(foldLabel, catTooltip);
+                            _foldoutStates[result.category] = EditorGUILayout.Foldout(
+                                _foldoutStates[result.category], headerContent, true, EditorStyles.foldout);
+                            GUI.contentColor = prevColor;
+
+                            var fixBtnColor = GUI.backgroundColor;
+                            GUI.backgroundColor = new Color(0.4f, 0.85f, 0.5f);
+                            if (GUILayout.Button(new GUIContent($"修复({parentWarnCnt})", $"将此分类所有问题修复为标准值\n支持 Ctrl+Z 撤销"),
+                                EditorStyles.miniButton, GUILayout.Width(60)))
+                            {
+                                FixVFXCategory(result.category);
+                            }
+                            GUI.backgroundColor = fixBtnColor;
+                        }
+                    }
+                    else
+                    {
+                        var prevColor = GUI.contentColor;
+                        if (parentWarnCnt > 0)
+                            GUI.contentColor = new Color(1f, 0.75f, 0.3f);
+                        else
+                            GUI.contentColor = new Color(0.5f, 0.9f, 0.5f);
+
+                        var headerContent = new GUIContent(foldLabel, catTooltip);
+                        _foldoutStates[result.category] = EditorGUILayout.Foldout(
+                            _foldoutStates[result.category], headerContent, true, EditorStyles.foldoutHeader);
+                        GUI.contentColor = prevColor;
+                    }
 
                     isParentFolded = !_foldoutStates[result.category];
                 }
@@ -1959,5 +2761,75 @@ else if (result.description.StartsWith("✓"))
             path = t.name + "/" + path;
         }
         return path;
+    }
+
+    /// <summary>
+    /// 获取 MinMaxCurve 的最大可能值（兼容所有模式）
+    /// </summary>
+    private float GetMinMaxCurveMax(ParticleSystem.MinMaxCurve curve)
+    {
+        switch (curve.mode)
+        {
+            case ParticleSystemCurveMode.Constant:
+                return curve.constant;
+            case ParticleSystemCurveMode.TwoConstants:
+                return curve.constantMax;
+            case ParticleSystemCurveMode.Curve:
+                return curve.curveMultiplier * GetAnimationCurveMax(curve.curve);
+            case ParticleSystemCurveMode.TwoCurves:
+                return curve.curveMultiplier * GetAnimationCurveMax(curve.curveMax);
+            default:
+                return curve.constantMax;
+        }
+    }
+
+    private float GetAnimationCurveMax(AnimationCurve curve)
+    {
+        if (curve == null || curve.length == 0) return 0f;
+        float max = float.MinValue;
+        for (int i = 0; i < curve.length; i++)
+        {
+            if (curve[i].value > max)
+                max = curve[i].value;
+        }
+        return max;
+    }
+
+    /// <summary>
+    /// 将 MinMaxCurve 的值 Clamp 到指定上限（保留模式）
+    /// Constant/TwoConstants: 直接 clamp 数值
+    /// Curve/TwoCurves: 缩放 curveMultiplier 使最大值不超标
+    /// </summary>
+    private ParticleSystem.MinMaxCurve ClampMinMaxCurve(ParticleSystem.MinMaxCurve curve, float maxValue)
+    {
+        switch (curve.mode)
+        {
+            case ParticleSystemCurveMode.Constant:
+                return new ParticleSystem.MinMaxCurve(Mathf.Min(curve.constant, maxValue));
+            case ParticleSystemCurveMode.TwoConstants:
+            {
+                float ratio = curve.constantMax > 0 ? maxValue / curve.constantMax : 1f;
+                if (ratio >= 1f) return curve;
+                return new ParticleSystem.MinMaxCurve(curve.constantMin * ratio, curve.constantMax * ratio);
+            }
+            case ParticleSystemCurveMode.Curve:
+            {
+                float curveMax = GetAnimationCurveMax(curve.curve);
+                float actualMax = curve.curveMultiplier * curveMax;
+                if (actualMax <= maxValue) return curve;
+                curve.curveMultiplier = curveMax > 0 ? maxValue / curveMax : 0f;
+                return curve;
+            }
+            case ParticleSystemCurveMode.TwoCurves:
+            {
+                float curveMax = GetAnimationCurveMax(curve.curveMax);
+                float actualMax = curve.curveMultiplier * curveMax;
+                if (actualMax <= maxValue) return curve;
+                curve.curveMultiplier = curveMax > 0 ? maxValue / curveMax : 0f;
+                return curve;
+            }
+            default:
+                return new ParticleSystem.MinMaxCurve(maxValue);
+        }
     }
 }
