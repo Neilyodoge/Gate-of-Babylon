@@ -29,6 +29,9 @@ half4 _ToonNoiseTex_ST;
 half4 _ToonNoiseSpeed;
 half  _fresnelScale;
 half4 _fresnelColor;
+half4 _DistortionTex_ST;
+half  _DistortionIntensity;
+half4 _DistortionSpeed;
 half4 _CausticTex_ST;
 half  _CausticIntensity;
 half  _CausticScale;
@@ -53,6 +56,7 @@ TEXTURE2D(_FoamSDF);             SAMPLER(sampler_FoamSDF);
 TEXTURE2D(_FoamNoiseTex);        SAMPLER(sampler_FoamNoiseTex);
 TEXTURE2D(_CameraDepthTexture);  SAMPLER(sampler_CameraDepthTexture);
 TEXTURE2D(_CameraOpaqueTexture); SAMPLER(sampler_CameraOpaqueTexture);
+TEXTURE2D(_DistortionTex);       SAMPLER(sampler_DistortionTex);
 TEXTURE2D(_CausticTex);          SAMPLER(sampler_CausticTex);
 
 #endif

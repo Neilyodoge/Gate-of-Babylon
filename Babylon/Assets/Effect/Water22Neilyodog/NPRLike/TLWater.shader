@@ -24,6 +24,12 @@ Shader "Neilyodog/TLWater"
         _fresnelColor ("菲尼尔颜色", Color) = (1, 1, 1, 1)
 
         [Space(10)]
+        [Header(Distortion)]
+        _DistortionTex ("扭曲贴图(RG)", 2D) = "gray" {}
+        _DistortionIntensity ("扭曲强度", Range(0, 0.3)) = 0.05
+        _DistortionSpeed ("扭曲速度XY", Vector) = (0.05, 0.03, 0, 0)
+
+        [Space(10)]
         [Header(Caustic)]
         _CausticTex ("焦散贴图", 2D) = "white" {}
         _CausticIntensity ("焦散强度", Float) = 1

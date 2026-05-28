@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEditor;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using System.IO;
 
 public class TLWaterGUI : ShaderGUI
@@ -10,9 +12,10 @@ public class TLWaterGUI : ShaderGUI
 
     bool m_FoldLUT     = true;
     bool m_FoldSpec    = true;
-    bool m_FoldFresnel = true;
-    bool m_FoldCaustic = true;
-    bool m_FoldFoam    = true;
+    bool m_FoldFresnel    = true;
+    bool m_FoldDistortion = true;
+    bool m_FoldCaustic    = true;
+    bool m_FoldFoam       = true;
 
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
     {
@@ -23,6 +26,8 @@ public class TLWaterGUI : ShaderGUI
             m_Gradient       = LoadGradient(material);
             m_GradientLoaded = true;
         }
+
+        DrawURPSettingsCheck();
 
         // ==================== Water Depth Color ====================
         m_FoldLUT = EditorGUILayout.Foldout(m_FoldLUT, "Water Depth Color", true, EditorStyles.foldoutHeader);
@@ -88,6 +93,17 @@ public class TLWaterGUI : ShaderGUI
             EditorGUI.indentLevel--;
         }
 
+        // ==================== Distortion ====================
+        m_FoldDistortion = EditorGUILayout.Foldout(m_FoldDistortion, "Distortion", true, EditorStyles.foldoutHeader);
+        if (m_FoldDistortion)
+        {
+            EditorGUI.indentLevel++;
+            DrawProp(materialEditor, properties, "_DistortionTex");
+            DrawProp(materialEditor, properties, "_DistortionIntensity");
+            DrawProp(materialEditor, properties, "_DistortionSpeed");
+            EditorGUI.indentLevel--;
+        }
+
         // ==================== Caustic ====================
         m_FoldCaustic = EditorGUILayout.Foldout(m_FoldCaustic, "Caustic", true, EditorStyles.foldoutHeader);
         if (m_FoldCaustic)
@@ -131,6 +147,35 @@ public class TLWaterGUI : ShaderGUI
     // ----------------------------------------------------------------
     //  Helpers
     // ----------------------------------------------------------------
+
+    // ----------------------------------------------------------------
+    //  URP Settings Check
+    // ----------------------------------------------------------------
+
+    void DrawURPSettingsCheck()
+    {
+        var asset = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+        if (asset == null) return;
+
+        bool needDepth  = !asset.supportsCameraDepthTexture;
+        bool needOpaque = !asset.supportsCameraOpaqueTexture;
+        if (!needDepth && !needOpaque) return;
+
+        string msg = "URP Asset 缺少以下设置，水体效果将无法正确显示:";
+        if (needDepth)  msg += "\n  • Depth Texture";
+        if (needOpaque) msg += "\n  • Opaque Texture";
+        EditorGUILayout.HelpBox(msg, MessageType.Warning);
+
+        if (GUILayout.Button("一键修复 URP Asset 设置"))
+        {
+            if (needDepth)  asset.supportsCameraDepthTexture  = true;
+            if (needOpaque) asset.supportsCameraOpaqueTexture = true;
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+        }
+
+        EditorGUILayout.Space(6);
+    }
 
     void DrawProp(MaterialEditor editor, MaterialProperty[] props, string name)
     {
