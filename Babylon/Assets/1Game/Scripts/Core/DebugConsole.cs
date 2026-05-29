@@ -316,6 +316,24 @@ namespace XianTu
             RefreshStatus();
         }
 
+        /// <summary>调试：+200 修为（直接进永久修为池，方便测渡劫战）。攒满阈值后去洞府闭关石室「冲击境界」。</summary>
+        private void BoostCultivationExp()
+        {
+            var cult = CultivationSystem.Instance;
+            cult.AddRunTempering(200, "debug");
+            cult.CommitOnExtract(); // 把本局历练值直接结算进永久修为
+            string canBt = cult.CanBreakthrough ? "（修为已够，可冲击境界）" : "";
+            AddLog($"<color=#9cc0ff>🧘 修为 +200 → {cult.CurrentExp}/{cult.NextBreakthroughCost} · 当前 {cult.CurrentRealmName}{canBt}</color>");
+        }
+
+        /// <summary>调试：+100 本局历练值（测撤离转修为 / HUD）。</summary>
+        private void BoostRunTempering()
+        {
+            var cult = CultivationSystem.Instance;
+            cult.AddRunTempering(100, "debug");
+            AddLog($"<color=#9cc0ff>🧘 历练值 +100 → 本局 {cult.RunTempering}（撤离后转入修为）</color>");
+        }
+
         /// <summary>提升最大生命</summary>
         private void BoostMaxHp()
         {
@@ -536,6 +554,11 @@ namespace XianTu
             CreateButton(contentGo.transform, "💎 灵物一键升满", new Color(0.45f, 0.3f, 0.5f), MaxOutHeldItems);
             CreateButton(contentGo.transform, "💎 灵物爆率拉满", new Color(0.5f, 0.4f, 0.1f), ToggleMaxItemDropRate);
             CreateButton(contentGo.transform, "📜 功法爆率拉满", new Color(0.2f, 0.4f, 0.5f), ToggleMaxSkillDropRate);
+
+            // --- 本体境界（v0.5.4 渡劫战测试）---
+            CreateSectionHeader(contentGo.transform, "【 本体境界 】");
+            CreateButton(contentGo.transform, "🧘 修为 +200", new Color(0.35f, 0.45f, 0.6f), BoostCultivationExp);
+            CreateButton(contentGo.transform, "🧘 历练值 +100", new Color(0.3f, 0.4f, 0.55f), BoostRunTempering);
 
             // --- 房间控制 ---
             CreateSectionHeader(contentGo.transform, "【 房间跳转 】");

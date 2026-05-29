@@ -1914,14 +1914,16 @@ ModifierDef:
 >
 > | 模块 | 状态 |
 > |------|------|
-> | 8.1.2 秘境层深度推进（6 层 / 3 区域） | 🟢 已实现（原 GameManager `_currentLevel`，语义改为"层深度 + 环境境界标签"） |
-> | 8.1.1 本体境界（历练值突破 · 跨局持久） | 🔴 待实现（Demo2 核心：`SaveData` 新增字段 + `CultivationSystem`） |
-> | 8.2 境界压制（本体境界 vs 环境境界） | 🔴 待实现（StatusEffect 减益，入层时计算） |
-> | 境界成色（瑕品~完美 · 详见 9.1.8） | 🔴 待实现 |
-> | 8.3.4 死亡 = 身死道消 · 转世传承 | 🔴 待实现（改造死亡流程：清本体境界/修为，留洞府家业） |
+> | 8.1.2 秘境层深度推进（6 层 / 3 区域） | 🟢 已实现（GameManager `_currentLevel` = 层深度 + 环境境界标签） |
+> | 8.1.1 本体境界（历练值突破 · 跨局持久） | 🟢 **代码地基已落**（`SaveData` 字段 + `CultivationSystem`；击杀加历练值 + 撤离转修为已接线） |
+> | 8.2 境界压制（本体境界 vs 环境境界） | 🟢 **已落**（`CultivationSuppression`，入层时按 delta 挂减益/碾压 StatusEffect） |
+> | 境界成色（瑕品~完美 · 详见 9.1.8） | 🟢 **已落**（`CultivationSystem.Breakthrough(quality)` + `Refine` 凝实） |
+> | 8.3.4 死亡 = 身死道消 · 转世传承 | 🟢 **已落**（`CultivationSystem.ReincarnateOnDeath`，接 GameManager 死亡分支） |
+> | 闭关石室（本体境界洞府模块） | 🟢 **已落**（`MeditationChamber`，VillageHub 已摆放：境界/修为/凝实/冲击境界 UI） |
+> | 渡劫战（天劫 + 心魔合体 · 6.8.3） | 🟢 **MVP 已落**（`TribulationTrial`：复用 `InnerDemonMirror` + 天劫落雷 + 成色判定 → 突破）；旧逐层"渡劫台"`HeavenTribulation` 已删除 |
 > | ~~（旧 8.2）境界突破 3 选 1~~ | 🔴 v0.5.4 设计移除，**代码已清理** |
 > | 难度递增（敌人 hp/伤害 scaling） | 🟢 已实现 |
-> | 渡劫战（天劫 + 心魔合体 · 详见 6.8.3） | 🟡 已有 `HeavenTribulation` + `InnerDemonCatalyst` 半成品，待整合为本体突破专属渡劫战 |
+> | **待办** | 心魔值满乱入 Boss 战（6.8.4 ②）；渡劫战需在洞府场景实测战斗可用性；历练值/本体境界 HUD |
 
 ---
 

@@ -247,6 +247,13 @@ namespace XianTu
         private CharacterController _cc;
         private Transform _target;
         private InnerDemonCatalyst _catalyst;
+        /// <summary>可选击败回调（渡劫战 TribulationTrial 复用镜像时设置；与 _catalyst 并行，二者皆可空）。</summary>
+        private System.Action _onDefeated;
+        public void SetDefeatCallback(System.Action cb) => _onDefeated = cb;
+
+        /// <summary>抑制击杀奖励（渡劫战镜像不掉落 / 不给灵力碎片·悟性·历练值；它只是突破试炼）。</summary>
+        private bool _suppressRewards;
+        public void SetSuppressRewards(bool v) => _suppressRewards = v;
         private EnemyHealthBar _healthBar;
         private GameObject _nameTag;
 
@@ -725,20 +732,27 @@ namespace XianTu
             gameObject.tag = "Untagged";
             DestroyWarning();
             if (_catalyst != null) _catalyst.OnMirrorDefeated();
-            GameEvents.Publish(new GameEvents.EnemyKilled
+            _onDefeated?.Invoke();
+
+            // 渡劫战镜像（_suppressRewards）只是突破试炼 → 不发击杀奖励、不掉落
+            if (!_suppressRewards)
             {
-                Enemy = gameObject, Position = transform.position
-            });
+                GameEvents.Publish(new GameEvents.EnemyKilled
+                {
+                    Enemy = gameObject, Position = transform.position
+                });
+
+                // v0.5 Week 6：击败心魔必定掉一颗"道韵碎片"（藏经阁拼合上古秘籍专用素材）
+                var sliver = Resources.Load<ItemData>("CaveMaterials/道韵碎片");
+                if (sliver != null)
+                {
+                    ItemPickup.Spawn(sliver, transform.position + new Vector3(0.6f, 0f, 0f));
+                }
+            }
+
             if (HitStop.Instance != null) HitStop.Instance.TriggerKill();
 
             CameraShake.TriggerBig();
-
-            // v0.5 Week 6：击败心魔必定掉一颗"道韵碎片"（藏经阁拼合上古秘籍专用素材）
-            var sliver = Resources.Load<ItemData>("CaveMaterials/道韵碎片");
-            if (sliver != null)
-            {
-                ItemPickup.Spawn(sliver, transform.position + new Vector3(0.6f, 0f, 0f));
-            }
 
             // —— 死亡视觉：一道破障爆环 + 多颗朝外飞溅的"心魔碎片"——
             Vector3 origin = transform.position + Vector3.up * 1f;

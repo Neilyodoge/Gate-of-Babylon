@@ -706,11 +706,8 @@ namespace XianTu
             // 检查是否已通关最后一层
             bool isLastRealm = _currentLevel >= _realmNames.Length - 1;
 
-            // 渡劫台：放在房间正北（玩家可选，不强制）
-            var tribGo = new GameObject($"HeavenTribulation_Level{_currentLevel}");
-            tribGo.transform.position = roomCenter + new Vector3(0, 0, 6f);
-            var trib = tribGo.AddComponent<HeavenTribulation>();
-            trib.Build(() => { });
+            // v0.5.4：移除逐层"渡劫台"——渡劫已改为本体境界突破专属（洞府闭关石室触发 TribulationTrial）。
+            // 秘境层推进只剩"撤离 vs 继续"+ 境界压制作为难度门槛。
 
             // v0.5 Week 4 心魔劫：化神期（idx=4）/ 渡劫期（idx=5）每境界结束后必出心魔台，
             // 与渡劫台 + 出梦点 + 下一境界传送门 共存，让玩家在四选一中决定。

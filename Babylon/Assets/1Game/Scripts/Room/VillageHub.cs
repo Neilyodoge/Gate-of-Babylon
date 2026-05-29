@@ -150,6 +150,12 @@ namespace XianTu
             formationGo.transform.SetParent(transform, false);
             formationGo.transform.localPosition = new Vector3(3f, 0f, 8f);
             formationGo.AddComponent<FormationPlatform>();
+
+            // ===== 闭关石室（v0.5.4 本体境界模块，左侧中）=====
+            var meditationGo = new GameObject("MeditationChamber");
+            meditationGo.transform.SetParent(transform, false);
+            meditationGo.transform.localPosition = new Vector3(-10f, 0f, 0f);
+            meditationGo.AddComponent<MeditationChamber>();
         }
 
         // ==================== 工具：世界空间贴文字 ====================

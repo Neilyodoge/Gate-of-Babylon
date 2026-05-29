@@ -494,4 +494,12 @@ namespace XianTu
             public int StacksRemaining;
         }
     }
+
+    /// <summary>渡劫结果（原定义于已删除的 HeavenTribulation.cs，v0.5.4 迁移至此）。</summary>
+    public enum TribulationOutcome
+    {
+        Success,        // 渡劫成功
+        PartialFail,    // 渡劫失利（半残，仅余撤离）
+        Catastrophic    // 渡劫中止 / 陨落
+    }
 }
