@@ -104,7 +104,6 @@ namespace XianTu
             DestroyIfExists("SpiritRootSelectUI");
             DestroyIfExists("StatusEffectHUD");
             DestroyIfExists("SpiritRootMechanicHUD");
-            DestroyIfExists("RealmRewardSelectUI");
             DestroyIfExists("CaveEconomy");
 
             // 清掉 InsightSystem / PendingPillCarry 等运行时状态

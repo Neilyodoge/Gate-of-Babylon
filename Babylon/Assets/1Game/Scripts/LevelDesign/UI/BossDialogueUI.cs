@@ -5,7 +5,7 @@ namespace XianTu.LevelDesign
 {
     /// <summary>
     /// Boss 出场对白播报 UI（屏幕下方滑入式古风字幕）。
-    /// 与 RealmRewardSelectUI 一致使用 IMGUI 临时实现，后期可替换为 UGUI。
+    /// IMGUI 临时实现，后期可替换为 UGUI。
     /// </summary>
     public class BossDialogueUI : MonoBehaviour
     {

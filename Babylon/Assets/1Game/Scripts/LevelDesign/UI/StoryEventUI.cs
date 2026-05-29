@@ -4,7 +4,7 @@ using UnityEngine;
 namespace XianTu.LevelDesign
 {
     /// <summary>
-    /// GDD §12.2.3 事件 UI（IMGUI 临时实现，复用 RealmRewardSelectUI 模式）。
+    /// GDD §12.2.3 事件 UI（IMGUI 临时实现）。
     ///
     /// 使用：StoryEventUI.Show(row, opt =&gt; { ... });
     /// 显示后玩家点选项 → 回调被触发 → 自动关闭。

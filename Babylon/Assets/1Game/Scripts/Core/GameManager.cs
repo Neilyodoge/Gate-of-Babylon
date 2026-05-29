@@ -732,6 +732,7 @@ namespace XianTu
                 // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 清丹药 → 回收灵兽 → 回 VillageHub
                 CaveInventory.Instance.CommitCurrentRun();
                 InsightSystem.Instance.CommitOnExtract();
+                CultivationSystem.Instance.CommitOnExtract();
                 PendingPillCarry.ClearActive();
                 SpiritBeastLoader.Despawn();
                 EnterVillageHub();
@@ -796,6 +797,7 @@ namespace XianTu
             int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
             PendingPillCarry.ClearActive();
             InsightSystem.Instance.AbandonOnDeath();
+            CultivationSystem.Instance.ReincarnateOnDeath();   // 身死道消：本体境界 / 修为归零，洞府家业保留
             SpiritBeastLoader.Despawn();
 
             // 增加死亡统计
@@ -845,6 +847,9 @@ namespace XianTu
                 else if (n.Contains("Elite")) insightAmount = 3;
             }
             InsightSystem.Instance.AddRunInsight(insightAmount, "击杀");
+            // v0.5.4：击杀同时累积历练值（普通 +1 / 精英 +5 / Boss +20）
+            int temperingAmount = insightAmount == 10 ? 20 : (insightAmount == 3 ? 5 : 1);
+            CultivationSystem.Instance.AddRunTempering(temperingAmount, "击杀");
         }
 
         /// <summary>清理场景中残留的掉落物（上一关未拾取的灵物和功法）</summary>

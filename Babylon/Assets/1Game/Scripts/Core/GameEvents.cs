@@ -361,14 +361,24 @@ namespace XianTu
             public int NewRunInsight;
             public int Delta;
             public string Reason;
-            public int NextThreshold;
         }
 
-        /// <summary>顿悟时刻触发（RealmRewardController 监听 → 弹 3 选 1）</summary>
-        public struct InsightMomentTriggered
+        // ========== 本体境界（v0.5.4）==========
+
+        /// <summary>历练值变化（本局累积，撤离转永久修为）</summary>
+        public struct TemperingChanged
         {
-            public int Threshold;
-            public int MomentIndex;
+            public int NewRunTempering;
+            public int Delta;
+            public string Reason;
+        }
+
+        /// <summary>本体境界突破（渡劫战成功后）</summary>
+        public struct CultivationBreakthrough
+        {
+            public int NewRealm;
+            public string RealmName;
+            public int Quality;   // 0=瑕品 1=凡品 2=上品 3=完美
         }
 
         // ========== 天劫渡劫（修仙独有战斗机制 #3）==========

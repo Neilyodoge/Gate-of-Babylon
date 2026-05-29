@@ -3,14 +3,14 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 顿悟系统（v0.5 修仙独有战斗机制 #2）。
+    /// 悟性系统（v0.5；v0.5.4 移除"顿悟时刻 3 选 1"，悟性回归纯积累资源）。
     ///
     /// 悟性是【局内 + 局外混合资源】：
-    /// - 局内：每次击杀敌人 / 完美闪避 / 完美连段 → 加悟性，到阈值触发"顿悟时刻"（3 选 1 免费 buff）
+    /// - 局内：每次击杀敌人 / 完美闪避 / 完美连段 → 加悟性
     /// - 撤离成功 → 50% 当前悟性转入 SaveData.accumulatedInsight（永久）
-    /// - 死亡 → 全部丢失（残魂不补偿，因为悟性是"修为"，必须真实通关换）
+    /// - 死亡 → 全部丢失（残念不补偿，因为悟性是"修为"，必须真实撤离换）
     ///
-    /// 永久悟性用途：在【悟道蒲团】消耗解锁化身天赋节点（跨局保留）。
+    /// 永久悟性唯一用途：在【悟道蒲团】消耗解锁化身天赋节点（跨局保留）。
     /// </summary>
     public class InsightSystem : MonoBehaviour
     {
@@ -32,17 +32,6 @@ namespace XianTu
         // ========== 局内悟性 ==========
 
         public int RunInsight { get; private set; }
-
-        /// <summary>下一次顿悟时刻阈值（每触发一次后递增 +50）</summary>
-        public int NextMomentThreshold { get; private set; } = 50;
-
-        public int TotalMomentsThisRun { get; private set; } = 0;
-
-        /// <summary>单局顿悟时刻最大触发次数（防刷 · v0.5 Week 8 技术债清理）</summary>
-        public const int MaxMomentsPerRun = 6;
-
-        /// <summary>本局是否已用尽顿悟次数</summary>
-        public bool IsMomentExhausted => TotalMomentsThisRun >= MaxMomentsPerRun;
 
         // ========== 永久悟性 ==========
 
@@ -67,32 +56,8 @@ namespace XianTu
             {
                 NewRunInsight = RunInsight,
                 Delta = real,
-                Reason = reason,
-                NextThreshold = NextMomentThreshold
+                Reason = reason
             });
-
-            CheckMomentTrigger();
-        }
-
-        private void CheckMomentTrigger()
-        {
-            if (RunInsight < NextMomentThreshold) return;
-            // 上限保护：超出本局最大次数后悟性继续积累（撤离能转永久），但不再弹顿悟时刻
-            if (TotalMomentsThisRun >= MaxMomentsPerRun)
-            {
-                NextMomentThreshold = int.MaxValue;  // 提到天上，不再触发
-                return;
-            }
-            // 触发顿悟时刻
-            TotalMomentsThisRun++;
-            GameEvents.Publish(new GameEvents.InsightMomentTriggered
-            {
-                Threshold = NextMomentThreshold,
-                MomentIndex = TotalMomentsThisRun
-            });
-            // 阶梯递增 + 后期更陡：1→50, 2→120, 3→210, 4→320, 5→450, 6→600
-            NextMomentThreshold += 50 + TotalMomentsThisRun * 20;
-            Debug.Log($"<color=#dfcfff>[InsightSystem] 顿悟时刻 #{TotalMomentsThisRun}/{MaxMomentsPerRun}！下次阈值 {NextMomentThreshold}</color>");
         }
 
         // ========== 局结束 ==========
@@ -106,18 +71,14 @@ namespace XianTu
             SaveSystem.Instance.Save();
             Debug.Log($"<color=#dfcfff>[InsightSystem] 撤离 · {transferred} 悟性转入永久（当前永久 {PermanentInsight}）</color>");
             RunInsight = 0;
-            NextMomentThreshold = 50;
-            TotalMomentsThisRun = 0;
         }
 
-        /// <summary>死亡：全部丢失（残魂不补偿）</summary>
+        /// <summary>死亡：全部丢失（残念不补偿）</summary>
         public void AbandonOnDeath()
         {
             if (RunInsight > 0)
-                Debug.Log($"<color=#ff8866>[InsightSystem] 梦中身亡 · {RunInsight} 悟性散尽</color>");
+                Debug.Log($"<color=#ff8866>[InsightSystem] 秘境中身亡 · {RunInsight} 悟性散尽</color>");
             RunInsight = 0;
-            NextMomentThreshold = 50;
-            TotalMomentsThisRun = 0;
         }
 
         // ========== 永久悟性消耗（悟道蒲团调用）==========

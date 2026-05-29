@@ -5,7 +5,9 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 境界突破 3 选 1 奖励数据结构 —— GDD 8.2 落地（v0.4 最小可用版）
+    /// 奖励/天赋数据结构。
+    /// v0.4 originally 境界突破 3 选 1；v0.5.4 境界突破系统移除后，本结构现仅用于
+    /// 承载"化身天赋"定义（SpiritTalent 类别），供悟道蒲团 / 图鉴读取。
     /// </summary>
     public class RealmReward
     {
@@ -39,52 +41,8 @@ namespace XianTu
 
         static RealmRewardLibrary()
         {
-            // ===== 通用奖励（5 个） =====
-            _allRewards.Add(MakeStatReward(
-                "Numeric_AtkUp", "剑意初成", "攻击力 +18%（本局永久）",
-                RealmRewardCategory.Numeric, SpiritRootType.None,
-                new Color(1f, 0.85f, 0.3f),
-                new List<StatModifier> { StatModifier.Percent(StatType.AttackDamage, 0.18f) }));
-
-            _allRewards.Add(new RealmReward
-            {
-                id = "Numeric_HpUp",
-                displayName = "体魄筑基",
-                description = "最大生命 +25% 并回满（本局永久）",
-                category = RealmRewardCategory.Numeric,
-                applicableRoot = SpiritRootType.None,
-                displayColor = new Color(1f, 0.5f, 0.5f),
-                apply = (p) =>
-                {
-                    ApplyPermanentStatusEffect(p, "Realm_HpUp", "体魄筑基", "最大生命 +25%",
-                        new Color(1f, 0.5f, 0.5f),
-                        new List<StatModifier> { StatModifier.Percent(StatType.MaxHp, 0.25f) });
-                    p.Stats.Heal(p.Stats.maxHp);
-                    GameEvents.Publish(new GameEvents.HealthChanged { CurrentHp = p.Stats.currentHp, MaxHp = p.Stats.maxHp });
-                }
-            });
-
-            _allRewards.Add(MakeStatReward(
-                "Numeric_CritUp", "五感凝练", "暴击率 +12%（本局永久）",
-                RealmRewardCategory.Numeric, SpiritRootType.None,
-                new Color(1f, 0.85f, 0.3f),
-                new List<StatModifier> { StatModifier.Flat(StatType.CritRate, 0.12f) }));
-
-            _allRewards.Add(MakeStatReward(
-                "Mechanic_MoveSpeedUp", "身轻如燕", "移速 +20%（本局永久）",
-                RealmRewardCategory.Mechanic, SpiritRootType.None,
-                new Color(0.5f, 0.85f, 1f),
-                new List<StatModifier> { StatModifier.Percent(StatType.MoveSpeed, 0.20f) }));
-
-            _allRewards.Add(MakeStatReward(
-                "Risk_GlassCannon", "走火入魔", "最大生命 -30%，攻击力 +60%（本局永久）",
-                RealmRewardCategory.Risk, SpiritRootType.None,
-                new Color(1f, 0.3f, 0.3f),
-                new List<StatModifier>
-                {
-                    StatModifier.Percent(StatType.MaxHp, -0.30f),
-                    StatModifier.Percent(StatType.AttackDamage, 0.60f)
-                }));
+            // v0.5.4：境界突破系统移除后，本库只保留"化身天赋"（SpiritTalent）定义，
+            //         供悟道蒲团（PermanentTalentRegistry）与图鉴读取；原通用数值奖励已删。
 
             // ===== 化身天赋类（每根 1 个代表节点）—— 走 StatusEffect 标记，由各化身 Controller 检查 =====
 
@@ -107,80 +65,6 @@ namespace XianTu
             _allRewards.Add(MakeTalentReward(
                 "Talent_Earth_StoneSkin", "土 · 厚壁", "受到伤害减免 +15%（本局永久）",
                 SpiritRootType.Earth, new Color(0.85f, 0.7f, 0.4f)));
-
-            // ======================================================
-            // v0.5 Week 8 内容扩充：通用奖励 +7 / 化身天赋 +15
-            // ======================================================
-
-            // ---------- 通用扩展（7 个） ----------
-
-            _allRewards.Add(MakeStatReward(
-                "Numeric_AspdUp", "心如疾雷", "攻速 +25%（本局永久）",
-                RealmRewardCategory.Numeric, SpiritRootType.None,
-                new Color(1f, 0.75f, 0.35f),
-                new List<StatModifier> { StatModifier.Percent(StatType.AttackSpeed, 0.25f) }));
-
-            _allRewards.Add(MakeStatReward(
-                "Numeric_CritDmgUp", "破甲诀", "暴击伤害 +50%（本局永久）",
-                RealmRewardCategory.Numeric, SpiritRootType.None,
-                new Color(1f, 0.6f, 0.4f),
-                new List<StatModifier> { StatModifier.Flat(StatType.CritDamage, 0.50f) }));
-
-            _allRewards.Add(MakeStatReward(
-                "Numeric_ReduceUp", "玉骨清华", "减伤 +12%（本局永久）",
-                RealmRewardCategory.Numeric, SpiritRootType.None,
-                new Color(0.7f, 0.85f, 1f),
-                new List<StatModifier> { StatModifier.Flat(StatType.DamageReduction, 0.12f) }));
-
-            _allRewards.Add(new RealmReward
-            {
-                id = "Mechanic_DashChargeUp",
-                displayName = "雁回身",
-                description = "闪避充能上限 +1，立即补满（本局永久）",
-                category = RealmRewardCategory.Mechanic,
-                applicableRoot = SpiritRootType.None,
-                displayColor = new Color(0.5f, 0.85f, 1f),
-                apply = (p) =>
-                {
-                    if (p == null) return;
-                    p.SetMaxDashCharges(p.MaxDashCharges + 1);
-                    p.RestoreDashCharge();
-                }
-            });
-
-            _allRewards.Add(new RealmReward
-            {
-                id = "Mechanic_LifeRegen",
-                displayName = "玉露还元",
-                description = "最大生命 +18%、减伤 +5%（坦度强化套）",
-                category = RealmRewardCategory.Mechanic,
-                applicableRoot = SpiritRootType.None,
-                displayColor = new Color(0.5f, 1f, 0.6f),
-                apply = (p) => ApplyPermanentStatusEffect(p, "Realm_LifeRegen", "玉露还元", "最大生命 +18% · 减伤 +5%",
-                    new Color(0.5f, 1f, 0.6f),
-                    new List<StatModifier>
-                    {
-                        StatModifier.Percent(StatType.MaxHp, 0.18f),
-                        StatModifier.Flat(StatType.DamageReduction, 0.05f)
-                    })
-            });
-
-            _allRewards.Add(MakeStatReward(
-                "Numeric_CdReduce", "灵机相济", "攻速 +20%（节奏强化套）",
-                RealmRewardCategory.Mechanic, SpiritRootType.None,
-                new Color(0.85f, 0.7f, 1f),
-                new List<StatModifier> { StatModifier.Percent(StatType.AttackSpeed, 0.20f) }));
-
-            _allRewards.Add(MakeStatReward(
-                "Risk_BloodCovenant", "血契", "最大生命 -15%，攻击力 +35%、攻速 +15%（本局永久）",
-                RealmRewardCategory.Risk, SpiritRootType.None,
-                new Color(1f, 0.35f, 0.5f),
-                new List<StatModifier>
-                {
-                    StatModifier.Percent(StatType.MaxHp, -0.15f),
-                    StatModifier.Percent(StatType.AttackDamage, 0.35f),
-                    StatModifier.Percent(StatType.AttackSpeed, 0.15f)
-                }));
 
             // ---------- 化身天赋扩展（5 化身 × 3 = 15 个） ----------
 
@@ -327,19 +211,6 @@ namespace XianTu
 
         // ============= helper =============
 
-        /// <summary>纯数值奖励：用 StatusEffect 挂常驻 BUFF。</summary>
-        private static RealmReward MakeStatReward(string id, string name, string desc,
-            RealmRewardCategory cat, SpiritRootType root, Color color,
-            List<StatModifier> mods)
-        {
-            return new RealmReward
-            {
-                id = id, displayName = name, description = desc,
-                category = cat, applicableRoot = root, displayColor = color,
-                apply = (p) => ApplyPermanentStatusEffect(p, "Realm_" + id, name, desc, color, mods)
-            };
-        }
-
         /// <summary>化身天赋奖励：用 StatusEffect 挂常驻"天赋标记"，由各化身 Controller 查询并改变行为。</summary>
         private static RealmReward MakeTalentReward(string id, string name, string desc,
             SpiritRootType root, Color color)
@@ -390,31 +261,8 @@ namespace XianTu
             });
         }
 
-        /// <summary>
-        /// 从奖励池中筛选可见的奖励（按化身过滤），并随机抽取 3 个。
-        /// </summary>
-        public static List<RealmReward> Roll3(SpiritRootType currentRoot, HashSet<string> alreadyTakenIds = null)
-        {
-            // 候选池 = 通用 + 当前化身专属
-            var pool = new List<RealmReward>();
-            foreach (var r in _allRewards)
-            {
-                if (alreadyTakenIds != null && alreadyTakenIds.Contains(r.id)) continue;
-                if (r.applicableRoot == SpiritRootType.None || r.applicableRoot == currentRoot)
-                    pool.Add(r);
-            }
-
-            // Fisher-Yates 洗牌 + 取前 3
-            var result = new List<RealmReward>();
-            for (int i = pool.Count - 1; i > 0; i--)
-            {
-                int j = UnityEngine.Random.Range(0, i + 1);
-                (pool[i], pool[j]) = (pool[j], pool[i]);
-            }
-            for (int i = 0; i < Mathf.Min(3, pool.Count); i++)
-                result.Add(pool[i]);
-            return result;
-        }
+        // v0.5.4：境界突破 3 选 1 系统移除，Roll3 已删。
+        // 本库现仅作为"化身天赋定义源"，供悟道蒲团（PermanentTalentRegistry）与图鉴读取。
 
         public static int Count => _allRewards.Count;
 

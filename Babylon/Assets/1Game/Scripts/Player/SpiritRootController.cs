@@ -53,8 +53,8 @@ namespace XianTu
             EnsureComponent<SpiritRootFireController>();
             EnsureComponent<SpiritRootEarthController>();
 
-            // v0.4：境界突破 3 选 1 奖励系统
-            EnsureComponent<RealmRewardController>();
+            // v0.5.4：境界压制（本体境界 vs 秘境层环境境界）
+            EnsureComponent<CultivationSuppression>();
         }
 
         private void EnsureComponent<T>() where T : Component

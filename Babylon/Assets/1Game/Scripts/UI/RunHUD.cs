@@ -50,7 +50,6 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
             GameEvents.Subscribe<GameEvents.SpiritDensityChanged>(OnSpiritDensityChanged);
             GameEvents.Subscribe<GameEvents.InsightChanged>(OnInsightChanged);
-            GameEvents.Subscribe<GameEvents.InsightMomentTriggered>(OnInsightMoment);
             GameEvents.Subscribe<GameEvents.TribulationStarted>(OnTribulationStarted);
             GameEvents.Subscribe<GameEvents.TribulationBoltTelegraph>(OnTribulationBoltTelegraph);
             GameEvents.Subscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
@@ -66,7 +65,6 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
             GameEvents.Unsubscribe<GameEvents.SpiritDensityChanged>(OnSpiritDensityChanged);
             GameEvents.Unsubscribe<GameEvents.InsightChanged>(OnInsightChanged);
-            GameEvents.Unsubscribe<GameEvents.InsightMomentTriggered>(OnInsightMoment);
             GameEvents.Unsubscribe<GameEvents.TribulationStarted>(OnTribulationStarted);
             GameEvents.Unsubscribe<GameEvents.TribulationBoltTelegraph>(OnTribulationBoltTelegraph);
             GameEvents.Unsubscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
@@ -92,13 +90,10 @@ namespace XianTu
         private int _tribulationTotalBolts;
 
         // 悟性飘字降噪：连续 InsightChanged 在 1.5s 窗口内合并，且每 5 次 Delta 才弹一次
-        // 临阈值（≥80%）时强制触发一次 "即将顿悟" 飘字
         private int _insightAccumDelta;
         private int _insightAccumCount;
         private int _insightLatestValue;
-        private int _insightLatestThreshold;
         private float _insightFlushTimer;
-        private bool _insightNearThresholdShown;
         private const int InsightFlushCount = 5;
         private const float InsightFlushWindow = 1.5f;
 
@@ -108,25 +103,9 @@ namespace XianTu
             _insightAccumDelta += evt.Delta;
             _insightAccumCount++;
             _insightLatestValue = evt.NewRunInsight;
-            _insightLatestThreshold = evt.NextThreshold;
             _insightFlushTimer = InsightFlushWindow;
 
-            // ① 临阈值（≥80%）首次跨过时立即提示一条 "即将顿悟"（每次顿悟后会重置）
-            float ratio = (float)evt.NewRunInsight / Mathf.Max(1, evt.NextThreshold);
-            if (!_insightNearThresholdShown && ratio >= 0.8f && ratio < 1f)
-            {
-                _insightNearThresholdShown = true;
-                FlushInsightToast();
-                _toasts.Add(new PickupToast
-                {
-                    text = $"◇ 即将顿悟（{evt.NewRunInsight}/{evt.NextThreshold}）◇",
-                    color = new Color(0.95f, 0.85f, 1f),
-                    remaining = ToastDuration * 1.0f
-                });
-                return;
-            }
-
-            // ② 达到 InsightFlushCount 次合并 → 弹一条
+            // 达到 InsightFlushCount 次合并 → 弹一条
             if (_insightAccumCount >= InsightFlushCount)
             {
                 FlushInsightToast();
@@ -137,8 +116,8 @@ namespace XianTu
         {
             if (_insightAccumCount <= 0) return;
             string text = _insightAccumCount == 1
-                ? $"+{_insightAccumDelta} 悟性（{_insightLatestValue}/{_insightLatestThreshold}）"
-                : $"+{_insightAccumDelta} 悟性 ×{_insightAccumCount}（{_insightLatestValue}/{_insightLatestThreshold}）";
+                ? $"+{_insightAccumDelta} 悟性（累计 {_insightLatestValue}）"
+                : $"+{_insightAccumDelta} 悟性 ×{_insightAccumCount}（累计 {_insightLatestValue}）";
             _toasts.Add(new PickupToast
             {
                 text = text,
@@ -180,20 +159,6 @@ namespace XianTu
                 text = $"🪨 地脉镇压 ×{evt.StacksConsumed} (波及 {evt.EnemiesAffected})",
                 color = new Color(0.85f, 0.7f, 0.35f),
                 remaining = ToastDuration * 0.8f
-            });
-        }
-
-        private void OnInsightMoment(GameEvents.InsightMomentTriggered evt)
-        {
-            // 顿悟时把残留悟性累计先 Flush 掉，避免"+xx 悟性"被"顿悟时刻"压住
-            FlushInsightToast();
-            _insightNearThresholdShown = false;  // 重置临阈值提示标志
-
-            _toasts.Add(new PickupToast
-            {
-                text = $"◇ 顿悟时刻 #{evt.MomentIndex} ◇",
-                color = new Color(0.85f, 0.75f, 1f),
-                remaining = ToastDuration * 1.5f
             });
         }
 
@@ -503,7 +468,7 @@ namespace XianTu
         private void DrawInsightBar()
         {
             var insight = InsightSystem.Instance;
-            if (insight.RunInsight <= 0 && insight.TotalMomentsThisRun == 0) return;  // 还没积累过
+            if (insight.RunInsight <= 0) return;  // 还没积累过
 
             const float W = 280f, H = 16f;
             float x = (Screen.width - W) * 0.5f;
@@ -514,9 +479,9 @@ namespace XianTu
             GUI.color = new Color(0.08f, 0.06f, 0.14f, 0.85f);
             GUI.DrawTexture(bgRect, Texture2D.whiteTexture);
 
-            float progress = Mathf.Clamp01((float)insight.RunInsight / insight.NextMomentThreshold);
+            // v0.5.4：悟性回归纯积累资源，无"顿悟阈值"。条满表示有积累，文字显示累计值。
             GUI.color = new Color(0.78f, 0.68f, 1f, 0.95f);
-            GUI.DrawTexture(new Rect(x, y, W * progress, H), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x, y, W, H), Texture2D.whiteTexture);
             GUI.color = prev;
 
             var style = new GUIStyle(GUI.skin.label)
@@ -526,7 +491,7 @@ namespace XianTu
                 richText = true
             };
             style.normal.textColor = Color.white;
-            GUI.Label(bgRect, $"悟性 {insight.RunInsight} / {insight.NextMomentThreshold}", style);
+            GUI.Label(bgRect, $"本局悟性 {insight.RunInsight}（撤离转 50% 入永久）", style);
         }
 
         // ========== 渡劫全屏遮罩 ==========

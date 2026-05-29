@@ -57,8 +57,22 @@ namespace XianTu
         /// <summary>当前活跃的灵兽伙伴 id（来自灵兽园 <c>SpiritBeastLibrary</c>）。入梦时 spawn 跟随玩家。</summary>
         public string activeSpiritBeastId = "";
 
-        /// <summary>下一次入梦时希望起手装备的功法 id（来自藏经阁解锁库）。入梦时由 RealmRewardController 装入 0 号槽位。</summary>
+        /// <summary>下一次入秘境时希望起手装备的功法 id（来自藏经阁解锁库）。入秘境时装入 0 号槽位。</summary>
         public string pendingStartSkillId = "";
+
+        // ========== v0.5.4：本体境界（历练值 → 修为 → 境界 · 身死道消转世归零） ==========
+
+        /// <summary>本体境界阶：0=炼气 1=筑基 2=金丹 3=元婴 4=化神 5=渡劫。陨落转世归零。</summary>
+        public int cultivationRealm = 0;
+
+        /// <summary>当前累积修为（朝下一次突破累积）。陨落转世归零。</summary>
+        public int cultivationExp = 0;
+
+        /// <summary>各阶境界成色：index = 境界阶，值 0=瑕品 1=凡品 2=上品 3=完美。陨落转世归零。</summary>
+        public List<int> realmQualities = new();
+
+        /// <summary>转世次数（轮回流 · 宿慧加成用）。跨转世累加，不归零。</summary>
+        public int reincarnationCount = 0;
     }
 
     /// <summary>洞府素材 / 灵物库存条目（itemName → count）</summary>

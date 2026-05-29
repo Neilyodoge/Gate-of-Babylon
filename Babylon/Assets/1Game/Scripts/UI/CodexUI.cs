@@ -5,11 +5,10 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 仙物图鉴（v0.5 Week 9）—— 4 个 tab：
+    /// 仙物图鉴（v0.5 Week 9；v0.5.4 移除"境界突破奖励"Tab）—— 3 个 tab：
     /// 1. 灵物（ItemPool 全部 30 件）
     /// 2. 协同（SynergySystem 全部 30 个）
-    /// 3. 境界突破奖励（RealmRewardLibrary 全部 32 个）
-    /// 4. 化身天赋（5 化身 × 4 节点）
+    /// 3. 化身天赋（悟道蒲团可解锁的天赋节点）
     ///
     /// 显示来源：直接从静态库 / Resources 加载，无需绑定。
     /// 暂停菜单 / 主菜单都可打开。
@@ -20,7 +19,7 @@ namespace XianTu
         public static bool IsVisible => _instance != null && _instance._visible;
 
         private bool _visible;
-        private int _tabIndex;     // 0=灵物 1=协同 2=境界奖励 3=化身天赋
+        private int _tabIndex;     // 0=灵物 1=协同 2=化身天赋
         private Vector2 _scroll;
         private int _itemFilterCategory = -1;       // -1=全部
         private SpiritRootType _talentFilterRoot = SpiritRootType.None;
@@ -110,12 +109,11 @@ namespace XianTu
 
             // Tabs
             const float TabW = 150f, TabH = 34f;
-            float tabsStartX = x + (W - TabW * 4 - 24f) * 0.5f;
+            float tabsStartX = x + (W - TabW * 3 - 16f) * 0.5f;
             float tabY = y + 60f;
             DrawTab(tabsStartX + 0 * (TabW + 8f), tabY, TabW, TabH, "🔮 灵物 30", 0);
             DrawTab(tabsStartX + 1 * (TabW + 8f), tabY, TabW, TabH, "✦ 协同 30", 1);
-            DrawTab(tabsStartX + 2 * (TabW + 8f), tabY, TabW, TabH, "★ 境界奖励 32", 2);
-            DrawTab(tabsStartX + 3 * (TabW + 8f), tabY, TabW, TabH, "🪞 化身天赋 20", 3);
+            DrawTab(tabsStartX + 2 * (TabW + 8f), tabY, TabW, TabH, "🪞 化身天赋 20", 2);
 
             // 内容区
             var contentRect = new Rect(x + 24f, y + 110f, W - 48f, H - 170f);
@@ -157,8 +155,7 @@ namespace XianTu
             {
                 case 0: DrawItemsTab(); break;
                 case 1: DrawSynergiesTab(); break;
-                case 2: DrawRewardsTab(); break;
-                case 3: DrawTalentsTab(); break;
+                case 2: DrawTalentsTab(); break;
             }
         }
 
@@ -282,55 +279,7 @@ namespace XianTu
             return sb.ToString();
         }
 
-        // ========== Tab 3：境界突破奖励 ==========
-
-        private void DrawRewardsTab()
-        {
-            _scroll = GUILayout.BeginScrollView(_scroll);
-
-            // 通用奖励
-            var generals = new List<RealmReward>();
-            generals.AddRange(RealmRewardLibrary.ListByCategory(RealmRewardCategory.Numeric));
-            generals.AddRange(RealmRewardLibrary.ListByCategory(RealmRewardCategory.Mechanic));
-            generals.AddRange(RealmRewardLibrary.ListByCategory(RealmRewardCategory.Structural));
-            generals.AddRange(RealmRewardLibrary.ListByCategory(RealmRewardCategory.Risk));
-
-            GUILayout.Label($"<color=#ffd47a>=== 通用奖励 ({generals.Count}) ===</color>", _entryNameStyle);
-            GUILayout.Space(2);
-            foreach (var r in generals) DrawRewardEntry(r);
-
-            GUILayout.Space(10);
-            var talents = RealmRewardLibrary.ListByCategory(RealmRewardCategory.SpiritTalent);
-            GUILayout.Label($"<color=#dfcfff>=== 化身天赋 ({talents.Count}) ===</color>", _entryNameStyle);
-            GUILayout.Space(2);
-            foreach (var r in talents) DrawRewardEntry(r);
-
-            GUILayout.EndScrollView();
-        }
-
-        private void DrawRewardEntry(RealmReward r)
-        {
-            GUILayout.BeginHorizontal(GUI.skin.box);
-
-            var prev = GUI.color;
-            GUI.color = r.displayColor;
-            GUILayout.Label("★", _tagStyle, GUILayout.Width(20));
-            GUI.color = prev;
-
-            GUILayout.BeginVertical(GUILayout.Width(180));
-            string col = ColorUtility.ToHtmlStringRGB(r.displayColor);
-            GUILayout.Label($"<color=#{col}>{r.displayName}</color>", _entryNameStyle);
-            string subTag = $"{RewardCategoryName(r.category)}";
-            if (r.applicableRoot != SpiritRootType.None) subTag += $" · {RootName(r.applicableRoot)}";
-            GUILayout.Label($"<color=#888>{subTag}</color>", new GUIStyle(_entryDescStyle) { fontSize = 11 });
-            GUILayout.EndVertical();
-
-            GUILayout.Label(r.description, _entryDescStyle, GUILayout.Width(520));
-
-            GUILayout.EndHorizontal();
-        }
-
-        // ========== Tab 4：化身天赋 ==========
+        // ========== Tab 3：化身天赋 ==========
 
         private static readonly SpiritRootType[] _allRoots =
         {
@@ -459,16 +408,6 @@ namespace XianTu
             ElementTag.Pierce => new Color(0.95f, 0.95f, 0.95f),
             ElementTag.Life => new Color(1f, 0.65f, 0.85f),
             _ => Color.gray
-        };
-
-        private static string RewardCategoryName(RealmRewardCategory c) => c switch
-        {
-            RealmRewardCategory.Numeric => "数值类",
-            RealmRewardCategory.Mechanic => "机制类",
-            RealmRewardCategory.Structural => "结构类",
-            RealmRewardCategory.Risk => "风险类",
-            RealmRewardCategory.SpiritTalent => "化身天赋",
-            _ => "?"
         };
 
         private static string RootName(SpiritRootType r) => r switch
