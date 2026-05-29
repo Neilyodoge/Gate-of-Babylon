@@ -100,15 +100,12 @@ namespace XianTu
             DestroyIfExists("MainMenu");
             DestroyIfExists("CodexUI");
             DestroyIfExists("SettingsUI");
-            DestroyIfExists("PillCarryUI");
             DestroyIfExists("SpiritRootSelectUI");
             DestroyIfExists("StatusEffectHUD");
             DestroyIfExists("SpiritRootMechanicHUD");
             DestroyIfExists("CaveEconomy");
 
-            // 清掉 InsightSystem / PendingPillCarry 等运行时状态
-            PendingPillCarry.ClearPending();
-            PendingPillCarry.ClearActive();
+            // 清掉运行时状态
             SynergySystem.Clear();
         }
 

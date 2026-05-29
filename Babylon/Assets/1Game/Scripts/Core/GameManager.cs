@@ -238,8 +238,11 @@ namespace XianTu
             _flatRoomIndex = 0;
             _gameOver = false;
 
+            // v0.5.4：每局重置心魔值（乱入累积条是局内资源）
+            InnerDemonMeter.Instance.ResetMeter();
+
             Debug.Log("<color=magenta>═══════════════════════════</color>");
-            Debug.Log("<color=magenta>  入梦... 仙途梦境开始</color>");
+            Debug.Log("<color=magenta>  入秘境... 仙途秘境开始</color>");
             Debug.Log("<color=magenta>═══════════════════════════</color>");
 
             // v0.5：自动应用所有跨局已解锁的化身天赋
@@ -726,11 +729,10 @@ namespace XianTu
             var ep = extractGo.AddComponent<ExtractPoint>();
             ep.Build(() =>
             {
-                // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 清丹药 → 回收灵兽 → 回 VillageHub
+                // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 回收灵兽 → 回 VillageHub
                 CaveInventory.Instance.CommitCurrentRun();
                 InsightSystem.Instance.CommitOnExtract();
                 CultivationSystem.Instance.CommitOnExtract();
-                PendingPillCarry.ClearActive();
                 SpiritBeastLoader.Despawn();
                 EnterVillageHub();
                 _transitioning = false;
@@ -790,9 +792,8 @@ namespace XianTu
         {
             _gameOver = true;
 
-            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；丹药 + 悟性也消失；灵兽伙伴一并销毁
+            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；悟性也消失；灵兽伙伴一并销毁
             int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
-            PendingPillCarry.ClearActive();
             InsightSystem.Instance.AbandonOnDeath();
             CultivationSystem.Instance.ReincarnateOnDeath();   // 身死道消：本体境界 / 修为归零，洞府家业保留
             SpiritBeastLoader.Despawn();

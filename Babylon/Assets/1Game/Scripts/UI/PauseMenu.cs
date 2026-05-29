@@ -6,7 +6,7 @@ namespace XianTu
     /// <summary>
     /// 暂停菜单（v0.5 Week 9）—— ESC 打开 / 关闭。
     ///
-    /// 按 ESC 时检查是否有其他 UI 在前台（SpiritRootSelectUI / PillCarryUI / Codex / Settings），
+    /// 按 ESC 时检查是否有其他 UI 在前台（SpiritRootSelectUI / Codex / Settings），
     /// 有则不响应（让前台 UI 自己处理 ESC）。
     ///
     /// 暂停时 Time.timeScale=0 但 RunHUD 等 IMGUI 仍会绘制。
@@ -93,7 +93,6 @@ namespace XianTu
         private static bool IsBlockedByOtherUI()
         {
             if (SpiritRootSelectUI.IsVisible) return true;
-            if (PillCarryUI.IsVisible) return true;
             if (CodexUI.IsVisible) return true;
             if (SettingsUI.IsVisible) return true;
             return false;

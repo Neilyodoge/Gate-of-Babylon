@@ -334,6 +334,14 @@ namespace XianTu
             AddLog($"<color=#9cc0ff>🧘 历练值 +100 → 本局 {cult.RunTempering}（撤离后转入修为）</color>");
         }
 
+        /// <summary>调试：+50 心魔值（满 100 且正在打 Boss 时触发乱入）。</summary>
+        private void BoostInnerDemon()
+        {
+            InnerDemonMeter.Instance.DebugAddMeter(50f);
+            string hint = EnemyBoss.AliveCount > 0 ? "（有 Boss，满值即乱入）" : "（需在 Boss 战中才会乱入）";
+            AddLog($"<color=#ff8899>👹 心魔值 +50 → {Mathf.RoundToInt(InnerDemonMeter.Instance.Meter)}/100 {hint}</color>");
+        }
+
         /// <summary>提升最大生命</summary>
         private void BoostMaxHp()
         {
@@ -559,6 +567,7 @@ namespace XianTu
             CreateSectionHeader(contentGo.transform, "【 本体境界 】");
             CreateButton(contentGo.transform, "🧘 修为 +200", new Color(0.35f, 0.45f, 0.6f), BoostCultivationExp);
             CreateButton(contentGo.transform, "🧘 历练值 +100", new Color(0.3f, 0.4f, 0.55f), BoostRunTempering);
+            CreateButton(contentGo.transform, "👹 心魔值 +50", new Color(0.5f, 0.18f, 0.25f), BoostInnerDemon);
 
             // --- 房间控制 ---
             CreateSectionHeader(contentGo.transform, "【 房间跳转 】");

@@ -39,17 +39,11 @@ namespace XianTu
 
         // ========== 加悟性 ==========
 
-        /// <summary>击杀普通怪 +1 / 精英怪 +3 / Boss +10（灵气浓度浓郁 +50%，灵脉 +100%）</summary>
+        /// <summary>击杀普通怪 +1 / 精英怪 +3 / Boss +10</summary>
         public void AddRunInsight(int amount, string reason)
         {
             if (amount <= 0) return;
-            float densityMul = SpiritDensity.Current switch
-            {
-                SpiritDensityLevel.Rich => 1.5f,
-                SpiritDensityLevel.Vein => 2.0f,
-                _ => 1f
-            };
-            int real = Mathf.Max(1, Mathf.RoundToInt(amount * densityMul));
+            int real = Mathf.Max(1, amount);
             RunInsight += real;
 
             GameEvents.Publish(new GameEvents.InsightChanged

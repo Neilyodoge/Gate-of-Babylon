@@ -115,12 +115,6 @@ namespace XianTu
             lingTianGo.transform.localPosition = new Vector3(7f, 0f, 2f);
             lingTianGo.AddComponent<LingTian>();
 
-            // ===== 炼丹房模块（v0.5 第二个洞府模块，右侧远）=====
-            var alchemyGo = new GameObject("AlchemyRoom");
-            alchemyGo.transform.SetParent(transform, false);
-            alchemyGo.transform.localPosition = new Vector3(10f, 0f, -3f);
-            alchemyGo.AddComponent<AlchemyRoom>();
-
             // ===== 悟道蒲团模块（v0.5 第三个洞府模块，左侧近）=====
             var wuDaoGo = new GameObject("WuDaoCushion");
             wuDaoGo.transform.SetParent(transform, false);
@@ -446,25 +440,13 @@ namespace XianTu
                 return;
             }
 
-            // 携丹面板打开时屏蔽其他输入
-            if (PillCarryUI.IsVisible) return;
-
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
             {
-                // v0.5：先弹携丹面板，确认后再入梦
+                // v0.5.4：丹药系统移除，按 F 直接入秘境
                 if (_headCard != null) _headCard.SetHintVisible(false);
-                PillCarryUI.Show(
-                    onConfirm: () =>
-                    {
-                        PendingPillCarry.Commit();
-                        _triggered = true;
-                        _onEnter?.Invoke();
-                    },
-                    onCancel: () =>
-                    {
-                        PendingPillCarry.ClearPending();
-                    });
+                _triggered = true;
+                _onEnter?.Invoke();
             }
         }
 

@@ -44,11 +44,9 @@ namespace XianTu
             _roomIndex = roomIndex;
             this.enemyCount = enemyCount;
 
-            // v0.5 修仙独有战斗机制 #1：先决定本房间的灵气浓度，再据此叠加敌人难度
-            SpiritDensity.Set(SpiritDensity.Roll(roomIndex));
-
-            hpMultiplier = hpMul * SpiritDensity.EnemyHpMultiplier;
-            dmgMultiplier = dmgMul * SpiritDensity.EnemyDamageMultiplier;
+            // v0.5.4：灵气浓度系统移除，敌人难度直接用关卡层数 scaling
+            hpMultiplier = hpMul;
+            dmgMultiplier = dmgMul;
             rewardPool = rewards;
             roomWidth = width;
             roomDepth = depth;
@@ -58,68 +56,6 @@ namespace XianTu
 
             // 构建房间视觉和碰撞体
             BuildRoom();
-
-            // 灵脉房：地面铺一层金光氛围 + 漂浮金粒子
-            if (SpiritDensity.Current == SpiritDensityLevel.Vein)
-            {
-                BuildSpiritVeinAura();
-            }
-
-            // 进入新房间 → 联动后处理"灵气浓度氛围"
-            // 注意：要在 GameManager.UpdateAtmosphere 之后调用（GameManager 会先按层数刷一遍 base，再走房间逻辑）
-            if (PostProcessSetup.Instance != null)
-            {
-                PostProcessSetup.Instance.ApplyDensityAura(SpiritDensity.Current);
-            }
-        }
-
-        /// <summary>灵脉房特效：地面金色符印 + 4 颗金色轨道粒子 + 持续金尘 emitter</summary>
-        private void BuildSpiritVeinAura()
-        {
-            Color gold = new Color(1f, 0.88f, 0.45f);
-
-            // 地面金色半透明圆盘（原有的发光地砖效果）
-            var aura = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            aura.name = "SpiritVeinAura";
-            aura.transform.SetParent(transform, false);
-            aura.transform.localPosition = new Vector3(0, 0.04f, 0);
-            aura.transform.localScale = new Vector3(spawnRadius * 1.5f, 0.04f, spawnRadius * 1.5f);
-            var col = aura.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-            var rend = aura.GetComponent<Renderer>();
-            if (rend != null)
-            {
-                var mat = MaterialHelper.CreateLitTransparent(new Color(1f, 0.92f, 0.55f, 0.25f));
-                if (mat.HasProperty("_EmissionColor"))
-                {
-                    mat.EnableKeyword("_EMISSION");
-                    mat.SetColor("_EmissionColor", new Color(1f, 0.92f, 0.55f) * 1.6f);
-                }
-                rend.material = mat;
-                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            }
-
-            // 地面金色 8 角符印（持久 · 缓慢旋转 + 呼吸）
-            CaveVfx.SpawnGroundRune(transform, Vector3.zero, spawnRadius * 0.85f,
-                gold, sides: 8, lineWidth: 0.18f, yLift: 0.08f);
-
-            // 4 组金尘 emitter，分布在房间 4 个角，持续向上飘升
-            float r = spawnRadius * 0.7f;
-            for (int i = 0; i < 4; i++)
-            {
-                float ang = (i / 4f) * Mathf.PI * 2f + Mathf.PI / 4f;
-                Vector3 p = new Vector3(Mathf.Cos(ang) * r, 0.1f, Mathf.Sin(ang) * r);
-                CaveVfx.SpawnSmokeEmitter(transform, p,
-                    color: gold,
-                    particleSize: 0.18f, spawnInterval: 0.7f,
-                    riseSpeed: 0.7f, lifetime: 2.4f, jitterRadius: 0.4f);
-            }
-
-            // 8 颗金色光斑围绕房间中心做大半径旋转（衬托"灵气充盈"）
-            CaveVfx.SpawnOrbitingParticles(transform, new Vector3(0, 1.2f, 0),
-                count: 8, orbitRadius: spawnRadius * 0.55f, orbitHeight: 0f,
-                particleSize: 0.2f, color: gold,
-                orbitSpeed: 30f, verticalBob: 0.4f);
         }
 
         /// <summary>构建房间的地面、墙壁、障碍物</summary>

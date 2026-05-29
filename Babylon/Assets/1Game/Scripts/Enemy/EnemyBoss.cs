@@ -81,13 +81,25 @@ namespace XianTu
 
         public CombatStats Stats => stats;
 
+        /// <summary>当前存活的境界 Boss 数量（心魔值乱入据此判断"是否正在打 Boss"）。</summary>
+        public static int AliveCount { get; private set; }
+        private bool _deadCounted;
+
         private void Awake()
         {
+            AliveCount++;
             _cc = GetComponent<CharacterController>();
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
                 _originalColors[i] = _renderers[i].material.color;
+        }
+
+        private void DecrementAlive()
+        {
+            if (_deadCounted) return;
+            _deadCounted = true;
+            AliveCount = Mathf.Max(0, AliveCount - 1);
         }
 
         private void Start()
@@ -792,6 +804,7 @@ namespace XianTu
         public void OnDeath()
         {
             gameObject.tag = "Untagged";
+            DecrementAlive();
 
             DestroyWarningIndicator();
             TryDropItem();
@@ -923,6 +936,7 @@ namespace XianTu
 
         private void OnDestroy()
         {
+            DecrementAlive();   // 兜底：未经 OnDeath 直接销毁（场景切换 / 重开）也要扣减
             DestroyWarningIndicator();
         }
 

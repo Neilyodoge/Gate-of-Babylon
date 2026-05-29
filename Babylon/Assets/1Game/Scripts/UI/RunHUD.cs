@@ -48,7 +48,6 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.CaveMaterialPickedUp>(OnCaveMaterialPickedUp);
             GameEvents.Subscribe<GameEvents.ExtractSuccess>(OnExtractSuccess);
             GameEvents.Subscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
-            GameEvents.Subscribe<GameEvents.SpiritDensityChanged>(OnSpiritDensityChanged);
             GameEvents.Subscribe<GameEvents.InsightChanged>(OnInsightChanged);
             GameEvents.Subscribe<GameEvents.TribulationStarted>(OnTribulationStarted);
             GameEvents.Subscribe<GameEvents.TribulationBoltTelegraph>(OnTribulationBoltTelegraph);
@@ -63,7 +62,6 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.CaveMaterialPickedUp>(OnCaveMaterialPickedUp);
             GameEvents.Unsubscribe<GameEvents.ExtractSuccess>(OnExtractSuccess);
             GameEvents.Unsubscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
-            GameEvents.Unsubscribe<GameEvents.SpiritDensityChanged>(OnSpiritDensityChanged);
             GameEvents.Unsubscribe<GameEvents.InsightChanged>(OnInsightChanged);
             GameEvents.Unsubscribe<GameEvents.TribulationStarted>(OnTribulationStarted);
             GameEvents.Unsubscribe<GameEvents.TribulationBoltTelegraph>(OnTribulationBoltTelegraph);
@@ -71,17 +69,6 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.FireBrandExploded>(OnFireBrandExploded);
             GameEvents.Unsubscribe<GameEvents.EarthRootedStateChanged>(OnEarthRootedChanged);
             GameEvents.Unsubscribe<GameEvents.EarthSigilDetonated>(OnEarthSigilDetonated);
-        }
-
-        private void OnSpiritDensityChanged(GameEvents.SpiritDensityChanged evt)
-        {
-            if (evt.NewLevel == SpiritDensityLevel.Normal) return;  // 普通灵气不弹提示
-            _toasts.Add(new PickupToast
-            {
-                text = $"◇ {evt.DisplayName} ◇",
-                color = evt.Tint,
-                remaining = ToastDuration * 1.4f
-            });
         }
 
         // ========== 顿悟 / 渡劫 状态 ==========
@@ -285,182 +272,56 @@ namespace XianTu
 
             DrawSidePanel();
             DrawPickupToasts();
-            DrawPillSlots();
             DrawInsightBar();
+            DrawCultivationStatus();
             DrawTribulationOverlay();
         }
 
-        // ========== 底部丹药槽位 ==========
+        // ========== 本体境界 + 历练值 + 心魔值（v0.5.4）==========
 
-        private void DrawPillSlots()
+        private void DrawCultivationStatus()
         {
-            int total = PendingPillCarry.TotalActive;
-            const int slotMax = 3;
-            const float slotW = 80f;
-            const float slotH = 56f;
-            const float gap = 8f;
-            float totalW = slotMax * slotW + (slotMax - 1) * gap;
-            float startX = (Screen.width - totalW) * 0.5f;
-            float y = Screen.height - 110f;
+            var cult = CultivationSystem.Instance;
 
-            int drawn = 0;
-            // 已携丹药占据前 N 格
-            foreach (var kv in PendingPillCarry.ActiveCarry)
+            const float W = 280f;
+            float x = (Screen.width - W) * 0.5f;
+            float y = 34f;  // 悟性条（y=12,H=16）正下方
+
+            // —— 本体境界 + 成色 + 本局历练值 ——
+            int realm = cult.CurrentRealm;
+            int quality = cult.GetRealmQuality(realm);
+            string qStr = (quality >= 0 && quality < CultivationSystem.QualityNames.Length)
+                ? "·" + CultivationSystem.QualityNames[quality] : "";
+            var labelStyle = new GUIStyle(GUI.skin.label)
             {
-                for (int j = 0; j < kv.Value && drawn < slotMax; j++)
+                fontSize = 12, alignment = TextAnchor.MiddleCenter, richText = true
+            };
+            labelStyle.normal.textColor = new Color(0.7f, 0.85f, 1f);
+            GUI.Label(new Rect(x, y, W, 18f),
+                $"<color=#b0d0ff>本体 · {cult.CurrentRealmName}{qStr}</color>　历练 {cult.RunTempering}", labelStyle);
+
+            // —— 心魔值条（仅有积累时显示）——
+            if (InnerDemonMeter.HasInstance)
+            {
+                var dm = InnerDemonMeter.Instance;
+                if (dm.Meter > 0.5f)
                 {
-                    DrawPillSlot(new Rect(startX + drawn * (slotW + gap), y, slotW, slotH), kv.Key, drawn == 0);
-                    drawn++;
+                    const float H = 12f;
+                    float by = y + 20f;
+                    var bg = new Rect(x + 40f, by, W - 80f, H);
+                    var prev = GUI.color;
+                    GUI.color = new Color(0.12f, 0.04f, 0.06f, 0.85f);
+                    GUI.DrawTexture(bg, Texture2D.whiteTexture);
+                    float ratio = Mathf.Clamp01(dm.Meter / InnerDemonMeter.Max);
+                    GUI.color = dm.IntrusionActive ? new Color(1f, 0.15f, 0.2f, 0.95f) : new Color(0.8f, 0.2f, 0.3f, 0.9f);
+                    GUI.DrawTexture(new Rect(bg.x, bg.y, bg.width * ratio, H), Texture2D.whiteTexture);
+                    GUI.color = prev;
+
+                    var dmStyle = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleCenter, richText = true };
+                    dmStyle.normal.textColor = Color.white;
+                    GUI.Label(bg, dm.IntrusionActive ? "心魔乱入！" : $"心魔 {Mathf.RoundToInt(dm.Meter)}/100", dmStyle);
                 }
             }
-            // 剩余空格
-            for (int i = drawn; i < slotMax; i++)
-            {
-                DrawEmptySlot(new Rect(startX + i * (slotW + gap), y, slotW, slotH));
-            }
-
-            // "按 G 服丹"提示
-            if (total > 0)
-            {
-                var hintRect = new Rect(0, y + slotH + 4, Screen.width, 20f);
-                GUI.Label(hintRect, "<color=#ffaa66>按 [G] 服丹 · 回 40% 最大生命</color>",
-                    new GUIStyle(GUI.skin.label) { richText = true, alignment = TextAnchor.MiddleCenter, fontSize = 13 });
-            }
-        }
-
-        private void DrawPillSlot(Rect r, string pillName, bool isNext)
-        {
-            // ① 当前要用的"下一颗"做一个 sin 脉动的发光边框
-            float pulse = isNext ? (0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 5.5f)) : 0f;
-            Color borderColor = isNext
-                ? new Color(1f, 0.85f, 0.5f, 0.9f)
-                : new Color(0.85f, 0.55f, 0.3f, 0.65f);
-            float borderWidth = isNext ? Mathf.Lerp(2.5f, 4.5f, pulse) : 2f;
-
-            var prev = GUI.color;
-            // 外发光（仅 isNext，再画一圈大边框做"光晕"）
-            if (isNext)
-            {
-                GUI.color = new Color(1f, 0.8f, 0.45f, 0.25f + 0.25f * pulse);
-                GUI.DrawTexture(new Rect(r.x - 4, r.y - 4, r.width + 8, r.height + 8), Texture2D.whiteTexture);
-            }
-            // 边框
-            GUI.color = borderColor;
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            // 内部底色
-            GUI.color = isNext ? new Color(0.18f, 0.10f, 0.05f, 0.95f) : new Color(0.10f, 0.08f, 0.08f, 0.9f);
-            GUI.DrawTexture(new Rect(r.x + borderWidth, r.y + borderWidth,
-                r.width - borderWidth * 2, r.height - borderWidth * 2),
-                Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            // ② 顶部彩色色条（按丹药名分配颜色），相当于 icon hint
-            Color pillTint = GetPillTint(pillName);
-            GUI.color = pillTint;
-            GUI.DrawTexture(new Rect(r.x + borderWidth, r.y + borderWidth,
-                r.width - borderWidth * 2, 8f), Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            // ③ 大字符 icon（中央偏上，按丹药类型走不同符号）
-            var iconStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 22,
-                alignment = TextAnchor.MiddleCenter,
-                fontStyle = FontStyle.Bold,
-                richText = true
-            };
-            iconStyle.normal.textColor = pillTint;
-            GUI.Label(new Rect(r.x, r.y + 8, r.width, 26), GetPillIcon(pillName), iconStyle);
-
-            // ④ 丹药名（截断超长）
-            var nameStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 11,
-                alignment = TextAnchor.MiddleCenter,
-                wordWrap = false,
-                clipping = TextClipping.Clip,
-                richText = true
-            };
-            nameStyle.normal.textColor = new Color(1f, 0.92f, 0.7f);
-            string trimmed = TrimPillName(pillName);
-            GUI.Label(new Rect(r.x + 2, r.y + r.height - 22, r.width - 4, 18), trimmed, nameStyle);
-
-            // ⑤ 顶角"下一颗"角标
-            if (isNext)
-            {
-                var nextStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 9,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleLeft,
-                    richText = true
-                };
-                nextStyle.normal.textColor = new Color(1f, 0.85f, 0.5f);
-                GUI.Label(new Rect(r.x + 4, r.y + 10, r.width - 8, 12),
-                    "<color=#ffd055>▶ 下一颗</color>", nextStyle);
-            }
-        }
-
-        private void DrawEmptySlot(Rect r)
-        {
-            var prev = GUI.color;
-            // 虚线感边框
-            GUI.color = new Color(0.30f, 0.30f, 0.36f, 0.55f);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = new Color(0.10f, 0.10f, 0.13f, 0.55f);
-            GUI.DrawTexture(new Rect(r.x + 1.5f, r.y + 1.5f, r.width - 3f, r.height - 3f), Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            var iconStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 22,
-                alignment = TextAnchor.MiddleCenter
-            };
-            iconStyle.normal.textColor = new Color(0.4f, 0.42f, 0.48f);
-            GUI.Label(new Rect(r.x, r.y + 6, r.width, 26), "⚱", iconStyle);
-
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter };
-            style.normal.textColor = new Color(0.45f, 0.48f, 0.52f);
-            GUI.Label(new Rect(r.x, r.y + r.height - 20, r.width, 16), "(空)", style);
-        }
-
-        // ========== 丹药名 → icon / 颜色 / 截断 ==========
-
-        /// <summary>按丹药名前缀分配 icon 符号 —— 视觉上能一眼区分回血 / 攻击 / 防御等</summary>
-        private static string GetPillIcon(string pillName)
-        {
-            if (string.IsNullOrEmpty(pillName)) return "⚱";
-            // 优先按关键字识别功效
-            if (pillName.Contains("回血") || pillName.Contains("生肌") || pillName.Contains("续命") || pillName.Contains("回元")) return "❤";
-            if (pillName.Contains("聚灵") || pillName.Contains("化神") || pillName.Contains("噬血")) return "✦";
-            if (pillName.Contains("金刚") || pillName.Contains("护元") || pillName.Contains("玄甲")) return "✦";  // 防御
-            if (pillName.Contains("迅捷") || pillName.Contains("风行")) return "↯";
-            return "⚱";
-        }
-
-        /// <summary>按丹药名分配主题色 —— 与图标搭配，强化辨识</summary>
-        private static Color GetPillTint(string pillName)
-        {
-            if (string.IsNullOrEmpty(pillName)) return new Color(1f, 0.7f, 0.4f);
-            if (pillName.Contains("回血") || pillName.Contains("生肌") || pillName.Contains("续命") || pillName.Contains("回元"))
-                return new Color(0.95f, 0.35f, 0.45f);   // 红
-            if (pillName.Contains("聚灵") || pillName.Contains("化神") || pillName.Contains("噬血"))
-                return new Color(1f, 0.6f, 0.3f);        // 橙
-            if (pillName.Contains("金刚") || pillName.Contains("护元") || pillName.Contains("玄甲"))
-                return new Color(0.65f, 0.85f, 1f);      // 蓝
-            if (pillName.Contains("迅捷") || pillName.Contains("风行"))
-                return new Color(0.6f, 1f, 0.85f);       // 青
-            return new Color(1f, 0.85f, 0.55f);          // 默认金
-        }
-
-        /// <summary>若名字太长，自动截断为 "前 4 个字…"，避免溢出 80px 槽位</summary>
-        private static string TrimPillName(string pillName)
-        {
-            if (string.IsNullOrEmpty(pillName)) return "";
-            // 中文按字符数 4，英文按 8
-            int maxChars = 5;
-            if (pillName.Length <= maxChars) return pillName;
-            return pillName.Substring(0, maxChars - 1) + "…";
         }
 
         // ========== 顶部悟性条 ==========
@@ -520,20 +381,6 @@ namespace XianTu
             const float W = 240f;
             const float X = 12f;
             float yCursor = 200f;
-
-            // ===== 灵气浓度（仅非 Normal 时显示）=====
-            if (SpiritDensity.Current != SpiritDensityLevel.Normal)
-            {
-                var densityRect = new Rect(X, yCursor, W, 44);
-                GUI.Box(densityRect, "", _bgStyle);
-                GUILayout.BeginArea(densityRect);
-                GUILayout.Space(6);
-                var c = SpiritDensity.AmbientTint;
-                GUILayout.Label($"<color=#{ColorUtility.ToHtmlStringRGB(c)}>◇ {SpiritDensity.DisplayName}</color>", _titleStyle);
-                GUILayout.Label($"<color=#a8b8c8>HP×{SpiritDensity.EnemyHpMultiplier:F2}  DROP×{SpiritDensity.ItemDropMultiplier:F2}</color>", _hintStyle);
-                GUILayout.EndArea();
-                yCursor += 52;
-            }
 
             // ===== 本局缓冲 =====
             var cave = CaveInventory.Instance;

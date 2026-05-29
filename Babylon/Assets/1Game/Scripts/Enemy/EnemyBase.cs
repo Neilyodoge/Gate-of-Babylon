@@ -431,8 +431,7 @@ namespace XianTu
             TryDropSkill();
 
             // v0.5 搜打撤：普通怪 8% 概率掉一件【洞府素材】（贯穿"搜"的随机喜悦）
-            // 灵气浓度浓郁 / 灵脉地区会额外加成
-            float caveChance = 0.08f + SpiritDensity.CaveMaterialBonusChance;
+            float caveChance = 0.08f;
             CaveMaterialPool.SpawnRandom(transform.position + new Vector3(Random.Range(-0.8f, 0.8f), 0, Random.Range(-0.8f, 0.8f)), caveChance);
 
             // 发布事件

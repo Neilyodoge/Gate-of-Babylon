@@ -6,9 +6,9 @@ namespace XianTu
     /// <summary>
     /// 灵田 · 第一个洞府模块（v0.5 搜打撤核心）。
     ///
-    /// 玩家从梦境拾取【灵植种子】(ItemCategory.PlantSeed) 撤离后，
+    /// 玩家从秘境拾取【灵植种子】(ItemCategory.PlantSeed) 撤离后，
     /// 在灵田种下 → 按 GameTime 生长 → 收获为【灵药】(ItemCategory.Herb)，
-    /// 灵药再送到【炼丹房】生产【丹药】(ItemCategory.Pill) 带进下一局。
+    /// 灵药作为【炼器房】辅料 / 【灵兽园】饲料消耗（v0.5.1 炼丹房移除后的去向）。
     ///
     /// 单局 Demo2 实现：3 块田 + IMGUI 面板（种 / 加速 / 收获）。
     /// </summary>
@@ -16,7 +16,7 @@ namespace XianTu
     {
         public override string ModuleName => "灵田";
         public override string ModuleIcon => "🌾";
-        public override string ModuleRole => "种植 → 灵药 → 丹药";
+        public override string ModuleRole => "种植 → 灵药（炼器/灵兽辅料）";
         public override Color ModuleColor => new Color(0.55f, 0.85f, 0.45f);
 
         public override int InteractionPriority => 30;

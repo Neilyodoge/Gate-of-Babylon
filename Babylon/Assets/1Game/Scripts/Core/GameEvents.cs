@@ -347,14 +347,6 @@ namespace XianTu
             public int CurrentBufferTotal;
         }
 
-        /// <summary>灵气浓度变化（HUD 弹房间属性提示用）</summary>
-        public struct SpiritDensityChanged
-        {
-            public SpiritDensityLevel NewLevel;
-            public string DisplayName;
-            public UnityEngine.Color Tint;
-        }
-
         /// <summary>悟性变化（HUD 监听显示）</summary>
         public struct InsightChanged
         {
