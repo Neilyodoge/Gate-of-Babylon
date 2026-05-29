@@ -77,6 +77,14 @@ namespace XianTu
 
         // ========== 永久悟性消耗（悟道蒲团调用）==========
 
+        /// <summary>直接给永久悟性（机缘 / 奖励用）。</summary>
+        public void GrantPermanent(int amount)
+        {
+            if (amount <= 0) return;
+            SaveSystem.Instance.Data.accumulatedInsight += amount;
+            SaveSystem.Instance.Save();
+        }
+
         public bool SpendPermanentInsight(int amount)
         {
             var data = SaveSystem.Instance.Data;

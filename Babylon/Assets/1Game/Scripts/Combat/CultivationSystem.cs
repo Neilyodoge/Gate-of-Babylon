@@ -57,6 +57,9 @@ namespace XianTu
         public string CurrentRealmName => RealmNames[CurrentRealm];
         public bool IsMaxRealm => CurrentRealm >= MaxRealm;
 
+        /// <summary>未分配的历练值存量（撤离带回，在洞府分配给修为 or 灵脉）。</summary>
+        public int TemperingPool => Data.temperingPool;
+
         /// <summary>下一次突破所需修为；已满级返回 -1。</summary>
         public int NextBreakthroughCost => IsMaxRealm ? -1 : BreakthroughCost[CurrentRealm];
 
@@ -98,23 +101,54 @@ namespace XianTu
 
         // ========== 局结束 ==========
 
-        /// <summary>撤离成功：本局历练值 100% 转入永久修为。</summary>
+        /// <summary>撤离成功：本局历练值 100% 转入"历练值存量"，由玩家在洞府分配给修为 or 灵脉。</summary>
         public void CommitOnExtract()
         {
             if (RunTempering <= 0) return;
-            Data.cultivationExp += RunTempering;
+            Data.temperingPool += RunTempering;
             SaveSystem.Instance.Save();
-            Debug.Log($"<color=#ffd47a>[Cultivation] 撤离 · {RunTempering} 历练值转入修为（当前修为 {Data.cultivationExp}）</color>");
+            Debug.Log($"<color=#ffd47a>[Cultivation] 撤离 · {RunTempering} 历练值入存量（当前存量 {Data.temperingPool}）</color>");
             RunTempering = 0;
         }
 
-        /// <summary>陨落 = 身死道消 · 转世：本体境界 / 修为 / 成色归零，洞府家业保留。</summary>
+        /// <summary>直接给历练值存量（机缘事件 / 奖励用）。</summary>
+        public void GrantPool(int amount)
+        {
+            if (amount <= 0) return;
+            Data.temperingPool += amount;
+            SaveSystem.Instance.Save();
+        }
+
+        /// <summary>从历练值存量直接扣除（供灵脉注入等其他 sink 用）。返回实际扣除量。</summary>
+        public int SpendPool(int amount)
+        {
+            int n = Mathf.Clamp(amount, 0, Data.temperingPool);
+            if (n <= 0) return 0;
+            Data.temperingPool -= n;
+            SaveSystem.Instance.Save();
+            return n;
+        }
+
+        /// <summary>闭关：消耗历练值存量 → 修为（朝突破累积）。返回实际消耗量。</summary>
+        public int CultivateToExp(int amount)
+        {
+            int n = Mathf.Clamp(amount, 0, Data.temperingPool);
+            if (n <= 0) return 0;
+            Data.temperingPool -= n;
+            Data.cultivationExp += n;
+            SaveSystem.Instance.Save();
+            Debug.Log($"<color=#ffd47a>[Cultivation] 闭关 · 历练值 {n} → 修为（修为 {Data.cultivationExp}/{NextBreakthroughCost}）</color>");
+            return n;
+        }
+
+        /// <summary>陨落 = 身死道消 · 转世：本体境界 / 修为 / 成色 / 历练值存量归零；灵脉等洞府家业保留。</summary>
         public void ReincarnateOnDeath()
         {
-            bool hadProgress = Data.cultivationRealm > 0 || Data.cultivationExp > 0 || RunTempering > 0;
+            bool hadProgress = Data.cultivationRealm > 0 || Data.cultivationExp > 0 || RunTempering > 0 || Data.temperingPool > 0;
             Data.cultivationRealm = 0;
             Data.cultivationExp = 0;
             Data.realmQualities.Clear();
+            Data.temperingPool = 0;
             Data.reincarnationCount++;
             RunTempering = 0;
             SaveSystem.Instance.Save();

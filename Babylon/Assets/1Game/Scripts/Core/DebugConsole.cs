@@ -316,22 +316,39 @@ namespace XianTu
             RefreshStatus();
         }
 
-        /// <summary>调试：+200 修为（直接进永久修为池，方便测渡劫战）。攒满阈值后去洞府闭关石室「冲击境界」。</summary>
+        /// <summary>调试：+200 修为（历练值→存量→修为 一条龙，方便直接测渡劫战）。</summary>
         private void BoostCultivationExp()
         {
             var cult = CultivationSystem.Instance;
             cult.AddRunTempering(200, "debug");
-            cult.CommitOnExtract(); // 把本局历练值直接结算进永久修为
+            cult.CommitOnExtract();      // → 历练值存量
+            cult.CultivateToExp(200);    // → 修为
             string canBt = cult.CanBreakthrough ? "（修为已够，可冲击境界）" : "";
             AddLog($"<color=#9cc0ff>🧘 修为 +200 → {cult.CurrentExp}/{cult.NextBreakthroughCost} · 当前 {cult.CurrentRealmName}{canBt}</color>");
         }
 
-        /// <summary>调试：+100 本局历练值（测撤离转修为 / HUD）。</summary>
+        /// <summary>调试：+200 历练值存量（测洞府"修为 vs 灵脉"分配）。</summary>
         private void BoostRunTempering()
         {
             var cult = CultivationSystem.Instance;
-            cult.AddRunTempering(100, "debug");
-            AddLog($"<color=#9cc0ff>🧘 历练值 +100 → 本局 {cult.RunTempering}（撤离后转入修为）</color>");
+            cult.AddRunTempering(200, "debug");
+            cult.CommitOnExtract();      // 直接结算进存量
+            AddLog($"<color=#9cc0ff>🧘 历练值存量 +200 → {cult.TemperingPool}（去闭关石室/灵脉台分配）</color>");
+        }
+
+        /// <summary>调试：+200 灵脉经验。</summary>
+        private void BoostSpiritVein()
+        {
+            SpiritVeinSystem.Instance.InjectExp(200, "调试");
+            var v = SpiritVeinSystem.Instance;
+            AddLog($"<color=#9be0c0>💎 灵脉经验 +200 → {v.LevelName}（掉率 +{v.DropBonus * 100:F0}%）</color>");
+        }
+
+        /// <summary>调试：强制触发一次机缘事件（无视概率，按当前灵脉等级筛池）。</summary>
+        private void TriggerOpportunity()
+        {
+            CaveOpportunitySystem.Instance.ForceTrigger();
+            AddLog($"<color=#ffd47a>✦ 触发机缘（灵脉 {SpiritVeinSystem.Instance.LevelName}）—— 灵脉越高，可撞见越高级的机缘</color>");
         }
 
         /// <summary>调试：+50 心魔值（满 100 且正在打 Boss 时触发乱入）。</summary>
@@ -565,8 +582,10 @@ namespace XianTu
 
             // --- 本体境界（v0.5.4 渡劫战测试）---
             CreateSectionHeader(contentGo.transform, "【 本体境界 】");
-            CreateButton(contentGo.transform, "🧘 修为 +200", new Color(0.35f, 0.45f, 0.6f), BoostCultivationExp);
-            CreateButton(contentGo.transform, "🧘 历练值 +100", new Color(0.3f, 0.4f, 0.55f), BoostRunTempering);
+            CreateButton(contentGo.transform, "🧘 修为 +200（直给·测渡劫）", new Color(0.35f, 0.45f, 0.6f), BoostCultivationExp);
+            CreateButton(contentGo.transform, "🧘 历练值存量 +200（测分配）", new Color(0.3f, 0.4f, 0.55f), BoostRunTempering);
+            CreateButton(contentGo.transform, "💎 灵脉经验 +200", new Color(0.3f, 0.55f, 0.45f), BoostSpiritVein);
+            CreateButton(contentGo.transform, "✦ 触发机缘事件", new Color(0.45f, 0.4f, 0.2f), TriggerOpportunity);
             CreateButton(contentGo.transform, "👹 心魔值 +50", new Color(0.5f, 0.18f, 0.25f), BoostInnerDemon);
 
             // --- 房间控制 ---

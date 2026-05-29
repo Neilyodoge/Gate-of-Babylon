@@ -98,10 +98,24 @@ namespace XianTu
             }
 
             GUILayout.Space(10);
-            GUILayout.Label($"<color=#888>本局历练值：{cult.RunTempering}（撤离后转入修为）</color>",
+            GUILayout.Label($"<color=#ffd47a>历练值存量：{cult.TemperingPool}</color>　<color=#888>本局 {cult.RunTempering}（撤离转入存量）</color>",
                 new GUIStyle(GUI.skin.label) { richText = true, alignment = TextAnchor.MiddleCenter, fontSize = 12 });
 
-            GUILayout.Space(16);
+            // —— 闭关：历练值存量 → 修为 ——
+            if (!cult.IsMaxRealm)
+            {
+                GUILayout.Space(6);
+                GUILayout.BeginHorizontal();
+                GUI.enabled = cult.TemperingPool > 0;
+                if (GUILayout.Button("🧘 闭关 +50 修为", GUILayout.Height(28))) cult.CultivateToExp(50);
+                if (GUILayout.Button("🧘 全部闭关", GUILayout.Height(28))) cult.CultivateToExp(cult.TemperingPool);
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+                GUILayout.Label("<color=#888>※ 历练值要投修为 or 灵脉（灵脉台），二选一</color>",
+                    new GUIStyle(GUI.skin.label) { richText = true, alignment = TextAnchor.MiddleCenter, fontSize = 11 });
+            }
+
+            GUILayout.Space(12);
 
             // —— 冲击境界（渡劫战）——
             if (!cult.IsMaxRealm)

@@ -150,6 +150,12 @@ namespace XianTu
             meditationGo.transform.SetParent(transform, false);
             meditationGo.transform.localPosition = new Vector3(-10f, 0f, 0f);
             meditationGo.AddComponent<MeditationChamber>();
+
+            // ===== 灵脉台（v0.5.4 灵脉模块，右侧中）=====
+            var veinGo = new GameObject("SpiritVeinModule");
+            veinGo.transform.SetParent(transform, false);
+            veinGo.transform.localPosition = new Vector3(10f, 0f, 0f);
+            veinGo.AddComponent<SpiritVeinModule>();
         }
 
         // ==================== 工具：世界空间贴文字 ====================

@@ -93,6 +93,7 @@ namespace XianTu
         private static bool IsBlockedByOtherUI()
         {
             if (SpiritRootSelectUI.IsVisible) return true;
+            if (CaveOpportunityUI.IsVisible) return true;
             if (CodexUI.IsVisible) return true;
             if (SettingsUI.IsVisible) return true;
             return false;

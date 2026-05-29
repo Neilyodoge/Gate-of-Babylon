@@ -73,6 +73,12 @@ namespace XianTu
 
         /// <summary>转世次数（轮回流 · 宿慧加成用）。跨转世累加，不归零。</summary>
         public int reincarnationCount = 0;
+
+        /// <summary>未分配的历练值存量（撤离带回，在洞府分配给修为 or 灵脉）。陨落转世归零（属"你的道"）。</summary>
+        public int temperingPool = 0;
+
+        /// <summary>灵脉经验（决定灵脉等级）。属洞府家业，**陨落转世保留**。</summary>
+        public int spiritVeinExp = 0;
     }
 
     /// <summary>洞府素材 / 灵物库存条目（itemName → count）</summary>

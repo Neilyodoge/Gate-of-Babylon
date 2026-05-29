@@ -738,6 +738,8 @@ namespace XianTu
                 _transitioning = false;
                 _gameOver = false;
                 Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府</color>");
+                // v0.5.4：回洞府按灵脉概率触发机缘事件
+                CaveOpportunitySystem.Instance.OnReturnToCave();
             });
 
             if (isLastRealm)
