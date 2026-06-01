@@ -55,6 +55,10 @@ namespace XianTu
         {
             if (slotIndex < 0 || slotIndex >= _slots.Length) return null;
 
+            // V.03（Q8）：整套灵物屏蔽时，不接受装备灵物（不产生槽位词条 / 效果）。
+            // 返回 null 表示"未放入、无被替换物"，避免调用方把灵物当作旧物重新掉落。
+            if (!FeatureFlags.EnableSpiritItems && item != null) return null;
+
             ItemData old = _slots[slotIndex].item;
 
             // 移除旧灵物效果

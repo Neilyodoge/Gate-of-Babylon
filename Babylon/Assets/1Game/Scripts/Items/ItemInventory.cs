@@ -63,6 +63,9 @@ namespace XianTu
         {
             if (item == null) return;
 
+            // V.03（Q8）：整套灵物屏蔽时，灵物不再进入背包 / 不触发协同 / 质变 / 属性重算
+            if (!FeatureFlags.EnableSpiritItems) return;
+
             if (_items.ContainsKey(item))
                 _items[item]++;
             else

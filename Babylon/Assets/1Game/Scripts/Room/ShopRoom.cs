@@ -297,8 +297,8 @@ namespace XianTu
 
             int slotIdx = 0;
 
-            // 前3个槽位：灵物
-            int itemSlots = Mathf.Min(3, totalSlots);
+            // 前3个槽位：灵物（V.03 Q8：灵物屏蔽时不上架灵物，全部让位给功法，避免"付费拿不到东西"）
+            int itemSlots = FeatureFlags.EnableSpiritItems ? Mathf.Min(3, totalSlots) : 0;
             if (_shopItems != null && _shopItems.Length > 0)
             {
                 for (int i = 0; i < itemSlots && slotIdx < totalSlots; i++)
@@ -346,8 +346,8 @@ namespace XianTu
                 }
             }
 
-            // 如果功法池为空，剩余槽位用灵物填充
-            if (_shopItems != null && _shopItems.Length > 0)
+            // 如果功法池为空，剩余槽位用灵物填充（V.03 Q8：灵物屏蔽时跳过）
+            if (FeatureFlags.EnableSpiritItems && _shopItems != null && _shopItems.Length > 0)
             {
                 while (slotIdx < totalSlots)
                 {

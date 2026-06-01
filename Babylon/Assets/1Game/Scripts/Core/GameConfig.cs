@@ -183,6 +183,14 @@ namespace XianTu
         [Range(0f, 1f)]
         public float 通关功法掉落概率 = 0.25f;
 
+        // ==================== V.03 范围开关 ====================
+        [Header("═══ V.03 范围开关（详见 GDD「V.03 范围确认」）═══")]
+        [Tooltip("Q8：整套灵物功能（局内拾取/槽位/协同/质变）。V.03 暂时屏蔽 → 取消勾选。勾选则恢复灵物系统。")]
+        public bool 启用灵物系统 = false;
+
+        [Tooltip("Q7：局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 系统）。V.03 暂缓 → 取消勾选。不影响化身选择/进秘境/炼器藏经等既有模块。")]
+        public bool 启用洞府meta = false;
+
         // ==================== Debug 爆率覆盖 ====================
         /// <summary>Debug模式下是否拉满灵物爆率（运行时设置，不序列化）</summary>
         private static bool _debugMaxItemDropRate = false;

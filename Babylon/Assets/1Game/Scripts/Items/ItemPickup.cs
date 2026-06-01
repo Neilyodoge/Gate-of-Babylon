@@ -494,6 +494,10 @@ namespace XianTu
                 return null;
             }
 
+            // V.03（Q8）：整套灵物屏蔽时，不再生成局内灵物地面拾取（洞府素材 CaveMaterial 不受影响）
+            if (!FeatureFlags.EnableSpiritItems && data.scope == ItemScope.RunOnly)
+                return null;
+
             // ????????????????
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = $"ItemPickup_{data.itemName}";

@@ -316,6 +316,20 @@ namespace XianTu
             RefreshStatus();
         }
 
+        /// <summary>调试：临时开/关灵物系统（V.03 Q8 默认关）。重进秘境后生效。</summary>
+        private void ToggleSpiritItemsFlag()
+        {
+            FeatureFlags.EnableSpiritItems = !FeatureFlags.EnableSpiritItems;
+            AddLog($"<color=#c79bff>🔮 灵物系统 → {(FeatureFlags.EnableSpiritItems ? "已启用" : "已屏蔽")}（重进秘境/重开商店后生效）</color>");
+        }
+
+        /// <summary>调试：临时开/关洞府 meta（闭关/灵脉/机缘，V.03 Q7 默认关）。回洞府后生效。</summary>
+        private void ToggleCaveMetaFlag()
+        {
+            FeatureFlags.EnableCaveMeta = !FeatureFlags.EnableCaveMeta;
+            AddLog($"<color=#9be0c0>🏔 洞府meta → {(FeatureFlags.EnableCaveMeta ? "已启用" : "已暂缓")}（回洞府/重进秘境后生效）</color>");
+        }
+
         /// <summary>调试：+200 修为（历练值→存量→修为 一条龙，方便直接测渡劫战）。</summary>
         private void BoostCultivationExp()
         {
@@ -579,6 +593,11 @@ namespace XianTu
             CreateButton(contentGo.transform, "💎 灵物一键升满", new Color(0.45f, 0.3f, 0.5f), MaxOutHeldItems);
             CreateButton(contentGo.transform, "💎 灵物爆率拉满", new Color(0.5f, 0.4f, 0.1f), ToggleMaxItemDropRate);
             CreateButton(contentGo.transform, "📜 功法爆率拉满", new Color(0.2f, 0.4f, 0.5f), ToggleMaxSkillDropRate);
+
+            // --- V.03 范围开关（运行时临时覆盖，便于测试被屏蔽的系统）---
+            CreateSectionHeader(contentGo.transform, "【 V.03 范围开关 】");
+            CreateButton(contentGo.transform, "🔮 灵物系统：开/关", new Color(0.45f, 0.3f, 0.5f), ToggleSpiritItemsFlag);
+            CreateButton(contentGo.transform, "🏔 洞府meta：开/关", new Color(0.3f, 0.45f, 0.45f), ToggleCaveMetaFlag);
 
             // --- 本体境界（v0.5.4 渡劫战测试）---
             CreateSectionHeader(contentGo.transform, "【 本体境界 】");

@@ -273,8 +273,12 @@ namespace XianTu
             DrawSidePanel();
             DrawPickupToasts();
             DrawInsightBar();
-            DrawCultivationStatus();
-            DrawTribulationOverlay();
+            // V.03（Q7）：局外 meta 暂缓时不显示本体境界 / 历练 / 心魔 HUD
+            if (FeatureFlags.EnableCaveMeta)
+            {
+                DrawCultivationStatus();
+                DrawTribulationOverlay();
+            }
         }
 
         // ========== 本体境界 + 历练值 + 心魔值（v0.5.4）==========

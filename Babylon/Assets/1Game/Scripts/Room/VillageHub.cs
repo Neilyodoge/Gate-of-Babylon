@@ -145,17 +145,22 @@ namespace XianTu
             formationGo.transform.localPosition = new Vector3(3f, 0f, 8f);
             formationGo.AddComponent<FormationPlatform>();
 
-            // ===== 闭关石室（v0.5.4 本体境界模块，左侧中）=====
-            var meditationGo = new GameObject("MeditationChamber");
-            meditationGo.transform.SetParent(transform, false);
-            meditationGo.transform.localPosition = new Vector3(-10f, 0f, 0f);
-            meditationGo.AddComponent<MeditationChamber>();
+            // ===== v0.5.4 局外 meta 模块（闭关石室 / 灵脉台）=====
+            // V.03（Q7）：局外洞府 meta 暂缓，本版本不生成这两个模块（代码保留，开关恢复）
+            if (FeatureFlags.EnableCaveMeta)
+            {
+                // ===== 闭关石室（v0.5.4 本体境界模块，左侧中）=====
+                var meditationGo = new GameObject("MeditationChamber");
+                meditationGo.transform.SetParent(transform, false);
+                meditationGo.transform.localPosition = new Vector3(-10f, 0f, 0f);
+                meditationGo.AddComponent<MeditationChamber>();
 
-            // ===== 灵脉台（v0.5.4 灵脉模块，右侧中）=====
-            var veinGo = new GameObject("SpiritVeinModule");
-            veinGo.transform.SetParent(transform, false);
-            veinGo.transform.localPosition = new Vector3(10f, 0f, 0f);
-            veinGo.AddComponent<SpiritVeinModule>();
+                // ===== 灵脉台（v0.5.4 灵脉模块，右侧中）=====
+                var veinGo = new GameObject("SpiritVeinModule");
+                veinGo.transform.SetParent(transform, false);
+                veinGo.transform.localPosition = new Vector3(10f, 0f, 0f);
+                veinGo.AddComponent<SpiritVeinModule>();
+            }
         }
 
         // ==================== 工具：世界空间贴文字 ====================
