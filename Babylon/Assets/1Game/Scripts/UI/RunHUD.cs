@@ -431,8 +431,8 @@ namespace XianTu
             if (data.soulHurtRemainingSec > 0f)
             {
                 GUILayout.Space(4);
-                GUILayout.Label($"<color=#ff8866>魂伤剩余：{GameTime.FormatDuration(data.soulHurtRemainingSec)}</color>", _itemStyle);
-                GUILayout.Label("<color=#8a6868>需等魂伤消退才能再入梦</color>", _hintStyle);
+                GUILayout.Label($"<color=#ff8866>道伤剩余：{GameTime.FormatDuration(data.soulHurtRemainingSec)}</color>", _itemStyle);
+                GUILayout.Label("<color=#8a6868>需等道伤消退才能再入秘境</color>", _hintStyle);
             }
             GUILayout.EndArea();
         }

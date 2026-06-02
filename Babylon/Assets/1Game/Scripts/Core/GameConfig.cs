@@ -5,9 +5,9 @@ namespace XianTu
     /// <summary>
     /// 全局游戏配置 —— ScriptableObject
     /// 集中管理所有可调属性，方便在 Inspector 中快速修改
-    /// 菜单：Assets → Create → 仙途梦境 → 游戏配置
+    /// 菜单：Assets → Create → 仙途秘境 → 游戏配置
     /// </summary>
-    [CreateAssetMenu(fileName = "GameConfig", menuName = "仙途梦境/游戏配置")]
+    [CreateAssetMenu(fileName = "GameConfig", menuName = "仙途秘境/游戏配置")]
     public class GameConfig : ScriptableObject
     {
         // ========== 单例访问 ==========
@@ -188,8 +188,8 @@ namespace XianTu
         [Tooltip("Q8：整套灵物功能（局内拾取/槽位/协同/质变）。V.03 暂时屏蔽 → 取消勾选。勾选则恢复灵物系统。")]
         public bool 启用灵物系统 = false;
 
-        [Tooltip("Q7：局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 系统）。V.03 暂缓 → 取消勾选。不影响化身选择/进秘境/炼器藏经等既有模块。")]
-        public bool 启用洞府meta = false;
+        [Tooltip("局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 系统）。常规启用；取消勾选则整套暂缓。不影响化身选择/进秘境/炼器藏经等既有模块。")]
+        public bool 启用洞府meta = true;
 
         // ==================== Debug 爆率覆盖 ====================
         /// <summary>Debug模式下是否拉满灵物爆率（运行时设置，不序列化）</summary>

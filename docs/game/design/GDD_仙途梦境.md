@@ -2313,6 +2313,11 @@ ModifierDef:
 | 灵兽成长速度 | ×0.8 | ×1.0 | ×1.2 | ×1.5 | ×2.0 |
 | 机缘事件触发率 | 5% | 10% | 15% | 20% | 30% |
 
+> **📊【实现现状】🟢 部分落地（2026-06-01）**：
+> - **灵田生长速度**已接 `SpiritVeinSystem.ModuleEfficiency`（`growDuration /= 效率`，面板显示当前 ×倍率）。当前代码倍率较保守：枯 ×0.9 / 凡 ×1.0 / 灵 ×1.1 / 福地 ×1.25 / 洞天 ×1.5（与上表设计值不同，待平衡定稿统一）。
+> - **机缘触发率**已按上表实现（`CaveOpportunitySystem.TriggerChance`）。
+> - **炼器 / 灵兽**当前为**瞬时无计时**，"成功率 / 成长速度"暂未接效率（待二者加计时或批量产出后再乘）。
+
 #### 灵脉道具（秘境中专属掉落）
 
 | 名称 | 获取方式 | 效果 |
@@ -2373,6 +2378,13 @@ ModifierDef:
 
 ※ 链式机缘让玩家的选择有"后果感"——当初赠送的灵药，3 局后变成了天赋分支
 ```
+
+> **📊【实现现状】🟢 已落地（2026-06-01）**：链式机缘骨架已实现。
+> - 存档：`SaveData.caveReturnCount`（回府计数）+ `opportunityFlags`（去重/条件标记）+ `pendingOpportunities`（`OpportunityChainEntry{opportunityId, dueAtReturn}`，转世保留）。
+> - 逻辑：`CaveOpportunitySystem.OnReturnToCave` 每次回府计数 +1，**优先结算到期回访**（`PopDueFollowup`），否则走随机机缘；`StartChain(guardFlag, followupId, afterReturns)` 在选项里埋点（flag 去重），`GetFollowup` 是独立回访池（不进随机池）。
+> - 首批 2 条链：**赠予灵药 → 3 局后「故人来谢」**、**接纳剑灵 → 2 局后「剑灵认主」**。
+> - 调试：DebugConsole「🔗 推进链式机缘（+1 回府）」。
+> - **暂以"大量悟性"代偿天赋分支解锁**（"解锁隐藏天赋分支"待天赋树填表后接 `unlockedTalentBranches`，见 P1 待办）。
 
 #### 机缘事件产物（含原"法宝"概念）`[v0.5.4 整合 / 2026-05-28]`
 

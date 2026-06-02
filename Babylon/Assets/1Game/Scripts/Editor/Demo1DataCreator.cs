@@ -6,7 +6,7 @@ namespace XianTu.Editor
 {
     /// <summary>
     /// Demo1 数据资产批量创建工具
-    /// 在 Unity 菜单栏：仙途梦境 → 各项配置操作
+    /// 在 Unity 菜单栏：仙途秘境 → 各项配置操作
     /// </summary>
     public static class Demo1DataCreator
     {
@@ -25,7 +25,7 @@ namespace XianTu.Editor
 
         // ==================== 菜单项 ====================
 
-        [MenuItem("仙途梦境/① 配置 Tags 和 Layers", false, 1)]
+        [MenuItem("仙途秘境/① 配置 Tags 和 Layers", false, 1)]
         public static void ConfigureTagsAndLayers()
         {
             AddTag("Enemy");
@@ -33,7 +33,7 @@ namespace XianTu.Editor
             Debug.Log("<color=green>✅ Tags 和 Layers 配置完成！</color>");
         }
 
-        [MenuItem("仙途梦境/② 创建 Demo1 测试数据", false, 2)]
+        [MenuItem("仙途秘境/② 创建 Demo1 测试数据", false, 2)]
         public static void CreateAllDemo1Data()
         {
             EnsureDirectory(ITEM_PATH);
@@ -83,7 +83,7 @@ namespace XianTu.Editor
             Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 18 个灵物 + 12 个功法 + 1 个音效配置</color>");
         }
 
-        [MenuItem("仙途梦境/③ 创建 Animator Controller", false, 3)]
+        [MenuItem("仙途秘境/③ 创建 Animator Controller", false, 3)]
         public static void CreateAnimatorController()
         {
             EnsureDirectory(CONTROLLER_PATH);
@@ -368,7 +368,7 @@ namespace XianTu.Editor
             }
         }
 
-        [MenuItem("仙途梦境/④ 自动配置 Demo1 场景", false, 4)]
+        [MenuItem("仙途秘境/④ 自动配置 Demo1 场景", false, 4)]
         public static void AutoConfigureDemo1Scene()
         {
             // 查找或创建 Demo1Setup
@@ -479,7 +479,7 @@ namespace XianTu.Editor
             Selection.activeGameObject = setup.gameObject;
         }
 
-        [MenuItem("仙途梦境/⑤ 创建 Demo1 场景文件", false, 5)]
+        [MenuItem("仙途秘境/⑤ 创建 Demo1 场景文件", false, 5)]
         public static void CreateDemo1Scene()
         {
             EnsureDirectory(SCENE_PATH);
@@ -502,7 +502,7 @@ namespace XianTu.Editor
             Debug.Log("<color=yellow>请接着执行 ④ 自动配置 Demo1 场景</color>");
         }
 
-        [MenuItem("仙途梦境/⑥ 创建怪物预制体配置", false, 6)]
+        [MenuItem("仙途秘境/⑥ 创建怪物预制体配置", false, 6)]
         public static void CreateMonsterPrefabsConfig()
         {
             string configPath = "Assets/1Game/Resources/MonsterPrefabs.asset";

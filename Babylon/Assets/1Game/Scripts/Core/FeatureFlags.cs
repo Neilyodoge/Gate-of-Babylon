@@ -29,7 +29,7 @@ namespace XianTu
         }
 
         /// <summary>
-        /// Q7：局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 探索系统）。V.03 默认关闭。
+        /// 局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 系统）。常规启用（默认 true）。
         /// 注意：仅影响上述 v0.5.4 新增系统，不影响化身选择、进秘境传送门、以及炼器/藏经/灵田等既有模块。
         /// </summary>
         public static bool EnableCaveMeta
@@ -38,7 +38,7 @@ namespace XianTu
             {
                 if (_caveMetaOverride.HasValue) return _caveMetaOverride.Value;
                 var cfg = GameConfig.Instance;
-                return cfg != null && cfg.启用洞府meta;
+                return cfg == null || cfg.启用洞府meta;   // 无配置资产时默认启用
             }
             set => _caveMetaOverride = value;
         }

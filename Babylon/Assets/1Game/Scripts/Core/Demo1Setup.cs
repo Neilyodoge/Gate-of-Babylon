@@ -353,7 +353,7 @@ namespace XianTu
                     Debug.LogError("[Demo1Setup] 未找到任何 ItemData！请在 Assets/1Game/Data/Items 下创建灵物数据。");
                 }
 #else
-                Debug.LogError("[Demo1Setup] itemPool 为空！请在 Inspector 中配置灵物池，或运行编辑器工具 '仙途梦境 → 配置场景'。");
+                Debug.LogError("[Demo1Setup] itemPool 为空！请在 Inspector 中配置灵物池，或运行编辑器工具 '仙途秘境 → 配置场景'。");
 #endif
             }
 
@@ -1153,7 +1153,7 @@ namespace XianTu
             btnColors.pressedColor = new Color(0.6f, 0.15f, 0.15f);
             btn.colors = btnColors;
 
-            var btnText = CreateUIText(btnGo.transform, "BtnText", "重新入梦", 18,
+            var btnText = CreateUIText(btnGo.transform, "BtnText", "重新入秘境", 18,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             btnText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
             btnText.GetComponent<Text>().fontStyle = FontStyle.Bold;
@@ -1188,7 +1188,7 @@ namespace XianTu
             titleOutline.effectDistance = new Vector2(2, -2);
 
             // 副标题
-            var sub = CreateUIText(panel.transform, "WinSubText", "飞升成仙，梦境圆满", 22,
+            var sub = CreateUIText(panel.transform, "WinSubText", "飞升成仙，证道圆满", 22,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(-200, -15), new Vector2(200, 15));
             var subTxt = sub.GetComponent<Text>();
@@ -1207,7 +1207,7 @@ namespace XianTu
             btnColors.pressedColor = new Color(0.6f, 0.5f, 0.1f);
             btn.colors = btnColors;
 
-            var btnText = CreateUIText(btnGo.transform, "BtnText", "再入梦境", 18,
+            var btnText = CreateUIText(btnGo.transform, "BtnText", "再入秘境", 18,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             btnText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
             btnText.GetComponent<Text>().fontStyle = FontStyle.Bold;

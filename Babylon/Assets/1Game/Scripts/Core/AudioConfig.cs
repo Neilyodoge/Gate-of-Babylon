@@ -5,9 +5,9 @@ namespace XianTu
     /// <summary>
     /// 音效配置 —— ScriptableObject
     /// 集中管理所有音效资源引用，后续只需在 Inspector 中拖入音频文件即可
-    /// 菜单：Assets → Create → 仙途梦境 → 音效配置
+    /// 菜单：Assets → Create → 仙途秘境 → 音效配置
     /// </summary>
-    [CreateAssetMenu(fileName = "AudioConfig", menuName = "仙途梦境/音效配置")]
+    [CreateAssetMenu(fileName = "AudioConfig", menuName = "仙途秘境/音效配置")]
     public class AudioConfig : ScriptableObject
     {
         // ========== 单例访问 ==========

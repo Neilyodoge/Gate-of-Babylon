@@ -127,7 +127,7 @@ namespace XianTu
             {
                 var entry = FormationLibrary.GetById(current);
                 string desc = entry != null ? entry.displayName : current;
-                GUILayout.Label($"<color=#ffdfee>★ 已布置：{desc}（入梦时自动激活）</color>",
+                GUILayout.Label($"<color=#ffdfee>★ 已布置：{desc}（入秘境时自动激活）</color>",
                     new GUIStyle(GUI.skin.label) { richText = true, alignment = TextAnchor.MiddleCenter, fontSize = 13 });
                 GUILayout.Space(4);
                 if (GUILayout.Button("撤销布置（不退还符 / 灵气）", GUILayout.Height(24)))

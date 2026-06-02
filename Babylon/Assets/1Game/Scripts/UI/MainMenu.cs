@@ -174,9 +174,9 @@ namespace XianTu
             GUI.Box(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, _maskStyle);
 
             // 标题
-            GUI.Label(new Rect(0, Screen.height * 0.18f, Screen.width, 100f), "仙途梦境", _titleStyle);
+            GUI.Label(new Rect(0, Screen.height * 0.18f, Screen.width, 100f), "仙途秘境", _titleStyle);
             GUI.Label(new Rect(0, Screen.height * 0.18f + 96f, Screen.width, 30f),
-                "梦中修仙 · 搜打撤 · 洞府种田", _subtitleStyle);
+                "闯秘境修仙 · 搜打撤 · 洞府养成", _subtitleStyle);
 
             // 按钮区
             const float BtnW = 320f, BtnH = 58f, BtnGap = 16f;
@@ -185,7 +185,7 @@ namespace XianTu
 
             bool hasSave = HasSave();
 
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "▶  开始入梦", _btnStyle))
+            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "▶  入秘境", _btnStyle))
             {
                 Hide();
             }

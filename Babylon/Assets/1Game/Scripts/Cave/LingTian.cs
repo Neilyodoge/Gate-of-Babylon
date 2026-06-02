@@ -141,6 +141,8 @@ namespace XianTu
 
             // 提示
             GUILayout.Label($"游戏时间：{GameTime.FormatDuration(GameTime.Instance.Time)}    灵气：{CaveEconomy.Instance.Qi}");
+            var vein = SpiritVeinSystem.Instance;
+            GUILayout.Label($"<color=#9be0c0>灵脉 · {vein.LevelName}：生长速度 ×{vein.ModuleEfficiency:0.0#}</color>", GUIStyleRich());
             GUILayout.Space(6);
 
             // 每块田
@@ -268,10 +270,13 @@ namespace XianTu
                 Debug.LogWarning($"[灵田] 种子 {seedItemName} 缺 processedProductName，用字符串替换兜底为 {harvestName}");
             }
 
+            // 灵脉「模块效率」加成：灵脉越高，生长越快（枯脉 0.9× → 洞天 1.5× 速度）
+            float eff = Mathf.Max(0.1f, SpiritVeinSystem.Instance.ModuleEfficiency);
+
             _plots[plotIdx].seedItemName = seedItemName;
             _plots[plotIdx].harvestItemName = harvestName;
             _plots[plotIdx].plantedAt = GameTime.Instance.Time;
-            _plots[plotIdx].growDuration = DefaultGrowDuration;
+            _plots[plotIdx].growDuration = DefaultGrowDuration / eff;
 
             _seedPickerForPlot = -1;
             Debug.Log($"<color=#88ff88>[灵田] 田 {plotIdx + 1} 种下 {seedItemName} → 将产出 {harvestName}</color>");

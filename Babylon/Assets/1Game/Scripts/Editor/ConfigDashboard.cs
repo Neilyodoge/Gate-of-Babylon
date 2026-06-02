@@ -8,7 +8,7 @@ namespace XianTu
 {
     /// <summary>
     /// 配置速查面板 —— 一站式查看和跳转所有配置文件
-    /// 菜单：仙途梦境 → ⑦ 配置速查
+    /// 菜单：仙途秘境 → ⑦ 配置速查
     /// </summary>
     public class ConfigDashboard : EditorWindow
     {
@@ -50,7 +50,7 @@ namespace XianTu
         // ============================================================
         // 菜单入口
         // ============================================================
-        [MenuItem("仙途梦境/⑦ 配置速查", false, 200)]
+        [MenuItem("仙途秘境/⑦ 配置速查", false, 200)]
         public static void ShowWindow()
         {
             var window = GetWindow<ConfigDashboard>("⚡ 配置速查");
@@ -150,7 +150,7 @@ namespace XianTu
 
             // 标题栏
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("⚡ 仙途梦境 · 配置速查", _headerStyle);
+            GUILayout.Label("⚡ 仙途秘境 · 配置速查", _headerStyle);
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(50)))
                 RefreshAssetLists();
@@ -196,13 +196,13 @@ namespace XianTu
 
             EditorGUILayout.BeginVertical(_sectionBgStyle);
 
-            DrawMenuButton("① 配置 Tags 和 Layers", "仙途梦境/① 配置 Tags 和 Layers", "设置 Enemy Tag/Layer，配置物理碰撞矩阵");
-            DrawMenuButton("② 创建 Demo1 测试数据", "仙途梦境/② 创建 Demo1 测试数据", "批量创建灵物和功法 SO 资产");
-            DrawMenuButton("③ 创建 Animator Controller", "仙途梦境/③ 创建 Animator Controller", "创建玩家动画状态机");
-            DrawMenuButton("④ 创建 Demo1 场景文件", "仙途梦境/⑤ 创建 Demo1 场景文件", "在 Scenes/ 下生成 Demo1.unity");
-            DrawMenuButton("⑤ 自动配置 Demo1 场景", "仙途梦境/④ 自动配置 Demo1 场景", "自动绑定所有数据到场景");
-            DrawMenuButton("⑥ 创建怪物预制体配置", "仙途梦境/⑥ 创建怪物预制体配置", "创建 MonsterPrefabs.asset");
-            DrawMenuButton("⑦ 配置速查（本窗口）", "仙途梦境/⑦ 配置速查", "打开本面板");
+            DrawMenuButton("① 配置 Tags 和 Layers", "仙途秘境/① 配置 Tags 和 Layers", "设置 Enemy Tag/Layer，配置物理碰撞矩阵");
+            DrawMenuButton("② 创建 Demo1 测试数据", "仙途秘境/② 创建 Demo1 测试数据", "批量创建灵物和功法 SO 资产");
+            DrawMenuButton("③ 创建 Animator Controller", "仙途秘境/③ 创建 Animator Controller", "创建玩家动画状态机");
+            DrawMenuButton("④ 创建 Demo1 场景文件", "仙途秘境/⑤ 创建 Demo1 场景文件", "在 Scenes/ 下生成 Demo1.unity");
+            DrawMenuButton("⑤ 自动配置 Demo1 场景", "仙途秘境/④ 自动配置 Demo1 场景", "自动绑定所有数据到场景");
+            DrawMenuButton("⑥ 创建怪物预制体配置", "仙途秘境/⑥ 创建怪物预制体配置", "创建 MonsterPrefabs.asset");
+            DrawMenuButton("⑦ 配置速查（本窗口）", "仙途秘境/⑦ 配置速查", "打开本面板");
 
             EditorGUILayout.Space(4);
             EditorGUILayout.LabelField("完成以上步骤后点击 Play 即可运行 ▶", EditorStyles.centeredGreyMiniLabel);
@@ -480,7 +480,7 @@ namespace XianTu
 
             if (GUILayout.Button("自动配置场景（绑定所有数据）", GUILayout.Height(24)))
             {
-                EditorApplication.ExecuteMenuItem("仙途梦境/④ 自动配置 Demo1 场景");
+                EditorApplication.ExecuteMenuItem("仙途秘境/④ 自动配置 Demo1 场景");
             }
 
             EditorGUILayout.EndVertical();

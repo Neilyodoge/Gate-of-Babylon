@@ -5,9 +5,9 @@ namespace XianTu
     /// <summary>
     /// 怪物预制体配置 —— ScriptableObject
     /// 集中管理所有怪物模型的Prefab引用
-    /// 菜单：Assets → Create → 仙途梦境 → 怪物预制体配置
+    /// 菜单：Assets → Create → 仙途秘境 → 怪物预制体配置
     /// </summary>
-    [CreateAssetMenu(fileName = "MonsterPrefabs", menuName = "仙途梦境/怪物预制体配置")]
+    [CreateAssetMenu(fileName = "MonsterPrefabs", menuName = "仙途秘境/怪物预制体配置")]
     public class MonsterPrefabs : ScriptableObject
     {
         // ========== 单例访问 ==========

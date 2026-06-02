@@ -240,7 +240,7 @@ namespace XianTu
         private void DrawStartSkillSection()
         {
             GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("下次入梦携带（写入 Q 槽）",
+            GUILayout.Label("下次入秘境携带（写入 Q 槽）",
                 new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold });
 
             var save = SaveSystem.Instance.Data;

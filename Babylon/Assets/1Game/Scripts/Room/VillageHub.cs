@@ -83,12 +83,12 @@ namespace XianTu
             }
 
             // 石碑文字（朝向玩家出生方向，即 -Z）
-            CreateWorldText(tablet.transform, "TabletText", "梦  境  之  门",
+            CreateWorldText(tablet.transform, "TabletText", "秘  境  之  门",
                 new Vector3(0, 0.4f, 0.85f), Quaternion.Euler(0, 180f, 0),
                 new Vector2(2.4f, 0.6f), 36, new Color(1f, 0.8f, 0.4f));
 
             // 副标题
-            CreateWorldText(tablet.transform, "TabletSub", "—— 入梦修仙 · 由此出发 ——",
+            CreateWorldText(tablet.transform, "TabletSub", "—— 闯秘境修仙 · 由此出发 ——",
                 new Vector3(0, -0.2f, 0.85f), Quaternion.Euler(0, 180f, 0),
                 new Vector2(3f, 0.4f), 18, new Color(0.85f, 0.7f, 0.5f));
         }
@@ -389,13 +389,13 @@ namespace XianTu
             bridge.OnEnter = OnPlayerEnter;
             bridge.OnExit = OnPlayerExit;
 
-            // 统一卡片 UI（紫色 · 入梦）—— 让山门远距离就能看到，玩家明白这里是出口
+            // 统一卡片 UI（紫色 · 入秘境）—— 让山门远距离就能看到，玩家明白这里是出口
             _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
             {
-                displayName = "梦境之门",
+                displayName = "秘境之门",
                 icon = "✦",
-                roleSub = "入梦 · 进入第一关",
-                hintText = "按 [F] 入梦",
+                roleSub = "入秘境 · 进入第一关",
+                hintText = "按 [F] 入秘境",
                 themeColor = new Color(0.7f, 0.4f, 1f),
                 yOffset = 4.5f,
                 showLongRangeMarker = true
@@ -438,7 +438,7 @@ namespace XianTu
             if (!IsRoutedActive) return;
             if (SpiritRootSelectUI.IsVisible) return;
 
-            // v0.5：魂伤未消退时拒绝入梦
+            // v0.5：道伤未消退时拒绝入秘境
             float soulHurt = SaveSystem.Instance.Data.soulHurtRemainingSec;
             if (soulHurt > 0f)
             {
@@ -446,7 +446,7 @@ namespace XianTu
                 var kb0 = UnityEngine.InputSystem.Keyboard.current;
                 if (kb0 != null && kb0.fKey.wasPressedThisFrame)
                 {
-                    Debug.Log($"<color=#ff8866>[VillagePortal] 魂伤未愈，无法入梦（剩 {GameTime.FormatDuration(soulHurt)}）</color>");
+                    Debug.Log($"<color=#ff8866>[VillagePortal] 道伤未愈，无法入秘境（剩 {GameTime.FormatDuration(soulHurt)}）</color>");
                 }
                 return;
             }

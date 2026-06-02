@@ -173,6 +173,8 @@ namespace XianTu
             if (DrawFilterChip("全部 (30)", _itemFilterCategory == -1)) _itemFilterCategory = -1;
             for (int i = 0; i < _categoryNames.Length; i++)
             {
+                // 丹药（Pill）meta 已移除，不再展示空的"丹药"分类 chip；保留数组下标以维持与 ItemCategory 的对齐
+                if (i == (int)ItemCategory.Pill) continue;
                 if (DrawFilterChip(_categoryNames[i], _itemFilterCategory == i))
                     _itemFilterCategory = i;
             }

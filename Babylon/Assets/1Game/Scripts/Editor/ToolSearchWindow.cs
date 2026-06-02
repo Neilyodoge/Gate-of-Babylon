@@ -159,7 +159,7 @@ namespace XianTu
                 Name = "配置 Tags 和 Layers",
                 Category = "Core",
                 Description = "自动配置项目所需的 Tags 和 Layers（Player/Enemy/Projectile 等）",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/① 配置 Tags 和 Layers"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/① 配置 Tags 和 Layers"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
                 IsSpecialized = true
             });
@@ -169,7 +169,7 @@ namespace XianTu
                 Name = "创建 Demo1 测试数据",
                 Category = "Core",
                 Description = "一键创建技能数据（落石术/金钟罩）和灵物数据等 ScriptableObject 资产",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/② 创建 Demo1 测试数据"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/② 创建 Demo1 测试数据"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
                 IsSpecialized = true
             });
@@ -179,7 +179,7 @@ namespace XianTu
                 Name = "创建 Animator Controller",
                 Category = "Core",
                 Description = "自动创建玩家 Animator Controller，包含 Idle/Walk/Attack/Skill/Hit/Evade 状态",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/③ 创建 Animator Controller"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/③ 创建 Animator Controller"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
                 IsSpecialized = true
             });
@@ -189,7 +189,7 @@ namespace XianTu
                 Name = "自动配置 Demo1 场景",
                 Category = "Core",
                 Description = "自动配置当前场景：添加 Demo1Setup、设置相机、灯光、后处理等",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/④ 自动配置 Demo1 场景"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/④ 自动配置 Demo1 场景"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
                 IsSpecialized = true
             });
@@ -199,7 +199,7 @@ namespace XianTu
                 Name = "创建 Demo1 场景文件",
                 Category = "Core",
                 Description = "在 Assets/1Game/Scenes 下创建 Demo1.unity 场景文件",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/⑤ 创建 Demo1 场景文件"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑤ 创建 Demo1 场景文件"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
                 IsSpecialized = true
             });
@@ -209,7 +209,7 @@ namespace XianTu
                 Name = "创建游戏配置 (GameConfig)",
                 Category = "Core",
                 Description = "创建 GameConfig ScriptableObject，集中管理所有游戏数值",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/⑤ 创建游戏配置 (GameConfig)"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑤ 创建游戏配置 (GameConfig)"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/GameConfigEditor.cs",
                 IsSpecialized = true
             });
@@ -219,7 +219,7 @@ namespace XianTu
                 Name = "选中游戏配置",
                 Category = "Core",
                 Description = "在 Inspector 中选中并高亮 GameConfig 资产，方便快速修改数值",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/⑥ 选中游戏配置"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑥ 选中游戏配置"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/GameConfigEditor.cs",
                 IsSpecialized = true
             });
@@ -249,7 +249,7 @@ namespace XianTu
                 Name = "⚡ 配置速查面板",
                 Category = "Core",
                 Description = "打开配置速查面板，一站式查看和跳转所有配置文件",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途梦境/⑦ 配置速查"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑦ 配置速查"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/ConfigDashboard.cs",
                 IsSpecialized = true
             });

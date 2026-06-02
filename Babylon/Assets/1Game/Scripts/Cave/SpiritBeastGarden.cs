@@ -236,7 +236,7 @@ namespace XianTu
                 }
                 else
                 {
-                    if (GUILayout.Button("🐾 派为出征灵兽（下次入梦跟随）", GUILayout.Height(34)))
+                    if (GUILayout.Button("🐾 派为出征灵兽（下次入秘境跟随）", GUILayout.Height(34)))
                     {
                         save.activeSpiritBeastId = entry.beastName;
                         SaveSystem.Instance.Save();

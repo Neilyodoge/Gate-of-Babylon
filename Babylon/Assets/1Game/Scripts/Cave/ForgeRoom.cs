@@ -131,7 +131,7 @@ namespace XianTu
             GUILayout.Label("⚒ 炼器房 · 凡铁妖骨锻成灵宝", titleStyle);
             GUILayout.Space(4);
 
-            GUILayout.Label("一旦炼成，该灵物永久加入梦境掉落池（商店 / 宝箱 / 升级台均可能出现）。",
+            GUILayout.Label("一旦炼成，该灵物永久加入秘境掉落池（商店 / 宝箱 / 升级台均可能出现）。",
                 new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter });
             GUILayout.Space(8);
 
@@ -227,7 +227,7 @@ namespace XianTu
             {
                 var okStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
                 okStyle.normal.textColor = new Color(0.6f, 0.95f, 0.6f);
-                GUILayout.Label("✓ 已炼制 · 已加入梦境掉落池", okStyle);
+                GUILayout.Label("✓ 已炼制 · 已加入秘境掉落池", okStyle);
             }
             else
             {

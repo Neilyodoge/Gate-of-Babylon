@@ -15,7 +15,7 @@ namespace XianTu
     /// 2. 如果 #1 为空且处于 Editor，则用 <c>AssetDatabase</c> 扫描 <c>Assets/1Game/Data/Items</c>
     /// 3. 如果 #1 和 #2 都为空，调用方应回退到 GameManager.itemPool（Inspector 手挂）
     ///
-    /// 配套 Editor 工具：菜单 "仙途梦境/Items/同步 Data/Items → Resources/Items"
+    /// 配套 Editor 工具：菜单 "仙途秘境/Items/同步 Data/Items → Resources/Items"
     /// 把 Data/Items 下所有 ItemData 复制到 Resources/Items（已存在的会覆盖），
     /// 一次同步后，所有 build 都能在运行时无需 Inspector 手挂即可加载。
     /// </summary>
@@ -65,7 +65,7 @@ namespace XianTu
                 }
                 _runtimeCache = items.ToArray();
                 Debug.LogWarning($"<color=yellow>[ItemPool] Resources/Items 为空，编辑器降级从 Data/Items 加载 {_runtimeCache.Length} 件 ——\n" +
-                    "正式打包前请执行：菜单【仙途梦境/Items/同步 Data Items → Resources/Items】</color>");
+                    "正式打包前请执行：菜单【仙途秘境/Items/同步 Data Items → Resources/Items】</color>");
                 return;
             }
 #endif

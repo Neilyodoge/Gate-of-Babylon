@@ -79,6 +79,27 @@ namespace XianTu
 
         /// <summary>灵脉经验（决定灵脉等级）。属洞府家业，**陨落转世保留**。</summary>
         public int spiritVeinExp = 0;
+
+        // ========== v0.5.5：洞府机缘 · 链式状态 ==========
+
+        /// <summary>累计撤离回府次数（链式机缘的计时基准）。属洞府家业，转世保留。</summary>
+        public int caveReturnCount = 0;
+
+        /// <summary>已触发机缘留下的标记（用于条件分支 / 防重复触发）。</summary>
+        public List<string> opportunityFlags = new();
+
+        /// <summary>待回访的链式机缘：到达 dueAtReturn 次回府时优先触发其回访事件。</summary>
+        public List<OpportunityChainEntry> pendingOpportunities = new();
+    }
+
+    /// <summary>链式机缘的"待回访"条目：某个机缘选择会埋下一个 N 局后回访的后续事件。</summary>
+    [Serializable]
+    public struct OpportunityChainEntry
+    {
+        /// <summary>要触发的回访事件 id（对应 CaveOpportunitySystem 的 followup 池）。</summary>
+        public string opportunityId;
+        /// <summary>到达第几次回府时触发（caveReturnCount >= dueAtReturn 即到期）。</summary>
+        public int dueAtReturn;
     }
 
     /// <summary>洞府素材 / 灵物库存条目（itemName → count）</summary>

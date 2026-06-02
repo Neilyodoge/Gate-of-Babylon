@@ -365,6 +365,14 @@ namespace XianTu
             AddLog($"<color=#ffd47a>✦ 触发机缘（灵脉 {SpiritVeinSystem.Instance.LevelName}）—— 灵脉越高，可撞见越高级的机缘</color>");
         }
 
+        /// <summary>调试：模拟一次回府（链式机缘计数 +1），到期则触发回访。先选"赠予灵药/接纳剑灵"埋点，再点几次即可看回访。</summary>
+        private void AdvanceOpportunityChain()
+        {
+            CaveOpportunitySystem.Instance.DebugAdvanceReturn();
+            int pending = SaveSystem.Instance.Data.pendingOpportunities.Count;
+            AddLog($"<color=#ffd47a>🔗 回府计数 → {SaveSystem.Instance.Data.caveReturnCount}（待回访 {pending} 条）</color>");
+        }
+
         /// <summary>调试：+50 心魔值（满 100 且正在打 Boss 时触发乱入）。</summary>
         private void BoostInnerDemon()
         {
@@ -605,6 +613,7 @@ namespace XianTu
             CreateButton(contentGo.transform, "🧘 历练值存量 +200（测分配）", new Color(0.3f, 0.4f, 0.55f), BoostRunTempering);
             CreateButton(contentGo.transform, "💎 灵脉经验 +200", new Color(0.3f, 0.55f, 0.45f), BoostSpiritVein);
             CreateButton(contentGo.transform, "✦ 触发机缘事件", new Color(0.45f, 0.4f, 0.2f), TriggerOpportunity);
+            CreateButton(contentGo.transform, "🔗 推进链式机缘（+1 回府）", new Color(0.5f, 0.42f, 0.22f), AdvanceOpportunityChain);
             CreateButton(contentGo.transform, "👹 心魔值 +50", new Color(0.5f, 0.18f, 0.25f), BoostInnerDemon);
 
             // --- 房间控制 ---

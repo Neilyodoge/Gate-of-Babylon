@@ -7,14 +7,14 @@ namespace XianTu
     /// 一键把 <c>Assets/1Game/Data/Items</c> 下所有 <see cref="ItemData"/> 复制到
     /// <c>Assets/1Game/Resources/Items</c>，让 <see cref="ItemPool"/> 在打包后也能在运行时自动加载。
     ///
-    /// 用法：菜单【仙途梦境/Items/同步 Data Items → Resources Items】 或【重新加载 ItemPool 缓存】。
+    /// 用法：菜单【仙途秘境/Items/同步 Data Items → Resources Items】 或【重新加载 ItemPool 缓存】。
     /// </summary>
     public static class ItemPoolSyncTool
     {
         private const string SrcDir = "Assets/1Game/Data/Items";
         private const string DstDir = "Assets/1Game/Resources/Items";
 
-        [MenuItem("仙途梦境/Items/同步 Data Items → Resources Items")]
+        [MenuItem("仙途秘境/Items/同步 Data Items → Resources Items")]
         public static void Sync()
         {
             if (!AssetDatabase.IsValidFolder(SrcDir))
@@ -57,7 +57,7 @@ namespace XianTu
             EditorUtility.DisplayDialog("ItemPool 同步", msg, "OK");
         }
 
-        [MenuItem("仙途梦境/Items/重新加载 ItemPool 缓存")]
+        [MenuItem("仙途秘境/Items/重新加载 ItemPool 缓存")]
         public static void ReloadCache()
         {
             ItemPool.Reload();

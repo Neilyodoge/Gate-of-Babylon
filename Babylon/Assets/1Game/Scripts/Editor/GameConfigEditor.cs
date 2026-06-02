@@ -8,7 +8,7 @@ namespace XianTu
     /// </summary>
     public static class GameConfigEditor
     {
-        [MenuItem("仙途梦境/⑤ 创建游戏配置 (GameConfig)")]
+        [MenuItem("仙途秘境/⑤ 创建游戏配置 (GameConfig)")]
         public static void CreateGameConfig()
         {
             // 确保 Resources 目录存在
@@ -44,7 +44,7 @@ namespace XianTu
             Debug.Log("<color=cyan>在 Inspector 中可以快速修改所有游戏属性！</color>");
         }
 
-        [MenuItem("仙途梦境/⑥ 选中游戏配置")]
+        [MenuItem("仙途秘境/⑥ 选中游戏配置")]
         public static void SelectGameConfig()
         {
             var config = Resources.Load<GameConfig>("GameConfig");
@@ -55,7 +55,7 @@ namespace XianTu
             }
             else
             {
-                Debug.LogWarning("GameConfig 不存在，请先执行 '仙途梦境 → ⑤ 创建游戏配置'");
+                Debug.LogWarning("GameConfig 不存在，请先执行 '仙途秘境 → ⑤ 创建游戏配置'");
             }
         }
     }

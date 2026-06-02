@@ -55,9 +55,25 @@ namespace XianTu
             public Action effect;
         }
 
-        /// <summary>撤离回洞府时调用：按灵脉概率 + 保底决定是否触发机缘。</summary>
+        private static SaveDataV1 Data => SaveSystem.Instance.Data;
+
+        /// <summary>撤离回洞府时调用：先结算到期的链式回访，再按灵脉概率触发随机机缘。</summary>
         public void OnReturnToCave()
         {
+            var data = Data;
+            data.caveReturnCount++;
+            SaveSystem.Instance.Save();
+
+            // 1) 优先：到期的链式回访（无视概率，必触发；一次回府最多结算一条）
+            var followup = PopDueFollowup(data);
+            if (followup != null)
+            {
+                _missStreak = 0;   // 回访也算"触发"，重置保底
+                CaveOpportunityUI.Show(followup);
+                return;
+            }
+
+            // 2) 常规：按灵脉概率 + 保底触发随机机缘
             int veinLv = SpiritVeinSystem.Instance.Level;
             float chance = TriggerChance[Mathf.Clamp(veinLv, 0, TriggerChance.Length - 1)];
 
@@ -73,6 +89,21 @@ namespace XianTu
             if (pool.Count == 0) return;
             var opp = pool[UnityEngine.Random.Range(0, pool.Count)];
             CaveOpportunityUI.Show(opp);
+        }
+
+        /// <summary>取出一条到期的链式回访（caveReturnCount 已达 dueAtReturn），并从待办中移除。</summary>
+        private static Opportunity PopDueFollowup(SaveDataV1 data)
+        {
+            if (data.pendingOpportunities == null || data.pendingOpportunities.Count == 0) return null;
+            for (int i = 0; i < data.pendingOpportunities.Count; i++)
+            {
+                if (data.caveReturnCount < data.pendingOpportunities[i].dueAtReturn) continue;
+                string id = data.pendingOpportunities[i].opportunityId;
+                data.pendingOpportunities.RemoveAt(i);
+                SaveSystem.Instance.Save();
+                return GetFollowup(id);   // 找不到（数据损坏）则返回 null，跳过本次回访
+            }
+            return null;
         }
 
         /// <summary>调试 / 测试：无视概率，直接按当前灵脉等级筛池触发一个机缘。</summary>
@@ -94,6 +125,24 @@ namespace XianTu
             return pool;
         }
 
+        /// <summary>调试 / 测试：模拟一次回府（计数 +1），优先结算到期回访，否则提示。</summary>
+        public void DebugAdvanceReturn()
+        {
+            var data = Data;
+            data.caveReturnCount++;
+            SaveSystem.Instance.Save();
+            var followup = PopDueFollowup(data);
+            if (followup != null)
+            {
+                CaveOpportunityUI.Show(followup);
+                Debug.Log($"<color=#ffd47a>[机缘] 第 {data.caveReturnCount} 次回府 → 触发链式回访「{followup.title}」</color>");
+            }
+            else
+            {
+                Debug.Log($"<color=#ffd47a>[机缘] 第 {data.caveReturnCount} 次回府 · 暂无到期回访（待回访 {data.pendingOpportunities.Count} 条）</color>");
+            }
+        }
+
         // ========== 效果快捷方法 ==========
 
         private static void Karma(int d) => PlayerStateHooks.Instance.ChangeKarma(d);
@@ -102,6 +151,65 @@ namespace XianTu
         private static void Vein(int n) => SpiritVeinSystem.Instance.InjectExp(n, "机缘");
         private static void Tempering(int n) => CultivationSystem.Instance.GrantPool(n);
         private static void Insight(int n) => InsightSystem.Instance.GrantPermanent(n);
+
+        // ========== 链式机缘：标记 + 回访调度 ==========
+
+        private static bool HasFlag(string f) => Data.opportunityFlags != null && Data.opportunityFlags.Contains(f);
+
+        private static void SetFlag(string f)
+        {
+            if (Data.opportunityFlags.Contains(f)) return;
+            Data.opportunityFlags.Add(f);
+            SaveSystem.Instance.Save();
+        }
+
+        /// <summary>埋下一个 afterReturns 次回府后回访的后续机缘（带 flag 去重，避免重复埋点）。</summary>
+        private static void StartChain(string guardFlag, string followupId, int afterReturns)
+        {
+            if (HasFlag(guardFlag)) return;
+            SetFlag(guardFlag);
+            var data = Data;
+            data.pendingOpportunities.Add(new OpportunityChainEntry
+            {
+                opportunityId = followupId,
+                dueAtReturn = data.caveReturnCount + Mathf.Max(1, afterReturns)
+            });
+            SaveSystem.Instance.Save();
+            Debug.Log($"<color=#ffd47a>[机缘] 埋下链式回访「{followupId}」→ 第 {data.caveReturnCount + Mathf.Max(1, afterReturns)} 次回府触发</color>");
+        }
+
+        /// <summary>链式回访事件池（不进随机池，仅由 StartChain 调度后触发）。</summary>
+        private static Opportunity GetFollowup(string id)
+        {
+            switch (id)
+            {
+                case "cultivator_return":
+                    return new Opportunity
+                    {
+                        id = id, title = "故人来谢", requiredVeinLevel = 0,
+                        text = "数次出入秘境前，你曾以灵药相赠的那位散修去而复返，奉上一卷亲手抄录的秘传以报当日之恩。",
+                        options = new List<Option>
+                        {
+                            new Option { label = "拜谢收下（悟性 +250）", resultText = "秘传入手，你闭目参研，识海恍然有所悟。", effect = () => Insight(250) },
+                            new Option { label = "留其论道三日（道心 +12，灵脉 +120）", resultText = "促膝长谈，道心通明，灵脉亦得其滋养。", effect = () => { Daoxin(12); Vein(120); } },
+                        }
+                    };
+                case "sword_spirit_awaken":
+                    return new Opportunity
+                    {
+                        id = id, title = "剑灵认主", requiredVeinLevel = 0,
+                        text = "当日接纳的古剑剑灵，在你数次出入秘境间残识渐复，今夜终于凝形，欲与你立契认主。",
+                        options = new List<Option>
+                        {
+                            new Option { label = "立契认主（悟性 +150，灵脉 +100）", resultText = "你与剑灵立下心契，剑道、灵脉皆有所进。", effect = () => { Insight(150); Vein(100); } },
+                            new Option { label = "炼剑归元（修为 +220，因果 +8）", resultText = "你强炼剑灵入体，修为暴涨，却也斩断了一缕生灵之念。", effect = () => { Tempering(220); Karma(8); } },
+                        }
+                    };
+                default:
+                    Debug.LogWarning($"[机缘] 未知链式回访 id：{id}");
+                    return null;
+            }
+        }
 
         // ========== 机缘事件池（Demo2 首批）==========
 
@@ -138,7 +246,7 @@ namespace XianTu
                     text = "一位面容苍老的散修叩响洞府，似有所求。",
                     options = new List<Option>
                     {
-                        new Option { label = "赠予灵药（道心 +6）", resultText = "散修感念，临别留下一句机锋。", effect = () => Daoxin(6) },
+                        new Option { label = "赠予灵药（道心 +6 · 似乎结下了善缘）", resultText = "散修感念，临别留下一句机锋，言三五月后必有回报。", effect = () => { Daoxin(6); StartChain("helped_cultivator", "cultivator_return", 3); } },
                         new Option { label = "索取财货（灵气 +50，道心 -6）", resultText = "你强取其囊中灵石，心头掠过一丝阴影。", effect = () => { Qi(50); Daoxin(-6); } },
                         new Option { label = "婉言相送", resultText = "你以礼相送，互道珍重。", effect = () => { } },
                     }
@@ -161,7 +269,7 @@ namespace XianTu
                     text = "一柄古剑自地脉浮出，剑灵残识犹存，欲择主而栖。",
                     options = new List<Option>
                     {
-                        new Option { label = "接纳剑灵（悟性 +120）", resultText = "剑灵入识海，剑道感悟如泉涌。", effect = () => Insight(120) },
+                        new Option { label = "接纳剑灵（悟性 +120 · 剑灵将随你成长）", resultText = "剑灵入识海，剑道感悟如泉涌；它似还需些时日才能真正认主。", effect = () => { Insight(120); StartChain("accepted_sword", "sword_spirit_awaken", 2); } },
                         new Option { label = "封印参研（灵脉 +120）", resultText = "你封存古剑，借其残气壮大灵脉。", effect = () => Vein(120) },
                     }
                 },

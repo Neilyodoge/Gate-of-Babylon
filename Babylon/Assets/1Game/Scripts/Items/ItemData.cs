@@ -52,7 +52,7 @@ namespace XianTu
     /// 灵物数据定义（ScriptableObject，数据驱动）
     /// 所有灵物的静态数据都在这里定义
     /// </summary>
-    [CreateAssetMenu(fileName = "NewItem", menuName = "仙途梦境/灵物数据")]
+    [CreateAssetMenu(fileName = "NewItem", menuName = "仙途秘境/灵物数据")]
     public class ItemData : ScriptableObject
     {
         [Header("基础信息")]
