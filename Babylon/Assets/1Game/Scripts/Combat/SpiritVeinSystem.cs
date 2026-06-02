@@ -100,6 +100,14 @@ namespace XianTu
             Debug.Log($"<color=#9be0c0>[灵脉] +{amount} 经验（{reason}）→ {Exp}（{LevelName}）</color>");
             if (Level > beforeLv)
                 Debug.Log($"<color=#9be0c0>★ 灵脉晋升 → {LevelName}！</color>");
+
+            GameEvents.Publish(new GameEvents.SpiritVeinGained
+            {
+                Amount = amount,
+                SourceName = reason,
+                NewLevel = Level,
+                LevelName = LevelName
+            });
         }
 
         /// <summary>从历练值存量注入灵脉（核心抉择：跟修为争夺同一资源）。返回实际注入量。</summary>

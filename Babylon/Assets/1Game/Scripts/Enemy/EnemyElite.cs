@@ -77,6 +77,7 @@ namespace XianTu
         // 词缀效果
         private bool _hasIronwall;
         private bool _hasSplitting;
+        private bool _anomalyRevived;   // 万灵复苏异象：已复活过一次
         private bool _hasLightning;
         private bool _hasVampiric;
         private bool _hasFrost;
@@ -465,6 +466,16 @@ namespace XianTu
 
         public void OnDeath()
         {
+            // v0.5.5：万灵复苏异象 —— 精英首次陨落满血复活一次（不结算死亡）
+            if (!_anomalyRevived && RealmAnomalySystem.Instance.EliteReviveOnce)
+            {
+                _anomalyRevived = true;
+                stats.Heal(stats.maxHp);
+                FxFactory.SpawnElementBurst(transform.position + Vector3.up * 0.6f, ElementTag.Wood, 2.2f, 0.7f);
+                Debug.Log("<color=#88ff88>[万灵复苏] 精英妖物满血复活！</color>");
+                return;
+            }
+
             gameObject.tag = "Untagged";
             DestroyAttackWarning();
 
@@ -473,8 +484,8 @@ namespace XianTu
             TryDropSkill();
 
             // v0.5 搜打撤：精英怪 40% 概率额外掉一件【洞府素材】（独立 roll，不抢灵物槽位）
-            // v0.5.4：洞府灵脉等级提供额外掉率
-            float eliteCaveChance = 0.4f + SpiritVeinSystem.Instance.DropBonus;
+            // v0.5.4：洞府灵脉等级提供额外掉率；v0.5.5：灵潮汹涌异象再加成
+            float eliteCaveChance = 0.4f + SpiritVeinSystem.Instance.DropBonus + RealmAnomalySystem.Instance.CaveDropBonus;
             CaveMaterialPool.SpawnRandom(transform.position + new Vector3(Random.Range(-1.2f, 1.2f), 0, Random.Range(-1.2f, 1.2f)), eliteCaveChance);
 
             // 分裂词缀：死亡时分裂为2个小怪

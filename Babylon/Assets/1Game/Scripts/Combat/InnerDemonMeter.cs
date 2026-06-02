@@ -105,6 +105,9 @@ namespace XianTu
         public void AddInnerDemon(float amount, string reason)
         {
             if (IntrusionActive) return;
+            // v0.5.5：心魔滋生异象 → 正向积累加速（压制 / 负向不放大）
+            if (amount > 0f && RealmAnomalySystem.HasInstance)
+                amount *= RealmAnomalySystem.Instance.InnerDemonRateMul;
             Meter = Mathf.Clamp(Meter + amount, 0f, Max);
             if (!Mathf.Approximately(amount, 0f))
                 Debug.Log($"<color=#ff8899>[心魔] {(amount >= 0 ? "+" : "")}{amount:F0}（{reason}）→ {Mathf.RoundToInt(Meter)}/100</color>");

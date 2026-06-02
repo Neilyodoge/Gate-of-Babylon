@@ -151,6 +151,7 @@ namespace XianTu
         private static void Vein(int n) => SpiritVeinSystem.Instance.InjectExp(n, "机缘");
         private static void Tempering(int n) => CultivationSystem.Instance.GrantPool(n);
         private static void Insight(int n) => InsightSystem.Instance.GrantPermanent(n);
+        private static void Lifespan(int n) => PlayerStateHooks.Instance.ChangeLifespan(n);
 
         // ========== 链式机缘：标记 + 回访调度 ==========
 
@@ -236,6 +237,18 @@ namespace XianTu
                     {
                         new Option { label = "承接灵雨（灵气 +35）", resultText = "灵雨入瓮，化作丝丝灵气。", effect = () => Qi(35) },
                         new Option { label = "灌注灵脉（灵脉 +50）", resultText = "你引灵雨入脉，根基微固。", effect = () => Vein(50) },
+                    }
+                },
+
+                new Opportunity
+                {
+                    id = "ancient_relic", title = "古修遗宝", requiredVeinLevel = 0,
+                    text = "洞府石壁裂开一道缝隙，一件古修遗宝静卧其中，却隐隐透出蚀人寿元的气息。",
+                    options = new List<Option>
+                    {
+                        new Option { label = "以寿元换取（折寿 15 年 → 修为 +150）", resultText = "你以一缕寿元为引，强行炼化遗宝，修为大进。", effect = () => { Lifespan(-15); Tempering(150); } },
+                        new Option { label = "稳妥封存（灵脉 +60）", resultText = "你不愿折寿，封存遗宝，借其余韵壮大灵脉。", effect = () => Vein(60) },
+                        new Option { label = "原样放回", resultText = "你权衡再三，终是放手。", effect = () => { } },
                     }
                 },
 

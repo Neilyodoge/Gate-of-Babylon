@@ -347,6 +347,23 @@ namespace XianTu
             public int CurrentBufferTotal;
         }
 
+        /// <summary>灵脉经验获得（秘境掉落 / 机缘 / 历练注入），供 HUD 提示。</summary>
+        public struct SpiritVeinGained
+        {
+            public int Amount;
+            public string SourceName;
+            public int NewLevel;
+            public string LevelName;
+        }
+
+        /// <summary>秘境异象公示（入秘境基础异象 / 深入叠加），供 HUD 飘字。</summary>
+        public struct RealmAnomalyAnnounced
+        {
+            public string Title;
+            public string Desc;
+            public bool IsAddition;   // true = 深入叠加；false = 开局基础
+        }
+
         /// <summary>悟性变化（HUD 监听显示）</summary>
         public struct InsightChanged
         {

@@ -97,6 +97,8 @@ namespace XianTu.LevelDesign
         public void RollFate()
         {
             // 凡夫俗子权重最高（60%），其他各 10%
+            // 注：命格的"局内战力被动"已于 v0.5.5 退役，改为地图侧的「秘境异象」(RealmAnomalySystem)；
+            //     这里仍保留 RollFate 写入 BossFlag（fate_xxx），供关卡/事件系统的条件判定使用。
             float r = UnityEngine.Random.value;
             Fate = r switch
             {
@@ -107,7 +109,7 @@ namespace XianTu.LevelDesign
                 _ => FateType.妖族遗孤
             };
             BossFlagSet.Instance.Set($"fate_{Fate}", 1);
-            Debug.Log($"[PlayerState] 本局命格已定（隐藏）：{Fate}");
+            Debug.Log($"[PlayerState] 本局命格已定（隐藏 · 仅供事件条件）：{Fate}");
         }
 
         // ------------------------------------------------------------

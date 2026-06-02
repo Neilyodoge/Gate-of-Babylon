@@ -46,6 +46,8 @@ namespace XianTu
         private void OnEnable()
         {
             GameEvents.Subscribe<GameEvents.CaveMaterialPickedUp>(OnCaveMaterialPickedUp);
+            GameEvents.Subscribe<GameEvents.SpiritVeinGained>(OnSpiritVeinGained);
+            GameEvents.Subscribe<GameEvents.RealmAnomalyAnnounced>(OnRealmAnomalyAnnounced);
             GameEvents.Subscribe<GameEvents.ExtractSuccess>(OnExtractSuccess);
             GameEvents.Subscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
             GameEvents.Subscribe<GameEvents.InsightChanged>(OnInsightChanged);
@@ -60,6 +62,8 @@ namespace XianTu
         private void OnDisable()
         {
             GameEvents.Unsubscribe<GameEvents.CaveMaterialPickedUp>(OnCaveMaterialPickedUp);
+            GameEvents.Unsubscribe<GameEvents.SpiritVeinGained>(OnSpiritVeinGained);
+            GameEvents.Unsubscribe<GameEvents.RealmAnomalyAnnounced>(OnRealmAnomalyAnnounced);
             GameEvents.Unsubscribe<GameEvents.ExtractSuccess>(OnExtractSuccess);
             GameEvents.Unsubscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
             GameEvents.Unsubscribe<GameEvents.InsightChanged>(OnInsightChanged);
@@ -196,6 +200,26 @@ namespace XianTu
             });
         }
 
+        private void OnSpiritVeinGained(GameEvents.SpiritVeinGained evt)
+        {
+            _toasts.Add(new PickupToast
+            {
+                text = $"💎 {evt.SourceName} · 灵脉 +{evt.Amount}（{evt.LevelName}）",
+                color = new Color(0.4f, 0.9f, 0.7f),
+                remaining = ToastDuration
+            });
+        }
+
+        private void OnRealmAnomalyAnnounced(GameEvents.RealmAnomalyAnnounced evt)
+        {
+            _toasts.Add(new PickupToast
+            {
+                text = evt.Title,
+                color = new Color(0.78f, 0.6f, 1f),
+                remaining = ToastDuration * 2.2f
+            });
+        }
+
         private void OnExtractSuccess(GameEvents.ExtractSuccess evt)
         {
             _toasts.Add(new PickupToast
@@ -273,11 +297,91 @@ namespace XianTu
             DrawSidePanel();
             DrawPickupToasts();
             DrawInsightBar();
+            DrawAnomalyStatus();
+            DrawMoralStatus();
             // V.03（Q7）：局外 meta 暂缓时不显示本体境界 / 历练 / 心魔 HUD
             if (FeatureFlags.EnableCaveMeta)
             {
                 DrawCultivationStatus();
                 DrawTribulationOverlay();
+            }
+        }
+
+        // ========== 秘境异象状态条（v0.5.5）==========
+
+        private void DrawAnomalyStatus()
+        {
+            if (!RealmAnomalySystem.HasInstance) return;
+            var active = RealmAnomalySystem.Instance.Active;
+            if (active == null || active.Count == 0) return;
+
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < active.Count; i++)
+            {
+                var info = RealmAnomalySystem.Info(active[i]);
+                string hex = ColorUtility.ToHtmlStringRGB(info.color);
+                if (i > 0) sb.Append("  ");
+                sb.Append($"<color=#{hex}>{info.icon} {info.name}</color>");
+            }
+
+            const float W = 420f;
+            float x = (Screen.width - W) * 0.5f;
+            float y = Screen.height - 30f;  // 屏幕底部居中
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13, alignment = TextAnchor.MiddleCenter, richText = true
+            };
+            GUI.Label(new Rect(x, y, W, 22f), $"秘境异象 · {sb}", style);
+        }
+
+        // ========== 修仙状态：道心 / 因果 / 寿元（v0.5.5，右上角）==========
+
+        private void DrawMoralStatus()
+        {
+            var h = XianTu.LevelDesign.PlayerStateHooks.Instance;
+
+            const float W = 168f;
+            float x = Screen.width - W - 12f;
+            float y = 12f;
+            const float lineH = 20f;
+
+            // 行数：道心常显；因果债≠0 显；寿元≠100 显
+            int lines = 1;
+            bool showKarma = h.KarmaDebt != 0;
+            bool showLifespan = h.Lifespan != 100;
+            if (showKarma) lines++;
+            if (showLifespan) lines++;
+
+            var panel = new Rect(x, y, W, lines * lineH + 10f);
+            GUI.Box(panel, "", _bgStyle);
+
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12, alignment = TextAnchor.MiddleLeft, richText = true
+            };
+
+            float ly = y + 5f;
+
+            // —— 道心 ——
+            string dxHex = h.Daoxin >= 80 ? "6cc0ff" : h.Daoxin >= 50 ? "d8e0e8" : h.Daoxin >= 20 ? "ffb060" : "ff5560";
+            GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH),
+                $"<color=#{dxHex}>道心 · {h.DaoxinState} {h.Daoxin}</color>", style);
+            ly += lineH;
+
+            // —— 因果债 ——
+            if (showKarma)
+            {
+                string kHex = h.KarmaDebt > 0 ? "ff8866" : "8fd08f";
+                string kLabel = h.KarmaDebt > 0 ? $"因果债 +{h.KarmaDebt}" : $"善缘 {h.KarmaDebt}";
+                GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH), $"<color=#{kHex}>{kLabel}</color>", style);
+                ly += lineH;
+            }
+
+            // —— 寿元 ——
+            if (showLifespan)
+            {
+                string lHex = h.Lifespan < 30 ? "ffaa66" : "c8d0d8";
+                GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH), $"<color=#{lHex}>寿元 {h.Lifespan} 年</color>", style);
             }
         }
 
@@ -378,6 +482,18 @@ namespace XianTu
             };
             style.normal.textColor = new Color(0.65f, 0.75f, 1f);
             GUI.Label(bannerRect, $"⚡ 渡劫中 · 第 {_tribulationCurrentBolt} / {_tribulationTotalBolts} 道雷劫 · 走位躲避 ⚡", style);
+
+            // —— 道心对成色的影响提示（道心稳→渡劫稳）——
+            int shift = TribulationTrial.DaoHeartQualityShift();
+            string dxState = XianTu.LevelDesign.PlayerStateHooks.Instance.DaoxinState;
+            string shiftStr = shift > 0 ? $"成色 +{shift}" : (shift < 0 ? $"成色 {shift}" : "成色不变");
+            Color dxColor = shift > 0 ? new Color(0.6f, 0.9f, 1f) : (shift < 0 ? new Color(1f, 0.6f, 0.45f) : new Color(0.8f, 0.85f, 0.9f));
+            var dxStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13, alignment = TextAnchor.MiddleCenter, richText = true
+            };
+            dxStyle.normal.textColor = dxColor;
+            GUI.Label(new Rect(0, 82f, Screen.width, 20f), $"道心 · {dxState}（{shiftStr}）", dxStyle);
         }
 
         private void DrawSidePanel()

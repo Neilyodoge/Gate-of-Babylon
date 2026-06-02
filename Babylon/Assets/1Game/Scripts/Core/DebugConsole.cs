@@ -373,6 +373,69 @@ namespace XianTu
             AddLog($"<color=#ffd47a>🔗 回府计数 → {SaveSystem.Instance.Data.caveReturnCount}（待回访 {pending} 条）</color>");
         }
 
+        /// <summary>调试：道心 -25（测心摇 / 入魔阈值的局内减益）。</summary>
+        private void LowerDaoxin()
+        {
+            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeDaoxin(-25);
+            var h = XianTu.LevelDesign.PlayerStateHooks.Instance;
+            AddLog($"<color=#b0c8ff>🧿 道心 → {h.Daoxin}（{h.DaoxinState}）</color>");
+        }
+
+        /// <summary>调试：道心 +25（测入定增益）。</summary>
+        private void RaiseDaoxin()
+        {
+            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeDaoxin(25);
+            var h = XianTu.LevelDesign.PlayerStateHooks.Instance;
+            AddLog($"<color=#b0c8ff>🧘 道心 → {h.Daoxin}（{h.DaoxinState}）</color>");
+        }
+
+        /// <summary>调试：因果债 +12（测业障受伤增益）。</summary>
+        private void AddKarma()
+        {
+            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeKarma(12);
+            AddLog($"<color=#d8b0a0>☯ 因果债 → {XianTu.LevelDesign.PlayerStateHooks.Instance.KarmaDebt}</color>");
+        }
+
+        /// <summary>调试：因果债 -12（测善缘庇佑）。</summary>
+        private void ReduceKarma()
+        {
+            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeKarma(-12);
+            AddLog($"<color=#a0d090>🍀 因果债 → {XianTu.LevelDesign.PlayerStateHooks.Instance.KarmaDebt}</color>");
+        }
+
+        /// <summary>调试：寿元 -25（测衰朽 / 油尽灯枯减益）。</summary>
+        private void ReduceLifespan()
+        {
+            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeLifespan(-25);
+            AddLog($"<color=#c0b0a0>⏳ 寿元 → {XianTu.LevelDesign.PlayerStateHooks.Instance.Lifespan} 年</color>");
+        }
+
+        /// <summary>调试：寿元 +25。</summary>
+        private void AddLifespan()
+        {
+            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeLifespan(25);
+            AddLog($"<color=#c0b0a0>⏳ 寿元 → {XianTu.LevelDesign.PlayerStateHooks.Instance.Lifespan} 年</color>");
+        }
+
+        /// <summary>调试：强制设定本局秘境异象。</summary>
+        private void SetAnomaly(RealmAnomaly a)
+        {
+            RealmAnomalySystem.Instance.DebugSet(a);
+            var info = RealmAnomalySystem.Info(a);
+            AddLog($"<color=#c8a0ff>{info.icon} 秘境异象 → {info.name}</color>");
+        }
+
+        /// <summary>调试：在玩家身边掉一颗灵脉道具（测秘境掉落拾取 → 灵脉经验）。</summary>
+        private void DropSpiritVeinItem()
+        {
+            var p = PlayerController.Instance;
+            if (p == null) { AddLog("<color=red>无玩家</color>"); return; }
+            var pk = SpiritVeinPickup.Spawn("地脉精华", 200, p.transform.position + p.transform.forward * 2f);
+            AddLog(pk != null
+                ? "<color=#9be0c0>💎 已掉落「地脉精华」(+200 灵脉) · 走近自动汲取</color>"
+                : "<color=#ffaa66>洞府 meta 未启用，灵脉道具不生成</color>");
+        }
+
         /// <summary>调试：+50 心魔值（满 100 且正在打 Boss 时触发乱入）。</summary>
         private void BoostInnerDemon()
         {
@@ -615,6 +678,25 @@ namespace XianTu
             CreateButton(contentGo.transform, "✦ 触发机缘事件", new Color(0.45f, 0.4f, 0.2f), TriggerOpportunity);
             CreateButton(contentGo.transform, "🔗 推进链式机缘（+1 回府）", new Color(0.5f, 0.42f, 0.22f), AdvanceOpportunityChain);
             CreateButton(contentGo.transform, "👹 心魔值 +50", new Color(0.5f, 0.18f, 0.25f), BoostInnerDemon);
+
+            // --- 道心 / 因果（v0.5.5 抉择后果测试）---
+            CreateSectionHeader(contentGo.transform, "【 道心 / 因果 】");
+            CreateButton(contentGo.transform, "🧿 道心 -25（测心摇/入魔）", new Color(0.3f, 0.35f, 0.55f), LowerDaoxin);
+            CreateButton(contentGo.transform, "🧘 道心 +25（测入定）", new Color(0.35f, 0.5f, 0.6f), RaiseDaoxin);
+            CreateButton(contentGo.transform, "☯ 因果 +12（测业障）", new Color(0.5f, 0.35f, 0.3f), AddKarma);
+            CreateButton(contentGo.transform, "🍀 因果 -12（测善缘）", new Color(0.35f, 0.5f, 0.35f), ReduceKarma);
+            CreateButton(contentGo.transform, "⏳ 寿元 -25（测衰朽）", new Color(0.5f, 0.42f, 0.35f), ReduceLifespan);
+            CreateButton(contentGo.transform, "⏳ 寿元 +25", new Color(0.4f, 0.48f, 0.42f), AddLifespan);
+            CreateButton(contentGo.transform, "💎 掉落灵脉道具（测拾取）", new Color(0.3f, 0.55f, 0.45f), DropSpiritVeinItem);
+
+            // --- 秘境异象（v0.5.5 每局变量）---
+            CreateSectionHeader(contentGo.transform, "【 秘境异象 】");
+            CreateButton(contentGo.transform, "⚡ 异象 · 雷泽", new Color(0.35f, 0.4f, 0.55f), () => SetAnomaly(RealmAnomaly.LeiZe));
+            CreateButton(contentGo.transform, "🌊 异象 · 灵潮汹涌", new Color(0.25f, 0.45f, 0.5f), () => SetAnomaly(RealmAnomaly.LingChao));
+            CreateButton(contentGo.transform, "😈 异象 · 心魔滋生", new Color(0.45f, 0.3f, 0.45f), () => SetAnomaly(RealmAnomaly.DemonGrowth));
+            CreateButton(contentGo.transform, "♻ 异象 · 万灵复苏", new Color(0.3f, 0.5f, 0.35f), () => SetAnomaly(RealmAnomaly.Revival));
+            CreateButton(contentGo.transform, "🩸 异象 · 血月", new Color(0.5f, 0.28f, 0.28f), () => SetAnomaly(RealmAnomaly.BloodMoon));
+            CreateButton(contentGo.transform, "⛰ 异象 · 清除", new Color(0.4f, 0.4f, 0.42f), () => SetAnomaly(RealmAnomaly.None));
 
             // --- 房间控制 ---
             CreateSectionHeader(contentGo.transform, "【 房间跳转 】");

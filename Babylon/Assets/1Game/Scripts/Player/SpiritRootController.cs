@@ -56,6 +56,9 @@ namespace XianTu
             // v0.5.4：境界压制（本体境界 vs 秘境层环境境界）（V.03 Q7：meta 暂缓时不挂载）
             if (FeatureFlags.EnableCaveMeta)
                 EnsureComponent<CultivationSuppression>();
+
+            // v0.5.5：道心 / 因果效应（抉择 → 局内增减益）。属局内战斗效果，常驻挂载
+            EnsureComponent<MoralEffects>();
         }
 
         private void EnsureComponent<T>() where T : Component

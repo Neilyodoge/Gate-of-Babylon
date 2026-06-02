@@ -244,6 +244,10 @@ namespace XianTu
                 CaveMaterialPool.SpawnRandom(transform.position + caveOffset, 1f);
             }
 
+            // v0.5.5：宝藏房有几率出"灵脉碎片"（秘境专属 → 灵脉经验，洞府 meta 启用时才生成；灵潮汹涌 → 几率翻倍）
+            if (Random.value < 0.6f * RealmAnomalySystem.Instance.SpiritVeinDropMul)
+                SpiritVeinPickup.Spawn("灵脉碎片", 50, transform.position + new Vector3(Random.Range(-1.5f, 1.5f), 0, 2.2f));
+
             // 开箱动画：箱盖飞起
             if (_chest != null)
             {

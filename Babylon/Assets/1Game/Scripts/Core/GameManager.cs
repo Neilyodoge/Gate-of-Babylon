@@ -241,6 +241,9 @@ namespace XianTu
             // v0.5.4：每局重置心魔值（乱入累积条是局内资源）
             InnerDemonMeter.Instance.ResetMeter();
 
+            // v0.5.5：随机本局秘境异象（替代隐藏命格的"每局变量"，挂在地图上）
+            RealmAnomalySystem.Instance.RollForNewRun();
+
             Debug.Log("<color=magenta>═══════════════════════════</color>");
             Debug.Log("<color=magenta>  入秘境... 仙途秘境开始</color>");
             Debug.Log("<color=magenta>═══════════════════════════</color>");
@@ -382,9 +385,11 @@ namespace XianTu
             _currentRoomGo.transform.position = spawnPos;
             var room = _currentRoomGo.AddComponent<BattleRoom>();
 
-            int enemyCount = baseEnemyCount + _currentLevel * enemyCountPerLevel;
+            // v0.5.5：秘境异象修正（灵潮汹涌 → 敌人更多；血月 → 敌人更猛）
+            var anomaly = RealmAnomalySystem.Instance;
+            int enemyCount = Mathf.RoundToInt((baseEnemyCount + _currentLevel * enemyCountPerLevel) * anomaly.EnemyCountMul);
             float hpMul = 1f + _currentLevel * hpScalePerLevel;
-            float dmgMul = 1f + _currentLevel * dmgScalePerLevel;
+            float dmgMul = (1f + _currentLevel * dmgScalePerLevel) * anomaly.EnemyDamageMul;
             room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, itemPool, roomSize, roomSize);
             room.SetSkillPool(skillPool);
 
@@ -730,6 +735,7 @@ namespace XianTu
             ep.Build(() =>
             {
                 // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 回收灵兽 → 回 VillageHub
+                RealmAnomalySystem.Instance.EndRun();   // v0.5.5：结束本局秘境异象（停落雷等）
                 CaveInventory.Instance.CommitCurrentRun();
                 InsightSystem.Instance.CommitOnExtract();
                 // V.03（Q7）：局外 meta 暂缓时不提交本体境界修为
@@ -796,6 +802,7 @@ namespace XianTu
         private void OnPlayerDied(GameEvents.PlayerDied evt)
         {
             _gameOver = true;
+            RealmAnomalySystem.Instance.EndRun();   // v0.5.5：陨落 → 结束本局秘境异象
 
             // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；悟性也消失；灵兽伙伴一并销毁
             int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
@@ -840,6 +847,8 @@ namespace XianTu
             int baseShards = Random.Range(1, 3);          // 1-2
             int levelBonus = _currentLevel / 2;           // 0..2
             int totalShards = baseShards + levelBonus;     // 1..4
+            // v0.5.5：血月异象 → 击杀收益翻倍
+            totalShards = Mathf.RoundToInt(totalShards * RealmAnomalySystem.Instance.KillRewardMul);
 
             PlayerResources.Instance.AddShards(totalShards);
 
@@ -856,6 +865,8 @@ namespace XianTu
             if (FeatureFlags.EnableCaveMeta)
             {
                 int temperingAmount = insightAmount == 10 ? 20 : (insightAmount == 3 ? 5 : 1);
+                // v0.5.5：心魔滋生异象 → 历练获取提升
+                temperingAmount = Mathf.RoundToInt(temperingAmount * RealmAnomalySystem.Instance.TemperingMul);
                 CultivationSystem.Instance.AddRunTempering(temperingAmount, "击杀");
             }
         }

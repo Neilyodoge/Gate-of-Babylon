@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -163,14 +164,35 @@ namespace XianTu
             Finish(false, 0);
         }
 
-        /// <summary>受创比例 → 成色：0 无伤=完美 / &lt;0.3 上品 / &lt;0.7 凡品 / 否则 瑕品。</summary>
+        /// <summary>
+        /// 成色 = 受创比例基础档 + 道心修正档（道心稳→渡劫稳）。
+        /// 受创：0 无伤=完美 / &lt;0.3 上品 / &lt;0.7 凡品 / 否则 瑕品。
+        /// 道心：入定 +1 / 清明 0 / 心摇 -1 / 入魔 -2，最终钳制 0~3。
+        /// </summary>
         private int ResolveQuality()
         {
             float ratio = _damageTaken / _maxHpAtStart;
-            if (ratio <= 0.001f) return 3; // 完美
-            if (ratio < 0.30f) return 2;   // 上品
-            if (ratio < 0.70f) return 1;   // 凡品
-            return 0;                      // 瑕品
+            int baseQ;
+            if (ratio <= 0.001f) baseQ = 3;       // 完美
+            else if (ratio < 0.30f) baseQ = 2;    // 上品
+            else if (ratio < 0.70f) baseQ = 1;    // 凡品
+            else baseQ = 0;                       // 瑕品
+
+            int shift = DaoHeartQualityShift();
+            int q = Mathf.Clamp(baseQ + shift, 0, 3);
+            if (shift != 0)
+                Debug.Log($"<color=#b0c8ff>[渡劫] 道心修正成色：基础 {baseQ} {(shift > 0 ? "+" : "")}{shift} → {q}（{CultivationSystem.QualityNames[q]}）</color>");
+            return q;
+        }
+
+        /// <summary>道心 → 渡劫成色档位修正：入定 +1 / 清明 0 / 心摇 -1 / 入魔 -2。</summary>
+        public static int DaoHeartQualityShift()
+        {
+            int dx = PlayerStateHooks.Instance.Daoxin;
+            if (dx >= 80) return +1;   // 入定 · 道心通明，渡劫如行坦途
+            if (dx >= 50) return 0;    // 清明
+            if (dx >= 20) return -1;   // 心摇 · 杂念趁虚
+            return -2;                 // 入魔 · 心魔趁势，险象环生
         }
 
         private void Finish(bool success, int quality)
