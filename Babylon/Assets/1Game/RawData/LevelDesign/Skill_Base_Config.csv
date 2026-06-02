@@ -1,0 +1,5 @@
+ID,Name_CN,Desc_CN,Type,BaseCooldown,BaseDamageRatio,IconPath
+1,落石术,召唤巨石砸向目标区域造成范围伤害,1,5,15000,Skills/luoshi
+2,烈焰斩,横扫前方造成火焰伤害,1,4,12000,Skills/lieyan
+3,御风诀,短时间提升自身攻速,2,12,5000,Skills/yufeng
+4,寒冰封印,冻结目标并减速,3,8,3000,Skills/bingfeng

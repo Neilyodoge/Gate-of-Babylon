@@ -1,0 +1,5 @@
+ID,Name_CN,Desc_CN,Type,BaseCooldown,BaseDamageRatio,Charges,IconPath
+1,攻击强化,一段时间内攻击力提升,1,0,5000,3,Effects/atkup
+2,荆棘护体,受到攻击时反弹部分伤害,2,0,2000,0,Effects/thorns
+3,流血,目标持续损失生命,3,0,1000,5,Effects/bleed
+4,灼烧,目标每秒受到火焰伤害,3,0,1500,5,Effects/burn

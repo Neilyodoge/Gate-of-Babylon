@@ -148,6 +148,58 @@ namespace XianTu.LevelDesign
     }
 
     // ------------------------------------------------------------
+    // §4.9 Avatar_Base_Config — 化身基础配置
+    // ------------------------------------------------------------
+    [Serializable]
+    public class AvatarBaseRow
+    {
+        public int ID;
+        public string Name_CN;
+        public string Desc_CN;
+        /// <summary>化身机制 Controller 类名（状态机）</summary>
+        public string ControllerScript;
+        /// <summary>开局随身自带的初始凡品灵物 ID</summary>
+        public int DefaultItem_ID;
+        /// <summary>黑名单：该化身局内禁止随机产出的词条 ID 列表（CSV 用 ; 分隔）</summary>
+        public int[] Restriction;
+    }
+
+    // ------------------------------------------------------------
+    // §6.9 Skill_Base_Config — 主动技能
+    // ------------------------------------------------------------
+    [Serializable]
+    public class SkillBaseRow
+    {
+        public int ID;
+        public string Name_CN;
+        public string Desc_CN;
+        /// <summary>1=基础(伤害) / 2=增益 / 3=减益 / 4=特殊(暂不实现)</summary>
+        public int Type;
+        public float BaseCooldown;
+        /// <summary>基础伤害 / 效果倍率：百分比与权重均以 10000=100% 计；纯数值直接填</summary>
+        public int BaseDamageRatio;
+        public string IconPath;
+    }
+
+    // ------------------------------------------------------------
+    // §6.9-2 Skill_Effect_Config — 被动 / BUFF / DEBUFF / 效果总库
+    // ------------------------------------------------------------
+    [Serializable]
+    public class SkillEffectRow
+    {
+        public int ID;
+        public string Name_CN;
+        public string Desc_CN;
+        /// <summary>1=BUFF / 2=被动 / 3=DEBUFF / 4=特殊被动(暂不实现)</summary>
+        public int Type;
+        public float BaseCooldown;
+        public int BaseDamageRatio;
+        /// <summary>可叠加层数上限（0=不可叠加）。技能型可叠加，与灵物叠加/质变分开结算（Q4）</summary>
+        public int Charges;
+        public string IconPath;
+    }
+
+    // ------------------------------------------------------------
     // JSON 顶层包装器（Unity JsonUtility 不支持顶级数组）
     // ------------------------------------------------------------
     [Serializable] public class MapStructureTable { public MapStructureRow[] Rows; }
@@ -156,4 +208,7 @@ namespace XianTu.LevelDesign
     [Serializable] public class BossPhaseTable { public BossPhaseRow[] Rows; }
     [Serializable] public class ItemInRunTable { public ItemInRunRow[] Rows; }
     [Serializable] public class MaterialCaveResTable { public MaterialCaveResRow[] Rows; }
+    [Serializable] public class AvatarBaseTable { public AvatarBaseRow[] Rows; }
+    [Serializable] public class SkillBaseTable { public SkillBaseRow[] Rows; }
+    [Serializable] public class SkillEffectTable { public SkillEffectRow[] Rows; }
 }
