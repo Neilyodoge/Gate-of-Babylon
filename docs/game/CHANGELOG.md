@@ -28,9 +28,13 @@
 - 掉落物拾取**重构**：抽 `PickupBase` + `WorldPromptPanel`（`BillboardUI` 并入），`ItemPickup`/`SkillPickup` 改为子类，消 ~90% 重复。
 - 编辑器菜单旧名 `仙途梦境/` → `仙途秘境/`（全代码 + 文档一致）；玩家可见旧术语（入梦/魂伤/梦境）统一为（入秘境/道伤/秘境）。
 - **战斗配表新增**：`Avatar_Base_Config` / `Skill_Base_Config` / `Skill_Effect_Config` 三张 CSV + 接入 `CsvToJsonImporter`（GDD §4.9/6.9/6.9-2）。
+- **战斗配表接运行时**：`ConfigDatabase` 加载这 3 张表 + 查表访问器（`GetAvatar`/`GetSkillBase`/`GetSkillEffect`）；DebugConsole「📋 配表自检」验证全链路。
+- **B 方案·表作数据层（2026-06-03）**：化身显示名由 `Avatar_Base_Config` 覆盖（`SpiritRootRegistry` 惰性应用，CSV 已对齐 5 行+真实控制器类名）；技能 **CD + 伤害** 由 `Skill_Base_Config` 覆盖（`SkillData.configId` + `SkillTuning.EffectiveCooldown`/`EffectiveBaseDamage`；`PlayerCombat` CD 三处 + 伤害三处接入）。**12 个技能 SO 已批量填 configId(1~12)** + CSV 对齐真实 12 技能（CD=现值、伤害%=10000 中性，不改平衡）。伤害规则=对 SO 基础伤害的百分比乘区，与 UpgradeRoom 升级共存、不写回 SO；全带回退。
 
 **文档**
 - GDD 升 v0.5.5；实现状态总表/§8.1 现状表校准（待实现→已实现）；秘术 §9.2 标注「Demo3+ 暂缓 · 效果待重评」。
+- **文档体系整理（4 类）**：导航(README) / 策划(GDD) / 修改记录(本 CHANGELOG) / TODO(开发待办)；两棵文档树（`docs/` + `1Game/Docs/`）互链、分工（设计 vs 工程）。
+- **去重合并（2026-06-03）**：架构 `tech/架构总览` → 并入 `1Game/Docs/程序_架构说明`（独有的模块图/命名/层级/文件警告/复查链接折入第九节），原文改指针；`策划_灵物与功法设计框架` → 并入 GDD 第5/6/7章，改指针（其旧「数值平衡基线」「单次强化」已过时/被 6.5 槽位修饰取代，弃）；战斗/灵物机制深档（独有）留 `tech/` 并登记进程序文档主页。
 
 > 详细设计见 GDD 对应章节；剩余任务见 [开发待办](design/开发待办.md)。
 

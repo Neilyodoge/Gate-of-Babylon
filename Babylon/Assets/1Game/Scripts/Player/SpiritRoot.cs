@@ -135,13 +135,39 @@ namespace XianTu
             });
         }
 
-        public static IReadOnlyList<SpiritRootDef> All => _defs;
+        public static IReadOnlyList<SpiritRootDef> All { get { EnsureConfigOverrides(); return _defs; } }
 
         public static SpiritRootDef Get(SpiritRootType t)
         {
+            EnsureConfigOverrides();
             foreach (var d in _defs)
                 if (d.type == t) return d;
             return null;
+        }
+
+        // ── v0.5.5：表作数据层（B 方案）——
+        // 化身的「机制」仍在代码，但显示名可由 Avatar_Base_Config 覆盖（表 ID = (int)SpiritRootType）。
+        // 表里没有/没填 → 回退代码默认值。首次访问时惰性应用一次。
+        private static bool _overridesApplied;
+        private static void EnsureConfigOverrides()
+        {
+            if (_overridesApplied) return;
+            _overridesApplied = true;   // 即使失败也只尝试一次，避免每帧 IO
+
+            try
+            {
+                var db = XianTu.LevelDesign.ConfigDatabase.Instance;
+                foreach (var d in _defs)
+                {
+                    var row = db.GetAvatar((int)d.type);
+                    if (row != null && !string.IsNullOrWhiteSpace(row.Name_CN))
+                        d.name = row.Name_CN;   // 仅覆盖显示名；passive/tooltip/机制保持代码（表 Desc 太短不宜覆盖富文本）
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[SpiritRootRegistry] 应用 Avatar_Base_Config 覆盖失败（回退默认）：{ex.Message}");
+            }
         }
     }
 }

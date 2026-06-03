@@ -521,7 +521,7 @@ namespace XianTu
             // 如果充能未满且没在恢复中，开始恢复
             if (_skillCharges[slotIndex] < _skillMaxCharges[slotIndex] && _skillRechargeTimer[slotIndex] <= 0)
             {
-                float rechargeTime = skill.chargeTime > 0 ? skill.chargeTime : skill.cooldown;
+                float rechargeTime = skill.chargeTime > 0 ? skill.chargeTime : SkillTuning.EffectiveCooldown(skill);
 
                 // 应用灵物CD缩减
                 var spiritSlots = GetComponent<SpiritSlotSystem>();
@@ -554,7 +554,7 @@ namespace XianTu
             {
                 SlotIndex = slotIndex,
                 RemainingTime = _skillRechargeTimer[slotIndex],
-                TotalCooldown = _skillRechargeDuration[slotIndex] > 0 ? _skillRechargeDuration[slotIndex] : (skill != null ? skill.cooldown : 1f)
+                TotalCooldown = _skillRechargeDuration[slotIndex] > 0 ? _skillRechargeDuration[slotIndex] : (skill != null ? SkillTuning.EffectiveCooldown(skill) : 1f)
             });
         }
 
@@ -771,7 +771,7 @@ namespace XianTu
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
                     {
-                        float damage = (skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
+                        float damage = (SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
                         damageable.OnDamage(damage, hit.transform.position, gameObject);
                         if (firstSkillHit == null) firstSkillHit = hit.gameObject;
                     }
@@ -815,7 +815,7 @@ namespace XianTu
         {
             Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
             Vector3 dir = _player.AimDirection;
-            float damage = (skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
+            float damage = (SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
 
             int count = Mathf.Max(1, skill.projectileCount);
             float halfSpread = skill.spreadAngle * 0.5f;
@@ -925,7 +925,7 @@ namespace XianTu
                     // 如果还没满，继续充能下一层
                     if (_skillCharges[i] < _skillMaxCharges[i])
                     {
-                        float rechargeTime = skills[i].chargeTime > 0 ? skills[i].chargeTime : skills[i].cooldown;
+                        float rechargeTime = skills[i].chargeTime > 0 ? skills[i].chargeTime : SkillTuning.EffectiveCooldown(skills[i]);
 
                         // 应用灵物CD缩减
                         var spiritSlots = GetComponent<SpiritSlotSystem>();
@@ -1273,7 +1273,7 @@ namespace XianTu
             // 如果留下伤害区域，对路径上的敌人造成伤害
             if (skill.leaveTrail)
             {
-                float damage = skill.baseDamage + _player.Stats.attackDamage * skill.damageScaling;
+                float damage = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
                 var hits = Physics.OverlapCapsule(startPos + Vector3.up * 0.5f,
                     targetPos + Vector3.up * 0.5f, 1.5f, enemyLayer);
                 foreach (var hit in hits)

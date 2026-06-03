@@ -23,6 +23,8 @@ namespace XianTu
     public class SkillData : ScriptableObject
     {
         [Header("基础信息")]
+        /// <summary>对接 Skill_Base_Config 的行 ID（0=不接表，用 SO 自身数值）。v0.5.5 表作数据层：填了就用表的 CD 覆盖。</summary>
+        public int configId = 0;
         public string skillName = "未命名功法";
         [TextArea(2, 4)]
         public string description = "功法描述";

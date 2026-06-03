@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a86b5853cfb4fb2479915b5e3d01bc22, type: 3}
   m_Name: "\u5FA1\u5251\u672F"
   m_EditorClassIdentifier: 
+  configId: 12
   skillName: "\u5FA1\u5251\u672F"
   description: "\u5FA1\u4F7F\u7075\u5251\u5411\u524D\u65B9\u98DE\u5C04\uFF0C\u8D2F\u7A7F\u654C\u4EBA\u3002\n\u53EF\u540C\u65F6\u53D1\u5C04\u4E09\u67C4\u98DE\u5251\uFF0C\u6263\u5F62\u6563\u5C04\u3002"
   icon: {fileID: 0}

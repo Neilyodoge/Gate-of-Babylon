@@ -316,6 +316,20 @@ namespace XianTu
             RefreshStatus();
         }
 
+        /// <summary>调试：打印 ConfigDatabase 已加载的全部表（验证 CSV→JSON→运行时读取链路）。</summary>
+        private void DumpConfigTables()
+        {
+            var db = XianTu.LevelDesign.ConfigDatabase.Instance;
+            AddLog($"<color=#c8d0a0>📋 配表：地图{db.MapStructures.Count} 房间{db.RoomSockets.Count} 事件{db.StoryEvents.Count} Boss{db.BossPhases.Count} 道具{db.ItemsInRun.Count} 素材{db.CaveMaterials.Count}</color>");
+            AddLog($"<color=#c8d0a0>📋 战斗表：化身{db.Avatars.Count} 主动技能{db.SkillBases.Count} 效果{db.SkillEffects.Count}</color>");
+            foreach (var kv in db.Avatars)
+                AddLog($"<color=#9cc0ff>· 化身[{kv.Key}] {kv.Value.Name_CN} / {kv.Value.ControllerScript}</color>");
+            foreach (var kv in db.SkillBases)
+                AddLog($"<color=#9cc0ff>· 技能[{kv.Key}] {kv.Value.Name_CN} (Type{kv.Value.Type} CD{kv.Value.BaseCooldown} 倍率{kv.Value.BaseDamageRatio})</color>");
+            if (db.Avatars.Count == 0 && db.SkillBases.Count == 0)
+                AddLog("<color=#ffaa66>战斗表为空——请先在 Unity 菜单「修仙图/导表」(Ctrl+Shift+T) 把 CSV 导成 JSON</color>");
+        }
+
         /// <summary>调试：临时开/关灵物系统（V.03 Q8 默认关）。重进秘境后生效。</summary>
         private void ToggleSpiritItemsFlag()
         {
@@ -669,6 +683,7 @@ namespace XianTu
             CreateSectionHeader(contentGo.transform, "【 V.03 范围开关 】");
             CreateButton(contentGo.transform, "🔮 灵物系统：开/关", new Color(0.45f, 0.3f, 0.5f), ToggleSpiritItemsFlag);
             CreateButton(contentGo.transform, "🏔 洞府meta：开/关", new Color(0.3f, 0.45f, 0.45f), ToggleCaveMetaFlag);
+            CreateButton(contentGo.transform, "📋 配表自检（打印已加载表）", new Color(0.4f, 0.4f, 0.3f), DumpConfigTables);
 
             // --- 本体境界（v0.5.4 渡劫战测试）---
             CreateSectionHeader(contentGo.transform, "【 本体境界 】");

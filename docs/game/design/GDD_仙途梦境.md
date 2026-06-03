@@ -956,7 +956,7 @@ v0.3 阶段实现的 5 化身（金=穿透 / 木=清房回血 / 水=反伤 / 火
 | **DefaultItem_ID** | 起始绑定局内灵物ID | 开局随身自带的初始凡品灵物 |
 | **Restriction** | 限制局内词条 | 用来限制对应化身不可使用的词条，以防后续出现与化身冲突的逻辑；填入词条ID后该化身局内无法产生该词条或其相关的 BUFF。**本版本按黑名单实现**（Q2 确认：填禁用词条 ID 即可，CSV 多个用 `;` 分隔）；白名单 / 概率权重 / 分阶段解锁等扩展逻辑后补 |
 
-> **📊【实现现状】🟢 CSV + 导表已就绪（2026-06-02）**：`RawData/LevelDesign/Avatar_Base_Config.csv`（含示例行）+ `CsvToJsonImporter` 已接入（菜单「修仙图/导表」→ `Resources/LevelDesign/Avatar_Base_Config.json`）。可在 Excel 填表一键导出。**运行时消费**（按表实例化化身）待后续接线。
+> **📊【实现现状】🟢 CSV + 导表 + 运行时读取 + 显示名表覆盖（B 方案·2026-06-03）**：CSV(`Avatar_Base_Config`，已对齐 5 行 / 真实控制器类名 / ID=(int)SpiritRootType) → 导表 → `ConfigDatabase.GetAvatar(id)`。`SpiritRootRegistry` 惰性用表的 `Name_CN` 覆盖化身**显示名**；机制仍在代码（5 控制器全挂载 + 按 CurrentRoot 门控，**无需反射**）。**余下**：`DefaultItem_ID` / `Restriction` 依赖灵物解封(Q8)；描述暂留代码富文本。
 
 
 ---
@@ -1744,7 +1744,7 @@ ModifierDef:
 **权重（Q5 确认）：权重分配同样以 10000=100% 计**（与百分比同制）；
 注：更加具体得数值计算方式待后续数值公式得出结果，而目前就以最基本得加算来计算目前已设计的数值模型，并且数字得应用后续也会在涉及技能时详细说明数值效果；
 
-> **📊【实现现状】🟢 CSV + 导表已就绪（2026-06-02）**：`Skill_Base_Config.csv` / `Skill_Effect_Config.csv`（含示例行）已建于 `RawData/LevelDesign/` 并接入 `CsvToJsonImporter`（菜单「修仙图/导表」一键导出 JSON）。Excel 填表即可。**运行时消费**（按表生成技能/效果）待后续接线。
+> **📊【实现现状】🟢 CSV + 导表 + 读取 + CD/伤害表覆盖·已跑起来（B 方案·2026-06-03）**：`SkillData.configId`（12 个技能 SO 已填 1~12）；`SkillTuning.EffectiveCooldown` 用 `BaseCooldown` 覆盖 CD、`EffectiveBaseDamage` 用 `BaseDamageRatio`（=对 SO 基础伤害的**百分比乘区**，10000=100%，与 UpgradeRoom 升级共存、不写回 SO）覆盖伤害；`PlayerCombat` CD 三处 + 伤害三处(Area/Projectile/Dash)已接入。`Skill_Base_Config.csv` 已对齐真实 12 技能。改表→导表→即时生效。**余下**：`Skill_Effect_Config` 需通用效果解释器才能驱动。
 
 > **🟢 Q4 补充说明（2026-06-01）**：`Charges`（充能层数）的定位 = 技能/BUFF 型可叠加效果，每层带独立持续时间与刷新规则；灵物的"叠加 / 质变阈值"是另一套（无限叠加、达阈值触发质变）。配表时二者各走各的判定，避免混用。
 

@@ -40,8 +40,17 @@ namespace XianTu.LevelDesign
         public Dictionary<int, BossPhaseRow> BossPhases { get; private set; } = new();
         public Dictionary<int, ItemInRunRow> ItemsInRun { get; private set; } = new();
         public Dictionary<int, MaterialCaveResRow> CaveMaterials { get; private set; } = new();
+        // v0.5.5 战斗配表（GDD §4.9 / §6.9 / §6.9-2）
+        public Dictionary<int, AvatarBaseRow> Avatars { get; private set; } = new();
+        public Dictionary<int, SkillBaseRow> SkillBases { get; private set; } = new();
+        public Dictionary<int, SkillEffectRow> SkillEffects { get; private set; } = new();
 
         public bool Loaded { get; private set; }
+
+        // ── 战斗配表查询（按 ID，O(1)；查不到返回 null）──
+        public AvatarBaseRow GetAvatar(int id) => Avatars.TryGetValue(id, out var r) ? r : null;
+        public SkillBaseRow GetSkillBase(int id) => SkillBases.TryGetValue(id, out var r) ? r : null;
+        public SkillEffectRow GetSkillEffect(int id) => SkillEffects.TryGetValue(id, out var r) ? r : null;
 
         private void LoadAll()
         {
@@ -57,11 +66,18 @@ namespace XianTu.LevelDesign
                 "LevelDesign/Item_InRun_Config", t => t.Rows, r => r.ID);
             CaveMaterials = LoadTable<MaterialCaveResTable, MaterialCaveResRow>(
                 "LevelDesign/Material_CaveRes_Config", t => t.Rows, r => r.ID);
+            Avatars = LoadTable<AvatarBaseTable, AvatarBaseRow>(
+                "LevelDesign/Avatar_Base_Config", t => t.Rows, r => r.ID);
+            SkillBases = LoadTable<SkillBaseTable, SkillBaseRow>(
+                "LevelDesign/Skill_Base_Config", t => t.Rows, r => r.ID);
+            SkillEffects = LoadTable<SkillEffectTable, SkillEffectRow>(
+                "LevelDesign/Skill_Effect_Config", t => t.Rows, r => r.ID);
 
             Loaded = true;
             Debug.Log($"[ConfigDatabase] 已加载 — Maps:{MapStructures.Count} Rooms:{RoomSockets.Count} " +
                       $"Events:{StoryEvents.Count} BossPhases:{BossPhases.Count} " +
-                      $"Items:{ItemsInRun.Count} Materials:{CaveMaterials.Count}");
+                      $"Items:{ItemsInRun.Count} Materials:{CaveMaterials.Count} " +
+                      $"Avatars:{Avatars.Count} Skills:{SkillBases.Count} Effects:{SkillEffects.Count}");
         }
 
         private Dictionary<int, TRow> LoadTable<TTable, TRow>(
