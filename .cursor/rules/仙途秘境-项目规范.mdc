@@ -1,0 +1,42 @@
+---
+description: 《仙途秘境》项目规范（身份/文档/命名/开关/配表/编辑约定）
+alwaysApply: true
+---
+
+# 《仙途秘境》项目规范
+
+Unity 3D URP 的 Roguelite 修仙 ARPG（搜打撤 + 洞府 meta）。代码命名空间 `XianTu`，代码根目录 `Babylon/Assets/1Game/Scripts/`。
+
+## 项目范围边界（重要 · 游戏与工具库混装）
+本工程把「游戏」和「个人工具库/共享资源」放在同一 Unity 项目里。
+- **游戏 = `Babylon/Assets/1Game/`**（其下 Scripts / Data / RawData / Resources / Prefabs / Scenes / Materials / ArtRes / Docs 全属游戏）**＋ 仓库根 `docs/`**（设计文档）。
+- 其余 `Babylon/Assets/` 目录（`Tools` / `Shader` / `Effect` / `PostProcess` / `ArtRes` / `Scene` / `URPBaseSample` / `11` / `Screenshots` 等）= **工具库 / 共享资源 / 第三方样例，不属于本游戏**。
+- **默认只在 `1Game/` 和 `docs/` 内改动**；可以**读取/引用**工具库（游戏会用到共享 Shader、特效、后处理等），但**除非明确要求，不修改 / 不重构 / 不"顺手清理"工具库目录**。
+- 搜索/分析问题时，优先把范围限定在 `1Game/`，避免被工具库与样例代码干扰。
+
+## 命名 / 术语（务必遵守）
+- 项目名是 **《仙途秘境》**，**不要**用旧名「仙途梦境 / 梦境」。
+- 玩家可见文案用修仙原生词：**入秘境 / 道伤 / 秘境 / 残念**（不是 入梦 / 魂伤 / 梦境 / 残魂）。
+- Unity 编辑器菜单与 `CreateAssetMenu` 路径前缀统一为 `仙途秘境/`。
+
+## 文档系统（四类 · 改完必须同步）
+- **导航**：`docs/game/README.md`
+- **策划权威**：`docs/game/design/GDD_仙途梦境.md`（文件名保留旧名防断链；系统含「📊 实现现状」块）
+- **修改记录**：`docs/game/CHANGELOG.md`（按版本/时间记录已做改动，最新在上）
+- **TODO**：`docs/game/design/开发待办.md`（剩余任务 P1/P2/P3 + 技术债 + 待 playtest）
+- 规则：**做完有意义的改动后**，更新 CHANGELOG + 开发待办；若改了某系统，同步 GDD 对应「实现现状」块。**不要重命名/移动文档文件**（会断链 + Unity .meta）。
+
+## 范围开关（`FeatureFlags` / `GameConfig`）
+- `EnableSpiritItems=false`：整套灵物当前**屏蔽**（Q8）——别假设灵物在游戏里生效。
+- `EnableCaveMeta=true`：洞府 meta（闭关/灵脉/机缘/本体境界）启用。
+- 改动涉及这两块时先确认开关语义，别破坏可逆性。
+
+## 配表（Excel → JSON）
+- 策划在 `RawData/LevelDesign/*.csv` 用 Excel 填，菜单 **「修仙图/导表 — CSV→JSON」** 生成 `Resources/LevelDesign/*.json`。
+- **不要手改生成的 JSON**；新表要同时加 Row 结构(`ConfigTables.cs`) + `CsvToJsonImporter` 解析 + CSV 模板。
+- 数组列 int 用 `;` 分隔；百分比/权重以 `10000=100%` 计。
+
+## 编辑约定
+- C# 改完用 ReadLints 检查；保留 SO 序列化兼容（如 `ItemCategory.Pill` 是墓碑枚举，勿轻易删值）。
+- 注释只解释"为什么/非显然意图"，不要逐行复述代码。
+- GDD 末尾有「对账问题表 + 回复栏」策划问答流程：据回复改正文，已解决的移入归档表。
