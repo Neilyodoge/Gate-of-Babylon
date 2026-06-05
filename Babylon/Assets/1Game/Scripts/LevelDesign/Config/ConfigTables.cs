@@ -162,6 +162,8 @@ namespace XianTu.LevelDesign
         public int DefaultItem_ID;
         /// <summary>黑名单：该化身局内禁止随机产出的词条 ID 列表（CSV 用 ; 分隔）</summary>
         public int[] Restriction;
+        /// <summary>该化身专属技能：引用 Skill_Base_Config 的 ID 列表（仅该化身可获取；CSV 用 ; 分隔）</summary>
+        public int[] Exclusive;
     }
 
     // ------------------------------------------------------------
@@ -173,6 +175,8 @@ namespace XianTu.LevelDesign
         public int ID;
         public string Name_CN;
         public string Desc_CN;
+        /// <summary>品阶：1凡/2灵/3玄/4地/5天（v0.5.6 表新增列）</summary>
+        public int Rarity;
         /// <summary>1=基础(伤害) / 2=增益 / 3=减益 / 4=特殊(暂不实现)</summary>
         public int Type;
         public float BaseCooldown;

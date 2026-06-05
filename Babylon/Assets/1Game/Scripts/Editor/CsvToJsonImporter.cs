@@ -224,7 +224,8 @@ namespace XianTu.LevelDesign.Editor
                 Desc_CN = GetCol(h, c, "Desc_CN"),
                 ControllerScript = GetCol(h, c, "ControllerScript"),
                 DefaultItem_ID = ParseInt(GetCol(h, c, "DefaultItem_ID")),
-                Restriction = ParseIntArray(GetCol(h, c, "Restriction"))
+                Restriction = ParseIntArray(GetCol(h, c, "Restriction")),
+                Exclusive = ParseIntArray(GetCol(h, c, "Exclusive"))
             };
         }
 
@@ -235,6 +236,7 @@ namespace XianTu.LevelDesign.Editor
                 ID = ParseInt(GetCol(h, c, "ID")),
                 Name_CN = GetCol(h, c, "Name_CN"),
                 Desc_CN = GetCol(h, c, "Desc_CN"),
+                Rarity = ParseInt(GetCol(h, c, "Rarity")),
                 Type = ParseInt(GetCol(h, c, "Type")),
                 BaseCooldown = ParseFloat(GetCol(h, c, "BaseCooldown")),
                 BaseDamageRatio = ParseInt(GetCol(h, c, "BaseDamageRatio")),
