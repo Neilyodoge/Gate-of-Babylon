@@ -44,6 +44,7 @@ namespace XianTu
 
         private CharacterController _cc;
         private Transform _target;
+        private Transform _playerTarget; // 缓存真正的玩家目标（水镜分身嘲讽时临时改打分身）
         private float _attackTimer;
 
         // 受击表现
@@ -51,6 +52,23 @@ namespace XianTu
         private Color[] _originalColors;
         private float _hitFlashTimer;
         private float _stunTimer; // 受击硬直计时器
+        private float _slowTimer; // 减速剩余时间
+        private float _slowMul = 1f; // 减速期间的移速倍率（1=无减速）
+
+        /// <summary>当前有效移速（计入区域/技能减速）。</summary>
+        private float MoveSpeed => _slowTimer > 0f ? stats.moveSpeed * _slowMul : stats.moveSpeed;
+
+        /// <summary>
+        /// 减速：在指定时长内降低移速。由持续区域技能（冥河/剑阵/黑洞等）调用。
+        /// 取更强的减速 + 更长的时间（不叠乘，避免区域重叠时归零）。
+        /// </summary>
+        public void ApplySlow(float duration, float slowPct)
+        {
+            if (duration <= 0f || slowPct <= 0f) return;
+            float mul = Mathf.Clamp01(1f - slowPct);
+            _slowMul = Mathf.Min(_slowMul, mul);
+            _slowTimer = Mathf.Max(_slowTimer, duration);
+        }
 
         // 攻击预警
         private GameObject _attackWarning;
@@ -111,12 +129,21 @@ namespace XianTu
 
             // 寻找玩家
             if (PlayerController.Instance != null)
-                _target = PlayerController.Instance.transform;
+            {
+                _playerTarget = PlayerController.Instance.transform;
+                _target = _playerTarget;
+            }
         }
 
         private void Update()
         {
             if (!stats.IsAlive) return;
+
+            // 水镜分身嘲讽：存在分身时改打分身，否则打玩家
+            if (_playerTarget == null && PlayerController.Instance != null)
+                _playerTarget = PlayerController.Instance.transform;
+            _target = WaterMirrorDecoy.ActiveTransform != null ? WaterMirrorDecoy.ActiveTransform : _playerTarget;
+
             if (_target == null) return;
 
             // 受击闪烁恢复
@@ -125,6 +152,13 @@ namespace XianTu
                 _hitFlashTimer -= Time.deltaTime;
                 if (_hitFlashTimer <= 0)
                     RestoreColors();
+            }
+
+            // 减速计时（到期恢复满速）
+            if (_slowTimer > 0f)
+            {
+                _slowTimer -= Time.deltaTime;
+                if (_slowTimer <= 0f) _slowMul = 1f;
             }
 
             // 硬直中不行动
@@ -141,7 +175,7 @@ namespace XianTu
             if (_isDodging)
             {
                 _dodgeDuration -= Time.deltaTime;
-                Vector3 dodgeVel = _dodgeDirection * stats.moveSpeed * 3f;
+                Vector3 dodgeVel = _dodgeDirection * MoveSpeed * 3f;
                 dodgeVel.y = -9.8f;
                 _cc.Move(dodgeVel * Time.deltaTime);
                 if (_dodgeDuration <= 0)
@@ -212,7 +246,7 @@ namespace XianTu
                     // 绕行移动（围绕玩家侧向移动）
                     Vector3 toPlayer = (_target.position - transform.position).normalized;
                     Vector3 strafeDir = Vector3.Cross(Vector3.up, toPlayer) * _strafeDirection;
-                    Vector3 strafeVel = strafeDir * stats.moveSpeed * 0.6f;
+                    Vector3 strafeVel = strafeDir * MoveSpeed * 0.6f;
                     strafeVel.y = -9.8f;
                     _cc.Move(strafeVel * Time.deltaTime);
 
@@ -268,7 +302,7 @@ namespace XianTu
         {
             Vector3 dir = (targetPos - transform.position).normalized;
             dir.y = 0;
-            Vector3 velocity = dir * stats.moveSpeed;
+            Vector3 velocity = dir * MoveSpeed;
             velocity.y = -9.8f;
             _cc.Move(velocity * Time.deltaTime);
         }
@@ -353,6 +387,10 @@ namespace XianTu
             if (!stats.IsAlive) return;
 
             float actual = stats.TakeDamage(damage);
+
+            // 累计本局玩家总伤害（轮回一击按此结算）
+            if (attacker != null && PlayerController.Instance != null && attacker == PlayerController.Instance.gameObject)
+                RunCombatStats.AddPlayerDamage(actual);
 
             // 发布伤害飘字事件
             GameEvents.Publish(new GameEvents.DamageNumberRequested

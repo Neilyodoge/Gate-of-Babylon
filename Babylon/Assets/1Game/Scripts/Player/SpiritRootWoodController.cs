@@ -121,6 +121,44 @@ namespace XianTu
             if (dmg > 0f) dmgable.OnDamage(dmg, host.transform.position, _player.gameObject);
         }
 
+        // ==================== 枯荣逆旅（技能 17 · AvatarSpecial）====================
+
+        /// <summary>
+        /// 主动引爆周围所有带寄生种子的敌人，每层对其造成伤害（"主动释放可以引爆种子，每层造成 X 伤害"）。
+        /// 注：99 层上限 / 攻击不消耗层数 / 每层 +0.1% 的被动部分需常驻装备机制，后续补。
+        /// </summary>
+        public void DetonateSeeds()
+        {
+            if (_player == null) return;
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Wood) return;
+            const float searchRadius = 12f;
+            var hits = Physics.OverlapSphere(transform.position, searchRadius, enemyLayer);
+            int detonated = 0;
+            foreach (var col in hits)
+            {
+                if (col == null || col.CompareTag("Player")) continue;
+                var sc = col.GetComponent<StatusEffectController>();
+                if (sc == null) continue;
+                var seed = sc.Get(ParasiteSeedEffectId);
+                if (seed == null || seed.stacks <= 0) continue;
+
+                int n = seed.stacks;
+                float dmg = _player.Stats.attackDamage * detonateDamagePerSeed * n;
+                var d = col.GetComponent<IDamageable>();
+                if (d != null) d.OnDamage(dmg, col.transform.position, _player.gameObject);
+                sc.Remove(ParasiteSeedEffectId);
+                FxFactory.ClearHeadSeedIcons(col.transform);
+                FxFactory.SpawnElementBurst(col.transform.position + Vector3.up * 0.5f, ElementTag.Wood, 1.5f + 0.2f * n, 0.5f);
+                detonated++;
+            }
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.6f,
+                Damage = 0,
+                SpecialTag = detonated > 0 ? $"枯荣逆旅·引爆 ×{detonated}" : "枯荣逆旅（无种子）"
+            });
+        }
+
         // ==================== 技能引爆 ====================
 
         private void OnSkillHit(GameEvents.SkillHitConnected evt)

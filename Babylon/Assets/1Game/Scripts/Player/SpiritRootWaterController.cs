@@ -33,6 +33,14 @@ namespace XianTu
         [SerializeField] private float waterMarkDuration = 5f;
         [SerializeField] private float skillDamageBonusOnMarked = 0.5f;  // ×1.5
 
+        [Header("息影瞬步（技能 18 · AvatarSpecial）")]
+        [SerializeField] private float shadowStepDuration = 5f;
+        [SerializeField] private float shadowStepPathDamageRatio = 1f;   // 路径伤害 = 攻击 × 此
+        [SerializeField] private float shadowStepPathLength = 5f;
+        private float _shadowStepTimer = 0f;
+        /// <summary>息影瞬步进行中：闪避无冷却（由 PlayerController 读取）。</summary>
+        public static bool ShadowStepActive { get; private set; }
+
         private PlayerController _player;
         private SpiritRootController _root;
         private StatusEffectController _ownStatus;
@@ -62,13 +70,40 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.DodgeFinished>(OnDodge);
             GameEvents.Unsubscribe<GameEvents.MeleeHitConnected>(OnMeleeHit);
             GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
+            ShadowStepActive = false;
+            _shadowStepTimer = 0f;
         }
 
         private void Update()
         {
             if (_shadowWindowRemaining > 0f)
                 _shadowWindowRemaining = Mathf.Max(0f, _shadowWindowRemaining - Time.deltaTime);
+
+            if (_shadowStepTimer > 0f)
+            {
+                _shadowStepTimer -= Time.deltaTime;
+                if (_shadowStepTimer <= 0f) ShadowStepActive = false;
+            }
         }
+
+        /// <summary>
+        /// 息影瞬步（技能 18）：持续 5 秒，期间闪避无冷却（PlayerController 读 <see cref="ShadowStepActive"/>），
+        /// 且闪避路径上的敌人受到伤害（见 <see cref="OnDodge"/>）。
+        /// </summary>
+        public void EnterShadowStep()
+        {
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Water) return;
+            _shadowStepTimer = shadowStepDuration;
+            ShadowStepActive = true;
+            FxFactory.SpawnElementBurst(transform.position + Vector3.up * 0.5f, ElementTag.Water, 2.5f, 0.6f);
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.6f,
+                Damage = 0,
+                SpecialTag = "息影瞬步！"
+            });
+        }
+
 
         // ==================== 闪避后开窗口 ====================
 
@@ -80,6 +115,31 @@ namespace XianTu
             // 视觉：玩家脚下出一道浅蓝色 AOE 圆环作为"蓄势"提示
             Color water = new Color(0.3f, 0.7f, 1f, 1f);
             FxFactory.SpawnAOERing(transform.position + Vector3.up * 0.05f, 1.6f, water, 0.4f);
+
+            // 息影瞬步：闪避路径上的敌人受到伤害
+            if (ShadowStepActive && _player != null)
+            {
+                Vector3 dir = evt.EndDirection.sqrMagnitude > 0.01f ? evt.EndDirection.normalized : transform.forward;
+                Vector3 end = evt.EndPosition;
+                Vector3 start = end - dir * shadowStepPathLength;
+                LayerMask mask = ResolveShadowMask();
+                float dmg = _player.Stats.attackDamage * shadowStepPathDamageRatio;
+                var hits = Physics.OverlapCapsule(start + Vector3.up * 0.5f, end + Vector3.up * 0.5f, 1.2f, mask);
+                foreach (var c in hits)
+                {
+                    if (c == null || c.CompareTag("Player")) continue;
+                    var d = c.GetComponent<IDamageable>();
+                    if (d != null) d.OnDamage(dmg, c.transform.position, _player.gameObject);
+                }
+                FxFactory.SpawnSliceLine(start, dir, shadowStepPathLength, water, 0.3f);
+            }
+        }
+
+        private LayerMask ResolveShadowMask()
+        {
+            var pc = GetComponent<PlayerCombat>();
+            if (pc != null && pc.EnemyLayer.value != 0) return pc.EnemyLayer;
+            return ~0;
         }
 
         // ==================== 影息斩触发 ====================

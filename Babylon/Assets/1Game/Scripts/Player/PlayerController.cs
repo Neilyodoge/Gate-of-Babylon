@@ -272,9 +272,9 @@ namespace XianTu
                 // 标记本帧有闪避输入，阻止同帧的攻击输入（闪避优先级最高）
                 _dashRequestedThisFrame = true;
 
-                if (_dashCharges <= 0)
+                if (_dashCharges <= 0 && !SpiritRootWaterController.ShadowStepActive)
                 {
-                    // 没有充能，缓冲闪避输入
+                    // 没有充能，缓冲闪避输入（息影瞬步期间无视充能）
                     _playerAnim.BufferEvade();
                     return;
                 }
@@ -295,11 +295,14 @@ namespace XianTu
             _dashTimer = dashDuration;
             _dashDirection = _moveInput.sqrMagnitude > 0.01f ? _moveInput : _aimDirection;
 
-            // 消耗一层充能
-            _dashCharges--;
-            // 如果充能未满，开始计时恢复
-            if (_dashCharges < _dashMaxCharges && _dashRechargeTimer <= 0)
-                _dashRechargeTimer = _dashRechargeDuration;
+            // 消耗一层充能（息影瞬步期间闪避不消耗充能、无冷却）
+            if (!SpiritRootWaterController.ShadowStepActive)
+            {
+                _dashCharges--;
+                // 如果充能未满，开始计时恢复
+                if (_dashCharges < _dashMaxCharges && _dashRechargeTimer <= 0)
+                    _dashRechargeTimer = _dashRechargeDuration;
+            }
 
             // 发布闪避充能更新事件
             GameEvents.Publish(new GameEvents.DashChargeUpdate
@@ -466,6 +469,26 @@ namespace XianTu
         {
             if (_invincible || !stats.IsAlive) return;
 
+            // 天地大挪移：敌人伤害（含投射物）→ 反弹给来源，自身免疫
+            if (HeavenEarthShift.IsActive)
+            {
+                if (attacker != null)
+                {
+                    var atkDmgable = attacker.GetComponent<IDamageable>();
+                    if (atkDmgable != null)
+                    {
+                        atkDmgable.OnDamage(damage, attacker.transform.position, gameObject);
+                        GameEvents.Publish(new GameEvents.DamageNumberRequested
+                        {
+                            WorldPosition = attacker.transform.position + Vector3.up * 1.5f,
+                            Damage = damage,
+                            SpecialTag = "挪移·反弹"
+                        });
+                    }
+                }
+                return;
+            }
+
             // 土化身：地脉护盾优先抵挡（仅消耗一次伤害，无视伤害大小）
             var rootCtrl = GetComponent<SpiritRootController>();
             if (rootCtrl != null && rootCtrl.TryConsumeEarthShield())
@@ -557,6 +580,11 @@ namespace XianTu
 
             if (!stats.IsAlive)
             {
+                // 金蝉脱壳：受致命伤拦截（武装期内免死）
+                var guard = GetComponent<LethalGuard>();
+                if (guard != null && guard.TryConsume())
+                    return;
+
                 // 尝试玉碎免死
                 var runner = QualitativeEffectRunner.Instance;
                 if (runner != null && runner.TryJadeShield())
@@ -600,6 +628,14 @@ namespace XianTu
             }
 
             _invincible = false;
+        }
+
+        /// <summary>外部技能用：开启一段时间无敌（如土遁术钻地）。复用闪避无敌计时器，自动清除。</summary>
+        public void SetInvincible(float duration)
+        {
+            if (duration <= 0f) return;
+            _invincible = true;
+            _invincibleTimer = Mathf.Max(_invincibleTimer, duration);
         }
 
         /// <summary>设置模型 Transform（运行时创建时使用）</summary>

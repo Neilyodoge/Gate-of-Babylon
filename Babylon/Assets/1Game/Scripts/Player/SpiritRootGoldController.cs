@@ -329,6 +329,46 @@ namespace XianTu
             });
         }
 
+        /// <summary>
+        /// 一念刹那（技能 16 · AvatarSpecial）：释放一次特殊强力剑斩；
+        /// 处于【剑心通明】时威力大幅提升（"触发剑心通明状态时，下一次造成一次特殊强力攻击"）。
+        /// </summary>
+        public void UnleashOneThought()
+        {
+            if (_player == null) return;
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Metal) return;
+            bool inSwordHeart = _status != null && _status.Has(SwordHeartEffectId);
+
+            Vector3 origin = transform.position + Vector3.up * 0.8f;
+            Vector3 forward = _player.AimDirection;
+            float radius = burstRadius * 1.5f;
+            float mult = burstDamageMultiplier * (inSwordHeart ? 4f : 2f);
+            float baseDamage = _player.Stats.CalculateDamage() * mult;
+            LayerMask mask = ResolveEnemyLayer();
+
+            var hits = Physics.OverlapSphere(origin, radius, mask);
+            foreach (var col in hits)
+            {
+                if (col == null || col.transform == transform || col.transform.IsChildOf(transform) || col.CompareTag("Player")) continue;
+                Vector3 dir = (col.transform.position - origin).normalized;
+                dir.y = 0;
+                if (Vector3.Angle(forward, dir) > 70f) continue;
+                var dmgable = col.GetComponent<IDamageable>();
+                if (dmgable == null) continue;
+                dmgable.OnDamage(baseDamage, col.ClosestPoint(origin), gameObject);
+            }
+
+            Color gold = new Color(1f, 0.85f, 0.2f, 1f);
+            FxFactory.SpawnSliceLine(transform.position, forward, radius * 1.6f, gold, 0.5f);
+            FxFactory.SpawnElementBurst(transform.position + Vector3.up * 1f, ElementTag.None, 2.5f, 0.7f);
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.8f,
+                Damage = 0,
+                SpecialTag = inSwordHeart ? "一念刹那·通明斩！" : "一念刹那！"
+            });
+        }
+
         private void ApplySwordHeart()
         {
             if (_status == null) return;

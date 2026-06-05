@@ -279,6 +279,77 @@ namespace XianTu
                 Duration = 0f,
                 IsForced = false
             });
+
+            // 业火燎原：状态结束时引爆全场灼烧
+            if (_infernoPendingBurst)
+            {
+                _infernoPendingBurst = false;
+                InfernoEndBurst();
+            }
+        }
+
+        // ==================== 业火燎原（技能 20 · AvatarSpecial）====================
+
+        private bool _infernoPendingBurst = false;
+        [SerializeField] private float infernoBaseDuration = 6f;
+        [SerializeField] private float infernoEndBurstRadius = 8f;
+        [SerializeField] private float infernoEndBurstRatio = 2.5f;
+
+        /// <summary>
+        /// 焚天·业火燎原：点燃自身进入（强化）狂火，时长 = 基础 + 当前怒气换算；结束时引爆全场。
+        /// 复用狂火系统（攻速大增 + 普攻附加 AOE + 业焰印），并附带结束爆发。
+        /// </summary>
+        public void IgniteInferno()
+        {
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
+            float duration = infernoBaseDuration + _rage * frenzyDurationPerRage;
+            _infernoPendingBurst = true;
+
+            if (_inFrenzy)
+            {
+                // 已在狂火 → 续期 + 刷新怒气
+                _frenzyTimer = Mathf.Max(_frenzyTimer, duration);
+                _rage = 0f;
+                PublishRageChanged();
+            }
+            else
+            {
+                StartFrenzy(duration, false);
+            }
+
+            FxFactory.SpawnElementBurst(transform.position + Vector3.up * 0.5f, ElementTag.Fire, 4f, 0.8f);
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.8f,
+                Damage = 0,
+                SpecialTag = "业火加身！"
+            });
+        }
+
+        private void InfernoEndBurst()
+        {
+            LayerMask mask = enemyLayerOverride.value != 0 ? enemyLayerOverride : GetEnemyLayerFromCombat();
+            if (mask.value == 0 || _player == null) return;
+
+            var hits = Physics.OverlapSphere(transform.position + Vector3.up * 0.6f, infernoEndBurstRadius, mask);
+            foreach (var col in hits)
+            {
+                if (col == null || col.CompareTag("Player")) continue;
+                var d = col.GetComponent<IDamageable>();
+                if (d == null) continue;
+                float brandMul = FireBrandStack.GetFireDamageMultiplier(col.gameObject);
+                d.OnDamage(_player.Stats.attackDamage * infernoEndBurstRatio * brandMul, col.transform.position, gameObject);
+                SkillModifierApplier.ApplyBurn(col.gameObject, 6f, 4f);
+            }
+
+            FxFactory.SpawnElementBurst(transform.position + Vector3.up * 0.5f, ElementTag.Fire, infernoEndBurstRadius, 0.9f);
+            FxFactory.SpawnAOERing(transform.position + Vector3.up * 0.05f, infernoEndBurstRadius, new Color(1f, 0.4f, 0.1f, 1f), 0.7f);
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.6f,
+                Damage = 0,
+                SpecialTag = "业火燎原·引爆！"
+            });
         }
 
         // ==================== 狂火期间普攻 AOE ====================

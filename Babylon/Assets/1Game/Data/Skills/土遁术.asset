@@ -14,32 +14,55 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   configId: 6
   skillName: "\u571F\u9041\u672F"
-  description: "\u9041\u5165\u5730\u4E0B\u77AC\u95F4\u79FB\u52A8\u81F3\u524D\u65B9\u8FDC\u5904\u3002\n\u8DEF\u5F84\u4E0A\u7684\u654C\u4EBA\u4F1A\u88AB\u5730\u523A\u4F24\u5BB3\u3002"
+  description: "\u94BB\u5165\u5730\u4E0B\u5FEB\u901F\u79FB\u52A83\u79D2\uFF0C\u671F\u95F4\u65E0\u654C"
   icon: {fileID: 0}
   rarity: 0
   skillType: 2
   elementTag: 7
   baseDamage: 15
   damageScaling: 0.3
-  cooldown: 6
+  cooldown: 10
   castSpeed: 1
   maxCharges: 1
   chargeTime: 0
+  canCharge: 0
+  chargeLv2Time: 0.5
+  chargeLv3Time: 1.5
+  chargeLv2DamageMultiplier: 1.5
+  chargeLv3DamageMultiplier: 2.5
+  chargeLv2RadiusMultiplier: 1
+  chargeLv3RadiusMultiplier: 1.3
+  chargeMoveSpeedMultiplier: 0.4
   aoeRadius: 3
   projectilePrefab: {fileID: 0}
   projectileSpeed: 12
   projectileCount: 1
   spreadAngle: 0
-  dashDistance: 10
+  dashDistance: 8
   leaveTrail: 1
   healAmount: 30
   healScaling: 0.3
   summonDuration: 8
   summonDamage: 10
-  vfxPrefab: {fileID: 0}
-  vfxDuration: 1
-  castSFX: {fileID: 0}
-  hitSFX: {fileID: 0}
+  buffDuration: 0
+  buffAttackSpeedPct: 0
+  buffMoveSpeedPct: 0
+  buffAttackPct: 0
+  buffDamageReduction: 0
+  freezeOnHitChance: 0
+  freezeOnHitDuration: 1.5
+  damageFromRunTotal: 0
+  runTotalDamageRatio: 0.1
+  dashInvulnerable: 1
+  dashInvulnDuration: 3
+  zoneDuration: 5
+  zoneRadius: 0
+  zoneTickInterval: 0.5
+  zoneDamagePerTick: 0.15
+  zoneSlowPct: 0
+  zonePullSpeed: 0
+  zoneFollowPlayer: 0
+  zoneBurnDPS: 0
   modifierDefs:
   - modifiedName: "\u5FA1\u98CE\u9041\u5730"
     requiredTag: 4
@@ -73,3 +96,8 @@ MonoBehaviour:
     freezeDuration: 2
     addThunderStrike: 0
     thunderMul: 0.6
+  playAnimation: 0
+  vfxPrefab: {fileID: 0}
+  vfxDuration: 1
+  castSFX: {fileID: 0}
+  hitSFX: {fileID: 0}

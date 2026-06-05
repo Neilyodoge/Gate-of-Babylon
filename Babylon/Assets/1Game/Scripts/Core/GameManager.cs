@@ -241,6 +241,9 @@ namespace XianTu
             // v0.5.4：每局重置心魔值（乱入累积条是局内资源）
             InnerDemonMeter.Instance.ResetMeter();
 
+            // v0.5.7：清零本局累计伤害（轮回一击按此结算）
+            RunCombatStats.Reset();
+
             // v0.5.5：随机本局秘境异象（替代隐藏命格的"每局变量"，挂在地图上）
             RealmAnomalySystem.Instance.RollForNewRun();
 

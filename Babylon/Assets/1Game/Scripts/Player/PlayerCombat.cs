@@ -175,6 +175,19 @@ namespace XianTu
                         float damage = _player.Stats.CalculateDamage() * damageMultiplier;
 
                         Vector3 hitPoint = col.ClosestPoint(origin);
+
+                        // 天地大挪移：普攻不伤敌，转化为自身治疗
+                        if (HeavenEarthShift.IsActive)
+                        {
+                            float heal = damage * 0.5f;
+                            _player.Stats.currentHp = Mathf.Min(_player.Stats.maxHp, _player.Stats.currentHp + heal);
+                            GameEvents.Publish(new GameEvents.HealthChanged { CurrentHp = _player.Stats.currentHp, MaxHp = _player.Stats.maxHp });
+                            GameEvents.Publish(new GameEvents.DamageNumberRequested { WorldPosition = hitPoint + Vector3.up * 1.5f, Damage = heal, SpecialTag = "挪移·治疗" });
+                            SpawnHitVFX(hitPoint);
+                            hitAny = true;
+                            continue;
+                        }
+
                         damageable.OnDamage(damage, hitPoint, gameObject);
 
                         // 近战攻击也触发灼烧效果（火灵珠等灵物）
@@ -711,6 +724,15 @@ namespace XianTu
                 case SkillType.Dash:
                     CastDashSkill(skill);
                     break;
+                case SkillType.Buff:
+                    CastBuffSkill(skill, slotIndex);
+                    break;
+                case SkillType.Zone:
+                    CastZoneSkill(skill, chargeDmgMul);
+                    break;
+                case SkillType.AvatarSpecial:
+                    CastAvatarSpecial(skill);
+                    break;
                 case SkillType.Heal:
                     CastHealSkill(skill);
                     return true; // Heal不需要动画
@@ -771,9 +793,15 @@ namespace XianTu
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
                     {
-                        float damage = (SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
+                        float damage = skill.damageFromRunTotal
+                            ? RunCombatStats.TotalPlayerDamage * skill.runTotalDamageRatio * damageMul
+                            : (SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
                         damageable.OnDamage(damage, hit.transform.position, gameObject);
                         if (firstSkillHit == null) firstSkillHit = hit.gameObject;
+
+                        // 寒冰封印类：命中按概率冻结
+                        if (skill.freezeOnHitChance > 0f && Random.value < skill.freezeOnHitChance)
+                            SkillModifierApplier.ApplyFreeze(hit.gameObject, skill.freezeOnHitDuration);
                     }
                 }
 
@@ -808,6 +836,70 @@ namespace XianTu
                         enemyLayer);
                 }
             }
+        }
+
+        /// <summary>化身专属技能（16-20）：路由到对应化身控制器；非该化身则提示无法施展。</summary>
+        private void CastAvatarSpecial(SkillData skill)
+        {
+            switch (skill.avatarSpecial)
+            {
+                case AvatarSpecialKind.FireInferno:
+                {
+                    var c = _player.GetComponent<SpiritRootFireController>();
+                    if (c != null) c.IgniteInferno();
+                    else Debug.Log($"<color=grey>{skill.skillName} 仅限火化身（业火）施展</color>");
+                    break;
+                }
+                case AvatarSpecialKind.SwordOneThought:
+                {
+                    var c = _player.GetComponent<SpiritRootGoldController>();
+                    if (c != null) c.UnleashOneThought();
+                    else Debug.Log($"<color=grey>{skill.skillName} 仅限剑魄化身施展</color>");
+                    break;
+                }
+                case AvatarSpecialKind.WoodSeedBurst:
+                {
+                    var c = _player.GetComponent<SpiritRootWoodController>();
+                    if (c != null) c.DetonateSeeds();
+                    else Debug.Log($"<color=grey>{skill.skillName} 仅限青囊化身施展</color>");
+                    break;
+                }
+                case AvatarSpecialKind.ShadowStep:
+                {
+                    var c = _player.GetComponent<SpiritRootWaterController>();
+                    if (c != null) c.EnterShadowStep();
+                    else Debug.Log($"<color=grey>{skill.skillName} 仅限影刃化身施展</color>");
+                    break;
+                }
+                case AvatarSpecialKind.EarthPuppetArray:
+                {
+                    var c = _player.GetComponent<SpiritRootEarthController>();
+                    if (c != null) c.TogglePuppetArrayMode();
+                    else Debug.Log($"<color=grey>{skill.skillName} 仅限御物化身施展</color>");
+                    break;
+                }
+            }
+        }
+
+        /// <summary>区域技能（混沌吞噬/天罡北斗阵/九天玄火阵/冥河召唤）：召唤一个持续作用区域。</summary>
+        private void CastZoneSkill(SkillData skill, float damageMul = 1f)
+        {
+            Vector3 spawnPos = transform.position;
+            if (!skill.zoneFollowPlayer)
+            {
+                var cam = Camera.main;
+                var mouse = Mouse.current;
+                if (cam != null && mouse != null)
+                {
+                    Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+                    var groundPlane = new Plane(Vector3.up, transform.position);
+                    if (groundPlane.Raycast(ray, out float d))
+                        spawnPos = ray.GetPoint(d);
+                }
+            }
+
+            ActiveSkillZone.Spawn(skill, spawnPos, _player, enemyLayer, damageMul);
+            Debug.Log($"<color=cyan>{skill.skillName} 召唤持续区域（{(skill.zoneFollowPlayer ? "随身" : "落点")}）</color>");
         }
 
         /// <summary>投射物技能（支持多发散射），支持蓄力倍率</summary>
@@ -853,10 +945,55 @@ namespace XianTu
         /// <summary>增益技能（如金钟罩）</summary>
         private void CastBuffSkill(SkillData skill, int slotIndex = -1)
         {
-            // 简单实现：临时增加减伤
-            var stats = _player.Stats;
-            float originalReduction = stats.damageReduction;
-            stats.damageReduction = Mathf.Clamp01(stats.damageReduction + 0.5f);
+            // 金蝉脱壳：武装"受致命伤拦截"，不走常规属性增益
+            if (skill.armLethalGuard)
+            {
+                var guard = _player.GetComponent<LethalGuard>();
+                if (guard == null) guard = _player.gameObject.AddComponent<LethalGuard>();
+                guard.Arm(skill.lethalGuardDuration > 0f ? skill.lethalGuardDuration : skill.cooldown);
+                Debug.Log($"<color=cyan>{skill.skillName} 武装！受致命伤将自动脱身</color>");
+                return;
+            }
+
+            // 天地大挪移：进入乾坤倒转（受伤反弹+免疫、普攻转治疗）
+            if (skill.heavenEarthShift)
+            {
+                var hes = _player.GetComponent<HeavenEarthShift>();
+                if (hes == null) hes = _player.gameObject.AddComponent<HeavenEarthShift>();
+                hes.Activate(skill.buffDuration > 0f ? skill.buffDuration : 10f);
+                Debug.Log($"<color=cyan>{skill.skillName}！乾坤倒转：伤害反弹，攻击转治疗</color>");
+                return;
+            }
+
+            float dur = skill.buffDuration > 0f ? skill.buffDuration
+                       : (skill.vfxDuration > 0f ? skill.vfxDuration : 5f);
+
+            // 由 SkillData 增益字段组装 StatusEffect（攻速/移速/攻击/减伤）；都未填则兜底减伤 +50%（金钟罩式）
+            var mods = new System.Collections.Generic.List<StatModifier>();
+            if (skill.buffAttackSpeedPct != 0f) mods.Add(StatModifier.Percent(StatType.AttackSpeed, skill.buffAttackSpeedPct));
+            if (skill.buffMoveSpeedPct != 0f) mods.Add(StatModifier.Percent(StatType.MoveSpeed, skill.buffMoveSpeedPct));
+            if (skill.buffAttackPct != 0f) mods.Add(StatModifier.Percent(StatType.AttackDamage, skill.buffAttackPct));
+            if (skill.buffDamageReduction != 0f) mods.Add(StatModifier.Flat(StatType.DamageReduction, skill.buffDamageReduction));
+            if (mods.Count == 0) mods.Add(StatModifier.Flat(StatType.DamageReduction, 0.5f));
+
+            var status = _player.GetComponent<StatusEffectController>();
+            if (status != null)
+            {
+                status.Apply(new StatusEffect
+                {
+                    id = $"skill_buff_{skill.configId}_{skill.skillName}",
+                    isBuff = true,
+                    elementTag = skill.elementTag,
+                    stacks = 1,
+                    maxStacks = 1,
+                    defaultDuration = dur,
+                    duration = dur,
+                    modifiers = mods,
+                    displayName = skill.skillName,
+                    description = skill.description,
+                    uiColor = SkillModifierApplier.ColorOf(skill.elementTag)
+                });
+            }
 
             // GDD 6.5：buff 类技能也支持槽位修饰。例如金钟罩 + 火灵珠 → 护火金钟（玩家周围 zone 烧敌人）
             if (slotIndex >= 0 && skill.modifierDefs != null && skill.modifierDefs.Length > 0)
@@ -895,17 +1032,7 @@ namespace XianTu
                 CreateDebugShieldIndicator(skill.vfxDuration, shieldColor);
             }
 
-            // 延迟恢复
-            StartCoroutine(BuffDurationCoroutine(stats, originalReduction, skill.vfxDuration));
-
-            Debug.Log($"<color=cyan>{skill.skillName} 启动！减伤 +50%，持续 {skill.vfxDuration}秒</color>");
-        }
-
-        private System.Collections.IEnumerator BuffDurationCoroutine(CombatStats stats, float originalReduction, float duration)
-        {
-            yield return new WaitForSeconds(duration);
-            stats.damageReduction = originalReduction;
-            Debug.Log("<color=cyan>金钟罩结束</color>");
+            Debug.Log($"<color=cyan>{skill.skillName} 增益生效（由 StatusEffect 计时），持续 {dur}秒</color>");
         }
 
         /// <summary>更新技能充能恢复</summary>
@@ -1270,6 +1397,10 @@ namespace XianTu
                 transform.position = targetPos;
             }
 
+            // 土遁术：钻地无敌
+            if (skill.dashInvulnerable && skill.dashInvulnDuration > 0f && PlayerController.Instance != null)
+                PlayerController.Instance.SetInvincible(skill.dashInvulnDuration);
+
             // 如果留下伤害区域，对路径上的敌人造成伤害
             if (skill.leaveTrail)
             {
@@ -1352,6 +1483,15 @@ namespace XianTu
         /// <summary>召唤技能（如傀儡术）</summary>
         private void CastSummonSkill(SkillData skill)
         {
+            // 水镜术：嘲讽分身（吸引敌人，不参与战斗）
+            if (skill.summonIsDecoy)
+            {
+                float decoyLife = skill.summonDuration > 0f ? skill.summonDuration : 3f;
+                WaterMirrorDecoy.Spawn(transform.position, decoyLife);
+                Debug.Log($"<color=cyan>{skill.skillName}！水镜分身吸引敌人 {decoyLife:F0} 秒</color>");
+                return;
+            }
+
             Vector3 spawnPos = transform.position + _player.AimDirection * 2f;
             float damage = skill.summonDamage + _player.Stats.attackDamage * skill.damageScaling;
             float duration = skill.summonDuration;

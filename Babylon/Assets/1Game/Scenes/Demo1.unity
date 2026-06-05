@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!29 &1
 OcclusionCullingSettings:
@@ -183,6 +183,24 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f9bf62a2517e7ef4f904dcc5027f2866, type: 2}
   - {fileID: 11400000, guid: 4ab0a35edd52fd34cb47d72bb55427a8, type: 2}
   - {fileID: 11400000, guid: 3f17777c8c3bc1b47a2dbedb890d8632, type: 2}
+  - {fileID: 11400000, guid: 4bfdc17eb5c1d81498c4b605280c9b83, type: 2}
+  - {fileID: 11400000, guid: 20e4395b0fc9056449aedeb36c95ffe3, type: 2}
+  - {fileID: 11400000, guid: b093fa62a27442d40a34c76b4d6ae7a9, type: 2}
+  - {fileID: 11400000, guid: f5543c3eb0b618f449af814ea77b0975, type: 2}
+  - {fileID: 11400000, guid: 2f420f58805a99149a9f16118f78dcf2, type: 2}
+  - {fileID: 11400000, guid: f4e7f0ee350afd142898662e501691e4, type: 2}
+  - {fileID: 11400000, guid: c023e13a1028592498667f1a48f72c9f, type: 2}
+  - {fileID: 11400000, guid: 33e9bb1265834594fadc8de2de917bc6, type: 2}
+  - {fileID: 11400000, guid: 2231b24b7309dd74eae36a20ba838121, type: 2}
+  - {fileID: 11400000, guid: 85de4fbac22d07a458305346020fa024, type: 2}
+  - {fileID: 11400000, guid: 0ddb47b7592ab2e4ab593172cd921c77, type: 2}
+  - {fileID: 11400000, guid: ab5ccb920b6340c45b18ace773ae81e5, type: 2}
+  - {fileID: 11400000, guid: a7387b2e59bc8eb429e31cfd39fbf149, type: 2}
+  - {fileID: 11400000, guid: a4c26e19a1ed0d844aec10e62e8e687d, type: 2}
+  - {fileID: 11400000, guid: bc299d9994db6ce40bac0075b11ad5d3, type: 2}
+  - {fileID: 11400000, guid: cdb74e93cd595a84faf1bf154f29e495, type: 2}
+  - {fileID: 11400000, guid: 69bab1ee28bef7e4b822ac76e726dec4, type: 2}
+  - {fileID: 11400000, guid: e19b3eb95b5c4104db5bb70d17b885f3, type: 2}
   testSkillQ: {fileID: 11400000, guid: bd7d89251f3301c4d90c979c81e88f26, type: 2}
   testSkillE: {fileID: 0}
   testSkillR: {fileID: 0}

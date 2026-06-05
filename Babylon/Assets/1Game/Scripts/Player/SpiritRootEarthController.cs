@@ -70,6 +70,60 @@ namespace XianTu
 
         public bool IsRooted => _isRooted;
 
+        // 兵阵合一（技能 19）运行时
+        private readonly System.Collections.Generic.List<GameObject> _puppetTurrets = new System.Collections.Generic.List<GameObject>();
+        [SerializeField] private int puppetArrayCount = 5;
+        [SerializeField] private float puppetArrayDuration = 12f;
+        [SerializeField] private float puppetArrayRadius = 3.5f;
+
+        /// <summary>
+        /// 兵阵合一（技能 19）：成阵召唤 5 座土傀儡炮台（原地 AOE 炮击）；再次释放则撤阵。
+        /// （注：当前土化身无常驻傀儡系统，此为自洽的"炮阵"实现，对应"炮击模式 + AOE"。）
+        /// </summary>
+        public void TogglePuppetArrayMode()
+        {
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Earth) return;
+
+            // 已有阵 → 撤阵
+            _puppetTurrets.RemoveAll(t => t == null);
+            if (_puppetTurrets.Count > 0)
+            {
+                foreach (var t in _puppetTurrets) if (t != null) Destroy(t);
+                _puppetTurrets.Clear();
+                GameEvents.Publish(new GameEvents.DamageNumberRequested
+                {
+                    WorldPosition = transform.position + Vector3.up * 2.6f,
+                    Damage = 0,
+                    SpecialTag = "兵阵·撤阵"
+                });
+                return;
+            }
+
+            LayerMask mask = enemyLayerOverride.value != 0 ? enemyLayerOverride : ResolvePuppetMask();
+            for (int i = 0; i < puppetArrayCount; i++)
+            {
+                float ang = (360f / puppetArrayCount) * i * Mathf.Deg2Rad;
+                Vector3 pos = transform.position + new Vector3(Mathf.Cos(ang), 0f, Mathf.Sin(ang)) * puppetArrayRadius;
+                var go = new GameObject($"EarthPuppetTurret_{i}");
+                go.transform.position = pos;
+                go.AddComponent<EarthPuppetTurret>().Init(_player, mask, puppetArrayDuration);
+                _puppetTurrets.Add(go);
+            }
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.6f,
+                Damage = 0,
+                SpecialTag = $"兵阵合一！土傀儡炮阵 ×{puppetArrayCount}"
+            });
+        }
+
+        private LayerMask ResolvePuppetMask()
+        {
+            var pc = GetComponent<PlayerCombat>();
+            if (pc != null && pc.EnemyLayer.value != 0) return pc.EnemyLayer;
+            return ~0;
+        }
+
         // ============================ 生命周期 ============================
 
         private void Awake()

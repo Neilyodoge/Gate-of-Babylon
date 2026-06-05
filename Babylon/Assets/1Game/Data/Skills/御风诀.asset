@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a86b5853cfb4fb2479915b5e3d01bc22, type: 3}
+  m_Name: "\u5FA1\u98CE\u8BC0"
+  m_EditorClassIdentifier: 
+  configId: 3
+  skillName: "\u5FA1\u98CE\u8BC0"
+  description: "\u77ED\u65F6\u95F4\u63D0\u5347\u81EA\u8EAB\u653B\u901F"
+  icon: {fileID: 0}
+  rarity: 2
+  skillType: 3
+  elementTag: 4
+  baseDamage: 30
+  damageScaling: 0.5
+  cooldown: 12
+  castSpeed: 1
+  maxCharges: 1
+  chargeTime: 0
+  canCharge: 0
+  chargeLv2Time: 0.5
+  chargeLv3Time: 1.5
+  chargeLv2DamageMultiplier: 1.5
+  chargeLv3DamageMultiplier: 2.5
+  chargeLv2RadiusMultiplier: 1
+  chargeLv3RadiusMultiplier: 1.3
+  chargeMoveSpeedMultiplier: 0.4
+  aoeRadius: 3
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 12
+  projectileCount: 1
+  spreadAngle: 0
+  dashDistance: 8
+  leaveTrail: 0
+  healAmount: 30
+  healScaling: 0.3
+  summonDuration: 8
+  summonDamage: 10
+  buffDuration: 6
+  buffAttackSpeedPct: 0.3
+  buffMoveSpeedPct: 0
+  buffAttackPct: 0
+  buffDamageReduction: 0
+  freezeOnHitChance: 0
+  freezeOnHitDuration: 1.5
+  damageFromRunTotal: 0
+  runTotalDamageRatio: 0.1
+  dashInvulnerable: 0
+  dashInvulnDuration: 0
+  zoneDuration: 5
+  zoneRadius: 0
+  zoneTickInterval: 0.5
+  zoneDamagePerTick: 0.15
+  zoneSlowPct: 0
+  zonePullSpeed: 0
+  zoneFollowPlayer: 0
+  zoneBurnDPS: 0
+  modifierDefs: []
+  playAnimation: 0
+  vfxPrefab: {fileID: 0}
+  vfxDuration: 1.5
+  castSFX: {fileID: 0}
+  hitSFX: {fileID: 0}

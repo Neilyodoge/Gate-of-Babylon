@@ -12,7 +12,20 @@ namespace XianTu
         Dash,           // 位移（土遁术、缩地成寸）
         Buff,           // 增益（金钟罩）
         Heal,           // 治疗（回春术）
-        Summon          // 召唤（傀儡术）
+        Summon,         // 召唤（傀儡术）
+        Zone,           // 主动持续区域（混沌吞噬/天罡北斗阵/九天玄火阵/冥河召唤）
+        AvatarSpecial   // 化身专属（16-20，路由到对应 SpiritRoot 控制器）
+    }
+
+    /// <summary>化身专属技能种类（路由到对应化身控制器；非该化身则不生效）。</summary>
+    public enum AvatarSpecialKind
+    {
+        None,
+        FireInferno,        // 20 焚天·业火燎原（火）
+        SwordOneThought,    // 16 一念刹那（剑魄/金）
+        WoodSeedBurst,      // 17 枯荣逆旅（青囊/木）
+        ShadowStep,         // 18 息影瞬步（影刃/水）
+        EarthPuppetArray    // 19 兵阵合一（御物/土）
     }
 
     /// <summary>
@@ -108,6 +121,69 @@ namespace XianTu
         public float summonDuration = 8f;
         /// <summary>召唤物攻击力</summary>
         public float summonDamage = 10f;
+        /// <summary>召唤物为"嘲讽分身"（水镜术）：吸引敌人攻击而非战斗傀儡</summary>
+        public bool summonIsDecoy = false;
+
+        [Header("增益参数（Buff 类技能）")]
+        /// <summary>增益持续时间（秒）；0 时回退用 vfxDuration</summary>
+        public float buffDuration = 0f;
+        /// <summary>攻速加成（百分比，0.3=+30%）</summary>
+        public float buffAttackSpeedPct = 0f;
+        /// <summary>移速加成（百分比）</summary>
+        public float buffMoveSpeedPct = 0f;
+        /// <summary>攻击力加成（百分比）</summary>
+        public float buffAttackPct = 0f;
+        /// <summary>减伤加成（绝对值，0.5=+50%）</summary>
+        public float buffDamageReduction = 0f;
+
+        [Header("范围附加（AreaDamage）")]
+        /// <summary>命中冻结概率（0=不冻结，1=必定）。寒冰封印用</summary>
+        [Range(0f, 1f)]
+        public float freezeOnHitChance = 0f;
+        /// <summary>命中冻结时长（秒）</summary>
+        public float freezeOnHitDuration = 1.5f;
+        /// <summary>伤害改为"本局累计总伤害 × runTotalDamageRatio"（轮回一击）</summary>
+        public bool damageFromRunTotal = false;
+        /// <summary>累计总伤害结算比例（0.1=10%）</summary>
+        public float runTotalDamageRatio = 0.1f;
+
+        [Header("位移附加（Dash）")]
+        /// <summary>位移期间是否无敌（土遁术钻地）</summary>
+        public bool dashInvulnerable = false;
+        /// <summary>位移无敌持续时间（秒）</summary>
+        public float dashInvulnDuration = 0f;
+
+        [Header("保命（Buff 子类 · 金蝉脱壳）")]
+        /// <summary>武装"受致命伤拦截"（金蝉脱壳）：武装期内受致命伤→留爆炸替身+瞬移+回血</summary>
+        public bool armLethalGuard = false;
+        /// <summary>武装持续时间（秒）；0=用 cooldown</summary>
+        public float lethalGuardDuration = 0f;
+
+        [Header("乾坤倒转（Buff 子类 · 天地大挪移）")]
+        /// <summary>进入天地大挪移：受伤反弹+免疫、普攻转治疗</summary>
+        public bool heavenEarthShift = false;
+
+        [Header("化身专属（AvatarSpecial 类技能）")]
+        /// <summary>化身专属种类（skillType=AvatarSpecial 时生效，路由到对应化身控制器）</summary>
+        public AvatarSpecialKind avatarSpecial = AvatarSpecialKind.None;
+
+        [Header("区域参数（Zone 类技能）")]
+        /// <summary>区域持续时间（秒）；0 回退 vfxDuration</summary>
+        public float zoneDuration = 5f;
+        /// <summary>区域半径；0 回退 aoeRadius</summary>
+        public float zoneRadius = 0f;
+        /// <summary>伤害结算间隔（秒）</summary>
+        public float zoneTickInterval = 0.5f;
+        /// <summary>每跳伤害 = 攻击力 × 此倍率（0=不造成伤害）</summary>
+        public float zoneDamagePerTick = 0.15f;
+        /// <summary>区域内减速百分比（0=不减速，0.6=减60%）</summary>
+        public float zoneSlowPct = 0f;
+        /// <summary>黑洞吸引速度（米/秒，0=不吸引）</summary>
+        public float zonePullSpeed = 0f;
+        /// <summary>是否随玩家移动（剑阵类）</summary>
+        public bool zoneFollowPlayer = false;
+        /// <summary>每跳灼烧 DPS（0=不灼烧）</summary>
+        public float zoneBurnDPS = 0f;
 
         [Header("灵物修饰（v0.3 槽位限定，GDD 6.5）")]
         /// <summary>该技能可被槽位灵物修饰的变体；运行时按"该技能槽下方灵物的 modTag"匹配 requiredTag 激活。</summary>
