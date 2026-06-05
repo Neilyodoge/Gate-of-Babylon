@@ -251,6 +251,18 @@ namespace XianTu
         {
             if (data == null) return null;
 
+            // 化身专属技能：只对对应化身掉落；非该化身一律不生成（任何掉落来源都经此处）
+            if (data.skillType == SkillType.AvatarSpecial && data.RequiredRoot != SpiritRootType.None)
+            {
+                var pc = PlayerController.Instance;
+                var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
+                if (root == null || root.CurrentRoot != data.RequiredRoot)
+                {
+                    Debug.Log($"<color=#999999>[SkillPickup] {data.skillName} 为化身专属（需 {data.RequiredRoot}），当前化身不符 → 跳过掉落</color>");
+                    return null;
+                }
+            }
+
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"SkillPickup_{data.skillName}";
             go.transform.position = position + Vector3.up * 0.15f;

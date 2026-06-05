@@ -298,6 +298,7 @@ namespace XianTu
             DrawPickupToasts();
             DrawInsightBar();
             DrawAnomalyStatus();
+            DrawSoulHurtDebuff();
             DrawMoralStatus();
             // V.03（Q7）：局外 meta 暂缓时不显示本体境界 / 历练 / 心魔 HUD
             if (FeatureFlags.EnableCaveMeta)
@@ -332,6 +333,38 @@ namespace XianTu
                 fontSize = 13, alignment = TextAnchor.MiddleCenter, richText = true
             };
             GUI.Label(new Rect(x, y, W, 22f), $"秘境异象 · {sb}", style);
+        }
+
+        // ========== 道伤 debuff 横幅（v0.5.7，顶部居中）==========
+
+        private void DrawSoulHurtDebuff()
+        {
+            var data = SaveSystem.Instance != null ? SaveSystem.Instance.Data : null;
+            if (data == null || data.soulHurtRemainingSec <= 0f) return;
+
+            const float W = 320f, H = 36f;
+            float x = (Screen.width - W) * 0.5f;
+            float y = 58f;
+            var rect = new Rect(x, y, W, H);
+
+            // 红底（脉动透明度，更有"debuff"感）
+            float pulse = 0.68f + 0.14f * Mathf.Sin(Time.unscaledTime * 3f);
+            var old = GUI.color;
+            GUI.color = new Color(0.38f, 0.07f, 0.07f, pulse);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = new Color(0.8f, 0.2f, 0.2f, 0.9f);
+            GUI.DrawTexture(new Rect(x, y, W, 2f), Texture2D.whiteTexture);          // 上边线
+            GUI.DrawTexture(new Rect(x, y + H - 2f, W, 2f), Texture2D.whiteTexture); // 下边线
+            GUI.color = old;
+
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 14,
+                alignment = TextAnchor.MiddleCenter,
+                richText = true,
+                fontStyle = FontStyle.Bold
+            };
+            GUI.Label(rect, $"<color=#ff8170>🩸 道伤未愈 · 剩 {GameTime.FormatDuration(data.soulHurtRemainingSec)} · 无法入秘境</color>", style);
         }
 
         // ========== 修仙状态：道心 / 因果 / 寿元（v0.5.5，右上角）==========

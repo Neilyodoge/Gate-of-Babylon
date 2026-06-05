@@ -438,11 +438,15 @@ namespace XianTu
             if (!IsRoutedActive) return;
             if (SpiritRootSelectUI.IsVisible) return;
 
-            // v0.5：道伤未消退时拒绝入秘境
+            // v0.5：道伤未消退时拒绝入秘境（不再静默——提示直接说明原因 + 剩余）
             float soulHurt = SaveSystem.Instance.Data.soulHurtRemainingSec;
             if (soulHurt > 0f)
             {
-                if (_headCard != null) _headCard.SetHintVisible(false);
+                if (_headCard != null)
+                {
+                    _headCard.UpdateHintText($"🩸 道伤未愈 · 剩 {GameTime.FormatDuration(soulHurt)}");
+                    _headCard.SetHintVisible(true);
+                }
                 var kb0 = UnityEngine.InputSystem.Keyboard.current;
                 if (kb0 != null && kb0.fKey.wasPressedThisFrame)
                 {
@@ -450,6 +454,9 @@ namespace XianTu
                 }
                 return;
             }
+
+            // 道伤已愈：恢复默认提示文案
+            if (_headCard != null) _headCard.UpdateHintText("按 [F] 入秘境");
 
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)

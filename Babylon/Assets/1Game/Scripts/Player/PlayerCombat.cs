@@ -841,6 +841,9 @@ namespace XianTu
         /// <summary>化身专属技能（16-20）：路由到对应化身控制器；非该化身则提示无法施展。</summary>
         private void CastAvatarSpecial(SkillData skill)
         {
+            var curRoot = _player != null ? _player.GetComponent<SpiritRootController>() : null;
+            Debug.Log($"<color=#b39ddb>[化身专属] 释放 {skill.skillName}（需 {skill.RequiredRoot} / 当前 {(curRoot != null ? curRoot.CurrentRoot.ToString() : "无")}）</color>");
+
             switch (skill.avatarSpecial)
             {
                 case AvatarSpecialKind.FireInferno:

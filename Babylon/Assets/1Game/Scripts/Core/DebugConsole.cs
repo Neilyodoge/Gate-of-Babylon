@@ -36,11 +36,26 @@ namespace XianTu
         // 日志
         private List<string> _logMessages = new();
         private Text _logText;
-        private const int MAX_LOG_LINES = 50;
+        private const int MAX_LOG_LINES = 200;
+
+        // 打包可见日志面板（捕获 Application.logMessageReceived）
+        private GameObject _logPanelGo;
+        private Text _logPanelText;
+        private bool _logPanelOpen;
 
         private void Awake()
         {
             Instance = this;
+        }
+
+        private void OnEnable()
+        {
+            Application.logMessageReceived += HandleUnityLog;
+        }
+
+        private void OnDisable()
+        {
+            Application.logMessageReceived -= HandleUnityLog;
         }
 
         private void Start()
@@ -92,6 +107,12 @@ namespace XianTu
                 // 打开时解锁鼠标
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
+            }
+            else if (_logPanelGo != null)
+            {
+                // 关闭控制台时一并收起日志面板（否则没有按钮可关）
+                _logPanelOpen = false;
+                _logPanelGo.SetActive(false);
             }
         }
 
@@ -675,9 +696,8 @@ namespace XianTu
             CreateSectionHeader(contentGo.transform, "【 属性调整 】");
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
             CreateButton(contentGo.transform, "✦ 灵力碎片 +5000", new Color(0.25f, 0.4f, 0.55f), AddShardsLarge);
-            CreateButton(contentGo.transform, "💎 灵物一键升满", new Color(0.45f, 0.3f, 0.5f), MaxOutHeldItems);
-            CreateButton(contentGo.transform, "💎 灵物爆率拉满", new Color(0.5f, 0.4f, 0.1f), ToggleMaxItemDropRate);
             CreateButton(contentGo.transform, "📜 功法爆率拉满", new Color(0.2f, 0.4f, 0.5f), ToggleMaxSkillDropRate);
+            CreateButton(contentGo.transform, "🗡 发当前化身专属技能", new Color(0.45f, 0.3f, 0.5f), GrantAvatarSpecialSkill);
 
             // --- V.03 范围开关（运行时临时覆盖，便于测试被屏蔽的系统）---
             CreateSectionHeader(contentGo.transform, "【 V.03 范围开关 】");
@@ -691,7 +711,6 @@ namespace XianTu
             CreateButton(contentGo.transform, "🧘 历练值存量 +200（测分配）", new Color(0.3f, 0.4f, 0.55f), BoostRunTempering);
             CreateButton(contentGo.transform, "💎 灵脉经验 +200", new Color(0.3f, 0.55f, 0.45f), BoostSpiritVein);
             CreateButton(contentGo.transform, "✦ 触发机缘事件", new Color(0.45f, 0.4f, 0.2f), TriggerOpportunity);
-            CreateButton(contentGo.transform, "🔗 推进链式机缘（+1 回府）", new Color(0.5f, 0.42f, 0.22f), AdvanceOpportunityChain);
             CreateButton(contentGo.transform, "👹 心魔值 +50", new Color(0.5f, 0.18f, 0.25f), BoostInnerDemon);
 
             // --- 道心 / 因果（v0.5.5 抉择后果测试）---
@@ -702,7 +721,6 @@ namespace XianTu
             CreateButton(contentGo.transform, "🍀 因果 -12（测善缘）", new Color(0.35f, 0.5f, 0.35f), ReduceKarma);
             CreateButton(contentGo.transform, "⏳ 寿元 -25（测衰朽）", new Color(0.5f, 0.42f, 0.35f), ReduceLifespan);
             CreateButton(contentGo.transform, "⏳ 寿元 +25", new Color(0.4f, 0.48f, 0.42f), AddLifespan);
-            CreateButton(contentGo.transform, "💎 掉落灵脉道具（测拾取）", new Color(0.3f, 0.55f, 0.45f), DropSpiritVeinItem);
 
             // --- 秘境异象（v0.5.5 每局变量）---
             CreateSectionHeader(contentGo.transform, "【 秘境异象 】");
@@ -726,6 +744,8 @@ namespace XianTu
 
             // --- 系统 ---
             CreateSectionHeader(contentGo.transform, "【 系统 】");
+            CreateButton(contentGo.transform, "🩹 清除道伤（解锁山门）", new Color(0.3f, 0.45f, 0.4f), ClearSoulHurt);
+            CreateButton(contentGo.transform, "📜 日志面板：展开/收起", new Color(0.25f, 0.3f, 0.45f), ToggleLogPanel);
             CreateButton(contentGo.transform, "⏱ 切换时间缩放", new Color(0.3f, 0.3f, 0.4f), CycleTimeScale);
             CreateButton(contentGo.transform, "↺ 重新开始", new Color(0.4f, 0.2f, 0.3f), RestartGame);
 
@@ -881,15 +901,143 @@ namespace XianTu
 
         private void AddLog(string msg)
         {
-            _logMessages.Add(msg);
+            // 经 Debug.Log 输出 → 由 HandleUnityLog 统一捕获显示（避免重复入列）
+            Debug.Log($"[DebugConsole] {msg}");
+            RefreshStatus();
+        }
+
+        /// <summary>捕获所有 Unity 日志（含报错/异常），打包版也能在日志面板看到。</summary>
+        private void HandleUnityLog(string condition, string stackTrace, LogType type)
+        {
+            string color =
+                (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) ? "#ff6b6b" :
+                (type == LogType.Warning) ? "#ffd24d" : "#cfd2d6";
+            string prefix =
+                (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) ? "[ERR] " :
+                (type == LogType.Warning) ? "[WARN] " : "";
+
+            string line = $"<color={color}>{prefix}{condition}</color>";
+
+            // 异常/报错附第一行堆栈，便于打包版定位
+            if ((type == LogType.Exception || type == LogType.Error) && !string.IsNullOrEmpty(stackTrace))
+            {
+                int nl = stackTrace.IndexOf('\n');
+                string firstFrame = nl > 0 ? stackTrace.Substring(0, nl) : stackTrace;
+                line += $"  <color=#888888>@ {firstFrame}</color>";
+            }
+
+            _logMessages.Add(line);
             if (_logMessages.Count > MAX_LOG_LINES)
                 _logMessages.RemoveAt(0);
 
             if (_logText != null)
-                _logText.text = _logMessages.Count > 0 ? _logMessages[_logMessages.Count - 1] : "";
+                _logText.text = _logMessages[_logMessages.Count - 1];
+            if (_logPanelOpen && _logPanelText != null)
+                RefreshLogPanel();
+        }
 
-            RefreshStatus();
-            Debug.Log($"[DebugConsole] {msg}");
+        // ==================== 打包可见日志面板 ====================
+
+        private void ToggleLogPanel()
+        {
+            _logPanelOpen = !_logPanelOpen;
+            if (_logPanelOpen && _logPanelGo == null)
+                CreateLogPanel();
+            if (_logPanelGo != null)
+                _logPanelGo.SetActive(_logPanelOpen);
+            if (_logPanelOpen)
+                RefreshLogPanel();
+        }
+
+        private void CreateLogPanel()
+        {
+            Transform parent = _canvas != null ? _canvas.transform : transform;
+
+            _logPanelGo = new GameObject("LogPanel");
+            _logPanelGo.transform.SetParent(parent, false);
+            var rt = _logPanelGo.AddComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.offsetMin = new Vector2(4, 4);
+            rt.offsetMax = new Vector2(-4, -4);
+            var img = _logPanelGo.AddComponent<Image>();
+            img.color = new Color(0f, 0f, 0f, 0.82f);
+            img.raycastTarget = false;
+
+            // 标题
+            var titleGo = new GameObject("Title");
+            titleGo.transform.SetParent(_logPanelGo.transform, false);
+            var trt = titleGo.AddComponent<RectTransform>();
+            trt.anchorMin = new Vector2(0, 1);
+            trt.anchorMax = new Vector2(1, 1);
+            trt.offsetMin = new Vector2(8, -24);
+            trt.offsetMax = new Vector2(-8, -4);
+            var ttxt = titleGo.AddComponent<Text>();
+            ttxt.text = "═══ 运行日志（最近 40 行）═══";
+            ttxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            ttxt.fontSize = 13;
+            ttxt.fontStyle = FontStyle.Bold;
+            ttxt.color = new Color(1f, 0.85f, 0.3f);
+            ttxt.raycastTarget = false;
+
+            var txtGo = new GameObject("LogText");
+            txtGo.transform.SetParent(_logPanelGo.transform, false);
+            var ltrt = txtGo.AddComponent<RectTransform>();
+            ltrt.anchorMin = Vector2.zero;
+            ltrt.anchorMax = Vector2.one;
+            ltrt.offsetMin = new Vector2(8, 8);
+            ltrt.offsetMax = new Vector2(-8, -28);
+            _logPanelText = txtGo.AddComponent<Text>();
+            _logPanelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _logPanelText.fontSize = 12;
+            _logPanelText.color = Color.white;
+            _logPanelText.alignment = TextAnchor.LowerLeft;
+            _logPanelText.supportRichText = true;
+            _logPanelText.raycastTarget = false;
+            _logPanelText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _logPanelText.verticalOverflow = VerticalWrapMode.Truncate;
+        }
+
+        private void RefreshLogPanel()
+        {
+            if (_logPanelText == null) return;
+            int start = Mathf.Max(0, _logMessages.Count - 40);
+            var sb = new System.Text.StringBuilder();
+            for (int i = start; i < _logMessages.Count; i++)
+                sb.AppendLine(_logMessages[i]);
+            _logPanelText.text = sb.ToString();
+        }
+
+        private void ClearSoulHurt()
+        {
+            var data = SaveSystem.Instance != null ? SaveSystem.Instance.Data : null;
+            if (data == null) { AddLog("清除道伤失败：存档不可用"); return; }
+            data.soulHurtRemainingSec = 0f;
+            SaveSystem.Instance.Save();
+            AddLog("已清除道伤（山门解锁）");
+        }
+
+        /// <summary>在玩家身边生成"当前化身的专属技能"掉落，便于测试 16-20。</summary>
+        private void GrantAvatarSpecialSkill()
+        {
+            var pc = PlayerController.Instance;
+            var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
+            if (root == null) { AddLog("发专属失败：无玩家/化身"); return; }
+
+            var cur = root.CurrentRoot;
+            SkillData match = null;
+            foreach (var s in Resources.FindObjectsOfTypeAll<SkillData>())
+            {
+                if (s != null && s.skillType == SkillType.AvatarSpecial && s.RequiredRoot == cur)
+                {
+                    match = s;
+                    break;
+                }
+            }
+            if (match == null) { AddLog($"未找到 {cur} 的专属技能 SO"); return; }
+
+            SkillPickup.Spawn(match, pc.transform.position + pc.transform.forward * 1.5f);
+            AddLog($"已生成 {cur} 专属：{match.skillName}（走过去拾取）");
         }
     }
 }

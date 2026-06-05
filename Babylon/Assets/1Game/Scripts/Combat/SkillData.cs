@@ -167,6 +167,17 @@ namespace XianTu
         /// <summary>化身专属种类（skillType=AvatarSpecial 时生效，路由到对应化身控制器）</summary>
         public AvatarSpecialKind avatarSpecial = AvatarSpecialKind.None;
 
+        /// <summary>该技能要求的化身灵根（仅化身专属有意义；None=不限）。用于掉落门控：只对对应化身掉落。</summary>
+        public SpiritRootType RequiredRoot => avatarSpecial switch
+        {
+            AvatarSpecialKind.FireInferno => SpiritRootType.Fire,
+            AvatarSpecialKind.SwordOneThought => SpiritRootType.Metal,
+            AvatarSpecialKind.WoodSeedBurst => SpiritRootType.Wood,
+            AvatarSpecialKind.ShadowStep => SpiritRootType.Water,
+            AvatarSpecialKind.EarthPuppetArray => SpiritRootType.Earth,
+            _ => SpiritRootType.None
+        };
+
         [Header("区域参数（Zone 类技能）")]
         /// <summary>区域持续时间（秒）；0 回退 vfxDuration</summary>
         public float zoneDuration = 5f;
