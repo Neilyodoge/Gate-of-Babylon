@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>御灵五系 · 战斗与成长（预览）</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#171b22; --elev:#1e232c; --line:#2c333f; --line2:#3a4250;
+    --tx:#eef1f6; --tx2:#aab3c2; --tx3:#7c8696;
+    --accent:#5b9bff; --gold:#e3b341;
+    --info:#5b9bff; --ok:#56c98a; --warn:#e0ad46; --dan:#ec6a58; --neu:#8b95a5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font:15px/1.75 -apple-system,"Segoe UI Variable","Segoe UI","Microsoft YaHei",sans-serif;
+    padding:36px 28px 80px;max-width:1120px;margin:0 auto}
+  h1{font-size:30px;line-height:1.3;margin:0 0 6px;letter-spacing:.5px}
+  h2{font-size:21px;margin:40px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);font-weight:650}
+  .lead{color:var(--tx2);margin:0 0 6px;font-size:16px}
+  .muted{color:var(--tx3);font-size:13px;margin:2px 0 0}
+  b{color:#fff;font-weight:650}
+
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media(max-width:880px){.g3,.g2{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card.base{border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(91,155,255,.25)}
+  .card h3{margin:0 0 8px;font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card p{margin:0;color:var(--tx2);font-size:14px}
+  .tag{font-size:12px;padding:2px 9px;border-radius:11px;border:1px solid var(--line2);color:var(--tx2);white-space:nowrap}
+  .tag.base{border-color:var(--accent);color:var(--accent)}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
+  th,td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+  th{color:var(--tx2);font-weight:650;background:var(--elev);font-size:13px;letter-spacing:.3px}
+  td.c,th.c{text-align:center}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
+  tr:last-child td{border-bottom:none}
+  .nm-cell{font-weight:600}
+  .st{color:var(--gold);letter-spacing:2px}
+  .se{color:var(--tx3);letter-spacing:2px}
+  .badge{display:inline-block;font-size:12px;font-weight:650;padding:2px 10px;border-radius:11px}
+  .badge.info{color:#bcd4ff;background:rgba(91,155,255,.16)}
+  .badge.warn{color:#f0d59a;background:rgba(224,173,70,.16)}
+  .badge.dan{color:#f4b4aa;background:rgba(236,106,88,.16)}
+  .badge.neu{color:var(--tx2);background:rgba(255,255,255,.06)}
+
+  .controls{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:8px 0 18px}
+  .pills{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .pills+.pills{margin-top:12px}
+  .lbl{color:var(--tx2);font-size:14px;font-weight:600;margin-right:4px}
+  .pill{cursor:pointer;font-size:14px;padding:6px 16px;border-radius:18px;border:1px solid var(--line2);
+    background:transparent;color:var(--tx2);transition:.12s;font-family:inherit}
+  .pill:hover{border-color:var(--accent);color:var(--tx)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#0f1216;font-weight:650}
+  .sysline{color:var(--gold);font-size:14px;font-weight:600;margin:14px 0 2px}
+
+  .entry{max-width:300px;margin:6px auto 22px;text-align:center}
+  .entry .node{display:inline-block;text-align:left;min-width:240px}
+  .entry-cap{color:var(--tx3);font-size:12px;letter-spacing:2px;margin-bottom:6px}
+  .entry-stem{width:2px;height:18px;background:var(--accent);margin:0 auto}
+  .branch{position:relative}
+  .branch-title{color:var(--tx);font-weight:650;font-size:14px;margin:0 0 12px;padding-left:2px}
+  .branch.off .branch-title{color:var(--tx3)}
+  .tier{display:flex;gap:12px;align-items:stretch;margin-bottom:14px}
+  .tier:last-child{margin-bottom:0}
+  .rail{position:relative;flex:0 0 18px}
+  .rail .line{position:absolute;left:8px;top:0;bottom:-14px;width:2px;background:var(--line2)}
+  .tier:last-child .rail .line{display:none}
+  .rail .dot{position:absolute;left:2px;top:15px;width:14px;height:14px;border-radius:50%;
+    border:2px solid var(--line2);background:var(--bg);box-sizing:border-box}
+  .tier.cap .rail .dot{border-radius:3px;transform:rotate(45deg);width:13px;height:13px;top:16px}
+  .tier.on .rail .line{background:var(--accent)}
+  .tier.on .rail .dot{border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 4px rgba(91,155,255,.15)}
+  .node{flex:1;border:1px solid var(--line);background:var(--elev);border-radius:10px;padding:11px 14px}
+  .node.off{opacity:.6}
+  .node.off .nm{color:var(--tx2)}
+  .node.on{border-color:var(--accent);background:#1d2940}
+  .node .nt{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px}
+  .node .nm{font-weight:650;font-size:14.5px}
+  .node .ds{color:var(--tx2);font-size:13px;line-height:1.5}
+  .combo{border-style:dashed}
+  /* —— BD 树连线 + 质变高亮 —— */
+  .entry{margin:6px auto 0}
+  .manifold{height:2px;background:var(--accent);opacity:.5;border-radius:2px;margin:2px 0 20px}
+  .branch .tier:first-child .rail .line{top:-22px}
+  .tier.cap .rail .dot{border-color:var(--gold)}
+  .tier.cap.on .rail .dot{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 5px rgba(227,179,65,.18)}
+  .tier.cap.on .rail .line{background:var(--gold)}
+  .tier.cap.on .node{border-color:var(--gold);background:#2a2417}
+  .tier.cap .node .nm{color:var(--gold)}
+  .tier.cap.off .node .nm{color:var(--tx2)}
+  /* —— 手动加点状态 —— */
+  .node.can{opacity:1;border-style:dashed;border-color:var(--accent);cursor:pointer}
+  .node.can:hover{background:#19202c}
+  .node.lock{opacity:.5;cursor:not-allowed}
+  .node.lock .nm{color:var(--tx2)}
+  .tier.can .rail .dot{border-color:var(--accent);border-style:dashed}
+  .tier.lock .rail .dot{opacity:.6}
+  #pointbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 0}
+  .pcount{font-size:15px;font-weight:650}
+  .pcount b{color:var(--accent);font-size:19px}
+  .btn{cursor:pointer;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--tx2);font-family:inherit}
+  .btn:hover{border-color:var(--dan);color:var(--tx)}
+  .ntag{font-size:11px;font-weight:650;padding:2px 8px;border-radius:9px;white-space:nowrap}
+  .ntag.铺垫{color:#c2cad6;background:rgba(139,149,165,.20)}
+  .ntag.关键{color:#bcd4ff;background:rgba(91,155,255,.20)}
+  .ntag.质变{color:#a7e9c5;background:rgba(86,201,138,.20)}
+  .ntag.合技{color:#f0d59a;background:rgba(224,173,70,.20)}
+  .ntag.带价{color:#f4b4aa;background:rgba(236,106,88,.20)}
+
+  .branchwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .note{border-left:4px solid var(--info);background:rgba(91,155,255,.10);padding:12px 16px;
+    border-radius:0 10px 10px 0;margin-top:16px;font-size:14px}
+  .note.warn{border-color:var(--warn);background:rgba(224,173,70,.10)}
+  .divider{height:1px;background:var(--line);margin:18px 0}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 0;color:var(--tx3);font-size:12px}
+  .legend span b{font-weight:650}
+</style>
+</head>
+<body>
+  <h1>御灵 · 五系 — 战斗与成长（设计预览）</h1>
+  <p class="lead">灵为本源；御灵系是地基（五行＝其色），独特方向在 <b>生灵 / 空间 / 神识 / 召物</b> 四系，靠 <b>双系 + 合技</b> 长出个性。</p>
+  <p class="muted">来源：docs/game/design/设定_御灵五系.md · 设定_化身.md ｜ 全程设计草案、未动代码</p>
+
+  <h2>五系</h2>
+  <div class="grid g3" id="systems"></div>
+
+  <h2>化身亲和谱</h2>
+  <p class="muted">星级＝该系可修上限（本命 ★★★★ 圆满）。御灵后为五行色；影刃 神识★★★＝通往神识系的桥。</p>
+  <div id="affinity"></div>
+
+  <h2>系精通 · 节点加点</h2>
+  <p class="muted">选化身后<b>点击节点手动加点</b>（再点退点）：受精通点上限 + 前置约束（高层需先点低层、合技需先投点）。也可「推荐套用」一键铺好再改。</p>
+  <div class="controls">
+    <div class="pills" id="avatarPills"><span class="lbl">化身</span></div>
+    <div class="sysline" id="sysLine"></div>
+    <div id="pointbar"></div>
+    <div class="pills" id="buildPills"><span class="lbl">推荐套用</span></div>
+  </div>
+  <div class="legend">
+    <span class="ntag 铺垫">铺垫</span><span class="ntag 关键">关键</span>
+    <span class="ntag 质变">质变</span><span class="ntag 合技">合技</span><span class="ntag 带价">带价</span>
+  </div>
+  <div class="entry" id="entry"></div>
+  <div class="branchwrap">
+    <div class="manifold"></div>
+    <div class="grid g3" id="branches"></div>
+    <div class="divider"></div>
+    <div class="branch-title">合技节点（需旁修投点）</div>
+    <div class="grid g2" id="combos"></div>
+  </div>
+  <div class="note" id="buildNote"></div>
+  <div class="note warn"><b>复杂度警告：</b>深加点三坑＝分析瘫痪 / 平衡地狱 / 一个真神 build。应对：分层暴露（默认推荐路线、深度可选）+ 节点数克制。</div>
+
+  <h2>成长全景</h2>
+  <div id="growth"></div>
+
+<script>
+const SYSTEMS=[
+ {key:"御灵",role:"地基·通用",desc:"直接驱使元素（五行＝其色）。火球/冰封/落雷，直伤·AOE·附着。",base:true},
+ {key:"生灵",role:"炼体·医蛊",desc:"作用于生命体：自强化续航 + 寄生毒蚀。叠层 DoT→引爆。",base:false},
+ {key:"空间",role:"遁术·领域",desc:"操控空间：闪现瞬步、持续领域、黑洞拉拽放逐。",base:false},
+ {key:"神识",role:"御心·摄魂",desc:"作用于敌人心神＝控场：魅惑、恐惧、定身、神识真伤。",base:false},
+ {key:"召物",role:"御器·造化",desc:"召唤物/法器替你作战：御剑、傀儡、灵体分身、炮台阵。",base:false},
+];
+const AFFINITY=[
+ {name:"业火",el:"火",yu:4,sheng:3,kong:1,shen:-1,zhao:2,id:"越残越浪"},
+ {name:"剑魄",el:"金",yu:4,sheng:1,kong:2,shen:2,zhao:3,id:"锋锐御金"},
+ {name:"青囊",el:"木",yu:2,sheng:4,kong:2,shen:1,zhao:3,id:"生养寄役"},
+ {name:"影刃",el:"水",yu:2,sheng:1,kong:4,shen:3,zhao:2,id:"遁影乱心·通神识桥"},
+ {name:"御物",el:"土",yu:3,sheng:2,kong:2,shen:1,zhao:4,id:"驭物成军"},
+];
+const stars=n=> n<0 ? '<span class="se">—</span>'
+  : `<span class="st">${"★".repeat(n)}</span><span class="se">${"☆".repeat(4-n)}</span>`;
+const ALL={label:"全展示",note:"整张节点图（亲和满级可点的范围）。",branches:[0,1,2],combos:[0,1]};
+const AVATARS=[
+ {name:"业火",sys:"御灵·火 · 魔焰献祭",
+  entry:{name:"引焰",type:"铺垫",desc:"火系基础 + 焰势资源"},
+  branches:[
+   {title:"① 燎原 · 范围",nodes:[{name:"火雨",type:"铺垫",desc:"技能附小范围灼烧"},{name:"燎原蔓延",type:"关键",desc:"灼烧向邻敌蔓延"},{name:"焚天燎原",type:"质变",desc:"引爆范围×2，按灼烧敌数叠伤"}]},
+   {title:"② 焚己 · 献祭(带价)",nodes:[{name:"燃血",type:"带价",desc:"燃 HP% 提升焰势"},{name:"残血增伤",type:"关键",desc:"越残血火伤越高"},{name:"濒死狂焰",type:"质变",desc:"HP<30% 暴涨，掉血+涨心魔"}]},
+   {title:"③ 焰势 · 循环",nodes:[{name:"怒火",type:"铺垫",desc:"命中/受击回焰势"},{name:"狂火延烧",type:"关键",desc:"狂火击杀延长"},{name:"焰势满溢",type:"质变",desc:"满则自爆+技能CD↓"}]},
+  ],
+  combos:[{name:"业火不灭〔生灵★★〕",type:"合技",desc:"献祭/燃血时吸血→魔焰续命"},{name:"焚天火傀〔召物★★〕",type:"合技",desc:"召火傀引燃分担，火傀亡则引爆"}],
+  builds:[ALL,{label:"纯清场",note:"①燎原+③焰势：范围灼烧+循环续爆。",branches:[0,2],combos:[]},{label:"献祭苟活",note:"②焚己+生灵吸血续命：敢残血浪。",branches:[1],combos:[0]},{label:"召唤辅助",note:"③焰势+召火傀分担引燃。",branches:[2],combos:[1]}]},
+ {name:"剑魄",sys:"御灵·金 · 金属控制",
+  entry:{name:"引锋",type:"铺垫",desc:"金系基础 + 金属碎片"},
+  branches:[
+   {title:"① 锋锐 · 穿透",nodes:[{name:"飞金",type:"铺垫",desc:"金属碎片穿透投射"},{name:"穿甲",type:"关键",desc:"叠层降敌防御"},{name:"万剑归宗",type:"质变",desc:"群飞剑环绕自动攻击"}]},
+   {title:"② 塑金 · 形态",nodes:[{name:"塑金为刃",type:"铺垫",desc:"攻击形态↑伤害"},{name:"塑金为甲",type:"关键",desc:"防御形态↑减伤"},{name:"金身",type:"质变",desc:"形态切换即强化一击"}]},
+   {title:"③ 磁御 · 控位",nodes:[{name:"磁牵",type:"铺垫",desc:"拉近敌人"},{name:"聚物",type:"关键",desc:"吸拢散怪/灵物"},{name:"磁爆",type:"质变",desc:"聚而引爆"}]},
+  ],
+  combos:[{name:"御剑遁〔空间★★〕",type:"合技",desc:"御飞剑瞬身"},{name:"剑心乱〔神识★★〕",type:"合技",desc:"完美时机附定身/扰心"}],
+  builds:[ALL,{label:"穿透斩杀",note:"①锋锐：单体高穿透。",branches:[0],combos:[0]},{label:"形态攻防",note:"②塑金：攻防形态切换。",branches:[1],combos:[]},{label:"磁控拉怪",note:"③磁御+剑心乱：聚怪控场。",branches:[2],combos:[1]}]},
+ {name:"青囊",sys:"生灵 · 寄生续航",
+  entry:{name:"播种",type:"铺垫",desc:"普攻种寄生种子"},
+  branches:[
+   {title:"① 寄生 · 叠引爆",nodes:[{name:"蔓延种",type:"铺垫",desc:"种子传染相邻敌"},{name:"蛊毒",type:"关键",desc:"种子 DoT 强化"},{name:"枯荣引爆",type:"质变",desc:"按层数引爆+连锁"}]},
+   {title:"② 滋养 · 续航",nodes:[{name:"回血域",type:"铺垫",desc:"生境内回血"},{name:"吸血",type:"关键",desc:"造成伤害回血"},{name:"生生不息",type:"质变",desc:"满血溢出转护盾"}]},
+   {title:"③ 腐朽 · 降敌",nodes:[{name:"毒蚀",type:"铺垫",desc:"降敌攻防"},{name:"疫病",type:"关键",desc:"毒在敌间传染"},{name:"腐朽",type:"质变",desc:"毒满自爆"}]},
+  ],
+  combos:[{name:"役兽成群〔召物★★〕",type:"合技",desc:"种子寄入妖兽役使"},{name:"移花接木〔空间★★〕",type:"合技",desc:"领域内种子疯长"}],
+  builds:[ALL,{label:"叠毒磨杀",note:"①寄生+③腐朽：持续磨。",branches:[0,2],combos:[]},{label:"极限续航",note:"②滋养：苟到天荒地老。",branches:[1],combos:[]},{label:"役兽流",note:"①寄生+役兽成群。",branches:[0],combos:[0]}]},
+ {name:"影刃",sys:"空间 · 遁影",
+  entry:{name:"遁形",type:"铺垫",desc:"瞬步/闪现基础"},
+  branches:[
+   {title:"① 影袭 · 位移输出",nodes:[{name:"影息斩",type:"铺垫",desc:"位移即输出"},{name:"水痕印",type:"关键",desc:"标记敌·技能增伤"},{name:"缩地成寸",type:"质变",desc:"连续瞬移"}]},
+   {title:"② 渊默 · 隐杀",nodes:[{name:"隐身",type:"铺垫",desc:"脱战隐身"},{name:"背刺",type:"关键",desc:"隐身后暴击"},{name:"无影",type:"质变",desc:"击杀回闪避充能"}]},
+   {title:"③ 乱影 · 扰敌",nodes:[{name:"残影诱敌",type:"铺垫",desc:"留分身吸引"},{name:"影分身",type:"关键",desc:"分身协同"},{name:"影狱",type:"质变",desc:"困敌减速"}]},
+  ],
+  combos:[{name:"影杀心乱〔神识★★★〕",type:"合技",desc:"隐身期魅惑/恐惧敌"},{name:"水镜军〔召物★★〕",type:"合技",desc:"多重水镜分身"}],
+  builds:[ALL,{label:"瞬移连斩",note:"①影袭：进出即输出。",branches:[0],combos:[]},{label:"隐杀暴击",note:"②渊默：背刺爆发。",branches:[1],combos:[]},{label:"控场乱影",note:"③乱影+影杀心乱：扰敌。",branches:[2],combos:[0]}]},
+ {name:"御物",sys:"召物 · 傀儡",
+  entry:{name:"造傀",type:"铺垫",desc:"召自律土傀"},
+  branches:[
+   {title:"① 傀海 · 自律军",nodes:[{name:"多傀",type:"铺垫",desc:"召物上限↑"},{name:"强化傀",type:"关键",desc:"傀儡攻防↑"},{name:"万军",type:"质变",desc:"傀儡继承你的效果"}]},
+   {title:"② 兵阵 · 阵地",nodes:[{name:"炮台",type:"铺垫",desc:"固定 AOE 炮击"},{name:"兵阵合一",type:"关键",desc:"成阵炮击模式"},{name:"大阵",type:"质变",desc:"全屏炮覆盖"}]},
+   {title:"③ 镇岳 · 器铸",nodes:[{name:"塑土护体",type:"铺垫",desc:"护盾"},{name:"飞石陨石",type:"关键",desc:"投掷重砸"},{name:"镇岳",type:"质变",desc:"召巨傀镇场"}]},
+  ],
+  combos:[{name:"元素傀〔御灵★★〕",type:"合技",desc:"傀儡附元素伤害"},{name:"阵困〔空间★★〕",type:"合技",desc:"兵阵兼领域减速"}],
+  builds:[ALL,{label:"群傀海",note:"①傀海：召唤大军。",branches:[0],combos:[]},{label:"炮阵站桩",note:"②兵阵：阵地炮覆盖。",branches:[1],combos:[1]},{label:"元素傀",note:"①傀海+元素傀。",branches:[0],combos:[0]}]},
+];
+const GROWTH=[
+ {line:"御灵之路",cat:"局内",status:"新增",pos:"捡功法/灵物→叠系tag→质变/合技（每局临时build）",tone:"info"},
+ {line:"本体境界",cat:"局外·纵向",status:"重定位",pos:"悟性驱动的里程碑脊梁，每阶解锁一道门",tone:"warn"},
+ {line:"系精通",cat:"局外·深度",status:"新增",pos:"亲和谱 + 节点加点 + 跨系合技",tone:"info"},
+ {line:"天赋树",cat:"局外·纵向",status:"搬家",pos:"移到选化身页「点天赋」，境界突破发点",tone:"warn"},
+ {line:"藏经阁",cat:"局外·解锁",status:"已有",pos:"古籍残页→永久功法 + 设起手",tone:"neu"},
+ {line:"凝灵阁(原炼器房)",cat:"局外·解锁",status:"暂隐",pos:"炼灵物入池（待灵物解封）",tone:"neu"},
+ {line:"灵脉系统",cat:"局外·运营",status:"已有",pos:"等级→掉率/模块效率/机缘上限",tone:"neu"},
+ {line:"转世传承",cat:"局外·失败",status:"已有",pos:"死亡保留部分",tone:"neu"},
+ {line:"道伤 / 炼丹房 / 阵法台 / 灵田 / 灵兽园 / 悟道蒲团",cat:"裁剪",status:"砍/退役",pos:"已从设计移除或并入别处",tone:"dan"},
+];
+
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+
+const sysBox=document.getElementById("systems");
+SYSTEMS.forEach(s=>{
+ const c=el("div","card"+(s.base?" base":""));
+ c.innerHTML=`<h3>${s.key}系 · ${s.role}<span class="tag ${s.base?'base':''}">${s.base?'地基':'构筑轴'}</span></h3><p>${s.desc}</p>`;
+ sysBox.appendChild(c);
+});
+
+let ah=`<table><thead><tr><th>化身</th><th class="c">御灵</th><th class="c">生灵</th><th class="c">空间</th><th class="c">神识</th><th class="c">召物</th><th>身份</th></tr></thead><tbody>`;
+AFFINITY.forEach(a=>{ah+=`<tr><td class="nm-cell">${a.name}</td><td class="c">${stars(a.yu)} <span class="se">${a.el}</span></td><td class="c">${stars(a.sheng)}</td><td class="c">${stars(a.kong)}</td><td class="c">${stars(a.shen)}</td><td class="c">${stars(a.zhao)}</td><td>${a.id}</td></tr>`;});
+ah+=`</tbody></table>`; document.getElementById("affinity").innerHTML=ah;
+
+let gh=`<table><thead><tr><th>成长线</th><th>类别</th><th class="c">状态</th><th>定位</th></tr></thead><tbody>`;
+GROWTH.forEach(g=>{gh+=`<tr><td class="nm-cell">${g.line}</td><td>${g.cat}</td><td class="c"><span class="badge ${g.tone||'neu'}">${g.status}</span></td><td>${g.pos}</td></tr>`;});
+gh+=`</tbody></table>`; document.getElementById("growth").innerHTML=gh;
+
+let curAvatar=0;
+const BUDGET=6;
+const alloc={};                 // 化身名 → Set(已点节点id)
+const curName=()=>AVATARS[curAvatar].name;
+const setOf=()=>{const k=curName(); if(!alloc[k]) alloc[k]=new Set(); return alloc[k];};
+const used=()=>setOf().size;
+function prereqMet(id){
+ if(id==='e') return true;
+ if(id[0]==='b'){const bi=+id[1],ti=+id[3]; return ti===0 ? true : setOf().has('b'+bi+'t'+(ti-1));}
+ if(id[0]==='c') return used()>=2;          // 合技：先投 2 点（旁修代理）
+ return false;
+}
+const hasDependent=id=> id[0]==='b' && setOf().has('b'+id[1]+'t'+(+id[3]+1));
+function toggle(id){
+ if(id==='e') return;
+ const s=setOf();
+ if(s.has(id)){ if(!hasDependent(id)) s.delete(id); }
+ else if(used()<BUDGET && prereqMet(id)) s.add(id);
+ renderGraph();
+}
+function stateOf(id){
+ if(id==='e') return 'on';
+ if(setOf().has(id)) return 'on';
+ return (used()<BUDGET && prereqMet(id)) ? 'can' : 'lock';
+}
+const nodeHTML=(n,state,id,extra='')=>`<div class="node ${extra} ${state}" data-id="${id}"><div class="nt"><span class="nm">${n.name}</span><span class="ntag ${n.type}">${n.type}</span></div><div class="ds">${n.desc}</div></div>`;
+const tierHTML=(n,state,cap,id)=>`<div class="tier ${state} ${cap?'cap':''}"><div class="rail"><div class="line"></div><div class="dot"></div></div>${nodeHTML(n,state,id)}</div>`;
+function applyPreset(i){
+ const presets=AVATARS[curAvatar].builds.filter(b=>b.label!=='全展示');
+ const b=presets[i]; if(!b) return;
+ const s=setOf(); s.clear();
+ b.branches.forEach(bi=>{for(let ti=0;ti<3;ti++) s.add('b'+bi+'t'+ti);});
+ b.combos.forEach(ci=> s.add('c'+ci));
+ renderGraph();
+}
+function renderGraph(){
+ const a=AVATARS[curAvatar], s=setOf();
+ document.getElementById("sysLine").textContent=a.sys;
+ document.getElementById("entry").innerHTML=`<div class="entry-cap">起手 · 入口（免费）</div>${nodeHTML(a.entry,'on','e')}<div class="entry-stem"></div>`;
+ document.getElementById("branches").innerHTML=a.branches.map((br,bi)=>`<div class="branch"><div class="branch-title">${br.title}</div>${br.nodes.map((n,ti)=>{const id='b'+bi+'t'+ti;return tierHTML(n,stateOf(id),ti===br.nodes.length-1,id);}).join("")}</div>`).join("");
+ document.getElementById("combos").innerHTML=a.combos.map((n,ci)=>nodeHTML(n,stateOf('c'+ci),'c'+ci,'combo')).join("");
+ // 已点亮 summary
+ const names=[...s].map(id=> id[0]==='b'?a.branches[+id[1]].nodes[+id[3]].name : id[0]==='c'?a.combos[+id[1]].name : '').filter(Boolean);
+ document.getElementById("buildNote").innerHTML=names.length?`<b>已点亮（${names.length}）：</b>${names.join(" · ")}`:`<b>未加点</b> — 点下方节点开始构筑，或用「推荐套用」。`;
+ // 点数条 + 重置
+ document.getElementById("pointbar").innerHTML=`<span class="pcount">精通点 <b>${used()}</b> / ${BUDGET}</span><button class="btn" id="resetBtn">重置本化身</button>`;
+ document.getElementById("resetBtn").onclick=()=>{ s.clear(); renderGraph(); };
+ // 推荐套用
+ const bp=document.getElementById("buildPills");
+ bp.innerHTML=`<span class="lbl">推荐套用</span>`+a.builds.filter(b=>b.label!=='全展示').map((bb,i)=>`<button class="pill" data-p="${i}">${bb.label}</button>`).join("");
+ bp.querySelectorAll("[data-p]").forEach(p=>p.onclick=()=>applyPreset(+p.dataset.p));
+}
+const ap=document.getElementById("avatarPills");
+ap.innerHTML=`<span class="lbl">化身</span>`+AVATARS.map((a,i)=>`<button class="pill${i===0?' on':''}" data-a="${i}">${a.name}</button>`).join("");
+ap.querySelectorAll("[data-a]").forEach(p=>p.onclick=()=>{
+ curAvatar=+p.dataset.a;
+ ap.querySelectorAll(".pill").forEach(x=>x.classList.remove("on"));p.classList.add("on");
+ renderGraph();
+});
+document.addEventListener("click",e=>{const t=e.target.closest(".node[data-id]"); if(t) toggle(t.dataset.id);});
+renderGraph();
+</script>
+</body>
+</html>
