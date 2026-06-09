@@ -17,6 +17,9 @@ namespace XianTu
         private float _dmgRatio = 0.6f;
         private float _timer;
 
+        /// <summary>御物"坐镇聚灵"时由 SpiritRootEarthController 抬高（如 ×1.5），平时为 1。</summary>
+        public static float GlobalDamageMul = 1f;
+
         private static readonly Collider[] _buf = new Collider[32];
 
         public void Init(PlayerController player, LayerMask mask, float life)
@@ -67,7 +70,7 @@ namespace XianTu
 
             // 对落点 AOE 炮击
             Vector3 impact = nearest.position;
-            float dmg = _player.Stats.attackDamage * _dmgRatio;
+            float dmg = _player.Stats.attackDamage * _dmgRatio * Mathf.Max(0.1f, GlobalDamageMul);
             var aoe = Physics.OverlapSphere(impact, _aoeRadius, _mask);
             foreach (var c in aoe)
             {
@@ -75,6 +78,16 @@ namespace XianTu
                 var dmgable = c.GetComponent<IDamageable>();
                 if (dmgable != null) dmgable.OnDamage(dmg, c.transform.position, _player.gameObject);
             }
+
+            // 视觉：炮口闪光 + 一道土黄冲击束（傀儡 → 敌人）+ 命中爆，让"攻击过程"可见
+            Color earth = FxFactory.ElementColor(ElementTag.Earth);
+            Vector3 muzzle = transform.position + Vector3.up * 1.1f;
+            Vector3 aim = impact + Vector3.up * 0.6f;
+            Vector3 dir = aim - muzzle;
+            float dist = dir.magnitude;
+            if (dist > 0.01f)
+                FxFactory.SpawnSliceLine(muzzle, dir.normalized, dist, earth, 0.16f);
+            FxFactory.SpawnElementBurst(muzzle, ElementTag.Earth, 0.5f, 0.18f);
             FxFactory.SpawnElementBurst(impact + Vector3.up * 0.3f, ElementTag.Earth, _aoeRadius, 0.35f);
         }
     }

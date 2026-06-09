@@ -44,6 +44,9 @@ namespace XianTu
         {
             if (amount <= 0) return;
             int real = Mathf.Max(1, amount);
+            // 机缘频现异象 → 灵力获取 +20%
+            if (RealmAnomalySystem.HasInstance)
+                real = Mathf.RoundToInt(real * RealmAnomalySystem.Instance.InsightGainMul);
             RunInsight += real;
 
             GameEvents.Publish(new GameEvents.InsightChanged

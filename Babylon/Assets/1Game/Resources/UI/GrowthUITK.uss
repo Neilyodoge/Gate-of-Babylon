@@ -1,0 +1,165 @@
+/* 御灵·成长 · UITK (v0.6 阶段C) */
+
+.gr-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.82);
+}
+
+.gr-panel {
+    width: 920px;
+    max-width: 95%;
+    height: 700px;
+    max-height: 92%;
+    padding-top: 22px;
+    padding-bottom: 18px;
+    padding-left: 28px;
+    padding-right: 28px;
+    background-color: rgba(18, 18, 26, 0.97);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(150, 170, 255, 0.28);
+}
+
+.gr-title {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: rgb(200, 210, 255);
+    -unity-text-align: middle-center;
+    letter-spacing: 4px;
+}
+
+.gr-header {
+    font-size: 14px;
+    color: rgba(220, 224, 240, 0.9);
+    -unity-text-align: middle-center;
+    margin-top: 6px;
+    margin-bottom: 14px;
+}
+
+.gr-content {
+    flex-grow: 1;
+}
+
+.gr-section {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(160, 190, 255);
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
+
+.gr-branch {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(150, 210, 200);
+    margin-top: 8px;
+    margin-bottom: 2px;
+    margin-left: 8px;
+}
+
+.gr-row {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+    margin-bottom: 5px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-left-width: 3px;
+    border-left-color: rgba(150, 170, 255, 0.5);
+}
+
+.gr-row--locked {
+    border-left-color: rgba(255, 255, 255, 0.12);
+    opacity: 0.7;
+}
+
+.gr-row__name {
+    width: 150px;
+    flex-shrink: 0;
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(235, 238, 248);
+}
+
+.gr-row__desc {
+    flex-grow: 1;
+    font-size: 12px;
+    color: rgba(214, 220, 234, 0.9);
+    white-space: normal;
+    padding-right: 10px;
+}
+
+.gr-btn {
+    min-width: 120px;
+    flex-shrink: 0;
+    height: 34px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-color: rgba(120, 150, 255, 0.28);
+    color: rgb(225, 232, 255);
+    transition-property: background-color;
+    transition-duration: 0.1s;
+}
+
+.gr-btn:hover {
+    background-color: rgba(120, 150, 255, 0.5);
+}
+
+.gr-btn:disabled {
+    opacity: 0.4;
+}
+
+.gr-done {
+    min-width: 120px;
+    flex-shrink: 0;
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(140, 230, 140);
+    -unity-text-align: middle-center;
+}
+
+.gr-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.gr-hint {
+    font-size: 11px;
+    color: rgba(200, 205, 220, 0.55);
+}
+
+.gr-close {
+    height: 36px;
+    min-width: 130px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgb(240, 240, 240);
+}
+
+.gr-close:hover {
+    background-color: rgba(120, 150, 255, 0.4);
+}

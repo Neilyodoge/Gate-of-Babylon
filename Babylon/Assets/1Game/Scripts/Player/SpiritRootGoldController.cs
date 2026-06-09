@@ -43,6 +43,22 @@ namespace XianTu
 
         private const string SwordHeartEffectId = "Root_GoldSwordHeart";
 
+        [Header("御金 · 飞剑环绕（v0.6 剑魄→御金）")]
+        [SerializeField] private bool enableFlyingSwords = true;
+        [SerializeField] private int flyingSwordCount = 3;
+        [SerializeField] private float flyingSwordDmgRatio = 0.6f;
+        private FlyingSwordSwarm _swordSwarm;
+
+        [Header("御金 · 塑金形态 / 磁牵（v0.6 补全）")]
+        [SerializeField] private UnityEngine.InputSystem.Key shapeMetalKey = UnityEngine.InputSystem.Key.V;
+        [SerializeField] private float bladeAtkBonus = 0.25f;   // 塑金·刃（攻）
+        [SerializeField] private float armorDmgRed = 0.35f;     // 塑金·甲（守）
+        [SerializeField] private float magnetPullRadius = 4.0f; // 磁牵聚怪半径（灵压爆发前）
+        [SerializeField] private float magnetPullMax = 2.2f;    // 单次最大拉近距离
+        private int _goldForm;   // 0=无 1=刃(攻) 2=甲(守)
+        private const string FormBladeId = "Gold_FormBlade";
+        private const string FormArmorId = "Gold_FormArmor";
+
         private PlayerController _player;
         private StatusEffectController _status;
         private SpiritRootController _root;
@@ -108,6 +124,8 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.SkillCastStarted>(OnSkillCast);
             GameEvents.Unsubscribe<GameEvents.DodgeFinished>(OnDodge);
             GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
+            if (_swordSwarm != null) { Destroy(_swordSwarm.gameObject); _swordSwarm = null; }
+            ClearGoldForm();
         }
 
         // 大破天赋：技能命中标记目标时，额外造成 +50% 攻击力伤害
@@ -136,7 +154,27 @@ namespace XianTu
 
         private void Update()
         {
-            if (_root == null || _root.CurrentRoot != SpiritRootType.Metal) return;
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Metal)
+            {
+                if (_swordSwarm != null) { Destroy(_swordSwarm.gameObject); _swordSwarm = null; }
+                if (_goldForm != 0) ClearGoldForm();
+                return;
+            }
+
+            // 御金：维持飞剑环绕
+            if (enableFlyingSwords && _swordSwarm == null && _player != null)
+            {
+                var go = new GameObject("FlyingSwordSwarm");
+                _swordSwarm = go.AddComponent<FlyingSwordSwarm>();
+                _swordSwarm.Init(_player, ResolveEnemyLayer(), flyingSwordCount, flyingSwordDmgRatio);
+            }
+
+            // 塑金：V 键循环 无 → 刃(攻) → 甲(守) → 无
+            {
+                var kbForm = Keyboard.current;
+                if (kbForm != null && kbForm[shapeMetalKey].wasPressedThisFrame)
+                    CycleGoldForm();
+            }
 
             // 大破天赋窗口推进
             if (_powerBreakTimer > 0f)
@@ -242,6 +280,9 @@ namespace XianTu
 
             Vector3 origin = transform.position + Vector3.up * 0.8f;
             Vector3 forward = _player != null ? _player.AimDirection : transform.forward;
+
+            // 御金·磁牵：先把周围敌人拉向身前聚拢，再让爆发扇形一网打尽
+            MagnetPull(transform.position);
 
             float baseDamage = _player.Stats.CalculateDamage() * burstDamageMultiplier;
             LayerMask mask = ResolveEnemyLayer();
@@ -390,6 +431,80 @@ namespace XianTu
                 description = $"普攻 +{swordHeartAtkBonus * 100:F0}% / 暴击率 +{swordHeartCritBonus * 100:F0}%",
                 uiColor = def != null ? def.displayColor : new Color(1f, 0.85f, 0.2f)
             });
+        }
+
+        // ==================== 塑金形态（攻 / 守 切换）====================
+
+        private void CycleGoldForm()
+        {
+            _goldForm = (_goldForm + 1) % 3;
+            if (_status != null) { _status.Remove(FormBladeId); _status.Remove(FormArmorId); }
+
+            Color gold = new Color(1f, 0.85f, 0.2f, 1f);
+            string tag;
+            if (_goldForm == 1)
+            {
+                _status?.Apply(new StatusEffect
+                {
+                    id = FormBladeId, isBuff = true, elementTag = ElementTag.None,
+                    stacks = 1, maxStacks = 1, defaultDuration = -1f, duration = -1f,
+                    modifiers = new System.Collections.Generic.List<StatModifier> { StatModifier.Percent(StatType.AttackDamage, bladeAtkBonus) },
+                    displayName = "塑金·刃", description = $"塑金为刃：攻击 +{bladeAtkBonus * 100:F0}%", uiColor = gold
+                });
+                tag = "塑金·刃（攻）";
+            }
+            else if (_goldForm == 2)
+            {
+                _status?.Apply(new StatusEffect
+                {
+                    id = FormArmorId, isBuff = true, elementTag = ElementTag.None,
+                    stacks = 1, maxStacks = 1, defaultDuration = -1f, duration = -1f,
+                    displayName = "塑金·甲", description = $"塑金为甲：受伤 -{armorDmgRed * 100:F0}%", uiColor = gold
+                });
+                tag = "塑金·甲（守）";
+            }
+            else tag = "塑金·解";
+
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2.6f,
+                Damage = 0,
+                SpecialTag = tag
+            });
+        }
+
+        private void ClearGoldForm()
+        {
+            _goldForm = 0;
+            if (_status != null) { _status.Remove(FormBladeId); _status.Remove(FormArmorId); }
+        }
+
+        /// <summary>给 PlayerController.OnDamage 走的钩子：塑金·甲（守）形态额外减伤。</summary>
+        public float ScaleIncomingDamage(float incoming)
+        {
+            if (_goldForm != 2) return incoming;
+            return incoming * (1f - armorDmgRed);
+        }
+
+        // ==================== 磁牵：把范围内敌人拉向身前（灵压爆发前聚怪）====================
+
+        private void MagnetPull(Vector3 origin)
+        {
+            LayerMask mask = ResolveEnemyLayer();
+            var pulls = Physics.OverlapSphere(origin, magnetPullRadius, mask);
+            foreach (var col in pulls)
+            {
+                if (col == null || col.CompareTag("Player")) continue;
+                if (col.transform == transform || col.transform.IsChildOf(transform)) continue;
+                if (col.GetComponent<IDamageable>() == null) continue;
+
+                Vector3 to = origin - col.transform.position; to.y = 0f;
+                float d = to.magnitude;
+                if (d <= 0.6f) continue;
+                Vector3 step = to.normalized * Mathf.Min(d - 0.6f, magnetPullMax);
+                col.transform.position += step;
+            }
+            FxFactory.SpawnAOERing(origin + Vector3.down * 0.6f, magnetPullRadius, new Color(0.8f, 0.85f, 1f, 0.9f), 0.3f);
         }
     }
 }

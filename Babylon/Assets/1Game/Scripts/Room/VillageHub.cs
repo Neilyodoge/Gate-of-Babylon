@@ -109,41 +109,22 @@ namespace XianTu
             _portal = portalGo.AddComponent<VillagePortal>();
             _portal.Build(onPortalEntered);
 
-            // ===== 灵田模块（v0.5 第一个洞府模块，右侧近）=====
-            var lingTianGo = new GameObject("LingTian");
-            lingTianGo.transform.SetParent(transform, false);
-            lingTianGo.transform.localPosition = new Vector3(7f, 0f, 2f);
-            lingTianGo.AddComponent<LingTian>();
+            // ===== v0.6 洞府裁剪 =====
+            // 退役（不再生成）：灵田 LingTian / 灵兽园 SpiritBeastGarden / 阵法台 FormationPlatform
+            // 隐藏（待灵物解封）：炼器房 ForgeRoom（→ 凝灵阁）
+            // 暂留：悟道蒲团（天赋树）——待天赋入口迁到选化身页（阶段C）后再移除
 
-            // ===== 悟道蒲团模块（v0.5 第三个洞府模块，左侧近）=====
+            // ===== 悟道蒲团模块（天赋树·暂留）=====
             var wuDaoGo = new GameObject("WuDaoCushion");
             wuDaoGo.transform.SetParent(transform, false);
             wuDaoGo.transform.localPosition = new Vector3(-7f, 0f, -3f);
             wuDaoGo.AddComponent<WuDaoCushion>();
 
-            // ===== 炼器房模块（v0.5 Week 4 第四个洞府模块，右后）=====
-            var forgeGo = new GameObject("ForgeRoom");
-            forgeGo.transform.SetParent(transform, false);
-            forgeGo.transform.localPosition = new Vector3(10f, 0f, 4f);
-            forgeGo.AddComponent<ForgeRoom>();
-
-            // ===== 藏经阁模块（v0.5 Week 4 第五个洞府模块，左后）=====
+            // ===== 藏经阁模块（保留）=====
             var scriptureGo = new GameObject("ScripturePavilion");
             scriptureGo.transform.SetParent(transform, false);
             scriptureGo.transform.localPosition = new Vector3(-10f, 0f, 4f);
             scriptureGo.AddComponent<ScripturePavilion>();
-
-            // ===== 灵兽园模块（v0.5 Week 4 第六个洞府模块，正北偏左）=====
-            var beastGo = new GameObject("SpiritBeastGarden");
-            beastGo.transform.SetParent(transform, false);
-            beastGo.transform.localPosition = new Vector3(-3f, 0f, 8f);
-            beastGo.AddComponent<SpiritBeastGarden>();
-
-            // ===== 阵法台模块（v0.5 Week 4 第七个洞府模块，正北偏右）=====
-            var formationGo = new GameObject("FormationPlatform");
-            formationGo.transform.SetParent(transform, false);
-            formationGo.transform.localPosition = new Vector3(3f, 0f, 8f);
-            formationGo.AddComponent<FormationPlatform>();
 
             // ===== v0.5.4 局外 meta 模块（闭关石室 / 灵脉台）=====
             // V.03（Q7）：局外洞府 meta 暂缓，本版本不生成这两个模块（代码保留，开关恢复）
@@ -206,7 +187,7 @@ namespace XianTu
     // ============================================================
 
     /// <summary>
-    /// 司命使 NPC：玩家走近按 F → 弹 SpiritRootSelectUI。
+    /// 司命使 NPC：玩家走近按 F → 弹 SpiritRootSelectUITK（化身选择）。
     /// 优先级 30，介于商店 (40) / 升级台 (35) 与拾取物 (20/25) 之间，
     /// 防止玩家站在 NPC 身边时被路边的小灵物抢交互焦点。
     /// </summary>
@@ -272,16 +253,16 @@ namespace XianTu
         {
             if (_headCard != null)
             {
-                bool wantHint = IsRoutedActive && !SpiritRootSelectUI.IsVisible;
+                bool wantHint = IsRoutedActive && !SpiritRootSelectUITK.IsVisible;
                 _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
-            if (SpiritRootSelectUI.IsVisible) return;
+            if (SpiritRootSelectUITK.IsVisible) return;
 
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
-                SpiritRootSelectUI.Show();
+                SpiritRootSelectUITK.Show();
         }
 
         private void OnPlayerEnter()
@@ -431,31 +412,14 @@ namespace XianTu
 
             if (_headCard != null)
             {
-                bool wantHint = IsRoutedActive && !SpiritRootSelectUI.IsVisible;
+                bool wantHint = IsRoutedActive && !SpiritRootSelectUITK.IsVisible;
                 _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
-            if (SpiritRootSelectUI.IsVisible) return;
+            if (SpiritRootSelectUITK.IsVisible) return;
 
-            // v0.5：道伤未消退时拒绝入秘境（不再静默——提示直接说明原因 + 剩余）
-            float soulHurt = SaveSystem.Instance.Data.soulHurtRemainingSec;
-            if (soulHurt > 0f)
-            {
-                if (_headCard != null)
-                {
-                    _headCard.UpdateHintText($"🩸 道伤未愈 · 剩 {GameTime.FormatDuration(soulHurt)}");
-                    _headCard.SetHintVisible(true);
-                }
-                var kb0 = UnityEngine.InputSystem.Keyboard.current;
-                if (kb0 != null && kb0.fKey.wasPressedThisFrame)
-                {
-                    Debug.Log($"<color=#ff8866>[VillagePortal] 道伤未愈，无法入秘境（剩 {GameTime.FormatDuration(soulHurt)}）</color>");
-                }
-                return;
-            }
-
-            // 道伤已愈：恢复默认提示文案
+            // v0.6：道伤已移除，山门不再因任何状态阻拦
             if (_headCard != null) _headCard.UpdateHintText("按 [F] 入秘境");
 
             var kb = UnityEngine.InputSystem.Keyboard.current;

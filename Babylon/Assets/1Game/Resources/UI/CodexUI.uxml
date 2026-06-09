@@ -1,0 +1,15 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="CodexUI.uss" />
+    <ui:VisualElement name="overlay" class="cx-overlay">
+        <ui:VisualElement name="panel" class="cx-panel">
+            <ui:Label name="title" text="仙物图鉴" class="cx-title" />
+            <ui:VisualElement name="tabs" class="cx-tabs" />
+            <ui:VisualElement name="filters" class="cx-filters" />
+            <ui:ScrollView name="list" class="cx-list" />
+            <ui:VisualElement name="footer" class="cx-footer">
+                <ui:Label name="count" text="" class="cx-count" />
+                <ui:Button name="close" text="关闭 [Esc]" class="cx-close" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

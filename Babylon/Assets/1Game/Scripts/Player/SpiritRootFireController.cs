@@ -60,6 +60,13 @@ namespace XianTu
         private bool _inFrenzy;
         private float _frenzyTimer;
 
+        // 魔焰献祭运行时（v0.6）
+        public const string SacrificeEffectId = "Root_FireSacrifice";
+        [SerializeField] private float sacrificeMaxBonus = 0.6f;      // 残血时火伤最高 +60%
+        [SerializeField] private float frenzyHpDrainPerSec = 0.015f;  // 狂火期间每秒燃血 1.5% 最大血
+        [SerializeField] private int frenzyDemonOnActivate = 3;       // 主动进狂火/献祭 +心魔
+        private float _sacTimer;
+
         public int CurrentRage => Mathf.RoundToInt(_rage);
         public int MaxRage => maxRage;
         public bool InFrenzy => _inFrenzy;
@@ -81,7 +88,6 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             GameEvents.Subscribe<GameEvents.PlayerDamaged>(OnPlayerDamaged);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Subscribe<GameEvents.FireBrandExploded>(OnFireBrandExploded);
         }
 
         private void OnDisable()
@@ -90,18 +96,22 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             GameEvents.Unsubscribe<GameEvents.PlayerDamaged>(OnPlayerDamaged);
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Unsubscribe<GameEvents.FireBrandExploded>(OnFireBrandExploded);
+            // 离场时清掉残血增伤
+            if (_status != null) _status.Remove(SacrificeEffectId);
         }
 
         private void Update()
         {
             if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
 
+            TickSacrifice();   // 魔焰·残血增伤（越残越猛）
+
             // 推进狂火状态
             if (_inFrenzy)
             {
                 _frenzyTimer -= Time.deltaTime;
 
+                BurnLife();    // 狂火期间燃血献祭
                 // 狂火期间持续普攻 AOE 检测（每 0.5s 触发一次）
                 TickFrenzyAoe();
 
@@ -146,41 +156,13 @@ namespace XianTu
         private void OnMeleeHit(GameEvents.MeleeHitConnected evt)
         {
             if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
-            AddRage(rageOnAttackHit);
-
-            // v0.5 Week 6 · 业焰印：普攻命中给敌人 +1（狂火期间 +2）
-            if (evt.Target != null)
-            {
-                int delta = _inFrenzy ? 2 : 1;
-                FireBrandStack.AddStacks(evt.Target, delta, _inFrenzy);
-            }
+            AddRage(rageOnAttackHit);   // v0.6：业焰印叠印引爆已移除（收敛为青囊专属），仅保留回怒气
         }
 
         private void OnSkillHit(GameEvents.SkillHitConnected evt)
         {
             if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
-            // 融合点：技能命中也回怒气
             AddRage(rageOnSkillHit);
-
-            // v0.5 Week 6 · 业焰印：技能命中给敌人 +1（狂火期间 +2）
-            if (evt.Target != null)
-            {
-                int delta = _inFrenzy ? 2 : 1;
-                FireBrandStack.AddStacks(evt.Target, delta, _inFrenzy);
-            }
-        }
-
-        private void OnFireBrandExploded(GameEvents.FireBrandExploded evt)
-        {
-            if (_root == null || _root.CurrentRoot != SpiritRootType.Fire) return;
-            // 业焰印引爆 → 玩家小额回怒气（爽快感反馈）+ 飘字
-            AddRage(8);
-            GameEvents.Publish(new GameEvents.DamageNumberRequested
-            {
-                WorldPosition = evt.EnemyPos + Vector3.up * 1.6f,
-                Damage = 0,
-                SpecialTag = $"业焰印 ×{evt.StacksConsumed} 引爆！"
-            });
         }
 
         private void OnPlayerDamaged(GameEvents.PlayerDamaged evt)
@@ -215,9 +197,51 @@ namespace XianTu
 
         // ==================== 狂火状态 ====================
 
+        // 魔焰·残血增伤：越残血，火伤越高（每 0.3s 刷新一个百分比攻击 StatusEffect）
+        private void TickSacrifice()
+        {
+            _sacTimer -= Time.deltaTime;
+            if (_sacTimer > 0f) return;
+            _sacTimer = 0.3f;
+            if (_status == null || _player == null) return;
+
+            float maxHp = _player.Stats.maxHp;
+            float ratio = maxHp > 0f ? Mathf.Clamp01(_player.Stats.currentHp / maxHp) : 1f;
+            float bonus = sacrificeMaxBonus * (1f - ratio);
+
+            _status.Remove(SacrificeEffectId);
+            if (bonus <= 0.01f) return;
+            _status.Apply(new StatusEffect
+            {
+                id = SacrificeEffectId,
+                isBuff = true,
+                elementTag = ElementTag.Fire,
+                stacks = 1, maxStacks = 1,
+                duration = -1f, defaultDuration = -1f,
+                modifiers = new List<StatModifier> { StatModifier.Percent(StatType.AttackDamage, bonus) },
+                displayName = "魔焰·残血",
+                description = $"残血增伤 +{bonus * 100:F0}%",
+                uiColor = new Color(1f, 0.35f, 0.2f, 1f)
+            });
+        }
+
+        // 狂火期间燃血献祭：每秒燃烧少量生命为燃料（最低保留 1 点）
+        private void BurnLife()
+        {
+            if (_player == null) return;
+            float maxHp = _player.Stats.maxHp;
+            float drain = maxHp * frenzyHpDrainPerSec * Time.deltaTime;
+            if (drain <= 0f) return;
+            _player.Stats.currentHp = Mathf.Max(1f, _player.Stats.currentHp - drain);
+            GameEvents.Publish(new GameEvents.HealthChanged { CurrentHp = _player.Stats.currentHp, MaxHp = maxHp });
+        }
+
         private void StartFrenzy(float duration, bool isForced)
         {
             if (_inFrenzy) return;
+            // 主动/献祭进入魔焰加身 → 涨心魔（入魔风险）
+            if (!isForced && InnerDemonMeter.HasInstance)
+                InnerDemonMeter.Instance.AddInnerDemon(frenzyDemonOnActivate, "魔焰加身");
 
             _inFrenzy = true;
             _frenzyTimer = duration;
@@ -382,13 +406,8 @@ namespace XianTu
                 if (col == null || col.transform == transform || col.transform.IsChildOf(transform) || col.CompareTag("Player")) continue;
                 var dmgable = col.GetComponent<IDamageable>();
                 if (dmgable == null) continue;
-                // 业焰印放大：火灵根伤害对带业焰印的敌人造成 +10% × N 层
-                float brandMul = FireBrandStack.GetFireDamageMultiplier(col.gameObject);
-                float dmg = _player.Stats.attackDamage * ratio * brandMul;
+                float dmg = _player.Stats.attackDamage * ratio;
                 dmgable.OnDamage(dmg, col.transform.position, gameObject);
-
-                // 狂火脚下 AOE 也算"命中" → 给敌人 +1 层业焰印（让满层引爆速度更快）
-                FireBrandStack.AddStacks(col.gameObject, 1, true);
             }
 
             // 视觉：脚下一圈短暂火环

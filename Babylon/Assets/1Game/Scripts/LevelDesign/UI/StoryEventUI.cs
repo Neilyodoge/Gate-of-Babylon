@@ -1,13 +1,13 @@
 using System;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace XianTu.LevelDesign
 {
     /// <summary>
-    /// GDD §12.2.3 事件 UI（IMGUI 临时实现）。
-    ///
-    /// 使用：StoryEventUI.Show(row, opt =&gt; { ... });
-    /// 显示后玩家点选项 → 回调被触发 → 自动关闭。
+    /// GDD §12.2.3 事件 UI（v0.6 改 UI Toolkit）。
+    /// 使用：StoryEventUI.Show(row, opt =&gt; { ... }); 玩家点选项 → 回调 → 自动关闭。
+    /// 结构 Resources/UI/StoryEventUI.uxml，样式同名 uss。对外保持 Show/HideImmediate/IsVisible。
     /// </summary>
     public class StoryEventUI : MonoBehaviour
     {
@@ -20,6 +20,12 @@ namespace XianTu.LevelDesign
         private CursorLockMode _prevLock;
         private bool _prevVisible;
 
+        private UIDocument _doc;
+        private VisualElement _overlay;
+        private Label _title;
+        private Label _body;
+        private VisualElement _options;
+
         public static void Show(StoryEventRow row, Action<EventOption> onSelected)
         {
             if (row == null || row.Options == null || row.Options.Length == 0)
@@ -28,103 +34,93 @@ namespace XianTu.LevelDesign
                 return;
             }
 
+            EnsureInstance();
             if (_instance == null)
             {
-                var go = new GameObject("StoryEventUI");
-                DontDestroyOnLoad(go);
-                _instance = go.AddComponent<StoryEventUI>();
+                onSelected?.Invoke(null);
+                return;
             }
+
             _instance._row = row;
             _instance._onSelected = onSelected;
             _instance._visible = true;
-            _instance._prevLock = Cursor.lockState;
-            _instance._prevVisible = Cursor.visible;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            _instance._prevLock = UnityEngine.Cursor.lockState;
+            _instance._prevVisible = UnityEngine.Cursor.visible;
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+
+            _instance.Rebuild();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
         }
 
         public static void HideImmediate()
         {
-            if (_instance != null) _instance._visible = false;
+            if (_instance == null) return;
+            _instance._visible = false;
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
         }
 
-        private void OnGUI()
+        private static void EnsureInstance()
         {
-            if (!_visible || _row == null) return;
+            if (_instance != null) return;
+            var go = new GameObject("StoryEventUI");
+            DontDestroyOnLoad(go);
+            _instance = go.AddComponent<StoryEventUI>();
+        }
 
-            // 半透明遮罩
-            var bg = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = bg;
+        private void Awake()
+        {
+            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
+            var tree = Resources.Load<VisualTreeAsset>("UI/StoryEventUI");
 
-            float w = 800f;
-            float h = 540f;
-            float x = (Screen.width - w) * 0.5f;
-            float y = (Screen.height - h) * 0.5f;
+            _doc = gameObject.AddComponent<UIDocument>();
+            _doc.panelSettings = panelSettings;
+            _doc.visualTreeAsset = tree;
+            _doc.sortingOrder = 10f;
 
-            // 主面板
-            GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.96f);
-            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-            GUI.color = new Color(0.7f, 0.5f, 0.2f, 0.85f);
-            GUI.DrawTexture(new Rect(x, y, w, 3f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(x, y + h - 3f, w, 3f), Texture2D.whiteTexture);
-            GUI.color = bg;
+            var root = _doc.rootVisualElement;
+            if (root == null) return;
+            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
 
-            // 标题
-            var titleStyle = new GUIStyle(GUI.skin.label)
+            _overlay = root.Q<VisualElement>("overlay");
+            _title = root.Q<Label>("title");
+            _body = root.Q<Label>("body");
+            _options = root.Q<VisualElement>("options");
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+        }
+
+        private void Rebuild()
+        {
+            if (_row == null) return;
+            if (_title != null) _title.text = $"· 奇遇 · {_row.Name_CN} ·";
+            if (_body != null) _body.text = _row.Text_CN;
+
+            if (_options != null)
             {
-                fontSize = 24,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(1f, 0.85f, 0.45f, 1f) }
-            };
-            GUI.Label(new Rect(x, y + 18f, w, 36f), $"· 奇遇 · {_row.Name_CN} ·", titleStyle);
-
-            // 事件文本
-            var textStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 17,
-                wordWrap = true,
-                alignment = TextAnchor.UpperLeft,
-                normal = { textColor = new Color(0.92f, 0.88f, 0.82f, 1f) }
-            };
-            GUI.Label(new Rect(x + 40f, y + 70f, w - 80f, 180f), _row.Text_CN, textStyle);
-
-            // 选项按钮
-            float btnY = y + 270f;
-            float btnH = 60f;
-            float btnGap = 12f;
-
-            var btnStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 18,
-                alignment = TextAnchor.MiddleLeft,
-                padding = new RectOffset(20, 20, 8, 8),
-                wordWrap = true
-            };
-
-            int optCount = 0;
-            foreach (var opt in _row.Options)
-            {
-                if (opt == null || string.IsNullOrEmpty(opt.Text)) continue;
-                if (GUI.Button(new Rect(x + 40f, btnY + optCount * (btnH + btnGap), w - 80f, btnH),
-                               BuildOptionLabel(opt), btnStyle))
+                _options.Clear();
+                foreach (var opt in _row.Options)
                 {
-                    var picked = opt;
-                    _visible = false;
-                    Cursor.lockState = _prevLock;
-                    Cursor.visible = _prevVisible;
-                    _onSelected?.Invoke(picked);
-                    return;
+                    if (opt == null || string.IsNullOrEmpty(opt.Text)) continue;
+                    var captured = opt;
+                    var b = new Button(() => OnPick(captured)) { text = BuildOptionLabel(opt) };
+                    b.AddToClassList("se-opt");
+                    b.enableRichText = true;
+                    _options.Add(b);
                 }
-                optCount++;
             }
+        }
+
+        private void OnPick(EventOption opt)
+        {
+            _visible = false;
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            UnityEngine.Cursor.lockState = _prevLock;
+            UnityEngine.Cursor.visible = _prevVisible;
+            _onSelected?.Invoke(opt);
         }
 
         private string BuildOptionLabel(EventOption opt)
         {
-            // 在按钮上提示主要后果（玩家可见的代价/收益）
             var tags = new System.Collections.Generic.List<string>();
             if (opt.KarmaChange > 0) tags.Add($"<color=#e87f5b>因果 +{opt.KarmaChange}</color>");
             else if (opt.KarmaChange < 0) tags.Add($"<color=#9ed18c>因果 {opt.KarmaChange}</color>");
@@ -134,7 +130,7 @@ namespace XianTu.LevelDesign
             if (opt.RewardID > 0) tags.Add("<color=#7fb8ff>有奖励</color>");
             if (opt.CostID > 0) tags.Add("<color=#e87f5b>有代价</color>");
 
-            string suffix = tags.Count > 0 ? "  " + string.Join(" · ", tags) : "";
+            string suffix = tags.Count > 0 ? "    " + string.Join("  ·  ", tags) : "";
             return $"▸ {opt.Text}{suffix}";
         }
     }

@@ -1,0 +1,93 @@
+/* 仙山舆图 · UITK (v0.6) */
+
+.tm-overlay {
+    flex-grow: 1;
+    background-color: rgba(5, 5, 10, 0.94);
+    padding-top: 20px;
+}
+
+.tm-title {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: rgb(255, 216, 115);
+    -unity-text-align: middle-center;
+}
+
+.tm-sub {
+    font-size: 13px;
+    color: rgba(180, 180, 205, 0.85);
+    -unity-text-align: middle-center;
+    margin-top: 6px;
+}
+
+.tm-maparea {
+    flex-grow: 1;
+    position: relative;
+}
+
+.tm-lines {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.tm-node {
+    position: absolute;
+    width: 56px;
+    height: 56px;
+    align-items: center;
+    justify-content: center;
+    border-top-left-radius: 28px;
+    border-top-right-radius: 28px;
+    border-bottom-left-radius: 28px;
+    border-bottom-right-radius: 28px;
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0.6);
+}
+
+.tm-node--current {
+    border-color: rgb(255, 255, 255);
+    border-width: 3px;
+}
+
+.tm-node--candidate {
+    border-color: rgba(255, 216, 90, 0.9);
+}
+
+.tm-node-icon {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(245, 245, 245);
+}
+
+.tm-hot {
+    position: absolute;
+    width: 40px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: rgb(255, 224, 110);
+    -unity-text-align: middle-center;
+}
+
+.tm-legend {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.tm-legend-line {
+    font-size: 12px;
+    color: rgba(225, 225, 230, 0.9);
+    margin-bottom: 2px;
+}

@@ -1,16 +1,15 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
 
 namespace XianTu
 {
     /// <summary>
-    /// 主菜单（v0.5 Week 9）—— 启动入口 + 返回主菜单。
+    /// 主菜单（v0.6 改 UI Toolkit）—— 启动入口 + 返回主菜单。
     ///
-    /// 启动流程：
-    /// 1. Demo1Setup.Awake 创建场景对象（包括 PauseMenu / MainMenu 单例）
-    /// 2. GameManager.Awake 后立刻调用 <see cref="ShowOnBoot"/> 显示主菜单 + Time.timeScale=0
-    /// 3. 玩家点"开始新局" → <see cref="StartNewRunPressed"/> 隐藏菜单 + 恢复时间
-    /// 4. 暂停菜单选"返回主菜单" → <see cref="ReturnToMainMenu"/> 重载当前场景
+    /// 结构 Resources/UI/MainMenu.uxml，样式 MainMenu.uss，复用 AvatarSelectPanelSettings
+    /// （UIDocument.sortingOrder=0，弹层 10~14 在其上方）。
+    /// 启动流程见 Demo1Setup / GameManager：boot 时 ShowOnBoot 显示并暂停。
     /// </summary>
     public class MainMenu : MonoBehaviour
     {
@@ -22,13 +21,10 @@ namespace XianTu
         private CursorLockMode _previousCursorLock;
         private bool _previousCursorVisible;
 
-        private GUIStyle _titleStyle;
-        private GUIStyle _subtitleStyle;
-        private GUIStyle _btnStyle;
-        private GUIStyle _footerStyle;
-        private GUIStyle _maskStyle;
-        private Texture2D _maskTex;
-        private bool _stylesReady;
+        private UIDocument _doc;
+        private VisualElement _overlay;
+        private Button _continueBtn;
+        private Label _saveInfo;
 
         public static void Ensure()
         {
@@ -38,7 +34,6 @@ namespace XianTu
             _instance = go.AddComponent<MainMenu>();
         }
 
-        /// <summary>启动时调用：第一次显示主菜单（暂停游戏）</summary>
         public static void ShowOnBoot()
         {
             Ensure();
@@ -56,10 +51,13 @@ namespace XianTu
             _instance._previousTimeScale = Time.timeScale;
             Time.timeScale = 0f;
 
-            _instance._previousCursorLock = Cursor.lockState;
-            _instance._previousCursorVisible = Cursor.visible;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            _instance._previousCursorLock = UnityEngine.Cursor.lockState;
+            _instance._previousCursorVisible = UnityEngine.Cursor.visible;
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+
+            _instance.RefreshDynamic();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
         }
 
         public static void Hide()
@@ -70,42 +68,37 @@ namespace XianTu
             float prev = _instance._previousTimeScale;
             Time.timeScale = prev >= 0.1f ? prev : 1f;
 
-            Cursor.lockState = _instance._previousCursorLock;
-            Cursor.visible = _instance._previousCursorVisible;
+            UnityEngine.Cursor.lockState = _instance._previousCursorLock;
+            UnityEngine.Cursor.visible = _instance._previousCursorVisible;
+
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
         }
 
-        /// <summary>返回主菜单：重启当前场景（销毁所有运行时对象，状态清零）</summary>
         public static void ReturnToMainMenu()
         {
-            // 恢复时间，避免新场景加载时被锁在 0
             Time.timeScale = 1f;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
 
-            // 清掉 DontDestroyOnLoad 上的所有玩法单例，避免新一局复用旧状态
             CleanupSingletons();
-
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
         private static void CleanupSingletons()
         {
-            // 这些单例都是用 DontDestroyOnLoad 创建在独立 GO 上的，重载场景时不会自动销毁
-            // 必须显式清理，否则会出现"主菜单后开始新局，CaveInventory 还有上局缓冲"等奇怪状态
             DestroyIfExists("CaveInventory");
             DestroyIfExists("InsightSystem");
             DestroyIfExists("GameTime");
             DestroyIfExists("RunHUD");
             DestroyIfExists("PauseMenu");
             DestroyIfExists("MainMenu");
-            DestroyIfExists("CodexUI");
+            DestroyIfExists("CodexUITK");
             DestroyIfExists("SettingsUI");
-            DestroyIfExists("SpiritRootSelectUI");
-            DestroyIfExists("StatusEffectHUD");
+            DestroyIfExists("SpiritRootSelectUITK");
+            DestroyIfExists("BuffBarUITK");
             DestroyIfExists("SpiritRootMechanicHUD");
             DestroyIfExists("CaveEconomy");
 
-            // 清掉运行时状态
             SynergySystem.Clear();
         }
 
@@ -124,115 +117,68 @@ namespace XianTu
                                     || data.unlockedItemIds.Count > 0);
         }
 
-        // ========== IMGUI ==========
+        // ========== UITK ==========
 
-        private void EnsureStyles()
+        private void Awake()
         {
-            if (_stylesReady) return;
+            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
+            var tree = Resources.Load<VisualTreeAsset>("UI/MainMenu");
 
-            _maskTex = new Texture2D(1, 1);
-            _maskTex.SetPixel(0, 0, new Color(0.03f, 0.04f, 0.08f, 0.96f));
-            _maskTex.Apply();
-            _maskStyle = new GUIStyle();
-            _maskStyle.normal.background = _maskTex;
+            _doc = gameObject.AddComponent<UIDocument>();
+            _doc.panelSettings = panelSettings;
+            _doc.visualTreeAsset = tree;
+            _doc.sortingOrder = 0f;   // 主菜单在最底层，弹层在其上
 
-            _titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 64, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            _titleStyle.normal.textColor = new Color(1f, 0.92f, 0.65f);
+            var root = _doc.rootVisualElement;
+            if (root == null) return;
+            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            // 样式经 UXML <Style src> 加载（避免 Resources 空规则缓存坑）
 
-            _subtitleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 16, fontStyle = FontStyle.Italic,
-                alignment = TextAnchor.MiddleCenter
-            };
-            _subtitleStyle.normal.textColor = new Color(0.75f, 0.78f, 0.85f, 0.85f);
+            _overlay = root.Q<VisualElement>("overlay");
+            _continueBtn = root.Q<Button>("continue");
+            _saveInfo = root.Q<Label>("saveinfo");
 
-            _btnStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 22, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
+            Wire(root, "start", Hide);
+            Wire(root, "continue", Hide);
+            Wire(root, "codex", () => CodexUITK.Show());
+            Wire(root, "settings", () => SettingsUI.Show());
+            Wire(root, "quit", QuitGame);
 
-            _footerStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 12, alignment = TextAnchor.MiddleCenter
-            };
-            _footerStyle.normal.textColor = new Color(0.55f, 0.58f, 0.65f, 0.7f);
-
-            _stylesReady = true;
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
         }
 
-        private void OnGUI()
+        private static void Wire(VisualElement root, string name, System.Action action)
         {
-            if (!_visible) return;
-            EnsureStyles();
+            var b = root.Q<Button>(name);
+            if (b != null) b.clicked += action;
+        }
 
-            // 不透明黑底
-            GUI.Box(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, _maskStyle);
-
-            // 标题
-            GUI.Label(new Rect(0, Screen.height * 0.18f, Screen.width, 100f), "仙途秘境", _titleStyle);
-            GUI.Label(new Rect(0, Screen.height * 0.18f + 96f, Screen.width, 30f),
-                "闯秘境修仙 · 搜打撤 · 洞府养成", _subtitleStyle);
-
-            // 按钮区
-            const float BtnW = 320f, BtnH = 58f, BtnGap = 16f;
-            float btnX = (Screen.width - BtnW) * 0.5f;
-            float btnY = Screen.height * 0.45f;
-
+        private void RefreshDynamic()
+        {
             bool hasSave = HasSave();
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "▶  入秘境", _btnStyle))
+            if (_continueBtn != null)
             {
-                Hide();
+                _continueBtn.SetEnabled(hasSave);
+                _continueBtn.text = hasSave ? "继续修行" : "继续修行（无存档）";
             }
-            btnY += BtnH + BtnGap;
-
-            // 继续游戏：有存档时启用
-            GUI.enabled = hasSave;
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH),
-                hasSave ? "♻  继续修行" : "♻  继续修行（无存档）", _btnStyle))
+            if (_saveInfo != null)
             {
-                Hide();
+                if (hasSave)
+                {
+                    var data = SaveSystem.Instance.Data;
+                    _saveInfo.text = $"灵气 {data.caveQi}　·　通关 {data.totalRunsCompleted}　·　入魔 {data.totalDeaths}　·　天赋 {data.unlockedTalentIds.Count}";
+                }
+                else _saveInfo.text = "";
             }
-            GUI.enabled = true;
-            btnY += BtnH + BtnGap;
+        }
 
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "📜  仙物图鉴", _btnStyle))
-            {
-                CodexUI.Show();
-            }
-            btnY += BtnH + BtnGap;
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "⚙  设置", _btnStyle))
-            {
-                SettingsUI.Show();
-            }
-            btnY += BtnH + BtnGap;
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "✕  退出游戏", _btnStyle))
-            {
+        private static void QuitGame()
+        {
 #if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
+            UnityEditor.EditorApplication.isPlaying = false;
 #else
-                Application.Quit();
+            Application.Quit();
 #endif
-            }
-
-            // 存档信息（左下）
-            if (hasSave)
-            {
-                var data = SaveSystem.Instance.Data;
-                string info = $"灵气 {data.caveQi}  ·  通关 {data.totalRunsCompleted}  ·  入魔 {data.totalDeaths}  ·  天赋 {data.unlockedTalentIds.Count}";
-                GUI.Label(new Rect(0, Screen.height - 60f, Screen.width, 20f), info, _footerStyle);
-            }
-
-            // 版本号（右下）
-            GUI.Label(new Rect(0, Screen.height - 30f, Screen.width, 20f),
-                "v0.5 Demo2 · 2026-05", _footerStyle);
         }
     }
 }

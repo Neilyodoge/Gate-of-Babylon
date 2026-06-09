@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="UpgradeRoom.uss" />
+    <ui:VisualElement name="overlay" class="up-overlay">
+        <ui:VisualElement name="panel" class="up-panel">
+            <ui:Label text="✦ 功法宗师 · 修炼升级 ✦" class="up-title" />
+            <ui:Label name="shards" text="" class="up-shards" />
+            <ui:VisualElement name="cards" class="up-cards" />
+            <ui:VisualElement name="footer" class="up-footer">
+                <ui:Label text="选择升级方向 · 每次升级费用递增 | [Esc] 关闭" class="up-hint" />
+                <ui:Button name="close" text="离开修炼" class="up-close" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

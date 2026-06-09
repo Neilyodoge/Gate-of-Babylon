@@ -1,13 +1,16 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace XianTu.LevelDesign
 {
     /// <summary>
-    /// GDD §12.2.1 树状关卡图 UI（杀戮尖塔式分支选路）。
-    /// 简化版：屏幕中央展示节点 + 连线，玩家点击或数字键 1/2/3/4 选择下一节点。
-    /// 数据驱动：依赖 TreeMap 数据，独立于业务。
+    /// GDD §12.2.1 树状关卡图 UI（v0.6 改 UI Toolkit）。
+    /// 节点横向铺开（左起点 → 右 Boss），连线用 Painter2D 自绘，点击/数字键选择下一节点。
+    /// 结构 Resources/UI/TreeMapUI.uxml，样式同名 uss。对外保持 Show/HideImmediate/IsVisible。
+    /// readOnly=false：选择模式（推进 CurrentNode + 回调）；readOnly=true：查看模式（仅 ESC 关闭）。
     /// </summary>
     public class TreeMapUI : MonoBehaviour
     {
@@ -21,39 +24,233 @@ namespace XianTu.LevelDesign
         private CursorLockMode _prevLock;
         private bool _prevVisible;
 
-        /// <summary>
-        /// 显示舆图。
-        /// readOnly = false：选择模式（玩家点节点会推进 CurrentNode 并触发 onChosen 回调，进门时使用）。
-        /// readOnly = true：查看模式（候选节点不可点击，可按 ESC 关闭，DebugConsole 使用）。
-        /// </summary>
+        private UIDocument _doc;
+        private VisualElement _overlay;
+        private Label _title;
+        private Label _sub;
+        private VisualElement _mapArea;
+        private VisualElement _lines;
+        private Label _legend3;
+        private Label _legend4;
+
+        private readonly Dictionary<TreeNode, VisualElement> _nodeEls = new();
+        private readonly Dictionary<TreeNode, Label> _hotkeyEls = new();
+        private readonly Dictionary<TreeNode, Vector2> _nodePos = new();
+
+        private const float NodeSize = 56f;
+        private const float PadLeft = 70f;
+        private const float PadTop = 24f;
+        private const float PadBottom = 70f;
+
         public static void Show(TreeMap map, Action<TreeNode> onChosen, bool readOnly = false)
         {
             if (map == null) return;
-            if (_instance == null)
-            {
-                var go = new GameObject("TreeMapUI");
-                DontDestroyOnLoad(go);
-                _instance = go.AddComponent<TreeMapUI>();
-            }
+            EnsureInstance();
+            if (_instance == null) return;
+
             _instance._map = map;
             _instance._onNodeChosen = onChosen;
             _instance._readOnly = readOnly;
             _instance._visible = true;
-            _instance._prevLock = Cursor.lockState;
-            _instance._prevVisible = Cursor.visible;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            _instance._prevLock = UnityEngine.Cursor.lockState;
+            _instance._prevVisible = UnityEngine.Cursor.visible;
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+
+            _instance.Rebuild();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
         }
 
         public static void HideImmediate()
         {
-            if (_instance != null)
+            if (_instance == null) return;
+            _instance._visible = false;
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (!_instance._readOnly)
             {
-                _instance._visible = false;
-                if (!_instance._readOnly)
+                UnityEngine.Cursor.lockState = _instance._prevLock;
+                UnityEngine.Cursor.visible = _instance._prevVisible;
+            }
+        }
+
+        private static void EnsureInstance()
+        {
+            if (_instance != null) return;
+            var go = new GameObject("TreeMapUI");
+            DontDestroyOnLoad(go);
+            _instance = go.AddComponent<TreeMapUI>();
+        }
+
+        private void Awake()
+        {
+            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
+            var tree = Resources.Load<VisualTreeAsset>("UI/TreeMapUI");
+
+            _doc = gameObject.AddComponent<UIDocument>();
+            _doc.panelSettings = panelSettings;
+            _doc.visualTreeAsset = tree;
+            _doc.sortingOrder = 11f;
+
+            var root = _doc.rootVisualElement;
+            if (root == null) return;
+            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+
+            _overlay = root.Q<VisualElement>("overlay");
+            _title = root.Q<Label>("title");
+            _sub = root.Q<Label>("sub");
+            _mapArea = root.Q<VisualElement>("mapArea");
+            _lines = root.Q<VisualElement>("lines");
+            _legend3 = root.Q<Label>("legend3");
+            _legend4 = root.Q<Label>("legend4");
+
+            if (_lines != null)
+            {
+                _lines.pickingMode = PickingMode.Ignore;
+                _lines.generateVisualContent += OnDrawLines;
+            }
+            if (_mapArea != null)
+                _mapArea.RegisterCallback<GeometryChangedEvent>(_ => LayoutMap());
+
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+        }
+
+        private void Rebuild()
+        {
+            if (_map == null || _mapArea == null) return;
+
+            // 清掉旧节点/热键（保留 lines 层）
+            foreach (var kv in _nodeEls) kv.Value.RemoveFromHierarchy();
+            foreach (var kv in _hotkeyEls) kv.Value.RemoveFromHierarchy();
+            _nodeEls.Clear();
+            _hotkeyEls.Clear();
+            _nodePos.Clear();
+
+            if (_title != null) _title.text = $"· 仙山舆图 · 第 {_map.ActID} 境 ·";
+            if (_sub != null)
+            {
+                string tip = _readOnly ? "按 ESC 关闭（查看模式）" : "点击或按数字键选择下一去处";
+                _sub.text = $"已闯 {CountVisited()} / {CountTotal()} 房间        {tip}";
+            }
+            RefreshLegend();
+
+            // 候选（仅选择模式可点）
+            var candidates = (!_readOnly && _map.CurrentNode != null) ? _map.CurrentNode.Next : null;
+
+            foreach (var layer in _map.Floors)
+            {
+                foreach (var n in layer)
                 {
-                    Cursor.lockState = _instance._prevLock;
-                    Cursor.visible = _instance._prevVisible;
+                    bool isCurrent = n == _map.CurrentNode;
+                    bool isCandidate = candidates != null && candidates.Contains(n);
+                    bool isVisited = n.Visited;
+
+                    Color fill = n.Color;
+                    if (!isCandidate && !isCurrent && !isVisited)
+                        fill = new Color(fill.r * 0.4f, fill.g * 0.4f, fill.b * 0.4f, 1f);
+                    if (isCurrent) fill = new Color(1f, 0.9f, 0.5f);
+
+                    var node = new VisualElement();
+                    node.AddToClassList("tm-node");
+                    if (isCurrent) node.AddToClassList("tm-node--current");
+                    else if (isCandidate) node.AddToClassList("tm-node--candidate");
+                    node.style.backgroundColor = fill;
+
+                    var icon = new Label(n.Icon);
+                    icon.AddToClassList("tm-node-icon");
+                    icon.style.color = isCurrent ? Color.black : Color.white;
+                    node.Add(icon);
+
+                    if (isCandidate)
+                    {
+                        var captured = n;
+                        node.RegisterCallback<ClickEvent>(_ => PickNode(captured));
+                    }
+
+                    _mapArea.Add(node);
+                    _nodeEls[n] = node;
+                }
+            }
+
+            // 候选热键标签（按 CurrentNode.Next 顺序，与数字键一致）
+            if (candidates != null)
+            {
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    var hot = new Label($"[{i + 1}]");
+                    hot.AddToClassList("tm-hot");
+                    _mapArea.Add(hot);
+                    _hotkeyEls[candidates[i]] = hot;
+                }
+            }
+
+            LayoutMap();
+        }
+
+        private void LayoutMap()
+        {
+            if (_map == null || _mapArea == null) return;
+            float w = _mapArea.resolvedStyle.width;
+            float h = _mapArea.resolvedStyle.height;
+            if (w <= 1f || h <= 1f) return;   // 布局尚未就绪，等 GeometryChangedEvent
+
+            float floorGap = Mathf.Max(120f, (w - PadLeft * 2f) / Mathf.Max(1, _map.MaxFloor - 1));
+
+            for (int f = 0; f < _map.Floors.Count; f++)
+            {
+                var layer = _map.Floors[f];
+                for (int i = 0; i < layer.Count; i++)
+                {
+                    var n = layer[i];
+                    Vector2 p = NodePos(w, h, floorGap, layer.Count, f, i);
+                    _nodePos[n] = p;
+                    if (_nodeEls.TryGetValue(n, out var el))
+                    {
+                        el.style.left = p.x - NodeSize * 0.5f;
+                        el.style.top = p.y - NodeSize * 0.5f;
+                    }
+                    if (_hotkeyEls.TryGetValue(n, out var hot))
+                    {
+                        hot.style.left = p.x - 20f;
+                        hot.style.top = p.y + NodeSize * 0.5f + 4f;
+                    }
+                }
+            }
+
+            if (_lines != null) _lines.MarkDirtyRepaint();
+        }
+
+        private Vector2 NodePos(float w, float h, float floorGap, int layerCount, int floor, int idx)
+        {
+            float x = PadLeft + floor * floorGap;
+            float yCenter = PadTop + (h - PadTop - PadBottom) * 0.5f;
+            float ySpread = Mathf.Min(h - PadTop - PadBottom * 1.5f, layerCount * 84f);
+            float y = layerCount == 1
+                ? yCenter
+                : yCenter - ySpread * 0.5f + idx * ySpread / Mathf.Max(1, layerCount - 1);
+            return new Vector2(x, y);
+        }
+
+        private void OnDrawLines(MeshGenerationContext ctx)
+        {
+            if (_map == null || _nodePos.Count == 0) return;
+            var p = ctx.painter2D;
+
+            foreach (var layer in _map.Floors)
+            {
+                foreach (var n in layer)
+                {
+                    if (!_nodePos.TryGetValue(n, out var from)) continue;
+                    bool active = n == _map.CurrentNode;
+                    foreach (var next in n.Next)
+                    {
+                        if (!_nodePos.TryGetValue(next, out var to)) continue;
+                        p.strokeColor = active ? new Color(1f, 0.85f, 0.4f, 0.95f) : new Color(0.4f, 0.4f, 0.5f, 0.6f);
+                        p.lineWidth = active ? 3f : 2f;
+                        p.BeginPath();
+                        p.MoveTo(from);
+                        p.LineTo(to);
+                        p.Stroke();
+                    }
                 }
             }
         }
@@ -64,19 +261,15 @@ namespace XianTu.LevelDesign
             var kb = Keyboard.current;
             if (kb == null) return;
 
-            // 查看模式：仅 ESC 关闭
             if (_readOnly)
             {
-                if (kb.escapeKey.wasPressedThisFrame)
-                    HideImmediate();
+                if (kb.escapeKey.wasPressedThisFrame) HideImmediate();
                 return;
             }
 
             if (_map.CurrentNode == null) return;
             var next = _map.CurrentNode.Next;
             if (next == null || next.Count == 0) return;
-
-            // 数字键快捷选择 1~9
             int n = Mathf.Min(next.Count, 9);
             for (int i = 0; i < n; i++)
             {
@@ -91,139 +284,12 @@ namespace XianTu.LevelDesign
         private void PickNode(TreeNode node)
         {
             _visible = false;
-            Cursor.lockState = _prevLock;
-            Cursor.visible = _prevVisible;
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            UnityEngine.Cursor.lockState = _prevLock;
+            UnityEngine.Cursor.visible = _prevVisible;
             _map.CurrentNode = node;
             node.Visited = true;
             _onNodeChosen?.Invoke(node);
-        }
-
-        private void OnGUI()
-        {
-            if (!_visible || _map == null) return;
-
-            // 半透明遮罩
-            var bg = GUI.color;
-            GUI.color = new Color(0.02f, 0.02f, 0.04f, 0.92f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = bg;
-
-            // 标题
-            var titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 26,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(1f, 0.85f, 0.45f, 1f) }
-            };
-            GUI.Label(new Rect(0, 24f, Screen.width, 36f), $"· 仙山舆图 · 第 {_map.ActID} 境 ·", titleStyle);
-
-            var subStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 13,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(0.7f, 0.7f, 0.8f, 1f) }
-            };
-            string subTip = _readOnly
-                ? $"已闯：{CountVisited()} / {CountTotal()} 房间        按 ESC 关闭（查看模式）"
-                : $"已闯：{CountVisited()} / {CountTotal()} 房间        点击或按数字键选择下一去处";
-            GUI.Label(new Rect(0, 60f, Screen.width, 20f), subTip, subStyle);
-
-            // 节点布局：横向铺开（左→右 = 起点→Boss）
-            float padLeft = 80f;
-            float padTop = 110f;
-            float floorGap = Mathf.Max(120f, (Screen.width - padLeft * 2) / Mathf.Max(1, _map.MaxFloor - 1));
-            float nodeSize = 56f;
-
-            // 先画连线
-            for (int f = 0; f < _map.Floors.Count; f++)
-            {
-                var layer = _map.Floors[f];
-                for (int i = 0; i < layer.Count; i++)
-                {
-                    var n = layer[i];
-                    Vector2 pFrom = NodePos(padLeft, padTop, floorGap, layer.Count, f, i);
-                    foreach (var next in n.Next)
-                    {
-                        var nextLayer = _map.Floors[next.Floor];
-                        Vector2 pTo = NodePos(padLeft, padTop, floorGap, nextLayer.Count, next.Floor, next.IndexInFloor);
-                        bool active = n == _map.CurrentNode;
-                        DrawLine(pFrom, pTo, active ? new Color(1f, 0.85f, 0.4f, 0.95f) : new Color(0.4f, 0.4f, 0.5f, 0.6f),
-                                 active ? 3f : 2f);
-                    }
-                }
-            }
-
-            // 再画节点
-            int hotkeyIdx = 0;
-            for (int f = 0; f < _map.Floors.Count; f++)
-            {
-                var layer = _map.Floors[f];
-                for (int i = 0; i < layer.Count; i++)
-                {
-                    var n = layer[i];
-                    Vector2 p = NodePos(padLeft, padTop, floorGap, layer.Count, f, i);
-
-                    bool isCurrent = n == _map.CurrentNode;
-                    bool isCandidate = _map.CurrentNode != null && _map.CurrentNode.Next.Contains(n);
-                    bool isVisited = n.Visited;
-
-                    var rect = new Rect(p.x - nodeSize * 0.5f, p.y - nodeSize * 0.5f, nodeSize, nodeSize);
-
-                    Color fill = n.Color;
-                    if (!isCandidate && !isCurrent && !isVisited) fill = new Color(fill.r * 0.4f, fill.g * 0.4f, fill.b * 0.4f, 1f);
-                    if (isCurrent) fill = new Color(1f, 0.9f, 0.5f);
-
-                    // 节点圆形底
-                    GUI.color = fill;
-                    GUI.DrawTexture(rect, Texture2D.whiteTexture);
-                    // 边框
-                    GUI.color = isCurrent ? Color.white : new Color(0f, 0f, 0f, 0.6f);
-                    DrawRectBorder(rect, isCurrent ? 3f : 1.5f);
-                    GUI.color = bg;
-
-                    var labelStyle = new GUIStyle(GUI.skin.label)
-                    {
-                        fontSize = 22,
-                        fontStyle = FontStyle.Bold,
-                        alignment = TextAnchor.MiddleCenter,
-                        normal = { textColor = isCurrent ? Color.black : Color.white }
-                    };
-                    GUI.Label(rect, n.Icon, labelStyle);
-
-                    // 候选节点 → 数字键提示 + 可点击按钮（查看模式不显示热键不允许点）
-                    if (isCandidate && !_readOnly)
-                    {
-                        hotkeyIdx++;
-                        var hotStyle = new GUIStyle(GUI.skin.label)
-                        {
-                            fontSize = 13,
-                            fontStyle = FontStyle.Bold,
-                            alignment = TextAnchor.MiddleCenter,
-                            normal = { textColor = new Color(1f, 0.9f, 0.4f, 1f) }
-                        };
-                        GUI.Label(new Rect(rect.x, rect.y + rect.height + 4f, rect.width, 18f), $"[{hotkeyIdx}]", hotStyle);
-
-                        if (GUI.Button(rect, "", GUIStyle.none))
-                        {
-                            PickNode(n);
-                            return;
-                        }
-                    }
-                }
-            }
-
-            // 图例
-            DrawLegend();
-        }
-
-        private Vector2 NodePos(float padLeft, float padTop, float floorGap, int layerCount, int floor, int idx)
-        {
-            float x = padLeft + floor * floorGap;
-            float yCenter = padTop + (Screen.height - padTop - 80f) * 0.5f;
-            float ySpread = Mathf.Min(Screen.height - padTop - 160f, layerCount * 80f);
-            float y = layerCount == 1 ? yCenter : yCenter - ySpread * 0.5f + idx * ySpread / Mathf.Max(1, layerCount - 1);
-            return new Vector2(x, y);
         }
 
         private int CountVisited()
@@ -240,48 +306,12 @@ namespace XianTu.LevelDesign
             return c;
         }
 
-        // ------------------------------------------------------------
-        // 绘制工具
-        // ------------------------------------------------------------
-
-        private static Texture2D _lineTex;
-
-        private static void DrawLine(Vector2 from, Vector2 to, Color color, float thickness)
+        private void RefreshLegend()
         {
-            if (_lineTex == null) _lineTex = Texture2D.whiteTexture;
-            float angle = Mathf.Atan2(to.y - from.y, to.x - from.x) * Mathf.Rad2Deg;
-            float length = Vector2.Distance(from, to);
-
-            Matrix4x4 savedMat = GUI.matrix;
-            Color savedColor = GUI.color;
-            GUIUtility.RotateAroundPivot(angle, from);
-            GUI.color = color;
-            GUI.DrawTexture(new Rect(from.x, from.y - thickness * 0.5f, length, thickness), _lineTex);
-            GUI.color = savedColor;
-            GUI.matrix = savedMat;
-        }
-
-        private static void DrawRectBorder(Rect r, float thickness)
-        {
-            GUI.DrawTexture(new Rect(r.x, r.y, r.width, thickness), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(r.x, r.y + r.height - thickness, r.width, thickness), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(r.x, r.y, thickness, r.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(r.x + r.width - thickness, r.y, thickness, r.height), Texture2D.whiteTexture);
-        }
-
-        private void DrawLegend()
-        {
-            float x = 16f, y = Screen.height - 110f, w = 220f, h = 92f;
-            var bg = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
-            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-            GUI.color = bg;
-
-            var s = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x + 8f, y + 4f, w, 20f), "战 战斗  精 精英  商 商店", s);
-            GUI.Label(new Rect(x + 8f, y + 22f, w, 20f), "?  事件  王 Boss", s);
-            GUI.Label(new Rect(x + 8f, y + 44f, w, 20f), $"道心：{PlayerStateHooks.Instance.Daoxin} ({PlayerStateHooks.Instance.DaoxinState})", s);
-            GUI.Label(new Rect(x + 8f, y + 62f, w, 20f), $"因果：{PlayerStateHooks.Instance.KarmaDebt} / 寿元：{PlayerStateHooks.Instance.Lifespan} 年", s);
+            var h = PlayerStateHooks.Instance;
+            if (h == null) return;
+            if (_legend3 != null) _legend3.text = $"道心：{h.Daoxin} ({h.DaoxinState})";
+            if (_legend4 != null) _legend4.text = $"因果：{h.KarmaDebt} / 寿元：{h.Lifespan} 年";
         }
     }
 }

@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="MainMenu.uss" />
+    <ui:VisualElement name="overlay" class="mm-overlay">
+        <ui:VisualElement name="center" class="mm-center">
+            <ui:Label text="仙 途 秘 境" class="mm-title" />
+            <ui:Label text="闯秘境修仙 · 搜打撤 · 洞府养成" class="mm-subtitle" />
+            <ui:VisualElement name="btns" class="mm-btns">
+                <ui:Button name="start" text="入 秘 境" class="mm-btn mm-btn--primary" />
+                <ui:Button name="continue" text="继续修行" class="mm-btn" />
+                <ui:Button name="codex" text="仙物图鉴" class="mm-btn" />
+                <ui:Button name="settings" text="设置" class="mm-btn" />
+                <ui:Button name="quit" text="退出游戏" class="mm-btn mm-btn--warn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Label name="saveinfo" text="" class="mm-saveinfo" />
+        <ui:Label name="version" text="v0.6 · 2026-06" class="mm-version" />
+    </ui:VisualElement>
+</ui:UXML>

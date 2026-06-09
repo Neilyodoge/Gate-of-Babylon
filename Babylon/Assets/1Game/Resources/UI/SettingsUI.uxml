@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="SettingsUI.uss" />
+    <ui:VisualElement name="overlay" class="st-overlay">
+        <ui:VisualElement name="panel" class="st-panel">
+            <ui:Label text="设 置" class="st-title" />
+            <ui:VisualElement name="tabs" class="st-tabs" />
+            <ui:ScrollView name="content" class="st-content" />
+            <ui:VisualElement name="footer" class="st-footer">
+                <ui:Label name="note" text="" class="st-note" />
+                <ui:Button name="close" text="关闭 [Esc]" class="st-close" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

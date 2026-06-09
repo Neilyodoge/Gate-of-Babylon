@@ -1,0 +1,212 @@
+/* 仙物图鉴 · UITK (v0.6) ——3 标签 + 筛选条 + 列表 */
+
+.cx-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.82);
+}
+
+.cx-panel {
+    width: 1100px;
+    max-width: 95%;
+    height: 760px;
+    max-height: 92%;
+    padding-top: 22px;
+    padding-bottom: 18px;
+    padding-left: 26px;
+    padding-right: 26px;
+    background-color: rgba(18, 18, 24, 0.97);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.cx-title {
+    font-size: 28px;
+    -unity-font-style: bold;
+    color: rgb(245, 238, 222);
+    -unity-text-align: middle-center;
+    letter-spacing: 4px;
+    margin-bottom: 14px;
+}
+
+.cx-tabs {
+    flex-direction: row;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.cx-tab {
+    height: 36px;
+    min-width: 150px;
+    margin-left: 5px;
+    margin-right: 5px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-bottom-width: 2px;
+    border-bottom-color: rgba(0, 0, 0, 0);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgba(220, 220, 225, 0.7);
+    transition-property: color, background-color;
+    transition-duration: 0.1s;
+}
+
+.cx-tab:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgb(240, 240, 240);
+}
+
+.cx-tab--active {
+    color: rgb(255, 216, 102);
+    background-color: rgba(255, 216, 64, 0.10);
+    border-bottom-color: rgb(255, 216, 102);
+}
+
+.cx-filters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.cx-chip {
+    height: 26px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 12px;
+    border-width: 0;
+    border-top-left-radius: 13px;
+    border-top-right-radius: 13px;
+    border-bottom-left-radius: 13px;
+    border-bottom-right-radius: 13px;
+    background-color: rgba(255, 255, 255, 0.07);
+    color: rgba(220, 220, 225, 0.75);
+    transition-property: background-color, color;
+    transition-duration: 0.1s;
+}
+
+.cx-chip:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.cx-chip--active {
+    background-color: rgba(255, 216, 64, 0.18);
+    color: rgb(255, 216, 102);
+    -unity-font-style: bold;
+}
+
+.cx-list {
+    flex-grow: 1;
+}
+
+.cx-row {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-bottom: 4px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-left-width: 3px;
+    border-left-color: rgba(255, 255, 255, 0.10);
+    transition-property: background-color;
+    transition-duration: 0.1s;
+}
+
+.cx-row:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.cx-row__dot {
+    width: 22px;
+    font-size: 16px;
+    -unity-text-align: middle-center;
+}
+
+.cx-row__namecol {
+    width: 200px;
+    flex-shrink: 0;
+}
+
+.cx-row__name {
+    font-size: 15px;
+    -unity-font-style: bold;
+}
+
+.cx-row__sub {
+    font-size: 11px;
+    color: rgba(180, 180, 188, 0.85);
+    margin-top: 1px;
+    white-space: normal;
+}
+
+.cx-row__desc {
+    flex-grow: 1;
+    font-size: 12px;
+    color: rgba(220, 226, 232, 0.9);
+    white-space: normal;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+.cx-row__tag {
+    width: 70px;
+    flex-shrink: 0;
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.cx-empty {
+    font-size: 13px;
+    color: rgba(180, 180, 188, 0.7);
+    -unity-text-align: middle-center;
+    margin-top: 30px;
+}
+
+.cx-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.cx-count {
+    font-size: 12px;
+    color: rgba(200, 200, 205, 0.55);
+}
+
+.cx-close {
+    height: 36px;
+    min-width: 130px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgb(240, 240, 240);
+    transition-property: background-color;
+    transition-duration: 0.1s;
+}
+
+.cx-close:hover {
+    background-color: rgba(235, 90, 90, 0.55);
+}

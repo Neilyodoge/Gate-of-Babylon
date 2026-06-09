@@ -729,6 +729,9 @@ namespace XianTu
             CreateButton(contentGo.transform, "😈 异象 · 心魔滋生", new Color(0.45f, 0.3f, 0.45f), () => SetAnomaly(RealmAnomaly.DemonGrowth));
             CreateButton(contentGo.transform, "♻ 异象 · 万灵复苏", new Color(0.3f, 0.5f, 0.35f), () => SetAnomaly(RealmAnomaly.Revival));
             CreateButton(contentGo.transform, "🩸 异象 · 血月", new Color(0.5f, 0.28f, 0.28f), () => SetAnomaly(RealmAnomaly.BloodMoon));
+            CreateButton(contentGo.transform, "☯ 异象 · 道心试炼", new Color(0.35f, 0.42f, 0.55f), () => SetAnomaly(RealmAnomaly.DaoHeartTrial));
+            CreateButton(contentGo.transform, "⚖ 异象 · 因果轮回", new Color(0.5f, 0.44f, 0.28f), () => SetAnomaly(RealmAnomaly.KarmaEcho));
+            CreateButton(contentGo.transform, "✨ 异象 · 机缘频现", new Color(0.55f, 0.5f, 0.28f), () => SetAnomaly(RealmAnomaly.OpportunityRush));
             CreateButton(contentGo.transform, "⛰ 异象 · 清除", new Color(0.4f, 0.4f, 0.42f), () => SetAnomaly(RealmAnomaly.None));
 
             // --- 房间控制 ---
@@ -744,7 +747,6 @@ namespace XianTu
 
             // --- 系统 ---
             CreateSectionHeader(contentGo.transform, "【 系统 】");
-            CreateButton(contentGo.transform, "🩹 清除道伤（解锁山门）", new Color(0.3f, 0.45f, 0.4f), ClearSoulHurt);
             CreateButton(contentGo.transform, "📜 日志面板：展开/收起", new Color(0.25f, 0.3f, 0.45f), ToggleLogPanel);
             CreateButton(contentGo.transform, "⏱ 切换时间缩放", new Color(0.3f, 0.3f, 0.4f), CycleTimeScale);
             CreateButton(contentGo.transform, "↺ 重新开始", new Color(0.4f, 0.2f, 0.3f), RestartGame);
@@ -1006,15 +1008,6 @@ namespace XianTu
             for (int i = start; i < _logMessages.Count; i++)
                 sb.AppendLine(_logMessages[i]);
             _logPanelText.text = sb.ToString();
-        }
-
-        private void ClearSoulHurt()
-        {
-            var data = SaveSystem.Instance != null ? SaveSystem.Instance.Data : null;
-            if (data == null) { AddLog("清除道伤失败：存档不可用"); return; }
-            data.soulHurtRemainingSec = 0f;
-            SaveSystem.Instance.Save();
-            AddLog("已清除道伤（山门解锁）");
         }
 
         /// <summary>在玩家身边生成"当前化身的专属技能"掉落，便于测试 16-20。</summary>

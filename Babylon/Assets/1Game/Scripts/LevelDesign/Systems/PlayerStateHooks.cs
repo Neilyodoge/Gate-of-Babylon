@@ -1,6 +1,9 @@
 using System;
 using UnityEngine;
 
+// ReSharper disable once RedundantUsingDirective
+using XianTu;
+
 namespace XianTu.LevelDesign
 {
     /// <summary>
@@ -59,6 +62,9 @@ namespace XianTu.LevelDesign
         public void ChangeDaoxin(int delta)
         {
             if (delta == 0) return;
+            // 道心试炼异象 → 变动幅度×2
+            if (RealmAnomalySystem.HasInstance)
+                delta = Mathf.RoundToInt(delta * RealmAnomalySystem.Instance.DaoxinDeltaMul);
             Daoxin = Mathf.Clamp(Daoxin + delta, 0, 100);
             OnDaoxinChanged?.Invoke(Daoxin);
             BossFlagSet.Instance.Set("daoxin", Daoxin);

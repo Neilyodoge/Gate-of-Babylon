@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="PauseMenu.uss" />
+    <ui:VisualElement name="overlay" class="pm-overlay">
+        <ui:VisualElement name="panel" class="pm-panel">
+            <ui:Label text="仙 途 · 暂 停" class="pm-title" />
+            <ui:Button name="resume" text="继续修行" class="pm-btn" />
+            <ui:Button name="codex" text="仙物图鉴" class="pm-btn" />
+            <ui:Button name="settings" text="设置" class="pm-btn" />
+            <ui:Button name="tomain" text="返回主菜单" class="pm-btn pm-btn--warn" />
+            <ui:Button name="quit" text="退出游戏" class="pm-btn pm-btn--warn" />
+        </ui:VisualElement>
+        <ui:VisualElement name="confirm" class="pm-confirm">
+            <ui:VisualElement name="confirm-box" class="pm-confirm-box">
+                <ui:Label name="confirm-msg" text="" class="pm-confirm-msg" />
+                <ui:VisualElement class="pm-confirm-row">
+                    <ui:Button name="confirm-ok" text="确定" class="pm-confirm-btn" />
+                    <ui:Button name="confirm-cancel" text="取消" class="pm-confirm-btn pm-confirm-btn--ghost" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

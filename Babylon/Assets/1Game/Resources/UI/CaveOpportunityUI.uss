@@ -1,0 +1,101 @@
+/* 机缘事件 · UITK (v0.6) */
+
+.op-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.72);
+}
+
+.op-panel {
+    width: 600px;
+    max-width: 92%;
+    padding-top: 24px;
+    padding-bottom: 22px;
+    padding-left: 30px;
+    padding-right: 30px;
+    background-color: rgba(20, 18, 16, 0.97);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(255, 210, 130, 0.22);
+}
+
+.op-title {
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: rgb(255, 224, 150);
+    -unity-text-align: middle-center;
+    margin-bottom: 12px;
+}
+
+.op-body {
+    font-size: 15px;
+    color: rgba(225, 226, 235, 0.92);
+    white-space: normal;
+    margin-bottom: 16px;
+}
+
+.op-options {
+}
+
+.op-opt {
+    min-height: 42px;
+    margin-bottom: 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: 15px;
+    white-space: normal;
+    -unity-text-align: middle-left;
+    border-width: 0;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    border-bottom-left-radius: 9px;
+    border-bottom-right-radius: 9px;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgb(236, 236, 240);
+    transition-property: background-color, scale;
+    transition-duration: 0.1s;
+}
+
+.op-opt:hover {
+    background-color: rgba(255, 210, 110, 0.20);
+    color: rgb(255, 226, 150);
+    scale: 1.01 1.01;
+}
+
+.op-result {
+    display: none;
+}
+
+.op-result-text {
+    font-size: 15px;
+    color: rgba(225, 226, 235, 0.95);
+    white-space: normal;
+    margin-bottom: 18px;
+}
+
+.op-leave {
+    height: 40px;
+    align-self: center;
+    min-width: 180px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    border-bottom-left-radius: 9px;
+    border-bottom-right-radius: 9px;
+    background-color: rgba(255, 210, 110, 0.22);
+    color: rgb(255, 226, 150);
+    transition-property: background-color;
+    transition-duration: 0.1s;
+}
+
+.op-leave:hover {
+    background-color: rgba(255, 210, 110, 0.40);
+}

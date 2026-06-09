@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="ShopRoom.uss" />
+    <ui:VisualElement name="overlay" class="shop-overlay">
+        <ui:VisualElement name="panel" class="shop-panel">
+            <ui:Label text="✦ 散修商人 ✦" class="shop-title" />
+            <ui:Label name="shards" text="" class="shop-shards" />
+            <ui:VisualElement name="cards" class="shop-cards" />
+            <ui:VisualElement name="tooltip" class="shop-tooltip">
+                <ui:Label name="tt-title" text="" class="shop-tt-title" />
+                <ui:Label name="tt-body" text="" class="shop-tt-body" />
+            </ui:VisualElement>
+            <ui:VisualElement name="footer" class="shop-footer">
+                <ui:Label text="悬停查看详情 · 点击购买 | [Esc] 关闭商店" class="shop-hint" />
+                <ui:Button name="close" text="关闭商店" class="shop-close" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

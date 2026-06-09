@@ -17,13 +17,11 @@ namespace XianTu
     {
         public override string ModuleName => "悟道蒲团";
         public override string ModuleIcon => "🧘";
-        public override string ModuleRole => "悟性 → 永久天赋";
+        public override string ModuleRole => "灵力 → 化身成长";
         public override Color ModuleColor => new Color(0.78f, 0.68f, 1f);
 
-        private bool _panelOpen;
-        public override bool IsPanelOpen => _panelOpen;
-
-        private Vector2 _scroll;
+        // v0.6 阶段C：面板改为 UITK 成长页（GrowthUITK），蒲团仅作入口
+        public override bool IsPanelOpen => GrowthUITK.IsVisible;
 
         protected override void BuildBody()
         {
@@ -45,92 +43,8 @@ namespace XianTu
             }
         }
 
-        protected override void OpenPanel() => _panelOpen = true;
-        public override void ClosePanel() => _panelOpen = false;
-
-        private void OnGUI()
-        {
-            if (!_panelOpen) return;
-
-            const float W = 640f, H = 480f;
-            var rect = new Rect((Screen.width - W) * 0.5f, (Screen.height - H) * 0.5f, W, H);
-            GUI.Box(rect, "");
-
-            GUILayout.BeginArea(rect);
-            GUILayout.Space(12);
-
-            var titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            titleStyle.normal.textColor = ModuleColor;
-            GUILayout.Label("🧘 悟道蒲团 · 参悟化身天赋", titleStyle);
-
-            var insight = InsightSystem.Instance;
-            GUILayout.Label($"<color=#dfcfff>永久悟性：{insight.PermanentInsight}</color>",
-                new GUIStyle(GUI.skin.label) { richText = true, alignment = TextAnchor.MiddleCenter, fontSize = 14 });
-
-            GUILayout.Space(6);
-            GUILayout.Label("化身天赋节点（解锁后跨局永久生效）", new GUIStyle(GUI.skin.label) { fontSize = 12 });
-            GUILayout.Space(4);
-
-            _scroll = GUILayout.BeginScrollView(_scroll);
-            DrawTalentList();
-            GUILayout.EndScrollView();
-
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("关闭 [ESC]", GUILayout.Height(28))) ClosePanel();
-            GUILayout.EndArea();
-
-            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape) ClosePanel();
-        }
-
-        private void DrawTalentList()
-        {
-            // 从 RealmRewardLibrary 拿所有 Talent_* 奖励
-            var unlocked = new HashSet<string>(SaveSystem.Instance.Data.unlockedTalentIds);
-
-            foreach (var entry in PermanentTalentRegistry.AllTalents)
-            {
-                var t = entry.reward;
-                bool isUnlocked = unlocked.Contains(t.id);
-
-                GUILayout.BeginHorizontal(GUI.skin.box);
-
-                var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, richText = true };
-                nameStyle.normal.textColor = t.displayColor;
-                GUILayout.Label(t.displayName, nameStyle, GUILayout.Width(150));
-                GUILayout.Label(t.description, new GUIStyle(GUI.skin.label) { wordWrap = true }, GUILayout.Width(330));
-
-                if (isUnlocked)
-                {
-                    var okStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-                    okStyle.normal.textColor = new Color(0.6f, 0.95f, 0.6f);
-                    GUILayout.Label("✓ 已悟", okStyle, GUILayout.Width(100));
-                }
-                else
-                {
-                    int cost = entry.insightCost;
-                    GUI.enabled = InsightSystem.Instance.PermanentInsight >= cost;
-                    if (GUILayout.Button($"参悟 ({cost} 悟性)", GUILayout.Width(100)))
-                    {
-                        TryUnlock(entry);
-                    }
-                    GUI.enabled = true;
-                }
-
-                GUILayout.EndHorizontal();
-            }
-        }
-
-        private void TryUnlock(PermanentTalentRegistry.TalentEntry entry)
-        {
-            if (!InsightSystem.Instance.SpendPermanentInsight(entry.insightCost))
-            {
-                Debug.Log("<color=red>[悟道蒲团] 悟性不足</color>");
-                return;
-            }
-            SaveSystem.Instance.Data.unlockedTalentIds.Add(entry.reward.id);
-            SaveSystem.Instance.Save();
-            Debug.Log($"<color=#dfcfff>[悟道蒲团] 参悟成功：{entry.reward.displayName}（消耗 {entry.insightCost} 悟性）</color>");
-        }
+        protected override void OpenPanel() => GrowthUITK.Show();
+        public override void ClosePanel() => GrowthUITK.Hide();
     }
 
     /// <summary>

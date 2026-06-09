@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="GrowthUITK.uss" />
+    <ui:VisualElement name="overlay" class="gr-overlay">
+        <ui:VisualElement name="panel" class="gr-panel">
+            <ui:Label name="title" text="御灵 · 成长" class="gr-title" />
+            <ui:Label name="header" text="" class="gr-header" />
+            <ui:ScrollView name="content" class="gr-content" />
+            <ui:VisualElement name="footer" class="gr-footer">
+                <ui:Label name="hint" text="精通点由境界突破发放 · 天赋消耗悟性" class="gr-hint" />
+                <ui:Button name="close" text="关闭 [Esc]" class="gr-close" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

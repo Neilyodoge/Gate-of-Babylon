@@ -43,6 +43,9 @@ namespace XianTu
         /// <summary>突破阈值（累积修为）：炼气→筑基 … 化神→渡劫，共 5 个，递增。</summary>
         private static readonly int[] BreakthroughCost = { 100, 250, 500, 900, 1500 };
 
+        /// <summary>每次境界突破（里程碑）额外发放的「灵力」（局外成长树唯一货币）。</summary>
+        private const int LingliPerBreakthrough = 60;
+
         // ========== 局内历练值 ==========
 
         /// <summary>本局累积的历练值（撤离转永久修为，陨落归零）。</summary>
@@ -59,6 +62,9 @@ namespace XianTu
 
         /// <summary>未分配的历练值存量（撤离带回，在洞府分配给修为 or 灵脉）。</summary>
         public int TemperingPool => Data.temperingPool;
+
+        /// <summary>当前「精通点」余额（境界突破发放，用于系精通加点）。</summary>
+        public int MasteryPoints => Data.masteryPoints;
 
         /// <summary>下一次突破所需修为；已满级返回 -1。</summary>
         public int NextBreakthroughCost => IsMaxRealm ? -1 : BreakthroughCost[CurrentRealm];
@@ -141,19 +147,30 @@ namespace XianTu
             return n;
         }
 
-        /// <summary>陨落 = 身死道消 · 转世：本体境界 / 修为 / 成色 / 历练值存量归零；灵脉等洞府家业保留。</summary>
+        /// <summary>
+        /// 死亡（v0.6 阶段C 重定位 · §7）：本体境界改由"累积成长里程碑"驱动、**终身保留**（累积只增，不再身死归零）。
+        /// 死亡只丢失"本局未撤离的收益"（局内历练值 RunTempering）；已突破境界 / 精通点 / 系精通 / 已银行历练值存量 均保留。
+        /// </summary>
         public void ReincarnateOnDeath()
         {
-            bool hadProgress = Data.cultivationRealm > 0 || Data.cultivationExp > 0 || RunTempering > 0 || Data.temperingPool > 0;
-            Data.cultivationRealm = 0;
-            Data.cultivationExp = 0;
-            Data.realmQualities.Clear();
-            Data.temperingPool = 0;
             Data.reincarnationCount++;
-            RunTempering = 0;
+            RunTempering = 0;   // 本局未撤离的历练值散尽
             SaveSystem.Instance.Save();
-            if (hadProgress)
-                Debug.Log($"<color=#ff8866>[Cultivation] 身死道消 · 本体境界尽散，转世重修（第 {Data.reincarnationCount} 世，洞府家业犹存）</color>");
+            Debug.Log($"<color=#ff8866>[Cultivation] 陨落 · 本局历练散尽；本体境界 {CurrentRealmName} 与洞府家业犹存（第 {Data.reincarnationCount} 世）</color>");
+        }
+
+        /// <summary>里程碑发灵力：对尚未发放的境界阶（realmMilestonesGranted &lt; 当前境界）补发灵力，避免转世重练重领。</summary>
+        private void GrantBreakthroughPoints()
+        {
+            int granted = 0;
+            while (Data.realmMilestonesGranted < Data.cultivationRealm)
+            {
+                Data.realmMilestonesGranted++;
+                Data.accumulatedInsight += LingliPerBreakthrough;   // 灵力 = 局外成长唯一货币
+                granted += LingliPerBreakthrough;
+            }
+            if (granted > 0)
+                Debug.Log($"<color=#dfcfff>[Cultivation] 境界里程碑 · 发放灵力 +{granted}（当前 {Data.accumulatedInsight}）</color>");
         }
 
         // ========== 突破 / 凝实 ==========
@@ -171,6 +188,7 @@ namespace XianTu
             Data.cultivationRealm++;
             quality = Mathf.Clamp(quality, 0, QualityNames.Length - 1);
             SetRealmQuality(Data.cultivationRealm, quality);
+            GrantBreakthroughPoints();   // v0.6 阶段C：里程碑发精通点（防重领守卫）
             SaveSystem.Instance.Save();
 
             Debug.Log($"<color=#ffe88a>[Cultivation] 突破成功！本体境界 → {CurrentRealmName}（{QualityNames[quality]}）</color>");

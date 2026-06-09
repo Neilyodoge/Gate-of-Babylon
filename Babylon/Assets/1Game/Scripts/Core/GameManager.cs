@@ -179,7 +179,7 @@ namespace XianTu
             //   2. 想换化身 → 走司命使按 F
             //   3. 出发 → 走山门按 F → StartNewRun()
             EnterVillageHub();
-            StatusEffectHUD.EnsureExists();
+            BuffBarUITK.EnsureExists();   // v0.6：UITK 状态栏（取代旧 IMGUI StatusEffectHUD）
             SpiritRootMechanicHUD.EnsureExists();
             RunHUD.Ensure();
             PauseMenu.Ensure();
@@ -198,7 +198,7 @@ namespace XianTu
 
             // 防御：上一局如果在面板打开时被外部强制重启（场景重载、Debug Restart…），
             // 这里把它关掉并把 timeScale 恢复到 1，否则玩家进村会卡在 0 速度。
-            SpiritRootSelectUI.Hide();
+            SpiritRootSelectUITK.Hide();
             if (Time.timeScale < 0.9f) Time.timeScale = 1f;
 
             Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
@@ -255,6 +255,7 @@ namespace XianTu
             if (PlayerController.Instance != null)
             {
                 PermanentTalentLoader.Apply(PlayerController.Instance);
+                SystemMasterySystem.Apply(PlayerController.Instance);   // v0.6 阶段C：当前化身已点系精通入局
                 // v0.5 Week 4：起手功法 / 阵法台增益 / 灵兽伙伴 —— 三个一次性 / 持久效果
                 StartSkillLoader.Apply(PlayerController.Instance);
                 FormationBuffApplier.Apply(PlayerController.Instance);
@@ -812,18 +813,16 @@ namespace XianTu
             InsightSystem.Instance.AbandonOnDeath();
             // V.03（Q7）：局外 meta 暂缓时不走转世传承（本体境界系统未启用）
             if (FeatureFlags.EnableCaveMeta)
-                CultivationSystem.Instance.ReincarnateOnDeath();   // 身死道消：本体境界 / 修为归零，洞府家业保留
+                CultivationSystem.Instance.ReincarnateOnDeath();   // v0.6 §7：只丢本局未撤离历练；境界/精通终身保留
             SpiritBeastLoader.Despawn();
 
             // 增加死亡统计
             SaveSystem.Instance.Data.totalDeaths++;
 
-            // 挂"魂伤" debuff（跨局，洞府里慢慢消除）
-            var saveData = SaveSystem.Instance.Data;
-            saveData.soulHurtRemainingSec = 3f * 3600f;  // 3 游戏内小时
+            // v0.6：道伤已移除——死亡丢失本局收益已是足够惩罚
             SaveSystem.Instance.Save();
 
-            Debug.Log($"<color=red>梦境破碎... 惊醒回到现实（残魂转化 {qiCompensation} 灵气 + 3 小时魂伤）</color>");
+            Debug.Log($"<color=red>梦境破碎... 惊醒回到现实（残魂转化 {qiCompensation} 灵气）</color>");
         }
 
         /// <summary>敌人被击杀时奖励灵力碎片</summary>

@@ -6,6 +6,171 @@
 
 ---
 
+## v0.6 · 秘境异象联动道心/因果/机缘（2026-06-09）
+
+深化秘境异象——从纯数值调整升级到与道心、因果、机缘系统交互，让异象真正改写玩法节奏。
+
+### 新增 3 种联动异象
+- **道心试炼**（`DaoHeartTrial`）☯：道心变动幅度×2；入定(≥80)额外攻击+10%，入魔(<20)额外减伤-15%。修心者得利、堕者速亡。
+- **因果轮回**（`KarmaEcho`）⚖：每清完一个房间结算一次——因果债>0 受反噬伤害（债×2% 最大HP），善缘<0 获治愈回馈（1.5%/点）。
+- **机缘频现**（`OpportunityRush`）✨：洞府机缘触发率×2、灵力/悟性获取+20%，但敌人攻击+15%。高收益高风险。
+
+### 现有异象增加联动
+- **血月** 🩸：击杀时自动积因果+1（杀戮积业），与因果轮回叠加时后果严重。
+- **心魔滋生** 😈：每过一层（Realm Breakthrough）道心-5（魔气侵蚀），与道心试炼叠加时入魔更快。
+
+### 集成点
+- `PlayerStateHooks.ChangeDaoxin`：乘 `DaoxinDeltaMul`（道心试炼时 ×2）。
+- `MoralEffects.ResolveDaoHeart`：入定/入魔档加挂 `DaoTrialAtkBonus` / `DaoTrialDmgRedPenalty`。
+- `InsightSystem.AddRunInsight`：乘 `InsightGainMul`（机缘频现时 ×1.2）。
+- `CaveOpportunitySystem.OnReturnToCave`：机缘概率乘 `OpportunityMul`（机缘频现时 ×2）。
+- `EnemyDamageMul` 改为组合计算（血月 + 机缘频现可叠加）。
+- `DebugConsole`：新增 3 个异象调试按钮。
+
+## v0.6 · 成长树做厚：系精通根基分两支（2026-06-09）
+
+回应"分支多点、自由 bd"。原系精通=每化身**单条 3 节点线性链**（变化少）→ 改为**根基 + 两条分支**的小树。
+
+- `SystemMasteryRegistry` 重构：`MasteryNode` 加 `tier`(0根基/1分支/2质变) + `branchLabel`；`MakeNode` 支持**多 `StatModifier`**。每化身本命系 = **1 根基 → 2 分支 ×（分支节点 + 质变节点）= 5 节点**。
+  - 价格 灵力 40/60/110；亲和★ 门控 1/2/3；前置 根基→分支→质变。点完根基后两分支起点**同时开放**，自选深入方向（机会成本）。
+  - 分支主题：业火 焚势/燎原 · 剑魄 锐金/御金 · 青囊 藤蔓/养元 · 影刃 遁影/虚空 · 御物 造傀/坐镇。效果为常驻 `StatModifier`（攻/暴击/暴伤/攻速/血/减伤/穿透/移速），入秘境 `SystemMasterySystem.Apply` 挂常驻 buff，直接影响战斗。
+- `GrowthUITK`：系精通段按 `branchLabel` 分组（◈ 分支头）+ 按 tier 缩进（●/├/└），未解锁显示"需先点前置"。
+- play 验证：剑魄树渲染根基「淬锋」+ 两分支「锐金·破阵 / 御金·铁壁」；点亮根基→两分支起点解锁、质变按前置解锁、灵力扣减/状态刷新均正常。
+
+## v0.6 · 重站点 UITK：升级台 + 商店（uGUI→UITK）（2026-06-09）
+
+收尾最后两个重 uGUI 站点，全屏/覆盖层 UI 全面 UITK 化（世界空间元素仍 uGUI）。**保留全部业务逻辑，仅重搭视图**。
+
+- **✅ 升级台 `UpgradeRoom` 改 UITK**（`Resources/UI/UpgradeRoom.uxml/.uss`）：3 槽（Q/E/R）×3 升级（伤害+15% / CD-10% / 充能+1层）卡片，价格递增、充能上限 3、灵力碎片不足置灰——逻辑（`GetUpgradePrice`/`OnUpgrade*`/`TrySpend`）原样保留，视图改 `UIDocument`+卡片构建。绿色主题。play 截图验证（焰石术卡显示伤害/CD/充能/已升级，按钮按碎片余额置灰）。
+- **✅ 商店 `ShopRoom` 改 UITK**（`Resources/UI/ShopRoom.uxml/.uss`）：5 商品卡（灵物/功法混排，沿用 `GenerateShopItems` 滚动 + `CalculatePrice`/`CalculateSkillPrice` + `OnBuyClicked` 购买/装备/灵物入槽逻辑）；色条/图标/名称/副标/简效/价格/购买按钮；**悬停 tooltip 简化为面板底部固定栏**（左侧金色描边，显示名称+描述+数值+价格），替代旧鼠标跟随 IMGUI tooltip；买不起 chip 走 `shop-buy--poor` 红态。紫金商人主题。play 截图验证（5 功法卡 + 底部 tooltip 显示「金钟罩（玄品·功法）」详情）。
+- 两站点均：`<Style src>` 内联样式表（避开 `Resources.Load<StyleSheet>` 旧缓存坑）、共用 `AvatarSelectPanelSettings`、`sortingOrder=10`、面板随房间销毁。删除两文件中的旧 `CreateText`/uGUI 构建代码与 `EventTrigger` 悬停。
+- 至此重站点 IMGUI/uGUI 覆盖层基本清零（剩余仅 `SettingsUI` 等轻量项，可后续按需）。
+
+## v0.6 · 设计收敛：砍系叠层 + 局外一棵树 + 货币统一「灵力」（2026-06-09）
+
+策划讨论后的减法（详见 [设定_御灵五系.md](design/设定_御灵五系.md) §3/§5/§7 与 v0.6 取舍记录）。
+
+**设计决策**
+- **砍掉"系叠层 / 御灵之路 in-run 系 tag 构筑"**：与现有"灵物分类协同(`SynergySystem` 30 条)+功法"重复、与局外成长树冲突、非必需。局内构筑沿用现有系统。合技 / `ElementTag`升格 一并取消。
+- **局外两棵树合并为一棵"化身成长树"**：原"系精通节点树" + "天赋树"合并（避免重复，正是之前察觉的冲突）。"系"仅作节点分类主题。
+- **货币统一为「灵力」**（原"悟性"改名）：局外成长唯一货币。
+
+**代码**
+- `CultivationSystem`：境界突破改为发**灵力**（`accumulatedInsight += 60/阶`，里程碑守卫防重领），不再发精通点。
+- `SystemMasterySystem`：系精通加点改为**消耗灵力**（`InsightSystem.SpendPermanentInsight`）；`SystemMasteryRegistry` 节点成本改灵力量级（铺垫40/关键70/质变110）。
+- `GrowthUITK`：头部只显示「灵力」；系精通 + 化身天赋两段统一花灵力（同一棵树、同一货币）。play 验证。
+- 全局"悟性"显示改名「灵力」：`RunHUD`(灵力条/飘字)、`CodexUITK`(天赋成本)、`CaveOpportunitySystem`(机缘奖励)、`WuDaoCushion`(模块定位)。`accumulatedInsight` 字段名内部保留。
+- 注：`SaveData.masteryPoints`/`talentPoints` 字段保留但不再使用（旧档兼容）。
+
+## v0.6 · 专门 buff 栏（StatusEffectHUD → BuffBarUITK）（2026-06-09）
+
+反馈："buff 需要一个专门显示的栏位"。旧 `StatusEffectHUD`（顶部居中 IMGUI 条）灰盒、跟新 UITK 风格不统一、且与顶部境界条挤在一起。
+- 新增 **`BuffBarUITK`**（UI Toolkit 状态栏）：把玩家所有具名 `StatusEffect` 显示为 chip——名称 / ×层数 / 倒计时 + 底部时间条；**buff 绿边、debuff 红边**；每帧增量对账（不整条重建）。
+- 位置改为**左上角血条下方**（避开顶部居中的境界 IMGUI——UITK 在 IMGUI 之下会被遮挡）；`pickingMode=Ignore` 不挡输入；主菜单时自动隐藏；`sortingOrder=5`。
+- 删除旧 `StatusEffectHUD.cs`，`GameManager`/`MainMenu` 引用改为 `BuffBarUITK`。play 验证 buff/debuff/常驻 chip 显示正常。
+- **即将到期闪烁**：状态剩余 ≤3s 时 chip 脉冲闪烁（`Time.unscaledTime` 正弦），提醒玩家 buff 快没了。
+
+## v0.6 · 召物攻击视觉反馈补强（2026-06-09）
+
+反馈："玩御物只看见怪挨打、看不到攻击"。根因：召物攻击只在敌人身上爆一下、缺"从召物射出"的过程。
+- **御物土傀**（`EarthPuppetTurret`，被动土傀 + 兵阵合一共用）：开炮时加 **炮口闪光** + 一道 **土黄冲击束（傀儡→敌人）** + 命中爆，攻击来源/过程可见。
+- **御金飞剑**（`FlyingSwordSwarm`）：突刺改为 **从最近飞剑到敌人的全程束线**（原为固定短线、够不到远敌）+ 命中火花。
+- 复用 `FxFactory.SpawnSliceLine` / `SpawnElementBurst`。
+
+**手感一致性补齐**（`EnemyBase.OnDamage`）
+- **兜底打击火花**：未配 `hitVFXPrefab` 的敌人原来命中只闪白、无火花；现兜底 `SpawnElementBurst`，保证每次命中都有打击点。
+- **暴击轻微震屏**：暴击额外 `CameraShake.TriggerLight()`。
+- 注：核对发现飘字(`DamagePopup` 池化/分类/暴击缩放)、受击闪白、顿帧(`HitStop`)、击退、玩家受击(`DamageFlash`+边缘红 `PulseVignette`) 等反馈本就齐全；本轮主要补召物攻击来源与命中火花一致性。
+
+## v0.6 · 阶段C 核心：系精通 + 境界重定位 + 成长页（2026-06-09）
+
+局外成长地基落地（[设定_御灵五系.md](design/设定_御灵五系.md) §5/§7）。
+
+**关键决策**
+- 精通点由「境界突破」发放（里程碑制）；**天赋仍花悟性**（保留现有系统、让悟性有意义），精通点专用于系精通。
+- 本体境界改为**终身保留**（§7「累积只增」）：死亡只丢"本局未撤离历练"，境界/精通/已点系精通/银行历练值均保留（避免重练重领点数的漏洞）。
+
+**数据层**：`SaveData` v2 新增 `masteryPoints` / `talentPoints`(预留) / `masteryNodeIds` / `realmMilestonesGranted`（JsonUtility 加性字段，旧档自动兼容）。
+
+**境界**：`CultivationSystem.Breakthrough` 成功后 `GrantBreakthroughPoints()` 按里程碑补发精通点（`realmMilestonesGranted` 守卫防重领，每阶 +2）；`ReincarnateOnDeath` 不再归零境界/修为/成色。闭关→修为→渡劫突破链路（`MeditationChamber`）保持不变。
+
+**系精通**：新增 `SystemMasteryRegistry`（5 化身×5 系亲和谱★上限 + 各化身本命系 3 节点链 铺垫→关键→质变，节点 `apply` 为常驻 `StatusEffect` 属性 buff）+ `SystemMasterySystem`（加点校验：未点/点数/前置/亲和★；`Allocate` 扣点持久化；`Apply` 入秘境挂当前化身已点节点）。`GameManager.StartNewRun` 接入。
+
+**成长页**：新增 `GrowthUITK`（UITK，复用 `<Style src>` + PanelSettings + sortingOrder12）——头部 境界/悟性/精通点；系精通本命系加点（前置门控）；化身天赋参悟（花悟性）。**悟道蒲团**入口改为打开此页（旧 IMGUI 面板移除）。play 验证：突破发点、加点链前置解锁、天赋参悟、UI 实时刷新均正常。
+
+**不在本批**：御灵之路 in-run 系 tag 构筑系统（节点"阈值/合技"语义依赖它）、`ElementTag`→系标签升格、五系全节点图（先本命主线 MVP）。
+
+## v0.6 · UITK 修复：面板缩放 + 样式缓存坑根治（2026-06-09）
+
+修复"ESC 暂停 / 选化身页等 UITK 面板在实际分辨率下大小/位置奇怪"。
+- **缩放**：`AvatarSelectPanelSettings.m_Match` 0→0.5（ScaleWithScreenSize 宽高均衡匹配，UITK 推荐默认）；10 个面板共用一处改全局生效。
+- **样式缓存坑根治**：选化身/图鉴/暂停/主菜单 4 个面板原用代码 `Resources.Load<StyleSheet>` 加载 uss，偶发拿到**空规则缓存**导致整页裸奔（全宽堆叠）。统一改为 UXML `<Style src="X.uss">` 随 VisualTreeAsset 引用加载（与已修的 SettingsUI 一致），移除代码加载。play 验证选化身 + 暂停恢复正常居中/样式。
+
+## v0.6 · 阶段B 收尾：御物坐镇聚灵 + 御金塑金/磁牵（2026-06-09）
+
+补完阶段 B 剩余玩法，阶段 B（化身重构）✅完成。
+
+**御物：`扎根` → `坐镇聚灵`（重写，贴合召物身份）**
+- 站立 1.2s 进入指挥官姿态：自身**减伤 +40%**（经 `PlayerController.OnDamage` 钩子 `ScaleIncomingDamage`）、**土傀增伤 +60%**（`EarthPuppetTurret.GlobalDamageMul`）、**召唤加速**（间隔 4s→2s）+ **上限 +1**、移速 -50%；移动即解除。
+- 去掉原"站桩攻击 +25%"通用增益——把强度从自身转移到召物。`地脉护盾`(每5件灵物1层) 保留为防御副词条。
+
+**御金：补全金属控制三件套**
+- **塑金形态**（V 键循环 无→刃→甲→无）：`塑金·刃` 攻击 +25%（StatModifier）/ `塑金·甲` 受伤 -35%（`SpiritRootGoldController.ScaleIncomingDamage` 经 `PlayerController.OnDamage` 钩子）。play 模式验证：刃 100→100 / 甲 100→65 / 解 100→100。
+- **磁牵**：灵压爆发(`完美收刀`)前先把 4m 内敌人拉向身前聚拢，再扇形爆发一网打尽（控位 + 聚怪 synergy）。
+- 仍保留 飞剑环绕 / 剑心通明 / 一念刹那。
+- `PlayerController.OnDamage` 在土化身减伤钩子之后新增御金减伤钩子。
+
+## v0.6 · 御灵五系阶段B：化身重构（业火/御物/剑魄）（2026-06-09）
+
+**统一动作：「叠层引爆」收敛为青囊专属**
+- 业火 `业焰印`、御物 `地脉烙印` 均移除（与青囊 `寄生种子` 撞车）；青囊独占叠层引爆。
+
+**业火 → 魔焰献祭**
+- 去业焰印；新增 `残血增伤`（越残越猛）、`狂火燃血`（狂火期掉血）、入狂火涨心魔。
+
+**御物 → 召物重心**
+- 移除地脉烙印；新增**被动自律土傀**（`TickPuppets`：附近有敌时维持 ≤2 个 `EarthPuppetTurret`）；兵阵合一仍为大招；扎根/护盾暂留待后续重写。
+
+**剑魄 → 御金（金属控制）**
+- 保留剑心通明/完美收刀/一念刹那；新增**飞剑环绕**（`FlyingSwordSwarm`：常驻 3 把自律飞剑，每 1.2s 突刺最近敌 攻×0.6）→ "御金"底子。塑金/磁牵待补。
+
+**UI 方向（已定 + 试点完成）**
+- 现状：玩家向 UI 多为 IMGUI + LegacyRuntime 字体，天花板低。
+- 决定：**全屏/覆盖层 UI 走 UI Toolkit（UXML+USS，AI 友好且可复用 HTML 预览那套设计）**；世界空间 3D 元素留 uGUI。
+- **✅ 试点：选化身页改 UITK**（`SpiritRootSelectUITK` + `Resources/UI/AvatarSelect.uxml/.uss` + `AvatarSelectPanelSettings`）。
+  - 玻璃拟态卡片、按化身色着色的顶条/名字、本命卡金边+★徽章、hover 抬升/缩放过渡、字体清晰。对比旧 IMGUI 灰盒明显提升（已 play 模式截图验证渲染正常）。
+  - 调用方（`VillageHub`/`GameManager`/`PauseMenu`）已切到 `SpiritRootSelectUITK`；旧 `SpiritRootSelectUI`(IMGUI) 暂留可回退。
+  - ⚠️ 已知：**IMGUI 总绘制在 UITK 运行时面板之上**。选化身页在村中只与边角 RunHUD 共存，中央面板不被遮挡 OK；后续全屏 UITK（暂停/图鉴）若与全屏 IMGUI 共存需注意层级（最终把全屏 IMGUI 一并迁 UITK 即可根除）。
+- **✅ 图鉴页改 UITK**（`CodexUITK` + `Resources/UI/CodexUI.uxml/.uss`，复用同一 PanelSettings）。
+  - 3 标签（灵物/协同/化身天赋）+ 筛选 chip + 滚动列表；行带品阶/系别色左边框与圆点、名字按品阶着色、元素 tag、激活/已悟状态。三标签均 play 模式截图验证。
+  - 调用方 `PauseMenu`/`MainMenu` 已切到 `CodexUITK`；`MainMenu.OnGUI` 加守卫——图鉴可见时主菜单 IMGUI 让位（避免 IMGUI 盖住 UITK）。旧 `CodexUI`(IMGUI) 暂留可回退。
+- **化身文案清理**：业火/御物/剑魄 在 v0.6 重构后，`SpiritRootRegistry` 的机制名/被动/简介同步更新（业火→魔焰献祭·越残越猛；御物→召物斗法·自律土傀且 `mechanicEnabled=true`；剑魄→御金·飞剑环绕），去掉过时的"待落地/v0.3 减半"等内部备注。
+- **✅ 暂停菜单改 UITK**（`PauseMenu` 原地重写为 UITK + `Resources/UI/PauseMenu.uxml/.uss`）。
+  - 5 按钮（继续修行/仙物图鉴/设置/返回主菜单/退出游戏）+ UITK 确认对话框（返回主菜单/退出）；保留原静态 API（Ensure/Show/Hide/Toggle/IsVisible）、ESC 输入与 `IsBlockedByOtherUI` 逻辑。已 play 模式截图验证菜单 + 确认框。
+  - 暂停菜单不在主菜单出现，无需"让位守卫"；`SettingsUI` 仍 IMGUI（打开时盖在 UITK 暂停层上，可接受，后续可一并迁移）。
+  - 注：`PauseMenu.cs` 已无 IMGUI，旧 OnGUI 版被替换（非并存）。
+- **✅ 设置页 + 主菜单改 UITK**（`SettingsUI` / `MainMenu` 原地重写）。
+  - 设置：3 标签（音频滑条 / 画质 chip+全屏开关+分辨率 / 控制键位）；用 UITK 原生 Slider/Toggle。
+  - 主菜单：标题 + 5 按钮（入秘境主按钮 / 继续修行〔无存档置灰〕/ 图鉴 / 设置 / 退出）+ 存档信息/版本号；`UIDocument.sortingOrder=0`。
+  - **UITK 层级**：弹层按 `UIDocument.sortingOrder` 分层——主菜单 0 < 选化身/暂停 10 < 图鉴 12 < 设置 14，确保从主菜单/暂停打开的弹层在上方。
+  - **去掉 MainMenu 的 IMGUI 让位补丁**（主菜单已是 UITK，不再需要）。
+- **游戏内 HUD 守卫**：主菜单改 UITK 后，IMGUI 的 `RunHUD`/`SpiritRootMechanicHUD`/`StatusEffectHUD` 会透到主菜单上方（IMGUI 永在 UITK 之上），已加 `if (MainMenu.IsVisible) return;` 守卫。
+  - 修复编译歧义：`Cursor` ↔ `UIElements.Cursor` → 全限定 `UnityEngine.Cursor`。
+- **UITK 经验**：`SettingsUI.uss` 经 `Resources.Load<StyleSheet>` 偶发拿到空规则缓存（与 `LoadAssetAtPath` 不一致）。改为在 UXML 用 `<Style src="...uss">` 随 VisualTreeAsset 引用加载即稳定；ScrollView 显式设 `mode=Vertical` + 隐藏水平滚动条。
+- 下一步：商店/升级台/机缘等剩余 IMGUI 界面；选化身/图鉴的旧 IMGUI 版确认稳定后删除。
+
+## v0.6 · UITK 第二批：5 个游戏内覆盖层（2026-06-09）
+
+把剩余 5 个游戏内 IMGUI 覆盖层迁到 UI Toolkit，沿用 `<Style src>` 随 VisualTreeAsset 引用样式、复用 `AvatarSelectPanelSettings`、`sortingOrder` 分层。各面板保留原静态 API（`Show/HideImmediate/IsVisible`），调用方不改。全部 play 模式截图验证。
+
+- **✅ 机缘 `CaveOpportunityUI`**：标题+正文+选项 → 结果页「离去[Enter]」关闭。`sortingOrder=10`。
+- **✅ 房间三选一 `RoomChoiceUI`**：按 RoomType 着色卡片 + 图标（汉字单字，避免默认字体缺 ⚔/✦ 字形）+ 数字键 1/2/3 热键 + 点击 → `onSelected`。
+- **✅ 奇遇 `StoryEventUI`**：标题/正文 + 选项按钮（`enableRichText` 保留因果/道心/寿元/奖励/代价彩色标签）→ `onSelected`。
+- **✅ Boss 字幕 `BossDialogueUI`**：底部橙边横幅、自动逐行播报（`Update` 计时切行），`pickingMode=Ignore` 不阻挡输入。
+- **✅ 仙山舆图 `TreeMapUI`**：节点横向铺开 + **`generateVisualContent`/Painter2D 自绘连线**（当前路径金色、其余灰色）+ 数字键/点击选择 + 图例（道心/因果/寿元）+ readOnly 查看模式。`sortingOrder=11`。
+- 本批未含：商店/升级台/炼器（重站点 UI）、`InventoryUI`（已是 uGUI）——留后续。
+- **✅ 清理**：删除已被取代的旧 IMGUI `SpiritRootSelectUI.cs` / `CodexUI.cs`（确认无代码引用后删除，doc 注释 `<see cref>` 一并清理），编译 0 错误。剩余 IMGUI 仅商店/升级台/炼器等重站点 UI。
+
 ## v0.5.7 · 打包修复 · 道伤可视化 · 专属技能掉落门控 · Debug 工具（2026-06-05）
 
 **打包 bug：山门按 F 无反应（editor 正常）**

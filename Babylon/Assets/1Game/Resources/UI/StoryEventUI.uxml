@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="StoryEventUI.uss" />
+    <ui:VisualElement name="overlay" class="se-overlay">
+        <ui:VisualElement name="panel" class="se-panel">
+            <ui:Label name="title" text="奇遇" class="se-title" />
+            <ui:ScrollView name="bodyscroll" class="se-bodyscroll">
+                <ui:Label name="body" text="" class="se-body" />
+            </ui:ScrollView>
+            <ui:VisualElement name="options" class="se-options" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

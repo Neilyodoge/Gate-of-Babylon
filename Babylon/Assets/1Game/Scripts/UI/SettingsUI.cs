@@ -1,15 +1,15 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace XianTu
 {
     /// <summary>
-    /// 设置面板（v0.5 Week 9）—— 音量 / 画质 / 键位提示。
+    /// 设置面板（v0.6 改 UI Toolkit）—— 音频 / 画质 / 控制。
     ///
-    /// 音量直接绑定 <see cref="AudioConfig"/> 的 4 个 float 字段。
-    /// 画质 / 分辨率用 Unity 内置 API。
-    /// 键位提示是只读列表（v0.5 没做 InputSystem rebind）。
-    ///
-    /// 设置保存：使用 PlayerPrefs（音量 + 画质等级），下次启动时 OnEnable 自动加载。
+    /// 结构 Resources/UI/SettingsUI.uxml，样式 SettingsUI.uss，复用 AvatarSelectPanelSettings。
+    /// 音量绑定 <see cref="AudioConfig"/>；画质/全屏用 Unity API；控制为只读键位提示。
+    /// 设置用 PlayerPrefs 持久化（关闭时保存）。
     /// </summary>
     public class SettingsUI : MonoBehaviour
     {
@@ -17,10 +17,8 @@ namespace XianTu
         public static bool IsVisible => _instance != null && _instance._visible;
 
         private bool _visible;
-        private int _tabIndex;  // 0=音量 1=画质 2=控制
-        private Vector2 _scroll;
+        private int _tabIndex;
 
-        // PlayerPrefs key
         private const string K_MASTER = "Setting.MasterVol";
         private const string K_SFX = "Setting.SfxVol";
         private const string K_BGM = "Setting.BgmVol";
@@ -28,28 +26,25 @@ namespace XianTu
         private const string K_QUALITY = "Setting.Quality";
         private const string K_FULLSCREEN = "Setting.Fullscreen";
 
-        // 缓存当前值（编辑时实时刷新 AudioConfig）
         private float _master, _sfx, _bgm, _ui;
         private int _qualityIdx;
         private bool _fullscreen;
-
         private AudioConfig _audioConfig;
 
-        // 样式
-        private GUIStyle _titleStyle, _tabStyle, _tabActiveStyle, _labelStyle, _bigLabelStyle, _maskStyle;
-        private Texture2D _maskTex;
-        private bool _stylesReady;
+        private UIDocument _doc;
+        private VisualElement _overlay;
+        private VisualElement _tabsBar;
+        private ScrollView _content;
+        private readonly Button[] _tabButtons = new Button[3];
 
         public static void Show()
         {
-            if (_instance == null)
-            {
-                var go = new GameObject("SettingsUI");
-                DontDestroyOnLoad(go);
-                _instance = go.AddComponent<SettingsUI>();
-            }
+            EnsureInstance();
+            if (_instance == null) return;
             _instance._visible = true;
             _instance.LoadValues();
+            _instance.RebuildAll();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
         }
 
         public static void Hide()
@@ -57,19 +52,28 @@ namespace XianTu
             if (_instance == null) return;
             _instance._visible = false;
             _instance.SaveValues();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
         }
+
+        private static void EnsureInstance()
+        {
+            if (_instance != null) return;
+            var go = new GameObject("SettingsUI");
+            DontDestroyOnLoad(go);
+            _instance = go.AddComponent<SettingsUI>();
+        }
+
+        // ========== 持久化 ==========
 
         private void LoadValues()
         {
             _audioConfig = Resources.Load<AudioConfig>("AudioConfig");
-
             _master = PlayerPrefs.GetFloat(K_MASTER, _audioConfig != null ? _audioConfig.masterVolume : 1f);
             _sfx = PlayerPrefs.GetFloat(K_SFX, _audioConfig != null ? _audioConfig.sfxVolume : 0.8f);
             _bgm = PlayerPrefs.GetFloat(K_BGM, _audioConfig != null ? _audioConfig.bgmVolume : 0.5f);
             _ui = PlayerPrefs.GetFloat(K_UI, _audioConfig != null ? _audioConfig.uiVolume : 0.7f);
             _qualityIdx = PlayerPrefs.GetInt(K_QUALITY, QualitySettings.GetQualityLevel());
             _fullscreen = PlayerPrefs.GetInt(K_FULLSCREEN, Screen.fullScreen ? 1 : 0) == 1;
-
             ApplyAudio();
             QualitySettings.SetQualityLevel(_qualityIdx, true);
         }
@@ -94,190 +98,142 @@ namespace XianTu
             _audioConfig.uiVolume = _ui;
         }
 
-        private void EnsureStyles()
+        // ========== UITK 构建 ==========
+
+        private void Awake()
         {
-            if (_stylesReady) return;
+            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
+            var tree = Resources.Load<VisualTreeAsset>("UI/SettingsUI");
 
-            _maskTex = new Texture2D(1, 1);
-            _maskTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.78f));
-            _maskTex.Apply();
-            _maskStyle = new GUIStyle();
-            _maskStyle.normal.background = _maskTex;
+            _doc = gameObject.AddComponent<UIDocument>();
+            _doc.panelSettings = panelSettings;
+            _doc.visualTreeAsset = tree;
+            _doc.sortingOrder = 14f;   // 可从暂停/主菜单上方打开
 
-            _titleStyle = new GUIStyle(GUI.skin.label)
+            var root = _doc.rootVisualElement;
+            if (root == null) return;
+            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            // 样式经 UXML <Style src> 随 VisualTreeAsset 引用加载（避免 Resources 名称索引偶发空规则缓存）。
+
+            _overlay = root.Q<VisualElement>("overlay");
+            _tabsBar = root.Q<VisualElement>("tabs");
+            _content = root.Q<ScrollView>("content");
+            if (_content != null)
             {
-                fontSize = 24, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            _titleStyle.normal.textColor = new Color(0.95f, 0.92f, 0.78f);
+                _content.mode = ScrollViewMode.Vertical;
+                _content.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            }
+            var note = root.Q<Label>("note");
+            if (note != null) note.text = "设置自动保存";
+            var close = root.Q<Button>("close");
+            if (close != null) close.clicked += Hide;
 
-            _tabStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 14, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            _tabActiveStyle = new GUIStyle(_tabStyle);
-            _tabActiveStyle.normal.textColor = new Color(1f, 0.85f, 0.4f);
-
-            _labelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 13, alignment = TextAnchor.MiddleLeft, richText = true
-            };
-            _labelStyle.normal.textColor = new Color(0.88f, 0.90f, 0.95f);
-
-            _bigLabelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 15, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleLeft
-            };
-            _bigLabelStyle.normal.textColor = new Color(1f, 0.92f, 0.65f);
-
-            _stylesReady = true;
+            BuildTabs();
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
         }
 
-        private void OnGUI()
+        private void Update()
         {
             if (!_visible) return;
-            EnsureStyles();
+            var kb = Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame) Hide();
+        }
 
-            GUI.Box(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, _maskStyle);
+        private void BuildTabs()
+        {
+            if (_tabsBar == null) return;
+            _tabsBar.Clear();
+            string[] labels = { "音频", "画质", "控制" };
+            for (int i = 0; i < labels.Length; i++)
+            {
+                int idx = i;
+                var b = new Button(() => { _tabIndex = idx; RebuildAll(); }) { text = labels[i] };
+                b.AddToClassList("st-tab");
+                _tabsBar.Add(b);
+                _tabButtons[i] = b;
+            }
+        }
 
-            const float W = 620f, H = 480f;
-            float x = (Screen.width - W) * 0.5f;
-            float y = (Screen.height - H) * 0.5f;
-
-            GUI.Box(new Rect(x, y, W, H), "");
-
-            GUI.Label(new Rect(x, y + 14f, W, 36f), "⚙ 设置", _titleStyle);
-
-            // Tab 切换
-            const float TabW = 120f, TabH = 32f;
-            float tabX = x + (W - TabW * 3 - 16f) * 0.5f;
-            float tabY = y + 60f;
-            DrawTab(tabX, tabY, TabW, TabH, "🔊 音频", 0);
-            DrawTab(tabX + TabW + 8f, tabY, TabW, TabH, "🖥 画质", 1);
-            DrawTab(tabX + (TabW + 8f) * 2, tabY, TabW, TabH, "⌨ 控制", 2);
-
-            // 内容区
-            var contentRect = new Rect(x + 20f, y + 110f, W - 40f, H - 170f);
-            GUILayout.BeginArea(contentRect);
-            _scroll = GUILayout.BeginScrollView(_scroll);
+        private void RebuildAll()
+        {
+            for (int i = 0; i < _tabButtons.Length; i++)
+            {
+                if (_tabButtons[i] != null) _tabButtons[i].EnableInClassList("st-tab--active", i == _tabIndex);
+            }
+            if (_content == null) return;
+            _content.Clear();
             switch (_tabIndex)
             {
-                case 0: DrawAudioTab(); break;
-                case 1: DrawGraphicsTab(); break;
-                case 2: DrawControlsTab(); break;
-            }
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
-
-            // 关闭按钮
-            if (GUI.Button(new Rect(x + W - 120f, y + H - 50f, 100f, 36f), "关闭"))
-            {
-                Hide();
-            }
-
-            // ESC 关闭
-            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
-            {
-                Hide();
-                Event.current.Use();
+                case 0: BuildAudio(); break;
+                case 1: BuildGraphics(); break;
+                case 2: BuildControls(); break;
             }
         }
 
-        private void DrawTab(float x, float y, float w, float h, string label, int idx)
+        // ========== 音频 ==========
+
+        private void BuildAudio()
         {
-            var style = _tabIndex == idx ? _tabActiveStyle : _tabStyle;
-            if (GUI.Button(new Rect(x, y, w, h), label, style))
-            {
-                _tabIndex = idx;
-                _scroll = Vector2.zero;
-            }
-            if (_tabIndex == idx)
-            {
-                // 底部高亮线
-                var prev = GUI.color;
-                GUI.color = new Color(1f, 0.85f, 0.4f);
-                GUI.DrawTexture(new Rect(x, y + h - 2f, w, 2f), Texture2D.whiteTexture);
-                GUI.color = prev;
-            }
+            _content.Add(VolumeRow("主音量", _master, v => { _master = v; ApplyAudio(); }));
+            _content.Add(VolumeRow("音效 (SFX)", _sfx, v => { _sfx = v; ApplyAudio(); }));
+            _content.Add(VolumeRow("背景音乐 (BGM)", _bgm, v => { _bgm = v; ApplyAudio(); }));
+            _content.Add(VolumeRow("界面 (UI)", _ui, v => { _ui = v; ApplyAudio(); }));
+            _content.Add(Hint("Demo2 音频资源尚未完整接入，部分音效暂未生效。"));
         }
 
-        // ========== 音量 Tab ==========
-
-        private void DrawAudioTab()
+        private VisualElement VolumeRow(string label, float val, System.Action<float> onChange)
         {
-            GUILayout.Label("主音量", _bigLabelStyle);
-            DrawVolumeSlider(ref _master, () => ApplyAudio());
-
-            GUILayout.Space(8);
-            GUILayout.Label("音效（SFX）", _bigLabelStyle);
-            DrawVolumeSlider(ref _sfx, () => ApplyAudio());
-
-            GUILayout.Space(8);
-            GUILayout.Label("背景音乐（BGM）", _bigLabelStyle);
-            DrawVolumeSlider(ref _bgm, () => ApplyAudio());
-
-            GUILayout.Space(8);
-            GUILayout.Label("界面（UI）", _bigLabelStyle);
-            DrawVolumeSlider(ref _ui, () => ApplyAudio());
-
-            GUILayout.Space(14);
-            GUILayout.Label("<i>Demo2 音频资源还未完整接入，部分音效暂未生效。</i>", _labelStyle);
+            var row = new VisualElement();
+            row.AddToClassList("st-row");
+            var l = new Label(label);
+            l.AddToClassList("st-label");
+            row.Add(l);
+            var slider = new Slider(0f, 1f) { value = val };
+            slider.AddToClassList("st-slider");
+            var pct = new Label($"{val * 100f:F0}%");
+            pct.AddToClassList("st-pct");
+            slider.RegisterValueChangedCallback(e =>
+            {
+                onChange(e.newValue);
+                pct.text = $"{e.newValue * 100f:F0}%";
+            });
+            row.Add(slider);
+            row.Add(pct);
+            return row;
         }
 
-        private void DrawVolumeSlider(ref float val, System.Action onChange)
+        // ========== 画质 ==========
+
+        private void BuildGraphics()
         {
-            GUILayout.BeginHorizontal();
-            float newVal = GUILayout.HorizontalSlider(val, 0f, 1f, GUILayout.Width(380));
-            GUILayout.Space(8);
-            GUILayout.Label($"{(newVal * 100f):F0}%", _labelStyle, GUILayout.Width(60));
-            GUILayout.EndHorizontal();
-
-            if (Mathf.Abs(newVal - val) > 0.001f)
+            _content.Add(Section("画质等级"));
+            var chipRow = new VisualElement();
+            chipRow.AddToClassList("st-chiprow");
+            string[] names = QualitySettings.names;
+            for (int i = 0; i < names.Length; i++)
             {
-                val = newVal;
-                onChange?.Invoke();
+                int qi = i;
+                var b = new Button(() => { _qualityIdx = qi; QualitySettings.SetQualityLevel(qi, true); RebuildAll(); }) { text = names[i] };
+                b.AddToClassList("st-chip");
+                if (_qualityIdx == i) b.AddToClassList("st-chip--active");
+                chipRow.Add(b);
             }
+            _content.Add(chipRow);
+
+            _content.Add(Section("窗口模式"));
+            var fs = new Toggle("全屏显示") { value = _fullscreen };
+            fs.AddToClassList("st-toggle");
+            fs.RegisterValueChangedCallback(e => { _fullscreen = e.newValue; Screen.fullScreen = e.newValue; });
+            _content.Add(fs);
+
+            _content.Add(Section("当前分辨率"));
+            var res = new Label($"{Screen.currentResolution.width} × {Screen.currentResolution.height} @ {Screen.currentResolution.refreshRateRatio.value:F0} Hz");
+            res.AddToClassList("st-label");
+            res.style.width = StyleKeyword.Auto;
+            _content.Add(res);
         }
 
-        // ========== 画质 Tab ==========
-
-        private void DrawGraphicsTab()
-        {
-            GUILayout.Label("画质等级", _bigLabelStyle);
-            string[] qualityNames = QualitySettings.names;
-
-            GUILayout.BeginHorizontal();
-            for (int i = 0; i < qualityNames.Length; i++)
-            {
-                bool isActive = _qualityIdx == i;
-                var prev = GUI.color;
-                if (isActive) GUI.color = new Color(1f, 0.85f, 0.4f);
-                if (GUILayout.Button(qualityNames[i], GUILayout.Width(100), GUILayout.Height(34)))
-                {
-                    _qualityIdx = i;
-                    QualitySettings.SetQualityLevel(_qualityIdx, true);
-                }
-                GUI.color = prev;
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(14);
-            GUILayout.Label("窗口模式", _bigLabelStyle);
-            bool newFs = GUILayout.Toggle(_fullscreen, "  全屏显示", _labelStyle);
-            if (newFs != _fullscreen)
-            {
-                _fullscreen = newFs;
-                Screen.fullScreen = newFs;
-            }
-
-            GUILayout.Space(14);
-            GUILayout.Label("当前分辨率", _bigLabelStyle);
-            GUILayout.Label($"{Screen.currentResolution.width} × {Screen.currentResolution.height} @ {Screen.currentResolution.refreshRateRatio.value:F0} Hz", _labelStyle);
-        }
-
-        // ========== 控制 Tab ==========
+        // ========== 控制 ==========
 
         private static readonly (string label, string keys)[] _bindings =
         {
@@ -295,21 +251,38 @@ namespace XianTu
             ("渡劫 / 心魔劫触发", "V / B"),
         };
 
-        private void DrawControlsTab()
+        private void BuildControls()
         {
-            GUILayout.Label("按键提示（v0.5 暂不支持自定义键位）", _bigLabelStyle);
-            GUILayout.Space(6);
-
+            _content.Add(Section("按键提示（暂不支持自定义键位）"));
             foreach (var (label, keys) in _bindings)
             {
-                GUILayout.BeginHorizontal(GUI.skin.box);
-                GUILayout.Label(label, _labelStyle, GUILayout.Width(220));
-                GUILayout.Label($"<color=#ffd47a>{keys}</color>", _labelStyle, GUILayout.Width(280));
-                GUILayout.EndHorizontal();
+                var row = new VisualElement();
+                row.AddToClassList("st-keyrow");
+                var l = new Label(label);
+                l.AddToClassList("st-keyname");
+                row.Add(l);
+                var k = new Label(keys);
+                k.AddToClassList("st-keyval");
+                row.Add(k);
+                _content.Add(row);
             }
+            _content.Add(Hint("未来计划接入 InputSystem 的 PlayerInput rebind。"));
+        }
 
-            GUILayout.Space(8);
-            GUILayout.Label("<i>未来 Demo3 计划接入 InputSystem 的 PlayerInput rebind。</i>", _labelStyle);
+        // ========== 小工具 ==========
+
+        private static Label Section(string text)
+        {
+            var l = new Label(text);
+            l.AddToClassList("st-section");
+            return l;
+        }
+
+        private static Label Hint(string text)
+        {
+            var l = new Label(text);
+            l.AddToClassList("st-hint");
+            return l;
         }
     }
 }

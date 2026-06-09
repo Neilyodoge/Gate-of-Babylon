@@ -1,0 +1,132 @@
+/* 暂停菜单 · UITK (v0.6) */
+
+.pm-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.72);
+}
+
+.pm-panel {
+    width: 380px;
+    padding-top: 26px;
+    padding-bottom: 26px;
+    padding-left: 30px;
+    padding-right: 30px;
+    background-color: rgba(18, 18, 24, 0.97);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    align-items: stretch;
+}
+
+.pm-title {
+    font-size: 28px;
+    -unity-font-style: bold;
+    color: rgb(245, 238, 222);
+    -unity-text-align: middle-center;
+    letter-spacing: 4px;
+    margin-bottom: 22px;
+}
+
+.pm-btn {
+    height: 50px;
+    margin-bottom: 12px;
+    font-size: 17px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.09);
+    color: rgb(238, 238, 240);
+    transition-property: background-color, scale;
+    transition-duration: 0.1s;
+}
+
+.pm-btn:hover {
+    background-color: rgba(255, 216, 64, 0.20);
+    color: rgb(255, 224, 130);
+    scale: 1.02 1.02;
+}
+
+.pm-btn--warn:hover {
+    background-color: rgba(235, 90, 90, 0.45);
+    color: rgb(255, 220, 220);
+}
+
+/* 确认对话框 */
+.pm-confirm {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.55);
+    display: none;
+}
+
+.pm-confirm-box {
+    width: 440px;
+    padding-top: 26px;
+    padding-bottom: 22px;
+    padding-left: 26px;
+    padding-right: 26px;
+    background-color: rgba(26, 26, 32, 0.99);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.pm-confirm-msg {
+    font-size: 15px;
+    color: rgb(235, 235, 238);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-bottom: 22px;
+}
+
+.pm-confirm-row {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.pm-confirm-btn {
+    height: 42px;
+    min-width: 140px;
+    margin-left: 8px;
+    margin-right: 8px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    border-bottom-left-radius: 9px;
+    border-bottom-right-radius: 9px;
+    background-color: rgba(235, 90, 90, 0.55);
+    color: rgb(255, 240, 240);
+    transition-property: background-color;
+    transition-duration: 0.1s;
+}
+
+.pm-confirm-btn:hover {
+    background-color: rgba(235, 90, 90, 0.8);
+}
+
+.pm-confirm-btn--ghost {
+    background-color: rgba(255, 255, 255, 0.10);
+    color: rgb(230, 230, 232);
+}
+
+.pm-confirm-btn--ghost:hover {
+    background-color: rgba(255, 255, 255, 0.22);
+}

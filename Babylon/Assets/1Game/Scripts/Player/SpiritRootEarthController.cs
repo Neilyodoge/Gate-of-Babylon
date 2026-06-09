@@ -42,11 +42,11 @@ namespace XianTu
         private const float SigilStunPerStack = 0.4f;
         private const int SigilChainStacks = 1;
 
-        // 扎根
-        private const float RootedThreshold = 1.5f;     // 站立 1.5s 触发扎根
-        private const float RootedAtkBonus = 0.25f;
-        private const float RootedDmgRedBonus = 0.30f;
+        // 坐镇聚灵（v0.6 重写：站立蓄势 → 指挥官姿态，强化召物而非自身输出）
+        private const float RootedThreshold = 1.2f;      // 站立 1.2s 触发坐镇
+        private const float RootedDmgRedBonus = 0.40f;   // 坐镇时减伤（土·更肉）
         private const float RootedMoveSpeedMul = -0.50f;
+        private const float RootedPuppetDmgMul = 1.6f;   // 坐镇时土傀增伤
         private const string RootedEffectId = "Root_EarthRooted";
         private const float StillVelocityThreshold = 0.08f; // 速度小于此值认为"站立"
 
@@ -75,6 +75,16 @@ namespace XianTu
         [SerializeField] private int puppetArrayCount = 5;
         [SerializeField] private float puppetArrayDuration = 12f;
         [SerializeField] private float puppetArrayRadius = 3.5f;
+
+        // v0.6 召物重心：被动自律土傀
+        private readonly System.Collections.Generic.List<GameObject> _passivePuppets = new System.Collections.Generic.List<GameObject>();
+        [SerializeField] private int passivePuppetMax = 2;
+        [SerializeField] private float passivePuppetLife = 10f;
+        [SerializeField] private float passiveSummonInterval = 4f;
+        // 坐镇聚灵时：召唤更快、上限 +1（指挥官姿态强化召物）
+        [SerializeField] private int rootedExtraPuppet = 1;
+        [SerializeField] private float passiveSummonIntervalRooted = 2f;
+        private float _passiveSummonTimer;
 
         /// <summary>
         /// 兵阵合一（技能 19）：成阵召唤 5 座土傀儡炮台（原地 AOE 炮击）；再次释放则撤阵。
@@ -148,7 +158,8 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             GameEvents.Unsubscribe<GameEvents.EarthShieldStackConsumed>(OnShieldConsumed);
 
-            // 失活时收一下视觉
+            // 失活时收一下视觉 + 复位土傀增伤
+            EarthPuppetTurret.GlobalDamageMul = 1f;
             ClearRootedVfx();
             ClearShieldVfx();
         }
@@ -165,29 +176,36 @@ namespace XianTu
 
             TickRooted();
             TickShieldVfx();
+            TickPuppets();   // v0.6 召物重心：维持自律土傀
         }
 
-        // ============================ 烙印（普攻种印）============================
-
-        private void OnMeleeHit(GameEvents.MeleeHitConnected evt)
+        // 被动召物：附近有敌时维持最多 N 个自律土傀（御物的"召物"底子）
+        private void TickPuppets()
         {
-            if (_root == null || _root.CurrentRoot != SpiritRootType.Earth) return;
-            if (evt.Target == null) return;
-            EarthSigil.AddStacks(evt.Target, 1, _isRooted);
+            _passivePuppets.RemoveAll(p => p == null);
+            int maxPuppets = _isRooted ? passivePuppetMax + rootedExtraPuppet : passivePuppetMax;
+            if (_passivePuppets.Count >= maxPuppets) return;
+            _passiveSummonTimer -= Time.deltaTime;
+            if (_passiveSummonTimer > 0f) return;
+            _passiveSummonTimer = _isRooted ? passiveSummonIntervalRooted : passiveSummonInterval;
+            if (_player == null) return;
+
+            LayerMask mask = enemyLayerOverride.value != 0 ? enemyLayerOverride : ResolvePuppetMask();
+            if (Physics.OverlapSphere(_player.transform.position, 12f, mask).Length == 0) return;
+
+            Vector3 pos = _player.transform.position + new Vector3(Random.Range(-2.5f, 2.5f), 0f, Random.Range(-2.5f, 2.5f));
+            var go = new GameObject("EarthPuppet_passive");
+            go.transform.position = pos;
+            go.AddComponent<EarthPuppetTurret>().Init(_player, mask, passivePuppetLife);
+            _passivePuppets.Add(go);
         }
 
-        // ============================ 烙印引爆（技能镇压）============================
+        // ============================ 烙印 [v0.6 已移除] ============================
+        // 地脉烙印（普攻叠印→技能引爆）与青囊"寄生种子"撞车，已收敛为青囊专属。
+        // 御物重心转为"召物·自律土傀"（见 TickPuppets）。下列 DetonateSigils 等保留为死代码，待清理。
 
-        private void OnSkillHit(GameEvents.SkillHitConnected evt)
-        {
-            if (_root == null || _root.CurrentRoot != SpiritRootType.Earth) return;
-            if (evt.Target == null) return;
-
-            int stacks = EarthSigil.GetStacks(evt.Target);
-            if (stacks <= 0) return;
-
-            DetonateSigils(evt.Target, evt.HitPoint, stacks);
-        }
+        private void OnMeleeHit(GameEvents.MeleeHitConnected evt) { }
+        private void OnSkillHit(GameEvents.SkillHitConnected evt) { }
 
         private void DetonateSigils(GameObject target, Vector3 hitPoint, int stacks)
         {
@@ -315,16 +333,20 @@ namespace XianTu
                     duration = -1f,
                     modifiers = new List<StatModifier>
                     {
-                        StatModifier.Percent(StatType.AttackDamage, RootedAtkBonus),
                         StatModifier.Percent(StatType.MoveSpeed, RootedMoveSpeedMul),
                     },
-                    displayName = "山岳承负 · 扎根",
-                    description = $"攻击 +{RootedAtkBonus * 100:F0}% · 减伤 +{RootedDmgRedBonus * 100:F0}% · 移速 -50%",
+                    displayName = "御物 · 坐镇聚灵",
+                    description = $"减伤 +{RootedDmgRedBonus * 100:F0}% · 土傀增伤 +{(RootedPuppetDmgMul - 1f) * 100:F0}% · 召唤加速 · 移速 -50%",
                     uiColor = FxFactory.ElementColor(ElementTag.Earth)
                 });
                 // 减伤不能通过 StatModifier 直接做（CombatStats.damageReduction 是 0~1 clamp 字段），
                 // 所以由 PlayerController.OnDamage 走 IsRooted 钩子读，本 Controller 暴露 IsRooted。
             }
+
+            // 坐镇聚灵：强化全体自律土傀的炮击伤害
+            EarthPuppetTurret.GlobalDamageMul = RootedPuppetDmgMul;
+            // 立即重置召唤计时，让坐镇瞬间就能加速补傀
+            _passiveSummonTimer = 0f;
 
             BuildRootedVfx();
             CameraShake.TriggerLight();
@@ -332,7 +354,7 @@ namespace XianTu
             GameEvents.Publish(new GameEvents.EarthRootedStateChanged
             {
                 IsRooted = true,
-                AttackBonus = RootedAtkBonus,
+                AttackBonus = 0f,
                 DamageReduction = RootedDmgRedBonus
             });
         }
@@ -341,6 +363,7 @@ namespace XianTu
         {
             _isRooted = false;
             _stillTimer = 0f;
+            EarthPuppetTurret.GlobalDamageMul = 1f;   // 解除坐镇 → 土傀恢复常规伤害
             if (_status != null) _status.Remove(RootedEffectId);
             ClearRootedVfx();
 

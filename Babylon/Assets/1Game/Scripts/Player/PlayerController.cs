@@ -504,6 +504,13 @@ namespace XianTu
                 damage = earthCtrl.ScaleIncomingDamage(damage);
             }
 
+            // v0.6 · 御金塑金·甲（守）形态：额外减伤
+            var goldCtrl = GetComponent<SpiritRootGoldController>();
+            if (goldCtrl != null)
+            {
+                damage = goldCtrl.ScaleIncomingDamage(damage);
+            }
+
             // 金刚不坏协同：30%概率完全格挡并反弹伤害
             if (SynergySystem.IsVajraActive && Random.value < 0.3f)
             {

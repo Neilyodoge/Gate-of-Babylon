@@ -1,0 +1,211 @@
+/* 设置 · UITK (v0.6) */
+
+.st-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.80);
+}
+
+.st-panel {
+    width: 720px;
+    max-width: 94%;
+    height: 560px;
+    max-height: 90%;
+    padding-top: 22px;
+    padding-bottom: 18px;
+    padding-left: 28px;
+    padding-right: 28px;
+    background-color: rgba(18, 18, 24, 0.97);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.st-title {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: rgb(245, 238, 222);
+    -unity-text-align: middle-center;
+    letter-spacing: 5px;
+    margin-bottom: 14px;
+}
+
+.st-tabs {
+    flex-direction: row;
+    justify-content: center;
+    margin-bottom: 14px;
+}
+
+.st-tab {
+    height: 34px;
+    min-width: 120px;
+    margin-left: 5px;
+    margin-right: 5px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-bottom-width: 2px;
+    border-bottom-color: rgba(0, 0, 0, 0);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgba(220, 220, 225, 0.7);
+}
+
+.st-tab:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgb(240, 240, 240);
+}
+
+.st-tab--active {
+    color: rgb(255, 216, 102);
+    background-color: rgba(255, 216, 64, 0.10);
+    border-bottom-color: rgb(255, 216, 102);
+}
+
+.st-content {
+    flex-grow: 1;
+}
+
+.st-section {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(255, 224, 130);
+    margin-top: 12px;
+    margin-bottom: 6px;
+}
+
+.st-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.st-label {
+    font-size: 13px;
+    color: rgb(224, 228, 235);
+    width: 150px;
+    flex-shrink: 0;
+}
+
+.st-slider {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.st-pct {
+    width: 54px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: rgb(224, 228, 235);
+    -unity-text-align: middle-right;
+}
+
+.st-chip {
+    height: 34px;
+    min-width: 96px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    border-width: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(225, 225, 230, 0.8);
+}
+
+.st-chip:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.st-chip--active {
+    background-color: rgba(255, 216, 64, 0.20);
+    color: rgb(255, 216, 102);
+    -unity-font-style: bold;
+}
+
+.st-chiprow {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.st-toggle {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    font-size: 13px;
+    color: rgb(224, 228, 235);
+}
+
+.st-keyrow {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-bottom: 3px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+.st-keyname {
+    width: 240px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: rgb(224, 228, 235);
+}
+
+.st-keyval {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(255, 212, 122);
+}
+
+.st-hint {
+    font-size: 12px;
+    color: rgba(180, 185, 195, 0.7);
+    white-space: normal;
+    margin-top: 12px;
+}
+
+.st-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.st-note {
+    font-size: 11px;
+    color: rgba(200, 200, 205, 0.5);
+}
+
+.st-close {
+    height: 36px;
+    min-width: 130px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgb(240, 240, 240);
+}
+
+.st-close:hover {
+    background-color: rgba(255, 216, 64, 0.30);
+    color: rgb(255, 224, 130);
+}

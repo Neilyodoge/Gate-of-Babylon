@@ -1,0 +1,97 @@
+/* 房间三选一 · UITK (v0.6) */
+
+.rc-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.78);
+}
+
+.rc-center {
+    align-items: center;
+}
+
+.rc-title {
+    font-size: 30px;
+    -unity-font-style: bold;
+    color: rgb(255, 216, 115);
+    -unity-text-align: middle-center;
+    letter-spacing: 3px;
+}
+
+.rc-sub {
+    font-size: 14px;
+    color: rgba(185, 185, 215, 0.85);
+    -unity-text-align: middle-center;
+    margin-top: 8px;
+    margin-bottom: 34px;
+}
+
+.rc-cards {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.rc-card {
+    width: 210px;
+    height: 270px;
+    margin-left: 15px;
+    margin-right: 15px;
+    background-color: rgba(22, 18, 15, 0.97);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+    align-items: center;
+    transition-property: translate, border-color, background-color;
+    transition-duration: 0.12s;
+}
+
+.rc-card:hover {
+    translate: 0 -8px;
+    border-color: rgba(255, 216, 90, 0.7);
+    background-color: rgba(32, 26, 20, 0.99);
+}
+
+.rc-accent {
+    height: 6px;
+    width: 100%;
+    background-color: rgb(120, 120, 120);
+}
+
+.rc-icon {
+    font-size: 70px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 26px;
+    margin-bottom: 6px;
+}
+
+.rc-card-title {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(245, 245, 245);
+    -unity-text-align: middle-center;
+}
+
+.rc-tip {
+    font-size: 13px;
+    color: rgba(220, 214, 205, 0.85);
+    white-space: normal;
+    -unity-text-align: upper-center;
+    padding-left: 14px;
+    padding-right: 14px;
+    margin-top: 8px;
+    flex-grow: 1;
+}
+
+.rc-hot {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(255, 224, 110);
+    -unity-text-align: middle-center;
+    margin-bottom: 12px;
+}

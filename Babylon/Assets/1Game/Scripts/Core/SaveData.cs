@@ -14,8 +14,8 @@ namespace XianTu
     [Serializable]
     public class SaveDataV1
     {
-        /// <summary>存档格式版本号，未来 schema 变更时支持迁移</summary>
-        public int schemaVersion = 1;
+        /// <summary>存档格式版本号，未来 schema 变更时支持迁移（v2：阶段C 系精通/突破发点）</summary>
+        public int schemaVersion = 2;
 
         /// <summary>洞府素材库存：itemName → 数量（用 itemName 当 id，因为 ItemData 是 SO 无 GUID）</summary>
         public List<ItemCountEntry> caveInventory = new();
@@ -38,7 +38,7 @@ namespace XianTu
         /// <summary>最后存档时间戳（Unix seconds），用于 UI 显示</summary>
         public long lastSaveTimestamp = 0;
 
-        /// <summary>魂伤 debuff 剩余时长（游戏内秒）—— 死亡后这段时间内无法入梦</summary>
+        /// <summary>[v0.6 废弃] 道伤已移除；字段保留仅为旧存档兼容，不再读写。</summary>
         public float soulHurtRemainingSec = 0f;
 
         /// <summary>累积通关次数（统计 / 解锁条件用）</summary>
@@ -90,6 +90,22 @@ namespace XianTu
 
         /// <summary>待回访的链式机缘：到达 dueAtReturn 次回府时优先触发其回访事件。</summary>
         public List<OpportunityChainEntry> pendingOpportunities = new();
+
+        // ========== v0.6 阶段C：系精通 + 境界突破发点 ==========
+        // 说明（§7）：本体境界改由「累积悟性」(accumulatedInsight) 驱动、累积只增；
+        // 故境界里程碑发放的点数 + 已点系精通 + 已解锁天赋 = 终身成长（洞府家业，转世保留）。
+
+        /// <summary>已发放的境界里程碑数（防止转世重修时对同一里程碑重复发点）。</summary>
+        public int realmMilestonesGranted = 0;
+
+        /// <summary>未花费的「精通点」余额（境界里程碑发放，用于点系精通节点）。终身保留。</summary>
+        public int masteryPoints = 0;
+
+        /// <summary>未花费的「天赋点」余额（境界里程碑发放，用于解锁天赋树节点）。终身保留。</summary>
+        public int talentPoints = 0;
+
+        /// <summary>已点亮的系精通节点 id 列表（化身×系节点，二值解锁）。洞府家业，终身保留。</summary>
+        public List<string> masteryNodeIds = new();
     }
 
     /// <summary>链式机缘的"待回访"条目：某个机缘选择会埋下一个 N 局后回访的后续事件。</summary>

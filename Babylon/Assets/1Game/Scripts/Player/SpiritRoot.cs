@@ -56,15 +56,15 @@ namespace XianTu
             {
                 type = SpiritRootType.Metal,
                 name = "剑魄",
-                mechanicTitle = "灵压同步 / 完美收刀",
-                passive = "副词条：所有攻击附带穿透 +1（v0.3 版减半）。核心机制：普攻 / 技能 / 闪避后开「灵压窗口」，窗口内按普攻触发灵压爆发。",
+                mechanicTitle = "御金 · 飞剑环绕 / 完美收刀",
+                passive = "副词条：所有攻击附带穿透 +1。御金底子：常驻 3 把自律飞剑环绕，周期突刺最近的敌人。核心机制：普攻 / 技能 / 闪避后开「灵压窗口」，窗口内按普攻触发灵压爆发。",
                 starterItemHint = "起手携带：锈铁飞剑",
                 displayColor = new Color(1f, 0.85f, 0.2f),
                 baseModifiers = new List<StatModifier>
                 {
                     StatModifier.Flat(StatType.PierceCount, 1)
                 },
-                tooltip = "选剑魄 = 选「时机操作流」。窗口内每次完美收刀 ×1.5 爆发，3 次连续完美进入剑心通明。",
+                tooltip = "选剑魄 = 选「御金时机流」。飞剑自律补刀打底，窗口内每次完美收刀 ×1.5 爆发，3 次连续完美进入剑心通明。",
                 starterItemName = "锈铁飞剑",
                 mechanicEnabled = true   // v0.3.3 已落地
             });
@@ -104,15 +104,15 @@ namespace XianTu
             {
                 type = SpiritRootType.Fire,
                 name = "业火",
-                mechanicTitle = "狂战之火 / 怒气主动键",
-                passive = "副词条：击杀敌人后 4 秒内攻击 +7% × 3 层（v0.3 版 12% → 减半）。核心机制：怒气满 50 主动按 V 开狂火 + 攻速移速 BUFF + 普攻 AOE。融合：技能命中 +5 怒气 / 狂火期间技能 CD ×0.7。",
+                mechanicTitle = "魔焰献祭 · 越残越猛",
+                passive = "副词条：击杀敌人后 4 秒内攻击 +7% × 3 层。核心机制：残血增伤（生命越低、伤害越高）；按 V 入狂火换攻速移速 + 普攻 AOE，狂火期间持续燃血、并积攒心魔。",
                 starterItemHint = "起手携带：火灵珠",
                 displayColor = new Color(1f, 0.4f, 0.1f),
                 baseModifiers = new List<StatModifier>
                 {
-                    StatModifier.Percent(StatType.AttackDamage, 0.03f) // 减半的 +3% atk 基础加成
+                    StatModifier.Percent(StatType.AttackDamage, 0.03f)
                 },
-                tooltip = "选业火 = 选「主动选择爆发时机」。攒怒气 → 按 V 开狂火 → 技能高频循环 + 普攻 AOE 横扫。",
+                tooltip = "选业火 = 选「燃血豪赌」。越残血越猛，主动入狂火爆发但燃血涨心魔——高风险高回报。",
                 starterItemName = "火灵珠",
                 mechanicEnabled = true   // v0.4 已落地
             });
@@ -121,17 +121,17 @@ namespace XianTu
             {
                 type = SpiritRootType.Earth,
                 name = "御物",
-                mechanicTitle = "御物斗法 / 以命铸物",
-                passive = "副词条：每持有 5 件灵物，获得一层「地脉护盾」（吸收一次伤害，v0.3 版保留）。核心机制：主动炼物把敌人转化为永久傀儡，傀儡同步玩家技能 ×10%（v0.4 待落地）。",
+                mechanicTitle = "召物斗法 · 自律土傀",
+                passive = "副词条：每持有 5 件灵物，获得一层「地脉护盾」（吸收一次伤害）。核心机制：附近有敌时常驻最多 2 个自律土傀替你作战；大招「兵阵合一」可一次召出整片傀儡阵。",
                 starterItemHint = "起手携带：龙鳞甲",
                 displayColor = new Color(0.85f, 0.7f, 0.4f),
                 baseModifiers = new List<StatModifier>
                 {
-                    StatModifier.Percent(StatType.MaxHp, 0.05f)  // v0.3 版 +10% → 减半到 +5%
+                    StatModifier.Percent(StatType.MaxHp, 0.05f)
                 },
-                tooltip = "选御物 = 选「指挥官 + 炼器师」。机制版尚未落地，当前仅副词条层（数量护盾）。",
+                tooltip = "选御物 = 选「召物成军」。自律土傀打底，兵阵合一成阵爆发——指挥傀儡群压制战场。",
                 starterItemName = "龙鳞甲",
-                mechanicEnabled = false  // v0.4 待落地
+                mechanicEnabled = true   // v0.6 召物重心已落地
             });
         }
 

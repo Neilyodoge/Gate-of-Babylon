@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="BuffBarUITK.uss" />
+    <ui:VisualElement name="overlay" class="bb-overlay" picking-mode="Ignore">
+        <ui:VisualElement name="root" class="bb-root" picking-mode="Ignore">
+            <ui:Label name="avatar" text="" class="bb-avatar" />
+            <ui:VisualElement name="row" class="bb-row" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

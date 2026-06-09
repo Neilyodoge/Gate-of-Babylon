@@ -1,0 +1,163 @@
+/* 升级台 · UITK (v0.6 uGUI→UITK) */
+
+.up-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.up-panel {
+    width: 840px;
+    max-width: 95%;
+    padding-top: 18px;
+    padding-bottom: 14px;
+    padding-left: 24px;
+    padding-right: 24px;
+    background-color: rgba(14, 22, 17, 0.97);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-width: 1px;
+    border-color: rgba(80, 200, 130, 0.4);
+    align-items: center;
+}
+
+.up-title {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(120, 240, 150);
+    -unity-text-align: middle-center;
+}
+
+.up-shards {
+    font-size: 14px;
+    color: rgb(130, 200, 255);
+    -unity-text-align: middle-center;
+    margin-top: 4px;
+    margin-bottom: 14px;
+}
+
+.up-cards {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.up-card {
+    width: 244px;
+    margin-left: 8px;
+    margin-right: 8px;
+    padding-top: 10px;
+    padding-bottom: 12px;
+    padding-left: 10px;
+    padding-right: 10px;
+    background-color: rgba(26, 38, 30, 0.92);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.06);
+    align-items: stretch;
+}
+
+.up-slot {
+    font-size: 18px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.up-skill {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(230, 242, 230);
+    -unity-text-align: middle-center;
+    margin-top: 4px;
+}
+
+.up-info {
+    font-size: 12px;
+    color: rgba(180, 215, 185, 0.9);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    min-height: 34px;
+}
+
+.up-empty {
+    font-size: 13px;
+    color: rgba(150, 150, 150, 0.6);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-top: 20px;
+}
+
+.up-btn {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 40px;
+    margin-bottom: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+    border-width: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    transition-property: background-color, scale;
+    transition-duration: 0.1s;
+}
+
+.up-btn:hover {
+    scale: 1.02 1.02;
+}
+
+.up-btn:disabled {
+    opacity: 0.4;
+}
+
+.up-btn__label {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(245, 245, 245);
+}
+
+.up-btn__price {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(140, 205, 255);
+}
+
+.up-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.up-hint {
+    font-size: 11px;
+    color: rgba(140, 160, 145, 0.6);
+}
+
+.up-close {
+    height: 34px;
+    min-width: 130px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-width: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-color: rgba(80, 160, 100, 0.35);
+    color: rgb(220, 245, 225);
+}
+
+.up-close:hover {
+    background-color: rgba(80, 200, 120, 0.55);
+}

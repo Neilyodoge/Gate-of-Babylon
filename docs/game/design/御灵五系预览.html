@@ -13,119 +13,82 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--tx);
-    font:15px/1.75 -apple-system,"Segoe UI Variable","Segoe UI","Microsoft YaHei",sans-serif;
-    padding:36px 28px 80px;max-width:1120px;margin:0 auto}
-  h1{font-size:30px;line-height:1.3;margin:0 0 6px;letter-spacing:.5px}
-  h2{font-size:21px;margin:40px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);font-weight:650}
+    font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;padding:34px 26px 80px;max-width:1180px;margin:0 auto}
+  h1{font-size:29px;margin:0 0 6px}
+  h2{font-size:21px;margin:38px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);font-weight:650}
   .lead{color:var(--tx2);margin:0 0 6px;font-size:16px}
   .muted{color:var(--tx3);font-size:13px;margin:2px 0 0}
   b{color:#fff;font-weight:650}
-
   .grid{display:grid;gap:16px}
   .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
-  @media(max-width:880px){.g3,.g2{grid-template-columns:1fr}}
-
+  @media(max-width:880px){.g3{grid-template-columns:1fr}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
-  .card.base{border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(91,155,255,.25)}
-  .card h3{margin:0 0 8px;font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card.base{border-color:var(--accent)}
+  .card h3{margin:0 0 8px;font-size:15px;font-weight:650;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .card p{margin:0;color:var(--tx2);font-size:14px}
-  .tag{font-size:12px;padding:2px 9px;border-radius:11px;border:1px solid var(--line2);color:var(--tx2);white-space:nowrap}
+  .tag{font-size:12px;padding:2px 9px;border-radius:11px;border:1px solid var(--line2);color:var(--tx2)}
   .tag.base{border-color:var(--accent);color:var(--accent)}
-
-  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);
-    border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
-  th,td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
-  th{color:var(--tx2);font-weight:650;background:var(--elev);font-size:13px;letter-spacing:.3px}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
+  th,td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--tx2);font-weight:650;background:var(--elev);font-size:13px}
   td.c,th.c{text-align:center}
   tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
   tr:last-child td{border-bottom:none}
   .nm-cell{font-weight:600}
-  .st{color:var(--gold);letter-spacing:2px}
-  .se{color:var(--tx3);letter-spacing:2px}
+  .st{color:var(--gold);letter-spacing:2px}.se{color:var(--tx3);letter-spacing:2px}
   .badge{display:inline-block;font-size:12px;font-weight:650;padding:2px 10px;border-radius:11px}
   .badge.info{color:#bcd4ff;background:rgba(91,155,255,.16)}
   .badge.warn{color:#f0d59a;background:rgba(224,173,70,.16)}
   .badge.dan{color:#f4b4aa;background:rgba(236,106,88,.16)}
   .badge.neu{color:var(--tx2);background:rgba(255,255,255,.06)}
 
-  .controls{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:8px 0 18px}
+  .controls{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:8px 0 16px}
   .pills{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .pills+.pills{margin-top:12px}
+  .pills+.pills{margin-top:10px}
   .lbl{color:var(--tx2);font-size:14px;font-weight:600;margin-right:4px}
-  .pill{cursor:pointer;font-size:14px;padding:6px 16px;border-radius:18px;border:1px solid var(--line2);
-    background:transparent;color:var(--tx2);transition:.12s;font-family:inherit}
+  .pill{cursor:pointer;font-size:14px;padding:6px 16px;border-radius:18px;border:1px solid var(--line2);background:transparent;color:var(--tx2);font-family:inherit}
   .pill:hover{border-color:var(--accent);color:var(--tx)}
   .pill.on{background:var(--accent);border-color:var(--accent);color:#0f1216;font-weight:650}
-  .sysline{color:var(--gold);font-size:14px;font-weight:600;margin:14px 0 2px}
+  .sysline{color:var(--gold);font-size:14px;font-weight:600;margin:12px 0 0}
+  #pointbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:12px 0 0}
+  .pcount{font-size:15px;font-weight:650}.pcount b{color:var(--accent);font-size:19px}
+  .btn{cursor:pointer;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--tx2);font-family:inherit}
+  .btn:hover{border-color:var(--dan);color:var(--tx)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 0;color:var(--tx3);font-size:12px}
 
-  .entry{max-width:300px;margin:6px auto 22px;text-align:center}
-  .entry .node{display:inline-block;text-align:left;min-width:240px}
-  .entry-cap{color:var(--tx3);font-size:12px;letter-spacing:2px;margin-bottom:6px}
-  .entry-stem{width:2px;height:18px;background:var(--accent);margin:0 auto}
-  .branch{position:relative}
-  .branch-title{color:var(--tx);font-weight:650;font-size:14px;margin:0 0 12px;padding-left:2px}
-  .branch.off .branch-title{color:var(--tx3)}
-  .tier{display:flex;gap:12px;align-items:stretch;margin-bottom:14px}
-  .tier:last-child{margin-bottom:0}
-  .rail{position:relative;flex:0 0 18px}
-  .rail .line{position:absolute;left:8px;top:0;bottom:-14px;width:2px;background:var(--line2)}
-  .tier:last-child .rail .line{display:none}
-  .rail .dot{position:absolute;left:2px;top:15px;width:14px;height:14px;border-radius:50%;
-    border:2px solid var(--line2);background:var(--bg);box-sizing:border-box}
-  .tier.cap .rail .dot{border-radius:3px;transform:rotate(45deg);width:13px;height:13px;top:16px}
-  .tier.on .rail .line{background:var(--accent)}
-  .tier.on .rail .dot{border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 4px rgba(91,155,255,.15)}
-  .node{flex:1;border:1px solid var(--line);background:var(--elev);border-radius:10px;padding:11px 14px}
-  .node.off{opacity:.6}
-  .node.off .nm{color:var(--tx2)}
+  .treewrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto}
+  .tree{position:relative;display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:30px 16px;min-width:680px}
+  #edges{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:visible}
+  .edge{fill:none;stroke:var(--line2);stroke-width:2}
+  .edge.eon{stroke:var(--accent);stroke-width:2.5}
+  .node{position:relative;z-index:1;border:1px solid var(--line);background:var(--elev);border-radius:10px;padding:9px 12px}
+  .node.entry{text-align:center}
+  .node .nt{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
+  .node .nm{font-weight:650;font-size:14px}
+  .node .ds{color:var(--tx2);font-size:12.5px;line-height:1.45}
   .node.on{border-color:var(--accent);background:#1d2940}
-  .node .nt{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px}
-  .node .nm{font-weight:650;font-size:14.5px}
-  .node .ds{color:var(--tx2);font-size:13px;line-height:1.5}
-  .combo{border-style:dashed}
-  /* —— BD 树连线 + 质变高亮 —— */
-  .entry{margin:6px auto 0}
-  .manifold{height:2px;background:var(--accent);opacity:.5;border-radius:2px;margin:2px 0 20px}
-  .branch .tier:first-child .rail .line{top:-22px}
-  .tier.cap .rail .dot{border-color:var(--gold)}
-  .tier.cap.on .rail .dot{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 5px rgba(227,179,65,.18)}
-  .tier.cap.on .rail .line{background:var(--gold)}
-  .tier.cap.on .node{border-color:var(--gold);background:#2a2417}
-  .tier.cap .node .nm{color:var(--gold)}
-  .tier.cap.off .node .nm{color:var(--tx2)}
-  /* —— 手动加点状态 —— */
-  .node.can{opacity:1;border-style:dashed;border-color:var(--accent);cursor:pointer}
+  .node.can{border-style:dashed;border-color:var(--accent);cursor:pointer}
   .node.can:hover{background:#19202c}
   .node.lock{opacity:.5;cursor:not-allowed}
   .node.lock .nm{color:var(--tx2)}
-  .tier.can .rail .dot{border-color:var(--accent);border-style:dashed}
-  .tier.lock .rail .dot{opacity:.6}
-  #pointbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 0}
-  .pcount{font-size:15px;font-weight:650}
-  .pcount b{color:var(--accent);font-size:19px}
-  .btn{cursor:pointer;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--tx2);font-family:inherit}
-  .btn:hover{border-color:var(--dan);color:var(--tx)}
-  .ntag{font-size:11px;font-weight:650;padding:2px 8px;border-radius:9px;white-space:nowrap}
+  .node.cap{border-radius:12px}
+  .node.cap.on{border-color:var(--gold);background:#2a2417}
+  .node.cap.on .nm{color:var(--gold)}
+  .node.combo{border-style:dashed}
+  .ntag{font-size:10.5px;font-weight:650;padding:2px 7px;border-radius:9px;white-space:nowrap}
   .ntag.铺垫{color:#c2cad6;background:rgba(139,149,165,.20)}
   .ntag.关键{color:#bcd4ff;background:rgba(91,155,255,.20)}
   .ntag.质变{color:#a7e9c5;background:rgba(86,201,138,.20)}
   .ntag.合技{color:#f0d59a;background:rgba(224,173,70,.20)}
   .ntag.带价{color:#f4b4aa;background:rgba(236,106,88,.20)}
-
-  .branchwrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
-  .note{border-left:4px solid var(--info);background:rgba(91,155,255,.10);padding:12px 16px;
-    border-radius:0 10px 10px 0;margin-top:16px;font-size:14px}
+  .note{border-left:4px solid var(--info);background:rgba(91,155,255,.10);padding:11px 15px;border-radius:0 10px 10px 0;margin-top:14px;font-size:14px}
   .note.warn{border-color:var(--warn);background:rgba(224,173,70,.10)}
-  .divider{height:1px;background:var(--line);margin:18px 0}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 0;color:var(--tx3);font-size:12px}
-  .legend span b{font-weight:650}
 </style>
 </head>
 <body>
   <h1>御灵 · 五系 — 战斗与成长（设计预览）</h1>
   <p class="lead">灵为本源；御灵系是地基（五行＝其色），独特方向在 <b>生灵 / 空间 / 神识 / 召物</b> 四系，靠 <b>双系 + 合技</b> 长出个性。</p>
-  <p class="muted">来源：docs/game/design/设定_御灵五系.md · 设定_化身.md ｜ 全程设计草案、未动代码</p>
+  <p class="muted">来源：docs/game/design/设定_御灵五系.md · 设定_化身.md ｜ 设计草案、未动代码</p>
 
   <h2>五系</h2>
   <div class="grid g3" id="systems"></div>
@@ -134,8 +97,8 @@
   <p class="muted">星级＝该系可修上限（本命 ★★★★ 圆满）。御灵后为五行色；影刃 神识★★★＝通往神识系的桥。</p>
   <div id="affinity"></div>
 
-  <h2>系精通 · 节点加点</h2>
-  <p class="muted">选化身后<b>点击节点手动加点</b>（再点退点）：受精通点上限 + 前置约束（高层需先点低层、合技需先投点）。也可「推荐套用」一键铺好再改。</p>
+  <h2>系精通 · 天赋树（手动加点）</h2>
+  <p class="muted">点节点加点／再点退点。节点可有多个前置（任一前置点亮即可解锁），分支会交叉汇合——同样 7 点能点出很多不同 build。</p>
   <div class="controls">
     <div class="pills" id="avatarPills"><span class="lbl">化身</span></div>
     <div class="sysline" id="sysLine"></div>
@@ -144,18 +107,11 @@
   </div>
   <div class="legend">
     <span class="ntag 铺垫">铺垫</span><span class="ntag 关键">关键</span>
-    <span class="ntag 质变">质变</span><span class="ntag 合技">合技</span><span class="ntag 带价">带价</span>
+    <span class="ntag 质变">质变(金)</span><span class="ntag 合技">合技</span><span class="ntag 带价">带价</span>
   </div>
-  <div class="entry" id="entry"></div>
-  <div class="branchwrap">
-    <div class="manifold"></div>
-    <div class="grid g3" id="branches"></div>
-    <div class="divider"></div>
-    <div class="branch-title">合技节点（需旁修投点）</div>
-    <div class="grid g2" id="combos"></div>
-  </div>
+  <div class="treewrap"><div class="tree" id="tree"><svg id="edges"></svg></div></div>
   <div class="note" id="buildNote"></div>
-  <div class="note warn"><b>复杂度警告：</b>深加点三坑＝分析瘫痪 / 平衡地狱 / 一个真神 build。应对：分层暴露（默认推荐路线、深度可选）+ 节点数克制。</div>
+  <div class="note warn"><b>提示：</b>预算有限 + 节点有前置 + 多条交叉路径 → 没有唯一最优；走哪几条线、是否凑合技，取决于你想要的打法。</div>
 
   <h2>成长全景</h2>
   <div id="growth"></div>
@@ -175,60 +131,101 @@ const AFFINITY=[
  {name:"影刃",el:"水",yu:2,sheng:1,kong:4,shen:3,zhao:2,id:"遁影乱心·通神识桥"},
  {name:"御物",el:"土",yu:3,sheng:2,kong:2,shen:1,zhao:4,id:"驭物成军"},
 ];
-const stars=n=> n<0 ? '<span class="se">—</span>'
-  : `<span class="st">${"★".repeat(n)}</span><span class="se">${"☆".repeat(4-n)}</span>`;
-const ALL={label:"全展示",note:"整张节点图（亲和满级可点的范围）。",branches:[0,1,2],combos:[0,1]};
+const stars=n=> n<0?'<span class="se">—</span>':`<span class="st">${"★".repeat(n)}</span><span class="se">${"☆".repeat(4-n)}</span>`;
+
+// 天赋树：每节点 {id,nm,t(类型),d(描述),r行,c列,cs跨列,req[前置id...任一满足即解锁]}
+// e=入口(免费/常驻)；预算 BUDGET 点。
+const BUDGET=7;
+function tree(entry,nodes){return {entry,nodes};}
 const AVATARS=[
- {name:"业火",sys:"御灵·火 · 魔焰献祭",
-  entry:{name:"引焰",type:"铺垫",desc:"火系基础 + 焰势资源"},
-  branches:[
-   {title:"① 燎原 · 范围",nodes:[{name:"火雨",type:"铺垫",desc:"技能附小范围灼烧"},{name:"燎原蔓延",type:"关键",desc:"灼烧向邻敌蔓延"},{name:"焚天燎原",type:"质变",desc:"引爆范围×2，按灼烧敌数叠伤"}]},
-   {title:"② 焚己 · 献祭(带价)",nodes:[{name:"燃血",type:"带价",desc:"燃 HP% 提升焰势"},{name:"残血增伤",type:"关键",desc:"越残血火伤越高"},{name:"濒死狂焰",type:"质变",desc:"HP<30% 暴涨，掉血+涨心魔"}]},
-   {title:"③ 焰势 · 循环",nodes:[{name:"怒火",type:"铺垫",desc:"命中/受击回焰势"},{name:"狂火延烧",type:"关键",desc:"狂火击杀延长"},{name:"焰势满溢",type:"质变",desc:"满则自爆+技能CD↓"}]},
-  ],
-  combos:[{name:"业火不灭〔生灵★★〕",type:"合技",desc:"献祭/燃血时吸血→魔焰续命"},{name:"焚天火傀〔召物★★〕",type:"合技",desc:"召火傀引燃分担，火傀亡则引爆"}],
-  builds:[ALL,{label:"纯清场",note:"①燎原+③焰势：范围灼烧+循环续爆。",branches:[0,2],combos:[]},{label:"献祭苟活",note:"②焚己+生灵吸血续命：敢残血浪。",branches:[1],combos:[0]},{label:"召唤辅助",note:"③焰势+召火傀分担引燃。",branches:[2],combos:[1]}]},
- {name:"剑魄",sys:"御灵·金 · 金属控制",
-  entry:{name:"引锋",type:"铺垫",desc:"金系基础 + 金属碎片"},
-  branches:[
-   {title:"① 锋锐 · 穿透",nodes:[{name:"飞金",type:"铺垫",desc:"金属碎片穿透投射"},{name:"穿甲",type:"关键",desc:"叠层降敌防御"},{name:"万剑归宗",type:"质变",desc:"群飞剑环绕自动攻击"}]},
-   {title:"② 塑金 · 形态",nodes:[{name:"塑金为刃",type:"铺垫",desc:"攻击形态↑伤害"},{name:"塑金为甲",type:"关键",desc:"防御形态↑减伤"},{name:"金身",type:"质变",desc:"形态切换即强化一击"}]},
-   {title:"③ 磁御 · 控位",nodes:[{name:"磁牵",type:"铺垫",desc:"拉近敌人"},{name:"聚物",type:"关键",desc:"吸拢散怪/灵物"},{name:"磁爆",type:"质变",desc:"聚而引爆"}]},
-  ],
-  combos:[{name:"御剑遁〔空间★★〕",type:"合技",desc:"御飞剑瞬身"},{name:"剑心乱〔神识★★〕",type:"合技",desc:"完美时机附定身/扰心"}],
-  builds:[ALL,{label:"穿透斩杀",note:"①锋锐：单体高穿透。",branches:[0],combos:[0]},{label:"形态攻防",note:"②塑金：攻防形态切换。",branches:[1],combos:[]},{label:"磁控拉怪",note:"③磁御+剑心乱：聚怪控场。",branches:[2],combos:[1]}]},
- {name:"青囊",sys:"生灵 · 寄生续航",
-  entry:{name:"播种",type:"铺垫",desc:"普攻种寄生种子"},
-  branches:[
-   {title:"① 寄生 · 叠引爆",nodes:[{name:"蔓延种",type:"铺垫",desc:"种子传染相邻敌"},{name:"蛊毒",type:"关键",desc:"种子 DoT 强化"},{name:"枯荣引爆",type:"质变",desc:"按层数引爆+连锁"}]},
-   {title:"② 滋养 · 续航",nodes:[{name:"回血域",type:"铺垫",desc:"生境内回血"},{name:"吸血",type:"关键",desc:"造成伤害回血"},{name:"生生不息",type:"质变",desc:"满血溢出转护盾"}]},
-   {title:"③ 腐朽 · 降敌",nodes:[{name:"毒蚀",type:"铺垫",desc:"降敌攻防"},{name:"疫病",type:"关键",desc:"毒在敌间传染"},{name:"腐朽",type:"质变",desc:"毒满自爆"}]},
-  ],
-  combos:[{name:"役兽成群〔召物★★〕",type:"合技",desc:"种子寄入妖兽役使"},{name:"移花接木〔空间★★〕",type:"合技",desc:"领域内种子疯长"}],
-  builds:[ALL,{label:"叠毒磨杀",note:"①寄生+③腐朽：持续磨。",branches:[0,2],combos:[]},{label:"极限续航",note:"②滋养：苟到天荒地老。",branches:[1],combos:[]},{label:"役兽流",note:"①寄生+役兽成群。",branches:[0],combos:[0]}]},
- {name:"影刃",sys:"空间 · 遁影",
-  entry:{name:"遁形",type:"铺垫",desc:"瞬步/闪现基础"},
-  branches:[
-   {title:"① 影袭 · 位移输出",nodes:[{name:"影息斩",type:"铺垫",desc:"位移即输出"},{name:"水痕印",type:"关键",desc:"标记敌·技能增伤"},{name:"缩地成寸",type:"质变",desc:"连续瞬移"}]},
-   {title:"② 渊默 · 隐杀",nodes:[{name:"隐身",type:"铺垫",desc:"脱战隐身"},{name:"背刺",type:"关键",desc:"隐身后暴击"},{name:"无影",type:"质变",desc:"击杀回闪避充能"}]},
-   {title:"③ 乱影 · 扰敌",nodes:[{name:"残影诱敌",type:"铺垫",desc:"留分身吸引"},{name:"影分身",type:"关键",desc:"分身协同"},{name:"影狱",type:"质变",desc:"困敌减速"}]},
-  ],
-  combos:[{name:"影杀心乱〔神识★★★〕",type:"合技",desc:"隐身期魅惑/恐惧敌"},{name:"水镜军〔召物★★〕",type:"合技",desc:"多重水镜分身"}],
-  builds:[ALL,{label:"瞬移连斩",note:"①影袭：进出即输出。",branches:[0],combos:[]},{label:"隐杀暴击",note:"②渊默：背刺爆发。",branches:[1],combos:[]},{label:"控场乱影",note:"③乱影+影杀心乱：扰敌。",branches:[2],combos:[0]}]},
- {name:"御物",sys:"召物 · 傀儡",
-  entry:{name:"造傀",type:"铺垫",desc:"召自律土傀"},
-  branches:[
-   {title:"① 傀海 · 自律军",nodes:[{name:"多傀",type:"铺垫",desc:"召物上限↑"},{name:"强化傀",type:"关键",desc:"傀儡攻防↑"},{name:"万军",type:"质变",desc:"傀儡继承你的效果"}]},
-   {title:"② 兵阵 · 阵地",nodes:[{name:"炮台",type:"铺垫",desc:"固定 AOE 炮击"},{name:"兵阵合一",type:"关键",desc:"成阵炮击模式"},{name:"大阵",type:"质变",desc:"全屏炮覆盖"}]},
-   {title:"③ 镇岳 · 器铸",nodes:[{name:"塑土护体",type:"铺垫",desc:"护盾"},{name:"飞石陨石",type:"关键",desc:"投掷重砸"},{name:"镇岳",type:"质变",desc:"召巨傀镇场"}]},
-  ],
-  combos:[{name:"元素傀〔御灵★★〕",type:"合技",desc:"傀儡附元素伤害"},{name:"阵困〔空间★★〕",type:"合技",desc:"兵阵兼领域减速"}],
-  builds:[ALL,{label:"群傀海",note:"①傀海：召唤大军。",branches:[0],combos:[]},{label:"炮阵站桩",note:"②兵阵：阵地炮覆盖。",branches:[1],combos:[1]},{label:"元素傀",note:"①傀海+元素傀。",branches:[0],combos:[0]}]},
+ {name:"业火",sys:"御灵·火 · 魔焰献祭", entry:{nm:"引焰",t:"铺垫",d:"火系基础 + 焰势资源"},
+  nodes:[
+   {id:"f1",nm:"火雨",t:"铺垫",d:"技能附小范围灼烧",r:1,c:0,req:["e"]},
+   {id:"f2",nm:"怒火",t:"铺垫",d:"命中/受击回焰势",r:1,c:1,req:["e"]},
+   {id:"f3",nm:"燃血",t:"带价",d:"燃 HP% 提焰势",r:1,c:2,req:["e"]},
+   {id:"f4",nm:"燎原蔓延",t:"关键",d:"灼烧向邻敌蔓延",r:2,c:0,req:["f1"]},
+   {id:"f5",nm:"狂火延烧",t:"关键",d:"狂火击杀延长",r:2,c:1,req:["f2"]},
+   {id:"f6",nm:"残血增伤",t:"关键",d:"越残血火伤越高",r:2,c:2,req:["f3"]},
+   {id:"f7",nm:"热浪",t:"铺垫",d:"灼烧附攻速；连接火/怒",r:2,c:3,req:["f1","f2"]},
+   {id:"f8",nm:"焚天燎原",t:"质变",d:"引爆范围×2，按灼烧敌数叠伤",r:3,c:0,req:["f4","f7"]},
+   {id:"f9",nm:"焰势满溢",t:"质变",d:"满则自爆+技能CD↓",r:3,c:1,req:["f5","f7"]},
+   {id:"f10",nm:"濒死狂焰",t:"质变",d:"HP<30%暴涨，掉血+涨心魔",r:3,c:2,req:["f6"]},
+   {id:"f11",nm:"业火不灭〔生灵〕",t:"合技",d:"献祭时吸血续命",r:3,c:3,req:["f6","f10"]},
+   {id:"f12",nm:"焚天火傀〔召物〕",t:"合技",d:"召火傀引燃分担",r:4,c:1,req:["f5","f9"]},
+  ]},
+ {name:"剑魄",sys:"御灵·金 · 金属控制", entry:{nm:"引锋",t:"铺垫",d:"金系基础 + 金属碎片"},
+  nodes:[
+   {id:"m1",nm:"飞金",t:"铺垫",d:"碎片穿透投射",r:1,c:0,req:["e"]},
+   {id:"m2",nm:"塑金为刃",t:"铺垫",d:"攻击形态",r:1,c:1,req:["e"]},
+   {id:"m3",nm:"磁牵",t:"铺垫",d:"拉近敌人",r:1,c:2,req:["e"]},
+   {id:"m4",nm:"穿甲",t:"关键",d:"叠层降敌防御",r:2,c:0,req:["m1"]},
+   {id:"m5",nm:"塑金为甲",t:"关键",d:"防御形态/切换",r:2,c:1,req:["m2"]},
+   {id:"m6",nm:"聚物",t:"关键",d:"吸拢散怪/灵物",r:2,c:2,req:["m3"]},
+   {id:"m7",nm:"锐芒",t:"铺垫",d:"穿透附暴击；连飞金/塑刃",r:2,c:3,req:["m1","m2"]},
+   {id:"m8",nm:"万剑归宗",t:"质变",d:"群飞剑环绕自动攻",r:3,c:0,req:["m4","m7"]},
+   {id:"m9",nm:"金身",t:"质变",d:"形态切换即强化一击",r:3,c:1,req:["m5","m7"]},
+   {id:"m10",nm:"磁爆",t:"质变",d:"聚而引爆",r:3,c:2,req:["m6"]},
+   {id:"m11",nm:"剑心乱〔神识〕",t:"合技",d:"完美时机附定身",r:3,c:3,req:["m5","m9"]},
+   {id:"m12",nm:"御剑遁〔空间〕",t:"合技",d:"御飞剑瞬身",r:4,c:1,req:["m8","m4"]},
+  ]},
+ {name:"青囊",sys:"生灵 · 寄生续航", entry:{nm:"播种",t:"铺垫",d:"普攻种寄生种子"},
+  nodes:[
+   {id:"w1",nm:"蔓延种",t:"铺垫",d:"种子传染相邻敌",r:1,c:0,req:["e"]},
+   {id:"w2",nm:"回血域",t:"铺垫",d:"生境内回血",r:1,c:1,req:["e"]},
+   {id:"w3",nm:"毒蚀",t:"铺垫",d:"降敌攻防",r:1,c:2,req:["e"]},
+   {id:"w4",nm:"蛊毒",t:"关键",d:"种子 DoT 强化",r:2,c:0,req:["w1"]},
+   {id:"w5",nm:"吸血",t:"关键",d:"造成伤害回血",r:2,c:1,req:["w2"]},
+   {id:"w6",nm:"疫病",t:"关键",d:"毒在敌间传染",r:2,c:2,req:["w3"]},
+   {id:"w7",nm:"藤蔓",t:"铺垫",d:"减速+续种；连种/血",r:2,c:3,req:["w1","w2"]},
+   {id:"w8",nm:"枯荣引爆",t:"质变",d:"按层引爆+连锁",r:3,c:0,req:["w4","w7"]},
+   {id:"w9",nm:"生生不息",t:"质变",d:"满血溢出转护盾",r:3,c:1,req:["w5","w7"]},
+   {id:"w10",nm:"腐朽",t:"质变",d:"毒满自爆",r:3,c:2,req:["w6"]},
+   {id:"w11",nm:"役兽成群〔召物〕",t:"合技",d:"种子寄妖兽役使",r:3,c:3,req:["w4","w8"]},
+   {id:"w12",nm:"移花接木〔空间〕",t:"合技",d:"领域内种子疯长",r:4,c:1,req:["w9","w5"]},
+  ]},
+ {name:"影刃",sys:"空间 · 遁影", entry:{nm:"遁形",t:"铺垫",d:"瞬步/闪现基础"},
+  nodes:[
+   {id:"s1",nm:"影息斩",t:"铺垫",d:"位移即输出",r:1,c:0,req:["e"]},
+   {id:"s2",nm:"隐身",t:"铺垫",d:"脱战隐身",r:1,c:1,req:["e"]},
+   {id:"s3",nm:"残影诱敌",t:"铺垫",d:"留分身吸引",r:1,c:2,req:["e"]},
+   {id:"s4",nm:"水痕印",t:"关键",d:"标记敌·技能增伤",r:2,c:0,req:["s1"]},
+   {id:"s5",nm:"背刺",t:"关键",d:"隐身后暴击",r:2,c:1,req:["s2"]},
+   {id:"s6",nm:"影分身",t:"关键",d:"分身协同",r:2,c:2,req:["s3"]},
+   {id:"s7",nm:"虚影",t:"铺垫",d:"瞬移留刃；连斩/隐",r:2,c:3,req:["s1","s2"]},
+   {id:"s8",nm:"缩地成寸",t:"质变",d:"连续瞬移",r:3,c:0,req:["s4","s7"]},
+   {id:"s9",nm:"无影",t:"质变",d:"击杀回闪避充能",r:3,c:1,req:["s5","s7"]},
+   {id:"s10",nm:"影狱",t:"质变",d:"困敌减速",r:3,c:2,req:["s6"]},
+   {id:"s11",nm:"影杀心乱〔神识〕",t:"合技",d:"隐身期魅惑/恐惧",r:3,c:3,req:["s5","s9"]},
+   {id:"s12",nm:"水镜军〔召物〕",t:"合技",d:"多重水镜分身",r:4,c:1,req:["s6","s10"]},
+  ]},
+ {name:"御物",sys:"召物 · 傀儡", entry:{nm:"造傀",t:"铺垫",d:"召自律土傀"},
+  nodes:[
+   {id:"e1",nm:"多傀",t:"铺垫",d:"召物上限↑",r:1,c:0,req:["e"]},
+   {id:"e2",nm:"炮台",t:"铺垫",d:"固定 AOE 炮击",r:1,c:1,req:["e"]},
+   {id:"e3",nm:"塑土护体",t:"铺垫",d:"护盾",r:1,c:2,req:["e"]},
+   {id:"e4",nm:"强化傀",t:"关键",d:"傀儡攻防↑",r:2,c:0,req:["e1"]},
+   {id:"e5",nm:"兵阵合一",t:"关键",d:"成阵炮击模式",r:2,c:1,req:["e2"]},
+   {id:"e6",nm:"飞石陨石",t:"关键",d:"投掷重砸",r:2,c:2,req:["e3"]},
+   {id:"e7",nm:"傀心",t:"铺垫",d:"傀儡协同；连多傀/炮台",r:2,c:3,req:["e1","e2"]},
+   {id:"e8",nm:"万军",t:"质变",d:"傀儡继承你的效果",r:3,c:0,req:["e4","e7"]},
+   {id:"e9",nm:"大阵",t:"质变",d:"全屏炮覆盖",r:3,c:1,req:["e5","e7"]},
+   {id:"e10",nm:"镇岳",t:"质变",d:"召巨傀镇场",r:3,c:2,req:["e6"]},
+   {id:"e11",nm:"元素傀〔御灵〕",t:"合技",d:"傀儡附元素伤",r:3,c:3,req:["e4","e8"]},
+   {id:"e12",nm:"阵困〔空间〕",t:"合技",d:"兵阵兼领域减速",r:4,c:1,req:["e5","e9"]},
+  ]},
 ];
+// 推荐套用（点亮一组节点）
+const PRESETS={
+ "业火":[{l:"燎原清场",s:["f1","f4","f7","f8","f2","f5"]},{l:"魔焰献祭",s:["f3","f6","f10","f11"]},{l:"循环爆发",s:["f2","f5","f7","f9","f1"]}],
+ "剑魄":[{l:"万剑穿杀",s:["m1","m4","m7","m8","m12"]},{l:"形态攻防",s:["m2","m5","m7","m9","m11"]},{l:"磁控拉怪",s:["m3","m6","m10"]}],
+ "青囊":[{l:"叠毒磨杀",s:["w1","w4","w7","w8","w3","w6"]},{l:"极限续航",s:["w2","w5","w7","w9"]},{l:"役兽流",s:["w1","w4","w8","w11"]}],
+ "影刃":[{l:"瞬移连斩",s:["s1","s4","s7","s8"]},{l:"隐杀暴击",s:["s2","s5","s7","s9","s11"]},{l:"控场乱影",s:["s3","s6","s10","s12"]}],
+ "御物":[{l:"群傀大军",s:["e1","e4","e7","e8","e11"]},{l:"炮阵站桩",s:["e2","e5","e7","e9","e12"]},{l:"镇岳防守",s:["e3","e6","e10"]}],
+};
 const GROWTH=[
  {line:"御灵之路",cat:"局内",status:"新增",pos:"捡功法/灵物→叠系tag→质变/合技（每局临时build）",tone:"info"},
  {line:"本体境界",cat:"局外·纵向",status:"重定位",pos:"悟性驱动的里程碑脊梁，每阶解锁一道门",tone:"warn"},
- {line:"系精通",cat:"局外·深度",status:"新增",pos:"亲和谱 + 节点加点 + 跨系合技",tone:"info"},
+ {line:"系精通",cat:"局外·深度",status:"新增",pos:"亲和谱 + 天赋树节点加点 + 跨系合技",tone:"info"},
  {line:"天赋树",cat:"局外·纵向",status:"搬家",pos:"移到选化身页「点天赋」，境界突破发点",tone:"warn"},
  {line:"藏经阁",cat:"局外·解锁",status:"已有",pos:"古籍残页→永久功法 + 设起手",tone:"neu"},
  {line:"凝灵阁(原炼器房)",cat:"局外·解锁",status:"暂隐",pos:"炼灵物入池（待灵物解封）",tone:"neu"},
@@ -237,84 +234,80 @@ const GROWTH=[
  {line:"道伤 / 炼丹房 / 阵法台 / 灵田 / 灵兽园 / 悟道蒲团",cat:"裁剪",status:"砍/退役",pos:"已从设计移除或并入别处",tone:"dan"},
 ];
 
-const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+// 五系卡
+document.getElementById("systems").innerHTML=SYSTEMS.map(s=>`<div class="card ${s.base?'base':''}"><h3>${s.key}系 · ${s.role}<span class="tag ${s.base?'base':''}">${s.base?'地基':'构筑轴'}</span></h3><p>${s.desc}</p></div>`).join("");
+// 亲和谱
+document.getElementById("affinity").innerHTML=`<table><thead><tr><th>化身</th><th class="c">御灵</th><th class="c">生灵</th><th class="c">空间</th><th class="c">神识</th><th class="c">召物</th><th>身份</th></tr></thead><tbody>`+
+ AFFINITY.map(a=>`<tr><td class="nm-cell">${a.name}</td><td class="c">${stars(a.yu)} <span class="se">${a.el}</span></td><td class="c">${stars(a.sheng)}</td><td class="c">${stars(a.kong)}</td><td class="c">${stars(a.shen)}</td><td class="c">${stars(a.zhao)}</td><td>${a.id}</td></tr>`).join("")+`</tbody></table>`;
+// 成长全景
+document.getElementById("growth").innerHTML=`<table><thead><tr><th>成长线</th><th>类别</th><th class="c">状态</th><th>定位</th></tr></thead><tbody>`+
+ GROWTH.map(g=>`<tr><td class="nm-cell">${g.line}</td><td>${g.cat}</td><td class="c"><span class="badge ${g.tone||'neu'}">${g.status}</span></td><td>${g.pos}</td></tr>`).join("")+`</tbody></table>`;
 
-const sysBox=document.getElementById("systems");
-SYSTEMS.forEach(s=>{
- const c=el("div","card"+(s.base?" base":""));
- c.innerHTML=`<h3>${s.key}系 · ${s.role}<span class="tag ${s.base?'base':''}">${s.base?'地基':'构筑轴'}</span></h3><p>${s.desc}</p>`;
- sysBox.appendChild(c);
-});
-
-let ah=`<table><thead><tr><th>化身</th><th class="c">御灵</th><th class="c">生灵</th><th class="c">空间</th><th class="c">神识</th><th class="c">召物</th><th>身份</th></tr></thead><tbody>`;
-AFFINITY.forEach(a=>{ah+=`<tr><td class="nm-cell">${a.name}</td><td class="c">${stars(a.yu)} <span class="se">${a.el}</span></td><td class="c">${stars(a.sheng)}</td><td class="c">${stars(a.kong)}</td><td class="c">${stars(a.shen)}</td><td class="c">${stars(a.zhao)}</td><td>${a.id}</td></tr>`;});
-ah+=`</tbody></table>`; document.getElementById("affinity").innerHTML=ah;
-
-let gh=`<table><thead><tr><th>成长线</th><th>类别</th><th class="c">状态</th><th>定位</th></tr></thead><tbody>`;
-GROWTH.forEach(g=>{gh+=`<tr><td class="nm-cell">${g.line}</td><td>${g.cat}</td><td class="c"><span class="badge ${g.tone||'neu'}">${g.status}</span></td><td>${g.pos}</td></tr>`;});
-gh+=`</tbody></table>`; document.getElementById("growth").innerHTML=gh;
-
+// ===== 天赋树交互 =====
 let curAvatar=0;
-const BUDGET=6;
-const alloc={};                 // 化身名 → Set(已点节点id)
-const curName=()=>AVATARS[curAvatar].name;
-const setOf=()=>{const k=curName(); if(!alloc[k]) alloc[k]=new Set(); return alloc[k];};
+const alloc={};
+const A=()=>AVATARS[curAvatar];
+const setOf=()=>{const k=A().name; if(!alloc[k]) alloc[k]=new Set(); return alloc[k];};
 const used=()=>setOf().size;
-function prereqMet(id){
- if(id==='e') return true;
- if(id[0]==='b'){const bi=+id[1],ti=+id[3]; return ti===0 ? true : setOf().has('b'+bi+'t'+(ti-1));}
- if(id[0]==='c') return used()>=2;          // 合技：先投 2 点（旁修代理）
- return false;
+const isOn=id=> id==='e' || setOf().has(id);
+const nodeById=id=>A().nodes.find(n=>n.id===id);
+const prereqMet=n=> (n.req||[]).some(isOn);     // 任一前置满足
+function canRemove(id){                          // 不能拆掉别人唯一的前置
+ for(const d of A().nodes){ if(!setOf().has(d.id)) continue; if(!(d.req||[]).includes(id)) continue;
+   const others=(d.req||[]).filter(r=>r!==id && isOn(r)); if(others.length===0) return false; }
+ return true;
 }
-const hasDependent=id=> id[0]==='b' && setOf().has('b'+id[1]+'t'+(+id[3]+1));
 function toggle(id){
- if(id==='e') return;
- const s=setOf();
- if(s.has(id)){ if(!hasDependent(id)) s.delete(id); }
- else if(used()<BUDGET && prereqMet(id)) s.add(id);
- renderGraph();
+ if(id==='e') return; const s=setOf(); const n=nodeById(id); if(!n) return;
+ if(s.has(id)){ if(canRemove(id)) s.delete(id); }
+ else if(used()<BUDGET && prereqMet(n)) s.add(id);
+ render();
 }
-function stateOf(id){
- if(id==='e') return 'on';
- if(setOf().has(id)) return 'on';
- return (used()<BUDGET && prereqMet(id)) ? 'can' : 'lock';
-}
-const nodeHTML=(n,state,id,extra='')=>`<div class="node ${extra} ${state}" data-id="${id}"><div class="nt"><span class="nm">${n.name}</span><span class="ntag ${n.type}">${n.type}</span></div><div class="ds">${n.desc}</div></div>`;
-const tierHTML=(n,state,cap,id)=>`<div class="tier ${state} ${cap?'cap':''}"><div class="rail"><div class="line"></div><div class="dot"></div></div>${nodeHTML(n,state,id)}</div>`;
-function applyPreset(i){
- const presets=AVATARS[curAvatar].builds.filter(b=>b.label!=='全展示');
- const b=presets[i]; if(!b) return;
- const s=setOf(); s.clear();
- b.branches.forEach(bi=>{for(let ti=0;ti<3;ti++) s.add('b'+bi+'t'+ti);});
- b.combos.forEach(ci=> s.add('c'+ci));
- renderGraph();
-}
-function renderGraph(){
- const a=AVATARS[curAvatar], s=setOf();
+function stateOf(n){ if(setOf().has(n.id)) return 'on'; return (used()<BUDGET && prereqMet(n))?'can':'lock'; }
+const cls=n=> (n.t==='质变'?'cap ':'')+(n.t==='合技'?'combo ':'');
+function nodeHTML(n,state,id){return `<div class="node ${cls(n)}${state}" data-id="${id}" style="grid-row:${n.r+1};grid-column:${n.c+1}${n.cs?(' / span '+n.cs):''}"><div class="nt"><span class="nm">${n.nm}</span><span class="ntag ${n.t}">${n.t}</span></div><div class="ds">${n.d}</div></div>`;}
+
+function render(){
+ const a=A(), s=setOf();
  document.getElementById("sysLine").textContent=a.sys;
- document.getElementById("entry").innerHTML=`<div class="entry-cap">起手 · 入口（免费）</div>${nodeHTML(a.entry,'on','e')}<div class="entry-stem"></div>`;
- document.getElementById("branches").innerHTML=a.branches.map((br,bi)=>`<div class="branch"><div class="branch-title">${br.title}</div>${br.nodes.map((n,ti)=>{const id='b'+bi+'t'+ti;return tierHTML(n,stateOf(id),ti===br.nodes.length-1,id);}).join("")}</div>`).join("");
- document.getElementById("combos").innerHTML=a.combos.map((n,ci)=>nodeHTML(n,stateOf('c'+ci),'c'+ci,'combo')).join("");
- // 已点亮 summary
- const names=[...s].map(id=> id[0]==='b'?a.branches[+id[1]].nodes[+id[3]].name : id[0]==='c'?a.combos[+id[1]].name : '').filter(Boolean);
- document.getElementById("buildNote").innerHTML=names.length?`<b>已点亮（${names.length}）：</b>${names.join(" · ")}`:`<b>未加点</b> — 点下方节点开始构筑，或用「推荐套用」。`;
- // 点数条 + 重置
+ // 树节点（入口 r0 跨 4 列居中）
+ let html=`<svg id="edges"></svg>`;
+ html+=`<div class="node entry on" data-id="e" style="grid-row:1;grid-column:1 / span 4"><div class="nt" style="justify-content:center"><span class="nm">起手 · ${a.entry.nm}</span></div><div class="ds">${a.entry.d}（免费·常驻）</div></div>`;
+ html+=a.nodes.map(n=>nodeHTML(n,stateOf(n),n.id)).join("");
+ const tree=document.getElementById("tree"); tree.innerHTML=html;
+ drawEdges();
+ // 已点亮
+ const names=[...s].map(id=>{const n=nodeById(id);return n?n.nm:'';}).filter(Boolean);
+ document.getElementById("buildNote").innerHTML=names.length?`<b>已点亮（${names.length}）：</b>${names.join(" · ")}`:`<b>未加点</b> — 点节点开始构筑，或「推荐套用」。`;
+ // 点数条
  document.getElementById("pointbar").innerHTML=`<span class="pcount">精通点 <b>${used()}</b> / ${BUDGET}</span><button class="btn" id="resetBtn">重置本化身</button>`;
- document.getElementById("resetBtn").onclick=()=>{ s.clear(); renderGraph(); };
- // 推荐套用
- const bp=document.getElementById("buildPills");
- bp.innerHTML=`<span class="lbl">推荐套用</span>`+a.builds.filter(b=>b.label!=='全展示').map((bb,i)=>`<button class="pill" data-p="${i}">${bb.label}</button>`).join("");
- bp.querySelectorAll("[data-p]").forEach(p=>p.onclick=()=>applyPreset(+p.dataset.p));
+ document.getElementById("resetBtn").onclick=()=>{ s.clear(); render(); };
+ // 推荐
+ const bp=document.getElementById("buildPills"); const ps=PRESETS[a.name]||[];
+ bp.innerHTML=`<span class="lbl">推荐套用</span>`+ps.map((p,i)=>`<button class="pill" data-p="${i}">${p.l}</button>`).join("");
+ bp.querySelectorAll("[data-p]").forEach(p=>p.onclick=()=>{ s.clear(); ps[+p.dataset.p].s.forEach(x=>s.add(x)); render(); });
 }
+function drawEdges(){
+ const tree=document.getElementById("tree"), svg=document.getElementById("edges");
+ const tr=tree.getBoundingClientRect();
+ svg.setAttribute("width",tree.scrollWidth); svg.setAttribute("height",tree.scrollHeight);
+ const ctr=(id,which)=>{const el=tree.querySelector('[data-id="'+id+'"]'); if(!el) return null; const r=el.getBoundingClientRect();
+   return {x:r.left-tr.left+r.width/2, y:(which==='bot'?r.bottom:r.top)-tr.top};};
+ let p="";
+ A().nodes.forEach(n=>(n.req||[]).forEach(rq=>{
+   const a=ctr(rq,'bot'), b=ctr(n.id,'top'); if(!a||!b) return;
+   const on=isOn(rq)&&isOn(n.id); const my=(a.y+b.y)/2;
+   p+=`<path class="edge${on?' eon':''}" d="M${a.x} ${a.y} C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${b.y}"/>`;
+ }));
+ svg.innerHTML=p;
+}
+// 化身切换
 const ap=document.getElementById("avatarPills");
 ap.innerHTML=`<span class="lbl">化身</span>`+AVATARS.map((a,i)=>`<button class="pill${i===0?' on':''}" data-a="${i}">${a.name}</button>`).join("");
-ap.querySelectorAll("[data-a]").forEach(p=>p.onclick=()=>{
- curAvatar=+p.dataset.a;
- ap.querySelectorAll(".pill").forEach(x=>x.classList.remove("on"));p.classList.add("on");
- renderGraph();
-});
-document.addEventListener("click",e=>{const t=e.target.closest(".node[data-id]"); if(t) toggle(t.dataset.id);});
-renderGraph();
+ap.querySelectorAll("[data-a]").forEach(p=>p.onclick=()=>{curAvatar=+p.dataset.a;ap.querySelectorAll(".pill").forEach(x=>x.classList.remove("on"));p.classList.add("on");render();});
+document.addEventListener("click",e=>{const t=e.target.closest(".node[data-id]");if(t&&t.dataset.id!=="e")toggle(t.dataset.id);});
+window.addEventListener("resize",drawEdges);
+render();
 </script>
 </body>
 </html>

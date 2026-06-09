@@ -76,6 +76,10 @@ namespace XianTu
             // 2) 常规：按灵脉概率 + 保底触发随机机缘
             int veinLv = SpiritVeinSystem.Instance.Level;
             float chance = TriggerChance[Mathf.Clamp(veinLv, 0, TriggerChance.Length - 1)];
+            // 机缘频现异象 → 触发率×2
+            if (RealmAnomalySystem.HasInstance)
+                chance *= RealmAnomalySystem.Instance.OpportunityMul;
+            chance = Mathf.Clamp01(chance);
 
             bool pity = _missStreak >= PityThreshold;
             if (!pity && UnityEngine.Random.value > chance)
@@ -191,7 +195,7 @@ namespace XianTu
                         text = "数次出入秘境前，你曾以灵药相赠的那位散修去而复返，奉上一卷亲手抄录的秘传以报当日之恩。",
                         options = new List<Option>
                         {
-                            new Option { label = "拜谢收下（悟性 +250）", resultText = "秘传入手，你闭目参研，识海恍然有所悟。", effect = () => Insight(250) },
+                            new Option { label = "拜谢收下（灵力 +250）", resultText = "秘传入手，你闭目参研，识海恍然有所悟。", effect = () => Insight(250) },
                             new Option { label = "留其论道三日（道心 +12，灵脉 +120）", resultText = "促膝长谈，道心通明，灵脉亦得其滋养。", effect = () => { Daoxin(12); Vein(120); } },
                         }
                     };
@@ -202,7 +206,7 @@ namespace XianTu
                         text = "当日接纳的古剑剑灵，在你数次出入秘境间残识渐复，今夜终于凝形，欲与你立契认主。",
                         options = new List<Option>
                         {
-                            new Option { label = "立契认主（悟性 +150，灵脉 +100）", resultText = "你与剑灵立下心契，剑道、灵脉皆有所进。", effect = () => { Insight(150); Vein(100); } },
+                            new Option { label = "立契认主（灵力 +150，灵脉 +100）", resultText = "你与剑灵立下心契，剑道、灵脉皆有所进。", effect = () => { Insight(150); Vein(100); } },
                             new Option { label = "炼剑归元（修为 +220，因果 +8）", resultText = "你强炼剑灵入体，修为暴涨，却也斩断了一缕生灵之念。", effect = () => { Tempering(220); Karma(8); } },
                         }
                     };
@@ -282,7 +286,7 @@ namespace XianTu
                     text = "一柄古剑自地脉浮出，剑灵残识犹存，欲择主而栖。",
                     options = new List<Option>
                     {
-                        new Option { label = "接纳剑灵（悟性 +120 · 剑灵将随你成长）", resultText = "剑灵入识海，剑道感悟如泉涌；它似还需些时日才能真正认主。", effect = () => { Insight(120); StartChain("accepted_sword", "sword_spirit_awaken", 2); } },
+                        new Option { label = "接纳剑灵（灵力 +120 · 剑灵将随你成长）", resultText = "剑灵入识海，剑道感悟如泉涌；它似还需些时日才能真正认主。", effect = () => { Insight(120); StartChain("accepted_sword", "sword_spirit_awaken", 2); } },
                         new Option { label = "封印参研（灵脉 +120）", resultText = "你封存古剑，借其残气壮大灵脉。", effect = () => Vein(120) },
                     }
                 },
@@ -295,7 +299,7 @@ namespace XianTu
                     options = new List<Option>
                     {
                         new Option { label = "引入灵脉（灵脉 +300）", resultText = "灵泉汇入地脉，洞天气象初成。", effect = () => Vein(300) },
-                        new Option { label = "凝练精魄（悟性 +200）", resultText = "你以灵泉淬炼神识，悟性大进。", effect = () => Insight(200) },
+                        new Option { label = "凝练精魄（灵力 +200）", resultText = "你以灵泉淬炼神识，悟性大进。", effect = () => Insight(200) },
                     }
                 },
             };

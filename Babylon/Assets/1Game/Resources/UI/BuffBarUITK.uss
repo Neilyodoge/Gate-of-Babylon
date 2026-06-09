@@ -1,0 +1,82 @@
+/* 状态栏（buff/debuff）· UITK (v0.6) ——顶部居中，不阻挡输入 */
+
+.bb-overlay {
+    flex-grow: 1;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+.bb-root {
+    margin-top: 46px;
+    margin-left: 12px;
+    align-items: flex-start;
+}
+
+.bb-avatar {
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    margin-bottom: 4px;
+}
+
+.bb-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    max-width: 420px;
+}
+
+.bb-chip {
+    min-width: 76px;
+    height: 38px;
+    margin-left: 3px;
+    margin-right: 3px;
+    margin-bottom: 3px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: rgba(34, 36, 48, 0.94);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.14);
+    border-right-color: rgba(255, 255, 255, 0.14);
+    border-bottom-color: rgba(255, 255, 255, 0.14);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-left-width: 3px;
+    border-left-color: rgba(120, 220, 120, 0.9);
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+}
+
+.bb-chip--debuff {
+    border-left-color: rgba(230, 110, 110, 0.95);
+}
+
+.bb-chip__name {
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: rgb(238, 240, 245);
+    -unity-text-align: middle-center;
+}
+
+.bb-chip__time {
+    font-size: 10px;
+    color: rgba(218, 222, 230, 0.85);
+    -unity-text-align: middle-center;
+    margin-top: 1px;
+}
+
+.bb-chip__fill {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.6);
+}

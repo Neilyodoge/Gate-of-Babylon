@@ -101,6 +101,7 @@ namespace XianTu
 
         private void OnGUI()
         {
+            if (MainMenu.IsVisible) return;   // 主菜单(UITK)时不画游戏内 HUD
             var player = PlayerController.Instance;
             if (player == null) return;
             var root = player.GetComponent<SpiritRootController>();

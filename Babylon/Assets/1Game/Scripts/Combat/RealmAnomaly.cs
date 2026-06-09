@@ -1,18 +1,22 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
     /// <summary>秘境异象类型（v0.5.5 · 替代隐藏命格的"每局变量"，挂在秘境/地图上而非角色上）。</summary>
     public enum RealmAnomaly
     {
-        None,         // 寂灭之地（无异象 · 留白档）
-        LingChao,     // 灵潮汹涌：洞府素材/灵脉掉落↑，但敌人更多
-        LeiZe,        // 雷泽：全程常驻天劫落雷
-        BloodMoon,    // 血月：敌人攻击↑，但击杀收益翻倍
-        DemonGrowth,  // 心魔滋生：心魔积累×2，但历练↑
-        Revival,      // 万灵复苏：精英首次死亡满血复活一次
+        None,           // 寂灭之地（无异象 · 留白档）
+        LingChao,       // 灵潮汹涌：洞府素材/灵脉掉落↑，但敌人更多
+        LeiZe,          // 雷泽：全程常驻天劫落雷
+        BloodMoon,      // 血月：敌人攻击↑，但击杀收益翻倍；击杀积因果
+        DemonGrowth,    // 心魔滋生：心魔积累×2，但历练↑；每层侵蚀道心
+        Revival,        // 万灵复苏：精英首次死亡满血复活一次
+        DaoHeartTrial,  // 道心试炼：道心变动×2，入定额外攻+10%，入魔额外减伤-15%
+        KarmaEcho,      // 因果轮回：每层结束因果反噬/善缘治疗
+        OpportunityRush,// 机缘频现：机缘触发率×2、灵力+20%，但敌人攻击+15%
     }
 
     /// <summary>
@@ -52,8 +56,19 @@ namespace XianTu
 
         private const int MaxAnomalies = 3;
 
-        private void OnEnable() => GameEvents.Subscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
-        private void OnDisable() => GameEvents.Unsubscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
+        private void OnEnable()
+        {
+            GameEvents.Subscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
+            GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
+            GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.Unsubscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
+            GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
+            GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+        }
 
         // ==================== 生命周期 ====================
 
@@ -102,6 +117,50 @@ namespace XianTu
                     Debug.Log($"<color=#c8a0ff>[秘境异象] 越深越乱 → 叠加「{info.name}」</color>");
                 }
             }
+
+            // 心魔滋生 → 每过一层侵蚀道心 -5
+            if (DemonErodeDaoxin)
+            {
+                PlayerStateHooks.Instance.ChangeDaoxin(-5);
+                Debug.Log("<color=#c060c0>[秘境异象] 心魔滋生 → 道心 -5（魔气侵蚀）</color>");
+            }
+        }
+
+        // ==================== 联动钩子（v0.6） ====================
+
+        private void OnRoomCleared(GameEvents.RoomCleared evt)
+        {
+            if (!_runActive || !KarmaEchoActive) return;
+            var hooks = PlayerStateHooks.Instance;
+            var p = PlayerController.Instance;
+            if (p == null) return;
+
+            if (hooks.KarmaDebt > 0)
+            {
+                float dmg = p.Stats.maxHp * hooks.KarmaDebt * 0.02f;
+                p.OnDamage(dmg, p.transform.position, null);
+                Debug.Log($"<color=#d0a080>[因果轮回] 因果反噬 {dmg:F0} 伤害（债={hooks.KarmaDebt}）</color>");
+            }
+            else if (hooks.KarmaDebt < 0)
+            {
+                float heal = p.Stats.maxHp * Mathf.Abs(hooks.KarmaDebt) * 0.015f;
+                p.Stats.currentHp = Mathf.Min(p.Stats.currentHp + heal, p.Stats.maxHp);
+                GameEvents.Publish(new GameEvents.HealthChanged
+                {
+                    CurrentHp = p.Stats.currentHp,
+                    MaxHp = p.Stats.maxHp
+                });
+                Debug.Log($"<color=#80d080>[因果轮回] 善缘治愈 {heal:F0}（善缘={hooks.KarmaDebt}）</color>");
+            }
+        }
+
+        private void OnEnemyKilled(GameEvents.EnemyKilled evt)
+        {
+            if (!_runActive) return;
+
+            // 血月 → 击杀积因果
+            if (BloodMoonKarma)
+                PlayerStateHooks.Instance.ChangeKarma(1);
         }
 
         // ==================== 随机 ====================
@@ -134,8 +193,8 @@ namespace XianTu
 
         /// <summary>每房敌人数量倍率（灵潮汹涌 ×1.5）。</summary>
         public float EnemyCountMul => Has(RealmAnomaly.LingChao) ? 1.5f : 1f;
-        /// <summary>敌人伤害倍率（血月 ×1.25）。</summary>
-        public float EnemyDamageMul => Has(RealmAnomaly.BloodMoon) ? 1.25f : 1f;
+        /// <summary>敌人伤害倍率（血月 ×1.25，机缘频现 ×1.15，可叠加）。</summary>
+        public float EnemyDamageMul => EnemyDamageMulTotal;
         /// <summary>洞府素材/灵脉额外掉率（灵潮汹涌 +25%）。</summary>
         public float CaveDropBonus => Has(RealmAnomaly.LingChao) ? 0.25f : 0f;
         /// <summary>灵脉道具掉落概率倍率（灵潮汹涌 ×2）。</summary>
@@ -150,6 +209,36 @@ namespace XianTu
         public bool EliteReviveOnce => Has(RealmAnomaly.Revival);
         /// <summary>全程常驻落雷（雷泽）。</summary>
         public bool LightningActive => Has(RealmAnomaly.LeiZe);
+
+        // ── 新联动异象查询（v0.6） ──
+
+        /// <summary>道心变动倍率（道心试炼 ×2）。</summary>
+        public float DaoxinDeltaMul => Has(RealmAnomaly.DaoHeartTrial) ? 2f : 1f;
+        /// <summary>道心试炼：入定(≥80)额外攻击+10%。</summary>
+        public float DaoTrialAtkBonus => Has(RealmAnomaly.DaoHeartTrial) ? 0.10f : 0f;
+        /// <summary>道心试炼：入魔(&lt;20)额外减伤-15%。</summary>
+        public float DaoTrialDmgRedPenalty => Has(RealmAnomaly.DaoHeartTrial) ? -0.15f : 0f;
+        /// <summary>因果轮回激活。</summary>
+        public bool KarmaEchoActive => Has(RealmAnomaly.KarmaEcho);
+        /// <summary>机缘频现：机缘触发率倍率（×2）。</summary>
+        public float OpportunityMul => Has(RealmAnomaly.OpportunityRush) ? 2f : 1f;
+        /// <summary>悟性/灵力获取倍率（机缘频现 ×1.2）。</summary>
+        public float InsightGainMul => Has(RealmAnomaly.OpportunityRush) ? 1.2f : 1f;
+        /// <summary>敌人伤害倍率（组合：血月 + 机缘频现）。</summary>
+        public float EnemyDamageMulTotal
+        {
+            get
+            {
+                float mul = 1f;
+                if (Has(RealmAnomaly.BloodMoon)) mul *= 1.25f;
+                if (Has(RealmAnomaly.OpportunityRush)) mul *= 1.15f;
+                return mul;
+            }
+        }
+        /// <summary>血月：击杀积因果。</summary>
+        public bool BloodMoonKarma => Has(RealmAnomaly.BloodMoon);
+        /// <summary>心魔滋生：每层侵蚀道心。</summary>
+        public bool DemonErodeDaoxin => Has(RealmAnomaly.DemonGrowth);
 
         // ==================== 雷泽：常驻落雷驱动 ====================
 
@@ -230,13 +319,22 @@ namespace XianTu
                         desc = "秘境天雷不息——全程随机落雷，需时刻走位躲避。" };
                 case RealmAnomaly.BloodMoon:
                     return new AnomalyInfo { name = "血月", icon = "🩸", color = new Color(1f, 0.4f, 0.4f),
-                        desc = "血月当空，凶气滔天——敌人攻击大增，但击杀所得翻倍。" };
+                        desc = "血月当空，凶气滔天——敌人攻击大增，击杀所得翻倍，但每次杀生积一分因果。" };
                 case RealmAnomaly.DemonGrowth:
                     return new AnomalyInfo { name = "心魔滋生", icon = "😈", color = new Color(0.8f, 0.4f, 0.8f),
-                        desc = "此地魔气缠身——心魔积累翻倍（更易乱入），但历练所得大增。" };
+                        desc = "此地魔气缠身——心魔积累翻倍、历练大增，但每过一层道心被侵蚀。" };
                 case RealmAnomaly.Revival:
                     return new AnomalyInfo { name = "万灵复苏", icon = "♻", color = new Color(0.6f, 0.9f, 0.6f),
                         desc = "生死颠倒之地——精英妖物首次陨落会满血复活一次。" };
+                case RealmAnomaly.DaoHeartTrial:
+                    return new AnomalyInfo { name = "道心试炼", icon = "☯", color = new Color(0.7f, 0.85f, 1f),
+                        desc = "此地道韵浓厚——道心变动幅度翻倍。入定额外加攻，入魔额外削减抗性，修心者得利、堕者速亡。" };
+                case RealmAnomaly.KarmaEcho:
+                    return new AnomalyInfo { name = "因果轮回", icon = "⚖", color = new Color(0.9f, 0.8f, 0.5f),
+                        desc = "因果法则显化——每过一层，业障之人受因果反噬（伤害），善缘之人获治愈回馈。" };
+                case RealmAnomaly.OpportunityRush:
+                    return new AnomalyInfo { name = "机缘频现", icon = "✨", color = new Color(1f, 0.9f, 0.5f),
+                        desc = "秘境灵机涌动——机缘触发率翻倍、灵力获取+20%，但秘境之敌亦受激励而攻势更猛。" };
                 default:
                     return new AnomalyInfo { name = "寂灭之地", icon = "⛰", color = new Color(0.7f, 0.7f, 0.75f),
                         desc = "秘境一片死寂，并无异象。" };

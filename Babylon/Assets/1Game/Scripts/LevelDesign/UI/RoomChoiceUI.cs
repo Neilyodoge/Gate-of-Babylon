@@ -1,17 +1,14 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace XianTu.LevelDesign
 {
     /// <summary>
-    /// GDD §12 v3：房间之间的"下一间去哪？"3 选 1 选择 UI。
-    ///
-    /// 设计思路：v0.5 每境只有 2~3 个房间，全图 TreeMap 显得啰嗦。
-    /// 改用《杀戮尖塔》/《哈迪斯》风格的"卡片式" 选项：清场后弹出 2~3 张候选卡片，
-    /// 玩家点击 → 决定下一间的类型。
-    /// 战略层面的全图概览仍由 F8 TreeMapUI（§12.2.1）承载。
+    /// GDD §12 v3：房间之间的"下一间去哪？"3 选 1 选择 UI（v0.6 改 UI Toolkit）。
+    /// 卡片式选项：清场后弹出 2~3 张候选卡片，点击或数字键 1/2/3 → 决定下一间类型。
+    /// 结构 Resources/UI/RoomChoiceUI.uxml，样式同名 uss。对外保持 Show/HideImmediate/IsVisible。
     /// </summary>
     public class RoomChoiceUI : MonoBehaviour
     {
@@ -31,6 +28,10 @@ namespace XianTu.LevelDesign
         private CursorLockMode _prevLock;
         private bool _prevVisible;
 
+        private UIDocument _doc;
+        private VisualElement _overlay;
+        private VisualElement _cards;
+
         public static void Show(Candidate[] candidates, Action<Minimap.RoomType> onSelected)
         {
             if (candidates == null || candidates.Length == 0)
@@ -39,24 +40,99 @@ namespace XianTu.LevelDesign
                 return;
             }
 
+            EnsureInstance();
             if (_instance == null)
             {
-                var go = new GameObject("RoomChoiceUI");
-                DontDestroyOnLoad(go);
-                _instance = go.AddComponent<RoomChoiceUI>();
+                onSelected?.Invoke(candidates[0].type);
+                return;
             }
+
             _instance._candidates = candidates;
             _instance._onSelected = onSelected;
             _instance._visible = true;
-            _instance._prevLock = Cursor.lockState;
-            _instance._prevVisible = Cursor.visible;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            _instance._prevLock = UnityEngine.Cursor.lockState;
+            _instance._prevVisible = UnityEngine.Cursor.visible;
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+
+            _instance.Rebuild();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
         }
 
         public static void HideImmediate()
         {
-            if (_instance != null) _instance._visible = false;
+            if (_instance == null) return;
+            _instance._visible = false;
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+        }
+
+        private static void EnsureInstance()
+        {
+            if (_instance != null) return;
+            var go = new GameObject("RoomChoiceUI");
+            DontDestroyOnLoad(go);
+            _instance = go.AddComponent<RoomChoiceUI>();
+        }
+
+        private void Awake()
+        {
+            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
+            var tree = Resources.Load<VisualTreeAsset>("UI/RoomChoiceUI");
+
+            _doc = gameObject.AddComponent<UIDocument>();
+            _doc.panelSettings = panelSettings;
+            _doc.visualTreeAsset = tree;
+            _doc.sortingOrder = 10f;
+
+            var root = _doc.rootVisualElement;
+            if (root == null) return;
+            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+
+            _overlay = root.Q<VisualElement>("overlay");
+            _cards = root.Q<VisualElement>("cards");
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+        }
+
+        private void Rebuild()
+        {
+            if (_cards == null || _candidates == null) return;
+            _cards.Clear();
+            for (int i = 0; i < _candidates.Length; i++)
+            {
+                _cards.Add(MakeCard(_candidates[i], i + 1));
+            }
+        }
+
+        private VisualElement MakeCard(Candidate c, int hotkey)
+        {
+            var card = new VisualElement();
+            card.AddToClassList("rc-card");
+
+            var accent = new VisualElement();
+            accent.AddToClassList("rc-accent");
+            accent.style.backgroundColor = TypeColor(c.type);
+            card.Add(accent);
+
+            var icon = new Label(TypeIcon(c.type));
+            icon.AddToClassList("rc-icon");
+            icon.style.color = TypeColor(c.type);
+            card.Add(icon);
+
+            var title = new Label(c.title);
+            title.AddToClassList("rc-card-title");
+            card.Add(title);
+
+            var tip = new Label(c.tooltip);
+            tip.AddToClassList("rc-tip");
+            card.Add(tip);
+
+            var hot = new Label($"[{hotkey}]");
+            hot.AddToClassList("rc-hot");
+            card.Add(hot);
+
+            var captured = c.type;
+            card.RegisterCallback<ClickEvent>(_ => Pick(captured));
+            return card;
         }
 
         private void Update()
@@ -64,7 +140,6 @@ namespace XianTu.LevelDesign
             if (!_visible || _candidates == null) return;
             var kb = Keyboard.current;
             if (kb == null) return;
-            // 数字键 1~9 快捷选择
             int n = Mathf.Min(_candidates.Length, 9);
             for (int i = 0; i < n; i++)
             {
@@ -79,126 +154,23 @@ namespace XianTu.LevelDesign
         private void Pick(Minimap.RoomType t)
         {
             _visible = false;
-            Cursor.lockState = _prevLock;
-            Cursor.visible = _prevVisible;
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            UnityEngine.Cursor.lockState = _prevLock;
+            UnityEngine.Cursor.visible = _prevVisible;
             _onSelected?.Invoke(t);
-        }
-
-        private void OnGUI()
-        {
-            if (!_visible || _candidates == null) return;
-
-            // 半透明遮罩
-            var bg = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.75f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = bg;
-
-            // 标题
-            var titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 30,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(1f, 0.85f, 0.45f, 1f) }
-            };
-            GUI.Label(new Rect(0, Screen.height * 0.18f, Screen.width, 50f), "· 下一步去哪？·", titleStyle);
-
-            var subStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 14,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(0.7f, 0.7f, 0.85f, 1f) }
-            };
-            GUI.Label(new Rect(0, Screen.height * 0.18f + 50f, Screen.width, 20f),
-                      "点击卡片或按数字键 1/2/3 选择路径（选择不可撤销）", subStyle);
-
-            // 卡片布局
-            float cardW = 200f;
-            float cardH = 260f;
-            float gap = 30f;
-            int n = _candidates.Length;
-            float totalW = n * cardW + (n - 1) * gap;
-            float startX = (Screen.width - totalW) * 0.5f;
-            float startY = (Screen.height - cardH) * 0.5f;
-
-            for (int i = 0; i < n; i++)
-            {
-                var c = _candidates[i];
-                var rect = new Rect(startX + i * (cardW + gap), startY, cardW, cardH);
-                DrawCard(rect, c, i + 1);
-            }
-        }
-
-        private void DrawCard(Rect rect, Candidate c, int hotkey)
-        {
-            // 卡片背景
-            var bg = GUI.color;
-            GUI.color = new Color(0.08f, 0.06f, 0.05f, 0.96f);
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
-
-            // 顶部色带（按房间类型）
-            GUI.color = TypeColor(c.type);
-            GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 6f), Texture2D.whiteTexture);
-            GUI.color = bg;
-
-            // 大图标（用文字代替）
-            var iconStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 72,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = TypeColor(c.type) }
-            };
-            GUI.Label(new Rect(rect.x, rect.y + 30f, rect.width, 100f), TypeIcon(c.type), iconStyle);
-
-            // 标题
-            var titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 22,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = Color.white }
-            };
-            GUI.Label(new Rect(rect.x, rect.y + 130f, rect.width, 36f), c.title, titleStyle);
-
-            // 描述
-            var descStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 14,
-                alignment = TextAnchor.UpperCenter,
-                wordWrap = true,
-                normal = { textColor = new Color(0.85f, 0.82f, 0.78f, 1f) }
-            };
-            GUI.Label(new Rect(rect.x + 10f, rect.y + 170f, rect.width - 20f, 60f), c.tooltip, descStyle);
-
-            // 热键提示
-            var hotStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 16,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(1f, 0.9f, 0.4f, 1f) }
-            };
-            GUI.Label(new Rect(rect.x, rect.y + rect.height - 30f, rect.width, 24f), $"[{hotkey}]", hotStyle);
-
-            // 整张卡可点击
-            if (GUI.Button(rect, "", GUIStyle.none))
-            {
-                Pick(c.type);
-            }
         }
 
         private static string TypeIcon(Minimap.RoomType t)
         {
+            // 用汉字单字图标，避免默认字体缺失 ⚔/✦ 等字形显示空框
             return t switch
             {
-                Minimap.RoomType.Battle => "⚔",
-                Minimap.RoomType.Shop => "$",
-                Minimap.RoomType.Rest => "♨",
+                Minimap.RoomType.Battle => "战",
+                Minimap.RoomType.Shop => "市",
+                Minimap.RoomType.Rest => "憩",
                 Minimap.RoomType.Treasure => "宝",
                 Minimap.RoomType.Boss => "王",
-                Minimap.RoomType.Upgrade => "✦",
+                Minimap.RoomType.Upgrade => "升",
                 _ => "?"
             };
         }

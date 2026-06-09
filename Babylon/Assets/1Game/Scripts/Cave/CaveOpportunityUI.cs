@@ -1,10 +1,14 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace XianTu
 {
     /// <summary>
-    /// 洞府机缘事件 UI（IMGUI 临时实现，模式同 StoryEventUI）。
-    /// 玩家点选项 → 触发该选项 effect + 显示结果文本 → 关闭。
+    /// 洞府机缘事件 UI（v0.6 改 UI Toolkit）。
+    /// 玩家点选项 → 触发该选项 effect + 显示结果文本 → 「离去[Enter]」关闭。
+    /// 结构 Resources/UI/CaveOpportunityUI.uxml，样式同名 uss（UXML &lt;Style src&gt; 引用）。
+    /// 对外保持 Show(opp) / IsVisible。
     /// </summary>
     public class CaveOpportunityUI : MonoBehaviour
     {
@@ -13,83 +17,117 @@ namespace XianTu
 
         private bool _visible;
         private CaveOpportunitySystem.Opportunity _opp;
-        private string _resultText;   // 选完后显示的结果；null 时显示选项
+        private bool _showingResult;
+
+        private UIDocument _doc;
+        private VisualElement _overlay;
+        private Label _title;
+        private Label _body;
+        private VisualElement _options;
+        private VisualElement _result;
+        private Label _resultText;
 
         public static void Show(CaveOpportunitySystem.Opportunity opp)
         {
             if (opp == null || opp.options == null || opp.options.Count == 0) return;
-            if (_instance == null)
-            {
-                var go = new GameObject("CaveOpportunityUI");
-                DontDestroyOnLoad(go);
-                _instance = go.AddComponent<CaveOpportunityUI>();
-            }
+            EnsureInstance();
+            if (_instance == null) return;
+
             _instance._opp = opp;
-            _instance._resultText = null;
+            _instance._showingResult = false;
             _instance._visible = true;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            _instance.Rebuild();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
         }
 
-        private void OnGUI()
+        private static void EnsureInstance()
         {
-            if (!_visible || _opp == null) return;
+            if (_instance != null) return;
+            var go = new GameObject("CaveOpportunityUI");
+            DontDestroyOnLoad(go);
+            _instance = go.AddComponent<CaveOpportunityUI>();
+        }
 
-            var bg = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = bg;
+        private void Awake()
+        {
+            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
+            var tree = Resources.Load<VisualTreeAsset>("UI/CaveOpportunityUI");
 
-            const float W = 560f, H = 380f;
-            var rect = new Rect((Screen.width - W) * 0.5f, (Screen.height - H) * 0.5f, W, H);
-            GUI.Box(rect, "");
+            _doc = gameObject.AddComponent<UIDocument>();
+            _doc.panelSettings = panelSettings;
+            _doc.visualTreeAsset = tree;
+            _doc.sortingOrder = 10f;
 
-            GUILayout.BeginArea(new Rect(rect.x + 24, rect.y + 18, rect.width - 48, rect.height - 36));
+            var root = _doc.rootVisualElement;
+            if (root == null) return;
+            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
 
-            var titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, richText = true };
-            titleStyle.normal.textColor = new Color(1f, 0.9f, 0.6f);
-            GUILayout.Label($"✦ 机缘 · {_opp.title}", titleStyle);
-            GUILayout.Space(10);
+            _overlay = root.Q<VisualElement>("overlay");
+            _title = root.Q<Label>("title");
+            _body = root.Q<Label>("body");
+            _options = root.Q<VisualElement>("options");
+            _result = root.Q<VisualElement>("result");
+            _resultText = root.Q<Label>("result-text");
+            var leave = root.Q<Button>("leave");
+            if (leave != null) leave.clicked += Close;
 
-            var textStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true, richText = true };
-            textStyle.normal.textColor = new Color(0.85f, 0.88f, 0.95f);
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+        }
 
-            if (_resultText == null)
+        private void Rebuild()
+        {
+            if (_opp == null) return;
+            if (_title != null) _title.text = $"机缘 · {_opp.title}";
+            if (_body != null) _body.text = _opp.text;
+
+            if (_options != null)
             {
-                GUILayout.Label(_opp.text, textStyle);
-                GUILayout.Space(16);
+                _options.Clear();
                 foreach (var opt in _opp.options)
                 {
                     var captured = opt;
-                    if (GUILayout.Button(captured.label, GUILayout.Height(38)))
-                    {
-                        try { captured.effect?.Invoke(); }
-                        catch (System.Exception e) { Debug.LogError($"[机缘] 选项 effect 失败：{e.Message}"); }
-                        _resultText = captured.resultText;
-                    }
-                    GUILayout.Space(4);
+                    var b = new Button(() => OnPick(captured)) { text = captured.label };
+                    b.AddToClassList("op-opt");
+                    _options.Add(b);
                 }
             }
-            else
-            {
-                GUILayout.Label(_resultText, textStyle);
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("离去 [Enter]", GUILayout.Height(36)) ||
-                    (Event.current.type == EventType.KeyDown &&
-                     (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter)))
-                {
-                    Close();
-                }
-            }
+            SetResultMode(false);
+        }
 
-            GUILayout.EndArea();
+        private void OnPick(CaveOpportunitySystem.Option opt)
+        {
+            try { opt.effect?.Invoke(); }
+            catch (System.Exception e) { Debug.LogError($"[机缘] 选项 effect 失败：{e.Message}"); }
+
+            if (_resultText != null) _resultText.text = opt.resultText;
+            SetResultMode(true);
+        }
+
+        private void SetResultMode(bool showResult)
+        {
+            _showingResult = showResult;
+            if (_body != null) _body.style.display = showResult ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_options != null) _options.style.display = showResult ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_result != null) _result.style.display = showResult ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        private void Update()
+        {
+            if (!_visible || !_showingResult) return;
+            var kb = Keyboard.current;
+            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
+                Close();
         }
 
         private void Close()
         {
             _visible = false;
             _opp = null;
-            _resultText = null;
+            _showingResult = false;
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
         }
     }
 }

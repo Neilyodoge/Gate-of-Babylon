@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="BossDialogueUI.uss" />
+    <ui:VisualElement name="overlay" class="bd-overlay" picking-mode="Ignore">
+        <ui:VisualElement name="banner" class="bd-banner" picking-mode="Ignore">
+            <ui:Label name="speaker" text="" class="bd-name" />
+            <ui:Label name="line" text="" class="bd-line" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

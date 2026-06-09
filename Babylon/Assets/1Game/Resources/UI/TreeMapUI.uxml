@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="TreeMapUI.uss" />
+    <ui:VisualElement name="overlay" class="tm-overlay">
+        <ui:Label name="title" text="仙山舆图" class="tm-title" />
+        <ui:Label name="sub" text="" class="tm-sub" />
+        <ui:VisualElement name="mapArea" class="tm-maparea">
+            <ui:VisualElement name="lines" class="tm-lines" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement name="legend" class="tm-legend">
+            <ui:Label name="legend1" text="战 战斗　精 精英　商 商店" class="tm-legend-line" />
+            <ui:Label name="legend2" text="?  事件　王 Boss" class="tm-legend-line" />
+            <ui:Label name="legend3" text="" class="tm-legend-line" />
+            <ui:Label name="legend4" text="" class="tm-legend-line" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

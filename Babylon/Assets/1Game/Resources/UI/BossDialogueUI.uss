@@ -1,0 +1,35 @@
+/* Boss 出场字幕 · UITK (v0.6) ——底部横幅，不阻挡输入 */
+
+.bd-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.bd-banner {
+    width: 820px;
+    max-width: 92%;
+    margin-bottom: 80px;
+    padding-top: 12px;
+    padding-bottom: 14px;
+    padding-left: 24px;
+    padding-right: 24px;
+    background-color: rgba(0, 0, 0, 0.74);
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-top-color: rgba(210, 130, 50, 0.85);
+    border-bottom-color: rgba(210, 130, 50, 0.85);
+}
+
+.bd-name {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(255, 180, 80);
+    margin-bottom: 6px;
+}
+
+.bd-line {
+    font-size: 21px;
+    color: rgb(245, 245, 245);
+    white-space: normal;
+}

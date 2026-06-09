@@ -387,6 +387,7 @@ namespace XianTu
             if (!stats.IsAlive) return;
 
             float actual = stats.TakeDamage(damage);
+            bool isCrit = actual > damage * 0.9f && damage > stats.attackDamage; // 简单判断是否暴击
 
             // 累计本局玩家总伤害（轮回一击按此结算）
             if (attacker != null && PlayerController.Instance != null && attacker == PlayerController.Instance.gameObject)
@@ -397,7 +398,7 @@ namespace XianTu
             {
                 WorldPosition = hitPoint != Vector3.zero ? hitPoint : transform.position,
                 Damage = actual,
-                IsCrit = actual > damage * 0.9f && damage > stats.attackDamage, // 简单判断是否暴击
+                IsCrit = isCrit,
                 IsPlayerDamage = false
             });
 
@@ -425,6 +426,12 @@ namespace XianTu
                     Destroy(vfx, 1f);
                 }
             }
+            else
+            {
+                // 兜底打击火花：未配 hitVFXPrefab 时也保证每次命中都有打击点（手感一致性）
+                Vector3 sparkPos = hitPoint != Vector3.zero ? hitPoint : transform.position + Vector3.up;
+                FxFactory.SpawnElementBurst(sparkPos, ElementTag.None, isCrit ? 0.9f : 0.6f, 0.18f);
+            }
 
             // 硬直
             _stunTimer = 0.3f;
@@ -450,6 +457,10 @@ namespace XianTu
             // 顿帧
             if (HitStop.Instance != null)
                 HitStop.Instance.TriggerNormal();
+
+            // 暴击：轻微震屏强调
+            if (isCrit)
+                CameraShake.TriggerLight();
 
             if (!stats.IsAlive)
                 OnDeath();

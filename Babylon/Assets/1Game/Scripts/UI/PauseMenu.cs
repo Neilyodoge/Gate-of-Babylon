@@ -1,15 +1,15 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace XianTu
 {
     /// <summary>
-    /// 暂停菜单（v0.5 Week 9）—— ESC 打开 / 关闭。
+    /// 暂停菜单（v0.6 改 UI Toolkit）—— ESC 打开 / 关闭。
     ///
-    /// 按 ESC 时检查是否有其他 UI 在前台（SpiritRootSelectUI / Codex / Settings），
-    /// 有则不响应（让前台 UI 自己处理 ESC）。
-    ///
-    /// 暂停时 Time.timeScale=0 但 RunHUD 等 IMGUI 仍会绘制。
+    /// 结构 Resources/UI/PauseMenu.uxml，样式 PauseMenu.uss，复用 AvatarSelectPanelSettings。
+    /// 按 ESC 时检查是否有其他 UI 在前台（选化身 / 机缘 / 图鉴 / 设置），有则不响应。
+    /// 暂停时 Time.timeScale=0；确认对话框（返回主菜单 / 退出）也走 UITK。
     /// </summary>
     public class PauseMenu : MonoBehaviour
     {
@@ -21,11 +21,11 @@ namespace XianTu
         private CursorLockMode _previousCursorLock;
         private bool _previousCursorVisible;
 
-        private GUIStyle _titleStyle;
-        private GUIStyle _btnStyle;
-        private GUIStyle _maskStyle;
-        private Texture2D _maskTex;
-        private bool _stylesReady;
+        private UIDocument _doc;
+        private VisualElement _overlay;
+        private VisualElement _confirm;
+        private Label _confirmMsg;
+        private System.Action _confirmAction;
 
         public static void Ensure()
         {
@@ -43,16 +43,18 @@ namespace XianTu
             if (_instance._visible) return;
             _instance._visible = true;
 
-            // 跟 SpiritRootSelectUI 同样的防御：清顿帧
             if (HitStop.Instance != null) HitStop.Instance.ForceClear();
 
             _instance._previousTimeScale = Time.timeScale;
             Time.timeScale = 0f;
 
-            _instance._previousCursorLock = Cursor.lockState;
-            _instance._previousCursorVisible = Cursor.visible;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            _instance._previousCursorLock = UnityEngine.Cursor.lockState;
+            _instance._previousCursorVisible = UnityEngine.Cursor.visible;
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+
+            _instance.HideConfirm();
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
         }
 
         public static void Hide()
@@ -63,8 +65,10 @@ namespace XianTu
             float prev = _instance._previousTimeScale;
             Time.timeScale = prev >= 0.1f ? prev : 1f;
 
-            Cursor.lockState = _instance._previousCursorLock;
-            Cursor.visible = _instance._previousCursorVisible;
+            UnityEngine.Cursor.lockState = _instance._previousCursorLock;
+            UnityEngine.Cursor.visible = _instance._previousCursorVisible;
+
+            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
         }
 
         public static void Toggle()
@@ -73,154 +77,98 @@ namespace XianTu
             else Show();
         }
 
+        // ========== UITK 构建 ==========
+
+        private void Awake()
+        {
+            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
+            var tree = Resources.Load<VisualTreeAsset>("UI/PauseMenu");
+
+            _doc = gameObject.AddComponent<UIDocument>();
+            _doc.panelSettings = panelSettings;
+            _doc.visualTreeAsset = tree;
+            _doc.sortingOrder = 10f;
+
+            var root = _doc.rootVisualElement;
+            if (root == null) return;
+            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            // 样式经 UXML <Style src> 加载（避免 Resources 空规则缓存坑）
+
+            _overlay = root.Q<VisualElement>("overlay");
+            _confirm = root.Q<VisualElement>("confirm");
+            _confirmMsg = root.Q<Label>("confirm-msg");
+
+            Wire(root, "resume", Hide);
+            Wire(root, "codex", () => { Hide(); CodexUITK.Show(); });
+            Wire(root, "settings", () => SettingsUI.Show());
+            Wire(root, "tomain", () => AskConfirm("返回主菜单将丢失本局进度，确定吗？",
+                () => { Hide(); MainMenu.ReturnToMainMenu(); }));
+            Wire(root, "quit", () => AskConfirm("确定要退出游戏吗？", QuitGame));
+
+            var ok = root.Q<Button>("confirm-ok");
+            if (ok != null) ok.clicked += () => { var a = _confirmAction; HideConfirm(); a?.Invoke(); };
+            var cancel = root.Q<Button>("confirm-cancel");
+            if (cancel != null) cancel.clicked += HideConfirm;
+
+            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            HideConfirm();
+        }
+
+        private static void Wire(VisualElement root, string name, System.Action action)
+        {
+            var b = root.Q<Button>(name);
+            if (b != null) b.clicked += action;
+        }
+
+        private void AskConfirm(string message, System.Action onConfirm)
+        {
+            _confirmAction = onConfirm;
+            if (_confirmMsg != null) _confirmMsg.text = message;
+            if (_confirm != null) _confirm.style.display = DisplayStyle.Flex;
+        }
+
+        private void HideConfirm()
+        {
+            _confirmAction = null;
+            if (_confirm != null) _confirm.style.display = DisplayStyle.None;
+        }
+
+        private static void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
         // ========== 输入捕获 ==========
 
         private void Update()
         {
-            // 不在战斗 / 洞府场景时不响应（暂停菜单是游戏中 ESC 才出现）
             if (GameManager.Instance == null) return;
 
-            // 前台有其他 UI 时不响应（让它们自己处理 ESC）
-            if (IsBlockedByOtherUI()) return;
-
             var kb = Keyboard.current;
-            if (kb != null && kb.escapeKey.wasPressedThisFrame)
+            bool esc = kb != null && kb.escapeKey.wasPressedThisFrame;
+
+            // 确认框打开时，ESC 先关确认框
+            if (_visible && _confirm != null && _confirm.style.display == DisplayStyle.Flex)
             {
-                Toggle();
+                if (esc) HideConfirm();
+                return;
             }
+
+            if (IsBlockedByOtherUI()) return;
+            if (esc) Toggle();
         }
 
         private static bool IsBlockedByOtherUI()
         {
-            if (SpiritRootSelectUI.IsVisible) return true;
+            if (SpiritRootSelectUITK.IsVisible) return true;
             if (CaveOpportunityUI.IsVisible) return true;
-            if (CodexUI.IsVisible) return true;
+            if (CodexUITK.IsVisible) return true;
             if (SettingsUI.IsVisible) return true;
             return false;
-        }
-
-        // ========== IMGUI ==========
-
-        private void EnsureStyles()
-        {
-            if (_stylesReady) return;
-
-            _maskTex = new Texture2D(1, 1);
-            _maskTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.70f));
-            _maskTex.Apply();
-            _maskStyle = new GUIStyle();
-            _maskStyle.normal.background = _maskTex;
-
-            _titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 38, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            _titleStyle.normal.textColor = new Color(0.95f, 0.92f, 0.78f);
-
-            _btnStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 18, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-
-            _stylesReady = true;
-        }
-
-        private void OnGUI()
-        {
-            if (!_visible) return;
-            EnsureStyles();
-
-            // 全屏半透明遮罩
-            GUI.Box(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, _maskStyle);
-
-            // 居中面板
-            const float PanelW = 360f, PanelH = 460f;
-            float x = (Screen.width - PanelW) * 0.5f;
-            float y = (Screen.height - PanelH) * 0.5f;
-
-            // 标题
-            GUI.Label(new Rect(x, y + 20f, PanelW, 60f), "≡ 仙途·暂停 ≡", _titleStyle);
-
-            // 按钮区
-            float btnY = y + 110f;
-            const float BtnW = 280f, BtnH = 48f, BtnGap = 14f;
-            float btnX = x + (PanelW - BtnW) * 0.5f;
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "▶  继续修行", _btnStyle))
-                Hide();
-            btnY += BtnH + BtnGap;
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "📜  仙物图鉴", _btnStyle))
-            {
-                Hide();
-                CodexUI.Show();
-            }
-            btnY += BtnH + BtnGap;
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "⚙  设置", _btnStyle))
-            {
-                SettingsUI.Show();
-            }
-            btnY += BtnH + BtnGap;
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "🏠  返回主菜单", _btnStyle))
-            {
-                // 防误操作：再点一次确认（用 OnGUI 状态简单实现）
-                _confirmReturnMain = true;
-            }
-            btnY += BtnH + BtnGap;
-
-            if (GUI.Button(new Rect(btnX, btnY, BtnW, BtnH), "✕  退出游戏", _btnStyle))
-            {
-                _confirmExit = true;
-            }
-
-            // 确认对话框
-            if (_confirmReturnMain) DrawConfirmBox(ref _confirmReturnMain, "返回主菜单将丢失本局进度，确定吗？", () =>
-            {
-                Hide();
-                MainMenu.ReturnToMainMenu();
-            });
-
-            if (_confirmExit) DrawConfirmBox(ref _confirmExit, "确定要退出游戏吗？", () =>
-            {
-#if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
-#else
-                Application.Quit();
-#endif
-            });
-        }
-
-        private bool _confirmReturnMain;
-        private bool _confirmExit;
-
-        private void DrawConfirmBox(ref bool flag, string message, System.Action onConfirm)
-        {
-            const float W = 460f, H = 180f;
-            float x = (Screen.width - W) * 0.5f;
-            float y = (Screen.height - H) * 0.5f;
-
-            GUI.Box(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none, _maskStyle);
-
-            GUI.Box(new Rect(x, y, W, H), "");
-            var msgStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 14, alignment = TextAnchor.MiddleCenter, wordWrap = true
-            };
-            GUI.Label(new Rect(x + 20f, y + 30f, W - 40f, 60f), message, msgStyle);
-
-            if (GUI.Button(new Rect(x + 50f, y + H - 60f, 150f, 40f), "确定", _btnStyle))
-            {
-                flag = false;
-                onConfirm?.Invoke();
-            }
-            if (GUI.Button(new Rect(x + W - 200f, y + H - 60f, 150f, 40f), "取消", _btnStyle))
-            {
-                flag = false;
-            }
         }
     }
 }
