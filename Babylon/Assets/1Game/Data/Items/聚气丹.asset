@@ -13,12 +13,13 @@ MonoBehaviour:
   m_Name: "\u805A\u6C14\u4E39"
   m_EditorClassIdentifier: 
   itemName: "\u805A\u6C14\u4E39"
-  description: "\u4FEE\u4ED9\u8005\u62FE\u53D6\u540E\u7ACB\u5373\u751F\u6548\u7684\u4E39\u836F\uFF08\u533A\u522B\u4E8E\u70BC\u4E39\u623F\u51DD\u70BC\u7684\u643A\u4E39\uFF09\u3002\n\u6700\u5927\u751F\u547D +30 \u00B7 \u6700\u5927\u751F\u547D +5% \u00B7 \u51FB\u6740\u56DE 5 \u751F\u547D\u3002"
+  description: "\u4FEE\u4ED9\u8005\u62FE\u53D6\u540E\u7ACB\u5373\u751F\u6548\u7684\u4E39\u836F\uFF08\u533A\u522B\u4E8E\u70BC\u4E39\u623F\u51DD\u70BC\u7684\u643A\u4E39\uFF09\u3002\n\u6700\u5927\u751F\u547D
+    +30 \xB7 \u6700\u5927\u751F\u547D +5% \xB7 \u51FB\u6740\u56DE 5 \u751F\u547D\u3002"
   icon: {fileID: 0}
   rarity: 2
-  category: 4
+  category: 3
   scope: 0
-  processedProductName: ""
+  processedProductName: 
   modTag: 0
   stackable: 1
   qualitativeThresholds: 03000000

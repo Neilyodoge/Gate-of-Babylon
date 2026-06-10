@@ -640,7 +640,6 @@ namespace XianTu
                 case ItemCategory.Defense: return "🛡️";
                 case ItemCategory.Movement: return "👟";
                 case ItemCategory.Anomaly: return "🔮";
-                case ItemCategory.Pill: return "💊";
                 case ItemCategory.Skill: return "📜";
                 default: return "";
             }

@@ -248,6 +248,10 @@ namespace XianTu
             if (Random.value < 0.6f * RealmAnomalySystem.Instance.SpiritVeinDropMul)
                 SpiritVeinPickup.Spawn("灵脉碎片", 50, transform.position + new Vector3(Random.Range(-1.5f, 1.5f), 0, 2.2f));
 
+            // v0.6：深层（第 3 层+）宝藏房额外出"地脉精华"（+100 灵脉经验，40% 概率）
+            if (GameManager.Instance != null && GameManager.Instance.CurrentLevel >= 2 && Random.value < 0.4f)
+                SpiritVeinPickup.Spawn("地脉精华", 100, transform.position + new Vector3(Random.Range(-1f, 1f), 0, -2f));
+
             // 开箱动画：箱盖飞起
             if (_chest != null)
             {

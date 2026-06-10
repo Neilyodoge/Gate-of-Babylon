@@ -6,6 +6,40 @@
 
 ---
 
+## v0.6.2 · 八条反馈处理（2026-06-10）
+
+一轮玩家反馈修复 + 系统增强，覆盖 UI/掉落/洞府/撤离。
+
+- **问题1 化身卡片标签**：删除仅首张卡片的「★ 本命」badge，改为所有化身卡片均显示角色定位标签（近战·御金/续航·御木/机动·御水/爆发·御火/召唤·御土）。`SpiritRootDef` 新增 `roleTag` 字段。
+- **问题2 Buff 悬停说明**：`BuffBarUITK` chip 从 `PickingMode.Ignore` 改为 `Position`；新增 UITK tooltip（PointerEnter/Leave），展示 displayName/description/剩余时间/属性修正明细。
+- **问题3 灵物掉落开启**：`GameConfig.启用灵物系统` 默认值改 `true`（代码 + SO asset），恢复全套灵物掉落/拾取/协同/商店。
+- **问题4 撤离后洞府残留**：`EnterVillageHub()` 新增清理逻辑——销毁遗留的 `ExtractPoint`、`LevelTransition` portal、`InnerDemonCatalyst`，并调用 `CleanupLeftoverPickups()`。
+- **问题7 闭关成色加成**：`CultivationSuppression` 新增 `JingjieQuality` buff——读取 `GetRealmQuality()` + 独立 `QualityBonus[]` 数组，按成色给全属性加成（瑕 0%/凡 +2%/上 +5%/完美 +8% 攻击/血量/减伤），让凝实有实际意义。
+- **问题8 撤离倍率+成果面板**：新增 `ExtractResultPanel`（UITK）—— 撤离成功弹出面板展示灵力/历练/素材明细 + 层深倍率（每层 +15%）。`InsightSystem.CommitOnExtract` 和 `CultivationSystem.CommitOnExtract` 均支持 multiplier 参数。
+
+---
+
+## v0.6.1 · 旧技能 SO 重映射（2026-06-09）
+
+将 9 个 `configId=0` 的遗留技能 SO（御剑术/影步/烈焰掌/寒冰诀/天雷引/回春术/雷锁链/镜花水月/傀儡术）接入数据驱动层：
+
+- **`Skill_Base_Config.csv`** 追加 ID 21-29，含名称/描述/品阶/类型/冷却/伤害倍率。
+- **CSV→JSON 重导**：`Skill_Base_Config.json` 现含 29 行。
+- **SO configId 赋值**：通过 Unity MCP 批量设置 9 个 SO 的 `configId`（21-29），运行时 `SkillTuning` 自动查表覆盖 CD/伤害。
+- **BaseDamageRatio = 10000**（100%）：向下兼容 SO 原有 baseDamage，后续可在表里直接调数值。
+
+---
+
+## v0.6 · 体验打磨小批次（2026-06-09）
+
+一轮非阻塞的体验改善，覆盖掉落/分类/视觉/UI 安全。
+
+- **保底奖励重抽**：新增 `SkillPickup.PickValid` — Fisher-Yates 洗牌后跳过其他化身专属，6 处掉落点（BattleRoom + 5 种敌人）统一调用。不再出现"通关了但什么都没掉"（原 ~13% 概率）。
+- **丹药归类 + 协同重挂**：回灵丹/灵藤草 → 护体，聚气丹 → 异变（SO + Demo1DataCreator）；`SynergySystem` 11 条 Pill 组合全改 Defense/Anomaly（去重微调阈值）；"丹元归元"→"归元护体"。`Pill` 枚举保留防序列化错位。
+- **化身专属门控 UI**：`SkillPickup.BuildPromptData` 专属技能标注 `[专属]`，非本化身显示"化身不符，无法装备"红字并拒绝 `TryPickup`。类型标签增加 `AvatarSpecial → "化身专属"`。
+- **持续状态光环**：`HeavenEarthShift`（天地大挪移·绿环脉冲）、`SpiritRootWaterController`（息影瞬步·蓝环脉冲）、`LethalGuard`（金蝉脱壳·蓝环脉冲）——buff 期间脚下常驻 LineRenderer 圆环，结束时销毁。
+- **灵脉道具差异化掉落**：深层(≥3层)宝藏房 40%「地脉精华」+100；渡劫突破奖励「洞天残核」+200（`CultivationSystem.Breakthrough` 掉落）。
+
 ## v0.6 · 秘境异象联动道心/因果/机缘（2026-06-09）
 
 深化秘境异象——从纯数值调整升级到与道心、因果、机缘系统交互，让异象真正改写玩法节奏。

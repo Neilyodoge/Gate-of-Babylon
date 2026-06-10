@@ -15,6 +15,6 @@ namespace XianTu
         Water,
         Earth,
         Pierce,   // 穿透系（飞剑等）
-        Life      // 生命系（丹药、灵藤草）
+        Life      // 生命系（灵藤草、回灵丹等续航类）
     }
 }

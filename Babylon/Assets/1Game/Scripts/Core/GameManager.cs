@@ -196,6 +196,15 @@ namespace XianTu
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
 
+            // 清理上局残留的 root-level 对象（ExtractPoint / 传送门 / 心魔触媒 / 散落拾取物）
+            if (LevelTransition.Instance != null)
+                LevelTransition.Instance.DestroyPortal();
+            foreach (var ep in FindObjectsOfType<ExtractPoint>())
+                Destroy(ep.gameObject);
+            foreach (var ic in FindObjectsOfType<InnerDemonCatalyst>())
+                Destroy(ic.gameObject);
+            CleanupLeftoverPickups();
+
             // 防御：上一局如果在面板打开时被外部强制重启（场景重载、Debug Restart…），
             // 这里把它关掉并把 timeScale 恢复到 1，否则玩家进村会卡在 0 速度。
             SpiritRootSelectUITK.Hide();
@@ -736,23 +745,31 @@ namespace XianTu
             var extractGo = new GameObject($"ExtractPoint_Level{_currentLevel}");
             extractGo.transform.position = roomCenter + new Vector3(-6f, 0, 0);
             var ep = extractGo.AddComponent<ExtractPoint>();
+            int capturedLevel = _currentLevel;
             ep.Build(() =>
             {
-                // 撤离成功：提交洞府素材 → 50% 悟性转永久 → 回收灵兽 → 回 VillageHub
-                RealmAnomalySystem.Instance.EndRun();   // v0.5.5：结束本局秘境异象（停落雷等）
+                float mul = ExtractResultPanel.LayerMultiplier(capturedLevel);
+                string realmName = capturedLevel < _realmNames.Length ? _realmNames[capturedLevel] : "飞升";
+
+                RealmAnomalySystem.Instance.EndRun();
+                int matCount = CaveInventory.Instance.TotalPendingCount;
                 CaveInventory.Instance.CommitCurrentRun();
-                InsightSystem.Instance.CommitOnExtract();
-                // V.03（Q7）：局外 meta 暂缓时不提交本体境界修为
+                int insightRaw = InsightSystem.Instance.CommitOnExtract(mul);
+                int temperingRaw = 0;
                 if (FeatureFlags.EnableCaveMeta)
-                    CultivationSystem.Instance.CommitOnExtract();
+                    temperingRaw = CultivationSystem.Instance.CommitOnExtract(mul);
                 SpiritBeastLoader.Despawn();
-                EnterVillageHub();
-                _transitioning = false;
-                _gameOver = false;
-                Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府</color>");
-                // v0.5.4：回洞府按灵脉概率触发机缘事件（V.03 Q7：meta 暂缓时不触发）
-                if (FeatureFlags.EnableCaveMeta)
-                    CaveOpportunitySystem.Instance.OnReturnToCave();
+
+                ExtractResultPanel.Show(capturedLevel, realmName,
+                    insightRaw, temperingRaw, matCount, () =>
+                {
+                    EnterVillageHub();
+                    _transitioning = false;
+                    _gameOver = false;
+                    Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府（层深倍率 ×{mul:F2}）</color>");
+                    if (FeatureFlags.EnableCaveMeta)
+                        CaveOpportunitySystem.Instance.OnReturnToCave();
+                });
             });
 
             if (isLastRealm)

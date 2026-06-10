@@ -26,12 +26,17 @@ namespace XianTu
         private Label _avatar;
         private VisualElement _row;
 
+        private VisualElement _tooltip;
+        private Label _tooltipTitle;
+        private Label _tooltipBody;
+
         private class Chip
         {
             public VisualElement root;
             public VisualElement fill;
             public Label name;
             public Label time;
+            public StatusEffect effect;
         }
 
         private readonly Dictionary<string, Chip> _chips = new();
@@ -54,6 +59,9 @@ namespace XianTu
             _overlay = root.Q<VisualElement>("overlay");
             _avatar = root.Q<Label>("avatar");
             _row = root.Q<VisualElement>("row");
+            _tooltip = root.Q<VisualElement>("tooltip");
+            _tooltipTitle = root.Q<Label>("tooltip-title");
+            _tooltipBody = root.Q<Label>("tooltip-body");
             if (_overlay != null) _overlay.pickingMode = PickingMode.Ignore;
         }
 
@@ -114,21 +122,29 @@ namespace XianTu
         {
             var root = new VisualElement();
             root.AddToClassList("bb-chip");
-            root.pickingMode = PickingMode.Ignore;
+            root.pickingMode = PickingMode.Position;
             var name = new Label();
             name.AddToClassList("bb-chip__name");
+            name.pickingMode = PickingMode.Ignore;
             root.Add(name);
             var time = new Label();
             time.AddToClassList("bb-chip__time");
+            time.pickingMode = PickingMode.Ignore;
             root.Add(time);
             var fill = new VisualElement();
             fill.AddToClassList("bb-chip__fill");
+            fill.pickingMode = PickingMode.Ignore;
             root.Add(fill);
-            return new Chip { root = root, name = name, time = time, fill = fill };
+
+            var chip = new Chip { root = root, name = name, time = time, fill = fill };
+            root.RegisterCallback<PointerEnterEvent>(_ => ShowTooltip(chip));
+            root.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
+            return chip;
         }
 
         private void UpdateChip(Chip chip, StatusEffect eff)
         {
+            chip.effect = eff;
             chip.name.text = eff.maxStacks > 1 ? $"{eff.displayName} ×{eff.stacks}" : eff.displayName;
             chip.root.EnableInClassList("bb-chip--debuff", !eff.isBuff);
             chip.fill.style.backgroundColor = eff.uiColor;
@@ -148,12 +164,58 @@ namespace XianTu
                 chip.fill.style.width = Length.Percent(ratio * 100f);
                 chip.fill.style.opacity = 1f;
 
-                // 即将到期（≤3s）脉冲闪烁提醒
                 if (eff.duration <= 3f)
                     chip.root.style.opacity = 0.5f + 0.5f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 6f));
                 else
                     chip.root.style.opacity = 1f;
             }
+        }
+
+        private void ShowTooltip(Chip chip)
+        {
+            if (_tooltip == null || chip.effect == null) return;
+
+            var eff = chip.effect;
+            string title = eff.isBuff ? $"[增益] {eff.displayName}" : $"[减益] {eff.displayName}";
+            _tooltipTitle.text = title;
+
+            var sb = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(eff.description))
+                sb.AppendLine(eff.description);
+
+            if (eff.IsPermanent)
+                sb.AppendLine("持续：永久");
+            else if (eff.duration > 0f)
+                sb.AppendLine($"剩余：{eff.duration:F1}s");
+
+            if (eff.maxStacks > 1)
+                sb.AppendLine($"层数：{eff.stacks}/{eff.maxStacks}");
+
+            if (eff.modifiers != null && eff.modifiers.Count > 0)
+            {
+                foreach (var m in eff.modifiers)
+                {
+                    string sign = m.value >= 0 ? "+" : "";
+                    if (m.isPercent)
+                        sb.AppendLine($"  {m.type}: {sign}{m.value * 100f:F0}%");
+                    else
+                        sb.AppendLine($"  {m.type}: {sign}{m.value:F0}");
+                }
+            }
+
+            _tooltipBody.text = sb.ToString().TrimEnd();
+
+            // 定位到 chip 下方
+            var chipRect = chip.root.worldBound;
+            _tooltip.style.left = chipRect.xMin;
+            _tooltip.style.top = chipRect.yMax + 4f;
+            _tooltip.style.visibility = Visibility.Visible;
+        }
+
+        private void HideTooltip()
+        {
+            if (_tooltip != null)
+                _tooltip.style.visibility = Visibility.Hidden;
         }
     }
 }

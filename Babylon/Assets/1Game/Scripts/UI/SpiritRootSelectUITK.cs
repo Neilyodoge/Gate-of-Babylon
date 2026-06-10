@@ -104,12 +104,12 @@ namespace XianTu
             accent.style.backgroundColor = def.displayColor;
             card.Add(accent);
 
-            if (isDefault)
+            if (!string.IsNullOrEmpty(def.roleTag))
             {
                 var badge = new VisualElement();
                 badge.AddToClassList("card__badge");
                 badge.style.display = DisplayStyle.Flex;
-                var badgeLabel = new Label("★ 本命");
+                var badgeLabel = new Label(def.roleTag);
                 badgeLabel.AddToClassList("card__badge-label");
                 badge.Add(badgeLabel);
                 card.Add(badge);

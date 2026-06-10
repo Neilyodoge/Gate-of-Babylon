@@ -59,18 +59,39 @@ namespace XianTu
                 SkillType.Buff => "增益",
                 SkillType.Heal => "治疗",
                 SkillType.Summon => "召唤",
+                SkillType.AvatarSpecial => "化身专属",
                 _ => "其他"
             };
+
+            bool isExclusive = skillData.skillType == SkillType.AvatarSpecial;
+            string exclusiveTag = isExclusive ? " [专属]" : "";
+            string titleStr = $"{skillData.skillName}{exclusiveTag}（{GetRarityName(skillData.rarity)}）";
+
             int shards = PlayerResources.GetDecomposeShards(skillData.rarity);
+            string hint;
+            if (isExclusive && !IsCurrentAvatarMatch())
+                hint = "<color=#ff6666>化身不符，无法装备</color>  |  长按[F] 分解";
+            else
+                hint = $"[F] 装备  |  长按[F] 分解（{shards} 灵力碎片）";
+
             return new PickupPromptData
             {
-                title = $"{skillData.skillName}（{GetRarityName(skillData.rarity)}）",
+                title = titleStr,
                 titleColor = GetRarityColor(skillData.rarity),
                 subLine = $"类型：{typeStr}  |  CD：{skillData.cooldown}s  |  伤害：{skillData.baseDamage}",
                 subColor = new Color(0.5f, 0.9f, 0.5f, 0.9f),
                 desc = skillData.description,
-                promptHint = $"[F] 装备  |  长按[F] 分解（{shards} 灵力碎片）"
+                promptHint = hint
             };
+        }
+
+        private bool IsCurrentAvatarMatch()
+        {
+            if (skillData.skillType != SkillType.AvatarSpecial) return true;
+            if (skillData.RequiredRoot == SpiritRootType.None) return true;
+            var pc = PlayerController.Instance;
+            var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
+            return root != null && root.CurrentRoot == skillData.RequiredRoot;
         }
 
         // 换槽模态中：拦截 Q/E/R/Esc，跳过本帧 F 逻辑
@@ -91,6 +112,12 @@ namespace XianTu
         private void TryPickup()
         {
             if (skillData == null || _combat == null) return;
+
+            if (!IsCurrentAvatarMatch())
+            {
+                Debug.Log($"<color=#ff6666>[SkillPickup] {skillData.skillName} 为化身专属（需 {skillData.RequiredRoot}），当前化身不符 → 拒绝装备</color>");
+                return;
+            }
 
             int emptySlot = _combat.FindEmptySlot();
             if (emptySlot >= 0)
@@ -245,6 +272,36 @@ namespace XianTu
         };
 
         // ==================== 工厂 ====================
+
+        /// <summary>从技能池中随机选一个当前化身可用的技能（跳过其他化身专属），null = 池中无合法选项。</summary>
+        public static SkillData PickValid(SkillData[] pool)
+        {
+            if (pool == null || pool.Length == 0) return null;
+
+            var pc = PlayerController.Instance;
+            var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
+            var curRoot = root != null ? root.CurrentRoot : SpiritRootType.None;
+
+            // Shuffle indices for fair randomness
+            int[] idx = new int[pool.Length];
+            for (int i = 0; i < idx.Length; i++) idx[i] = i;
+            for (int i = idx.Length - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (idx[i], idx[j]) = (idx[j], idx[i]);
+            }
+
+            foreach (int i in idx)
+            {
+                var s = pool[i];
+                if (s == null) continue;
+                if (s.skillType == SkillType.AvatarSpecial && s.RequiredRoot != SpiritRootType.None
+                    && s.RequiredRoot != curRoot)
+                    continue;
+                return s;
+            }
+            return null;
+        }
 
         /// <summary>生成一个功法掉落物。</summary>
         public static SkillPickup Spawn(SkillData data, Vector3 position)

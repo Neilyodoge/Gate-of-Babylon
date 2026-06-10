@@ -1,0 +1,33 @@
+﻿{
+  "Rows": [
+    {"ID":1,"Name_CN":"落石术","Desc_CN":"召唤巨石砸向目标区域造成范围伤害","Rarity":1,"Type":1,"BaseCooldown":5.0,"BaseDamageRatio":15000,"IconPath":"Skills/luoshi"},
+    {"ID":2,"Name_CN":"烈焰斩","Desc_CN":"横扫前方造成火焰伤害","Rarity":2,"Type":1,"BaseCooldown":4.0,"BaseDamageRatio":12000,"IconPath":"Skills/lieyan"},
+    {"ID":3,"Name_CN":"御风诀","Desc_CN":"短时间提升自身攻速","Rarity":3,"Type":2,"BaseCooldown":12.0,"BaseDamageRatio":5000,"IconPath":"Skills/yufeng"},
+    {"ID":4,"Name_CN":"寒冰封印","Desc_CN":"冻结目标并减速","Rarity":4,"Type":3,"BaseCooldown":8.0,"BaseDamageRatio":3000,"IconPath":"Skills/bingfeng"},
+    {"ID":5,"Name_CN":"混沌吞噬","Desc_CN":"制造黑洞，吸引并持续伤害范围内敌人，持续5秒","Rarity":5,"Type":1,"BaseCooldown":30.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":6,"Name_CN":"土遁术","Desc_CN":"钻入地下快速移动3秒，期间无敌","Rarity":1,"Type":2,"BaseCooldown":10.0,"BaseDamageRatio":0,"IconPath":""},
+    {"ID":7,"Name_CN":"水镜术","Desc_CN":"原地留下水镜分身，吸引敌人攻击3秒","Rarity":2,"Type":2,"BaseCooldown":12.0,"BaseDamageRatio":0,"IconPath":""},
+    {"ID":8,"Name_CN":"缩地成寸","Desc_CN":"瞬移至目标位置，沿途留下元素轨迹","Rarity":3,"Type":2,"BaseCooldown":8.0,"BaseDamageRatio":0,"IconPath":""},
+    {"ID":9,"Name_CN":"金蝉脱壳","Desc_CN":"受致命伤害时自动触发：留下爆炸替身，自身瞬移","Rarity":4,"Type":2,"BaseCooldown":60.0,"BaseDamageRatio":0,"IconPath":""},
+    {"ID":10,"Name_CN":"御风术","Desc_CN":"短暂飞行5秒，移速+50%，免疫地面陷阱","Rarity":2,"Type":2,"BaseCooldown":15.0,"BaseDamageRatio":5000,"IconPath":""},
+    {"ID":11,"Name_CN":"天罡北斗阵","Desc_CN":"以自身为中心布下剑阵，范围内敌人持续受伤+减速，8秒","Rarity":3,"Type":1,"BaseCooldown":30.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":12,"Name_CN":"九天玄火阵","Desc_CN":"全屏火雨，持续5秒，所有敌人持续灼烧","Rarity":4,"Type":1,"BaseCooldown":45.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":13,"Name_CN":"冥河召唤","Desc_CN":"召唤冥河淹没整个房间5秒，敌人持续受伤+大幅减速","Rarity":4,"Type":1,"BaseCooldown":45.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":14,"Name_CN":"轮回一击","Desc_CN":"蓄力3秒，释放毁灭性攻击，伤害=本局累计总伤害的10%","Rarity":5,"Type":1,"BaseCooldown":90.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":15,"Name_CN":"天地大挪移","Desc_CN":"10秒内，敌人投射物变为你的攻击，你的攻击变为治疗","Rarity":5,"Type":2,"BaseCooldown":60.0,"BaseDamageRatio":5000,"IconPath":""},
+    {"ID":16,"Name_CN":"一念刹那","Desc_CN":"触发剑心通明状态时，下一次造成一次特殊强力攻击；","Rarity":5,"Type":4,"BaseCooldown":0.0,"BaseDamageRatio":20000,"IconPath":""},
+    {"ID":17,"Name_CN":"枯荣逆旅","Desc_CN":"寄生种子最多可叠加至99层，且攻击时不会消耗层数，攻击时每层会多造成0.1%的伤害；主动释放可以引爆种子，每层可对当前目标造成X点伤害；","Rarity":5,"Type":4,"BaseCooldown":0.0,"BaseDamageRatio":5000,"IconPath":""},
+    {"ID":18,"Name_CN":"息影瞬步","Desc_CN":"释放后持续5秒，闪避不会有冷却时间，且闪避路径上的敌人受到伤害","Rarity":5,"Type":4,"BaseCooldown":30.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":19,"Name_CN":"兵阵合一","Desc_CN":"土甲傀儡最大数量增加至5个，主动释放时土傀儡进入远程炮击模式，土傀儡无法进行移动，但攻击范围增加且变为AOE伤害，再次释放变为原版土傀儡；","Rarity":5,"Type":4,"BaseCooldown":1.0,"BaseDamageRatio":12000,"IconPath":""},
+    {"ID":20,"Name_CN":"焚天·业火燎原","Desc_CN":"点燃自身进入业火加身：持续时间随当前怒气增长；期间普攻化为烈焰横扫、攻击附带强力灼烧、攻速大增；状态结束时引爆全场灼烧造成范围爆发；","Rarity":5,"Type":4,"BaseCooldown":40.0,"BaseDamageRatio":18000,"IconPath":""},
+    {"ID":21,"Name_CN":"御剑术","Desc_CN":"驾驭飞剑远程攻击敌人，基础弹道功法","Rarity":1,"Type":1,"BaseCooldown":5.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":22,"Name_CN":"影步","Desc_CN":"闪身向前短距离突进并对路径上的敌人造成伤害","Rarity":2,"Type":2,"BaseCooldown":4.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":23,"Name_CN":"烈焰掌","Desc_CN":"凝聚火灵力发出火焰弹，命中敌人造成灼烧","Rarity":2,"Type":1,"BaseCooldown":7.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":24,"Name_CN":"寒冰诀","Desc_CN":"召唤寒冰之力在目标区域爆发造成冰属性范围伤害","Rarity":2,"Type":1,"BaseCooldown":10.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":25,"Name_CN":"天雷引","Desc_CN":"引天雷轰击目标区域造成雷属性范围伤害","Rarity":2,"Type":1,"BaseCooldown":15.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":26,"Name_CN":"回春术","Desc_CN":"消耗灵力为自身回复大量生命值","Rarity":2,"Type":2,"BaseCooldown":18.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":27,"Name_CN":"雷锁链","Desc_CN":"以雷霆之力锁住范围内所有敌人并持续造成伤害","Rarity":3,"Type":1,"BaseCooldown":12.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":28,"Name_CN":"镜花水月","Desc_CN":"幻化镜像分身扰乱敌人目标，自身短暂隐身","Rarity":3,"Type":2,"BaseCooldown":16.0,"BaseDamageRatio":10000,"IconPath":""},
+    {"ID":29,"Name_CN":"傀儡术","Desc_CN":"召唤灵傀儡协助战斗，持续一段时间后消散","Rarity":3,"Type":1,"BaseCooldown":20.0,"BaseDamageRatio":10000,"IconPath":""}
+  ]
+}

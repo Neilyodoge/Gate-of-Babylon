@@ -1,0 +1,103 @@
+/* 撤离成果面板 · UITK */
+
+.erp-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.erp-panel {
+    width: 420px;
+    padding-top: 28px;
+    padding-bottom: 24px;
+    padding-left: 32px;
+    padding-right: 32px;
+    background-color: rgba(20, 22, 32, 0.96);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-color: rgba(180, 160, 255, 0.3);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    align-items: center;
+}
+
+.erp-title {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(180, 230, 140);
+    margin-bottom: 4px;
+    letter-spacing: 6px;
+}
+
+.erp-realm {
+    font-size: 13px;
+    color: rgba(200, 210, 230, 0.8);
+    margin-bottom: 12px;
+}
+
+.erp-divider {
+    width: 100%;
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.1);
+    margin-top: 4px;
+    margin-bottom: 8px;
+}
+
+.erp-rows {
+    width: 100%;
+    align-items: stretch;
+}
+
+.erp-row {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.erp-row__label {
+    font-size: 13px;
+    color: rgba(210, 215, 225, 0.9);
+}
+
+.erp-row__value {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(255, 220, 120);
+}
+
+.erp-bonus {
+    font-size: 12px;
+    color: rgba(140, 220, 255, 0.85);
+    margin-top: 6px;
+    margin-bottom: 12px;
+}
+
+.erp-confirm {
+    width: 200px;
+    height: 38px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(240, 245, 255);
+    background-color: rgba(80, 120, 200, 0.7);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-color: rgba(140, 170, 255, 0.4);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    margin-top: 4px;
+}
+
+.erp-confirm:hover {
+    background-color: rgba(100, 150, 240, 0.85);
+}

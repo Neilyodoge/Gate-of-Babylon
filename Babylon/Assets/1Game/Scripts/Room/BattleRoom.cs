@@ -287,8 +287,8 @@ namespace XianTu
             float chance = config.debugMaxSkillDropRate ? 1f : config.通关功法掉落概率;
             if (Random.value > chance) return;
 
-            // 随机选择一个功法
-            var skill = skillRewardPool[Random.Range(0, skillRewardPool.Length)];
+            // 从池中选一个当前化身可用的功法（跳过其他化身专属，避免空奖励）
+            var skill = SkillPickup.PickValid(skillRewardPool);
             if (skill != null)
             {
                 Vector3 playerPos = PlayerController.Instance != null

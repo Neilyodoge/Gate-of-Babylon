@@ -53,21 +53,21 @@ namespace XianTu
             _synergies.Add(new SynergyDef
             {
                 name = "天人合一",
-                description = "5种分类各x2 → 每30秒随机元素爆发（火/冰/风/雷）",
+                description = "4种分类各x3 → 每30秒随机元素爆发（火/冰/风/雷）",
                 requiredCategories = new[] {
                     ItemCategory.Attack, ItemCategory.Defense,
-                    ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Pill
+                    ItemCategory.Movement, ItemCategory.Anomaly
                 },
-                requiredCounts = new[] { 2, 2, 2, 2, 2 },
+                requiredCounts = new[] { 3, 3, 3, 3 },
                 displayColor = new Color(1f, 0.95f, 0.5f)
             });
 
             _synergies.Add(new SynergyDef
             {
                 name = "嗜血狂魔",
-                description = "攻伐x3 + 丹药x2 → 击杀后嗜血5秒：攻速翻倍，持续掉血",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Pill },
-                requiredCounts = new[] { 3, 2 },
+                description = "攻伐x4 + 护体x1 → 击杀后嗜血5秒：攻速翻倍，持续掉血",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense },
+                requiredCounts = new[] { 4, 1 },
                 displayColor = new Color(0.9f, 0.1f, 0.2f)
             });
 
@@ -83,9 +83,9 @@ namespace XianTu
             _synergies.Add(new SynergyDef
             {
                 name = "灵龟护体",
-                description = "护体x3 + 丹药x2 → 受击回复少量生命，减伤+10%",
-                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Pill },
-                requiredCounts = new[] { 3, 2 },
+                description = "护体x5 → 受击回复少量生命，减伤+10%",
+                requiredCategories = new[] { ItemCategory.Defense },
+                requiredCounts = new[] { 5 },
                 displayColor = new Color(0.2f, 0.8f, 0.5f)
             });
 
@@ -101,8 +101,8 @@ namespace XianTu
             _synergies.Add(new SynergyDef
             {
                 name = "万毒归宗",
-                description = "异变x3 + 丹药x2 → 灼烧伤害翻倍，击杀回复+50%",
-                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Pill },
+                description = "异变x3 + 护体x2 → 灼烧伤害翻倍，击杀回复+50%",
+                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Defense },
                 requiredCounts = new[] { 3, 2 },
                 displayColor = new Color(0.6f, 0.1f, 0.8f)
             });
@@ -157,8 +157,8 @@ namespace XianTu
             });
             _synergies.Add(new SynergyDef
             {
-                name = "丹元归元", description = "丹药x3 → 最大生命+25%、减伤+8%",
-                requiredCategories = new[] { ItemCategory.Pill }, requiredCounts = new[] { 3 },
+                name = "归元护体", description = "护体x3 → 最大生命+25%、减伤+8%",
+                requiredCategories = new[] { ItemCategory.Defense }, requiredCounts = new[] { 3 },
                 displayColor = new Color(1f, 0.55f, 0.7f)
             });
 
@@ -186,9 +186,9 @@ namespace XianTu
             });
             _synergies.Add(new SynergyDef
             {
-                name = "御体长生", description = "护体x3 + 丹药x1 → 最大生命+22%、减伤+8%",
-                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Pill },
-                requiredCounts = new[] { 3, 1 },
+                name = "御体长生", description = "护体x4 → 最大生命+22%、减伤+8%",
+                requiredCategories = new[] { ItemCategory.Defense },
+                requiredCounts = new[] { 4 },
                 displayColor = new Color(0.55f, 0.9f, 0.7f)
             });
             _synergies.Add(new SynergyDef
@@ -207,8 +207,8 @@ namespace XianTu
             });
             _synergies.Add(new SynergyDef
             {
-                name = "千里追风", description = "身法x3 + 丹药x1 → 移速+18%、攻速+15%、最大生命+8%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Pill },
+                name = "千里追风", description = "身法x3 + 护体x1 → 移速+18%、攻速+15%、最大生命+8%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Defense },
                 requiredCounts = new[] { 3, 1 },
                 displayColor = new Color(0.85f, 1f, 0.7f)
             });
@@ -221,9 +221,9 @@ namespace XianTu
             });
             _synergies.Add(new SynergyDef
             {
-                name = "丹魂凝结", description = "异变x2 + 丹药x2 → 暴击率+10%、攻击+15%",
-                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Pill },
-                requiredCounts = new[] { 2, 2 },
+                name = "丹魂凝结", description = "异变x3 + 护体x1 → 暴击率+10%、攻击+15%",
+                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Defense },
+                requiredCounts = new[] { 3, 1 },
                 displayColor = new Color(0.85f, 0.45f, 0.85f)
             });
             _synergies.Add(new SynergyDef
@@ -251,22 +251,22 @@ namespace XianTu
             });
             _synergies.Add(new SynergyDef
             {
-                name = "御灵护身", description = "护体x2 + 身法x2 + 丹药x1 → 减伤+10%、移速+12%、最大生命+12%",
-                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Movement, ItemCategory.Pill },
-                requiredCounts = new[] { 2, 2, 1 },
+                name = "御灵护身", description = "护体x3 + 身法x2 → 减伤+10%、移速+12%、最大生命+12%",
+                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Movement },
+                requiredCounts = new[] { 3, 2 },
                 displayColor = new Color(0.55f, 0.95f, 0.85f)
             });
             _synergies.Add(new SynergyDef
             {
-                name = "杀生丹诀", description = "攻伐x2 + 异变x2 + 丹药x1 → 暴击伤害+65%、攻击+10%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly, ItemCategory.Pill },
+                name = "杀生丹诀", description = "攻伐x2 + 异变x2 + 护体x1 → 暴击伤害+65%、攻击+10%",
+                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly, ItemCategory.Defense },
                 requiredCounts = new[] { 2, 2, 1 },
                 displayColor = new Color(0.95f, 0.35f, 0.55f)
             });
             _synergies.Add(new SynergyDef
             {
-                name = "风雷诀", description = "身法x2 + 异变x2 + 丹药x1 → 攻速+22%、暴击率+10%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Pill },
+                name = "风雷诀", description = "身法x2 + 异变x2 + 护体x1 → 攻速+22%、暴击率+10%",
+                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Defense },
                 requiredCounts = new[] { 2, 2, 1 },
                 displayColor = new Color(0.85f, 0.75f, 1f)
             });
@@ -333,7 +333,7 @@ namespace XianTu
                     case "诡道":
                         st.critRate = Mathf.Clamp01(st.critRate + 0.18f);
                         st.critDamage += 0.50f; break;
-                    case "丹元归元":
+                    case "归元护体":
                         st.maxHp *= 1.25f;
                         st.damageReduction = Mathf.Clamp01(st.damageReduction + 0.08f); break;
 

@@ -792,7 +792,7 @@ namespace XianTu.Editor
             item.itemName = "回灵丹";
             item.description = "服用后灵力充盈，生命力大增。\n击杀敌人时可回复少量生命，集齐五颗可触发涅槃复活。";
             item.rarity = ItemRarity.Fan;
-            item.category = ItemCategory.Pill;
+            item.category = ItemCategory.Defense;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 5 };
             item.maxHpBonus = 20f;
@@ -931,14 +931,14 @@ namespace XianTu.Editor
             SaveAsset(item, ITEM_PATH + "破镜碎片.asset");
         }
 
-        /// <summary>灵品·丹药类：灵藤草，持续回复+移速</summary>
+        /// <summary>灵品·护体类：灵藤草，持续回复+移速</summary>
         private static void CreateSpiritVine()
         {
             var item = ScriptableObject.CreateInstance<ItemData>();
             item.itemName = "灵藤草";
             item.description = "灵山深处的藤蔓精华，服用后身轻体健。\n提升生命上限和移速，击杀回复少量生命。";
             item.rarity = ItemRarity.Ling;
-            item.category = ItemCategory.Pill;
+            item.category = ItemCategory.Defense;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 4 };
             item.maxHpBonus = 25f;

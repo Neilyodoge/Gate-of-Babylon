@@ -38,6 +38,7 @@ namespace XianTu
         [SerializeField] private float shadowStepPathDamageRatio = 1f;   // 路径伤害 = 攻击 × 此
         [SerializeField] private float shadowStepPathLength = 5f;
         private float _shadowStepTimer = 0f;
+        private GameObject _shadowAura;
         /// <summary>息影瞬步进行中：闪避无冷却（由 PlayerController 读取）。</summary>
         public static bool ShadowStepActive { get; private set; }
 
@@ -72,6 +73,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             ShadowStepActive = false;
             _shadowStepTimer = 0f;
+            DestroyShadowAura();
         }
 
         private void Update()
@@ -82,7 +84,21 @@ namespace XianTu
             if (_shadowStepTimer > 0f)
             {
                 _shadowStepTimer -= Time.deltaTime;
-                if (_shadowStepTimer <= 0f) ShadowStepActive = false;
+                if (_shadowStepTimer <= 0f)
+                {
+                    ShadowStepActive = false;
+                    DestroyShadowAura();
+                }
+                else if (_shadowAura != null)
+                {
+                    float pulse = 0.6f + 0.4f * Mathf.Sin(Time.time * 5f);
+                    var lr = _shadowAura.GetComponent<LineRenderer>();
+                    if (lr != null)
+                    {
+                        Color c = new Color(0.3f, 0.5f, 1f, pulse * 0.6f);
+                        lr.startColor = c; lr.endColor = c;
+                    }
+                }
             }
         }
 
@@ -95,6 +111,7 @@ namespace XianTu
             if (_root == null || _root.CurrentRoot != SpiritRootType.Water) return;
             _shadowStepTimer = shadowStepDuration;
             ShadowStepActive = true;
+            EnsureShadowAura();
             FxFactory.SpawnElementBurst(transform.position + Vector3.up * 0.5f, ElementTag.Water, 2.5f, 0.6f);
             GameEvents.Publish(new GameEvents.DamageNumberRequested
             {
@@ -281,6 +298,34 @@ namespace XianTu
                 Damage = 0,
                 SpecialTag = "水痕收割 ×1.5"
             });
+        }
+
+        // ==================== 息影光环 ====================
+
+        private void EnsureShadowAura()
+        {
+            if (_shadowAura != null) return;
+            _shadowAura = new GameObject("ShadowStep_Aura");
+            _shadowAura.transform.SetParent(transform);
+            _shadowAura.transform.localPosition = Vector3.up * 0.05f;
+            var lr = _shadowAura.AddComponent<LineRenderer>();
+            lr.useWorldSpace = false;
+            lr.loop = true;
+            lr.positionCount = 24;
+            lr.widthMultiplier = 0.1f;
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+            Color c = new Color(0.3f, 0.5f, 1f, 0.6f);
+            lr.startColor = c; lr.endColor = c;
+            for (int i = 0; i < 24; i++)
+            {
+                float ang = i / 24f * Mathf.PI * 2f;
+                lr.SetPosition(i, new Vector3(Mathf.Cos(ang) * 1f, 0f, Mathf.Sin(ang) * 1f));
+            }
+        }
+
+        private void DestroyShadowAura()
+        {
+            if (_shadowAura != null) { Destroy(_shadowAura); _shadowAura = null; }
         }
     }
 }

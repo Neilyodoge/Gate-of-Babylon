@@ -639,7 +639,7 @@ namespace XianTu
             var allItems = inventory.GetAllItems();
             foreach (var (item, count) in allItems)
             {
-                if (item.category == ItemCategory.Pill)
+                if (item.itemName == "回灵丹")
                 {
                     inventory.RemoveItem(item, count);
                     break;

@@ -59,15 +59,18 @@ namespace XianTu
 
         // ========== 局结束 ==========
 
-        /// <summary>撤离成功：50% 悟性转入永久</summary>
-        public void CommitOnExtract()
+        /// <summary>撤离成功：50% 悟性转入永久（可带层深倍率）</summary>
+        public int CommitOnExtract(float multiplier = 1f)
         {
-            if (RunInsight == 0) return;
-            int transferred = RunInsight / 2;
+            if (RunInsight == 0) return 0;
+            int baseAmount = RunInsight / 2;
+            int transferred = Mathf.RoundToInt(baseAmount * multiplier);
             SaveSystem.Instance.Data.accumulatedInsight += transferred;
             SaveSystem.Instance.Save();
-            Debug.Log($"<color=#dfcfff>[InsightSystem] 撤离 · {transferred} 悟性转入永久（当前永久 {PermanentInsight}）</color>");
+            Debug.Log($"<color=#dfcfff>[InsightSystem] 撤离 · {transferred} 悟性转入永久（×{multiplier:F2}）（当前永久 {PermanentInsight}）</color>");
+            int raw = RunInsight;
             RunInsight = 0;
+            return raw;
         }
 
         /// <summary>死亡：全部丢失（残念不补偿）</summary>

@@ -41,6 +41,9 @@ namespace XianTu
 
         /// <summary>v0.3.2 核心机制是否已落地（false = 仅副词条层在生效）</summary>
         public bool mechanicEnabled;
+
+        /// <summary>卡片右上角角色定位标签（如"近战 · 御金"）</summary>
+        public string roleTag;
     }
 
     /// <summary>
@@ -66,7 +69,8 @@ namespace XianTu
                 },
                 tooltip = "选剑魄 = 选「御金时机流」。飞剑自律补刀打底，窗口内每次完美收刀 ×1.5 爆发，3 次连续完美进入剑心通明。",
                 starterItemName = "锈铁飞剑",
-                mechanicEnabled = true   // v0.3.3 已落地
+                mechanicEnabled = true,   // v0.3.3 已落地
+                roleTag = "近战 · 御金"
             });
 
             _defs.Add(new SpiritRootDef
@@ -80,7 +84,8 @@ namespace XianTu
                 baseModifiers = new List<StatModifier>(),  // v0.3.2：去掉 -20% MaxHp 惩罚
                 tooltip = "选青囊 = 选「普攻 ↔ 技能强耦合循环」。普攻铺 5 颗种子 → 技能一波收割 → 普攻继续铺。",
                 starterItemName = "灵藤草",
-                mechanicEnabled = true   // v0.3.3 已落地
+                mechanicEnabled = true,   // v0.3.3 已落地
+                roleTag = "续航 · 御木"
             });
 
             _defs.Add(new SpiritRootDef
@@ -97,7 +102,8 @@ namespace XianTu
                 },
                 tooltip = "选影刃 = 选「闪避变输出」。战斗循环：闪避→影息斩标记→技能爆破→再闪避换位。",
                 starterItemName = "玉佩",
-                mechanicEnabled = true   // v0.4 已落地
+                mechanicEnabled = true,   // v0.4 已落地
+                roleTag = "机动 · 御水"
             });
 
             _defs.Add(new SpiritRootDef
@@ -114,7 +120,8 @@ namespace XianTu
                 },
                 tooltip = "选业火 = 选「燃血豪赌」。越残血越猛，主动入狂火爆发但燃血涨心魔——高风险高回报。",
                 starterItemName = "火灵珠",
-                mechanicEnabled = true   // v0.4 已落地
+                mechanicEnabled = true,   // v0.4 已落地
+                roleTag = "爆发 · 御火"
             });
 
             _defs.Add(new SpiritRootDef
@@ -131,7 +138,8 @@ namespace XianTu
                 },
                 tooltip = "选御物 = 选「召物成军」。自律土傀打底，兵阵合一成阵爆发——指挥傀儡群压制战场。",
                 starterItemName = "龙鳞甲",
-                mechanicEnabled = true   // v0.6 召物重心已落地
+                mechanicEnabled = true,   // v0.6 召物重心已落地
+                roleTag = "召唤 · 御土"
             });
         }
 

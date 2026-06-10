@@ -281,11 +281,6 @@ namespace XianTu
                         if (c >= 5)
                             _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + 0.15f);
                         break;
-                    case ItemCategory.Pill:
-                        // 回灵丹 x5 在名称分支已触发「涅槃」并 return，不再叠加丹药共鸣（与旧版一致）
-                        if (c >= 5 && item.itemName != "回灵丹")
-                            _playerStats.maxHp *= 1.3f;
-                        break;
                 }
             }
         }
@@ -468,13 +463,6 @@ namespace XianTu
                 case ItemCategory.Anomaly:
                     if (count == 5)
                         return "异变灵力共鸣！暴击率+15%，攻击附带灵力爆发";
-                    break;
-                case ItemCategory.Pill:
-                    if (count == 5)
-                    {
-                        _pendingFullHealFromQualitative = true;
-                        return "丹药灵力共鸣！生命+30%并全满！";
-                    }
                     break;
             }
 

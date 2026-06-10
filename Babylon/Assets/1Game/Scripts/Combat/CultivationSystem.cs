@@ -108,13 +108,17 @@ namespace XianTu
         // ========== 局结束 ==========
 
         /// <summary>撤离成功：本局历练值 100% 转入"历练值存量"，由玩家在洞府分配给修为 or 灵脉。</summary>
-        public void CommitOnExtract()
+        /// <summary>撤离提交历练值（可带层深倍率）。返回提交前的原始 RunTempering。</summary>
+        public int CommitOnExtract(float multiplier = 1f)
         {
-            if (RunTempering <= 0) return;
-            Data.temperingPool += RunTempering;
+            if (RunTempering <= 0) return 0;
+            int raw = RunTempering;
+            int final = Mathf.RoundToInt(RunTempering * multiplier);
+            Data.temperingPool += final;
             SaveSystem.Instance.Save();
-            Debug.Log($"<color=#ffd47a>[Cultivation] 撤离 · {RunTempering} 历练值入存量（当前存量 {Data.temperingPool}）</color>");
+            Debug.Log($"<color=#ffd47a>[Cultivation] 撤离 · {final} 历练值入存量（×{multiplier:F2}）（当前存量 {Data.temperingPool}）</color>");
             RunTempering = 0;
+            return raw;
         }
 
         /// <summary>直接给历练值存量（机缘事件 / 奖励用）。</summary>
@@ -198,6 +202,15 @@ namespace XianTu
                 RealmName = CurrentRealmName,
                 Quality = quality
             });
+
+            // v0.6：渡劫突破奖励"洞天残核"（灵脉经验 +200）
+            var pc = PlayerController.Instance;
+            if (pc != null)
+            {
+                SpiritVeinPickup.Spawn("洞天残核", 200,
+                    pc.transform.position + pc.transform.forward * 2f + Vector3.right * 1f);
+            }
+
             return true;
         }
 

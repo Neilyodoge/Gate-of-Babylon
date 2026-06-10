@@ -356,7 +356,7 @@ namespace XianTu
             if (config != null)
                 chance = config.debugMaxSkillDropRate ? 1f : config.功法掉落概率;
             if (Random.value > chance) return;
-            var skill = possibleSkillDrops[Random.Range(0, possibleSkillDrops.Length)];
+            var skill = SkillPickup.PickValid(possibleSkillDrops);
             if (skill != null)
                 SkillPickup.Spawn(skill, transform.position + new Vector3(Random.Range(-0.5f, 0.5f), 0, Random.Range(-0.5f, 0.5f)));
         }

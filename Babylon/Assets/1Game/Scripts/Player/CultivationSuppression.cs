@@ -16,12 +16,18 @@ namespace XianTu
     ///   -2    险境：     造成伤害 -40% · 受到伤害 +50%
     ///   ≤ -3  九死一生： 造成伤害 -60% · 受到伤害 +100%
     ///
+    /// v0.6.1 成色加成：境界成色会叠加全属性倍率（瑕 0% / 凡 +2% / 上 +5% / 完美 +8%）。
+    ///
     /// 监听 <see cref="GameEvents.RealmBreakthrough"/>（进入新秘境层时由 GameManager 发布）刷新。
     /// 减益是 StatusEffect，不是硬锁——低境界仍可强闯深层（贪），但极险。
     /// </summary>
     public class CultivationSuppression : MonoBehaviour
     {
         private const string EffectId = "JingjieSuppression";
+        private const string QualityEffectId = "JingjieQuality";
+
+        /// <summary>成色 index(0~3) → 全属性百分比加成：瑕=0, 凡=+2%, 上=+5%, 完美=+8%</summary>
+        private static readonly float[] QualityBonus = { 0f, 0.02f, 0.05f, 0.08f };
 
         private StatusEffectController _status;
 
@@ -84,6 +90,42 @@ namespace XianTu
             });
 
             Debug.Log($"<color=#c8b0ff>[境界压制] 环境境界 {envRealm} vs 本体 {CultivationSystem.Instance.CurrentRealm} → delta {delta}（{label}）</color>");
+
+            RefreshQualityBonus();
+        }
+
+        private void RefreshQualityBonus()
+        {
+            if (_status == null) return;
+            _status.Remove(QualityEffectId);
+
+            int quality = CultivationSystem.Instance.GetRealmQuality(CultivationSystem.Instance.CurrentRealm);
+            if (quality < 0 || quality >= QualityBonus.Length) return;
+            float bonus = QualityBonus[quality];
+            if (bonus <= 0.001f) return;
+
+            string qualityName = CultivationSystem.QualityNames[quality];
+            _status.Apply(new StatusEffect
+            {
+                id = QualityEffectId,
+                isBuff = true,
+                elementTag = ElementTag.None,
+                stacks = 1,
+                maxStacks = 1,
+                defaultDuration = -1f,
+                duration = -1f,
+                modifiers = new List<StatModifier>
+                {
+                    StatModifier.Percent(StatType.AttackDamage, bonus),
+                    StatModifier.Percent(StatType.MaxHp, bonus),
+                    StatModifier.Percent(StatType.DamageReduction, bonus)
+                },
+                displayName = $"境界成色 · {qualityName}",
+                description = $"当前境界成色为{qualityName}，全属性 +{bonus * 100f:F0}%",
+                uiColor = new Color(0.85f, 0.75f, 1f)
+            });
+
+            Debug.Log($"<color=#e0c0ff>[境界成色] {qualityName} → 全属性 +{bonus * 100f:F0}%</color>");
         }
 
         /// <summary>delta → (造成伤害乘区, 受伤减伤Flat, 标签, 颜色)。</summary>

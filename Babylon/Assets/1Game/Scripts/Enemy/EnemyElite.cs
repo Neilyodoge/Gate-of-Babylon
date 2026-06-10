@@ -570,11 +570,10 @@ namespace XianTu
         private void TryDropSkill()
         {
             if (possibleSkillDrops == null || possibleSkillDrops.Length == 0) return;
-            // 精英怪25%概率掉功法（debug爆率拉满时必掉）
             var skillConfig = GameConfig.Instance;
             bool forceDropSkill = skillConfig != null && skillConfig.debugMaxSkillDropRate;
             if (!forceDropSkill && Random.value > 0.25f) return;
-            var skill = possibleSkillDrops[Random.Range(0, possibleSkillDrops.Length)];
+            var skill = SkillPickup.PickValid(possibleSkillDrops);
             if (skill != null)
                 SkillPickup.Spawn(skill, transform.position + new Vector3(Random.Range(-0.5f, 0.5f), 0, Random.Range(-0.5f, 0.5f)));
         }

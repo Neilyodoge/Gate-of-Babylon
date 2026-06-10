@@ -1,0 +1,9 @@
+﻿{
+  "Rows": [
+    {"ID":1,"Name_CN":"剑魄","Desc_CN":"完美收刀·剑修","ControllerScript":"SpiritRootGoldController","DefaultItem_ID":0,"Restriction":[],"Exclusive":[16]},
+    {"ID":2,"Name_CN":"青囊","Desc_CN":"播种收割·蛊毒大师","ControllerScript":"SpiritRootWoodController","DefaultItem_ID":0,"Restriction":[],"Exclusive":[17]},
+    {"ID":3,"Name_CN":"影刃","Desc_CN":"凌波微步·闪避杀手","ControllerScript":"SpiritRootWaterController","DefaultItem_ID":0,"Restriction":[],"Exclusive":[18]},
+    {"ID":4,"Name_CN":"业火","Desc_CN":"狂战之火·爆发","ControllerScript":"SpiritRootFireController","DefaultItem_ID":0,"Restriction":[],"Exclusive":[20]},
+    {"ID":5,"Name_CN":"御物","Desc_CN":"万物执心·群战指挥","ControllerScript":"SpiritRootEarthController","DefaultItem_ID":0,"Restriction":[],"Exclusive":[19]}
+  ]
+}

@@ -1,0 +1,8 @@
+﻿{
+  "Rows": [
+    {"ID":1,"Name_CN":"攻击强化","Desc_CN":"一段时间内攻击力提升","Type":1,"BaseCooldown":0.0,"BaseDamageRatio":5000,"Charges":3,"IconPath":"Effects/atkup"},
+    {"ID":2,"Name_CN":"荆棘护体","Desc_CN":"受到攻击时反弹部分伤害","Type":2,"BaseCooldown":0.0,"BaseDamageRatio":2000,"Charges":0,"IconPath":"Effects/thorns"},
+    {"ID":3,"Name_CN":"流血","Desc_CN":"目标持续损失生命","Type":3,"BaseCooldown":0.0,"BaseDamageRatio":1000,"Charges":5,"IconPath":"Effects/bleed"},
+    {"ID":4,"Name_CN":"灼烧","Desc_CN":"目标每秒受到火焰伤害","Type":3,"BaseCooldown":0.0,"BaseDamageRatio":1500,"Charges":5,"IconPath":"Effects/burn"}
+  ]
+}

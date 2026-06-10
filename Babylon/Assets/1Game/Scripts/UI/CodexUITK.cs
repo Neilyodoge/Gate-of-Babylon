@@ -130,7 +130,13 @@ namespace XianTu
 
         private static readonly string[] _categoryNames =
         {
-            "攻伐", "护体", "身法", "异变", "丹药", "功法"
+            "攻伐", "护体", "身法", "异变", "功法"
+        };
+
+        private static readonly ItemCategory[] _categoryValues =
+        {
+            ItemCategory.Attack, ItemCategory.Defense, ItemCategory.Movement,
+            ItemCategory.Anomaly, ItemCategory.Skill
         };
 
         private static readonly SpiritRootType[] _allRoots =
@@ -149,9 +155,8 @@ namespace XianTu
                 AddChip("全部", _itemFilterCategory == -1, () => { _itemFilterCategory = -1; RebuildAll(); });
                 for (int i = 0; i < _categoryNames.Length; i++)
                 {
-                    if (i == (int)ItemCategory.Pill) continue; // 丹药 meta 已移除
-                    int ci = i;
-                    AddChip(_categoryNames[i], _itemFilterCategory == i, () => { _itemFilterCategory = ci; RebuildAll(); });
+                    int ci = (int)_categoryValues[i];
+                    AddChip(_categoryNames[i], _itemFilterCategory == ci, () => { _itemFilterCategory = ci; RebuildAll(); });
                 }
             }
             else if (_tabIndex == 2)
@@ -318,7 +323,6 @@ namespace XianTu
             ItemCategory.Defense => "护体",
             ItemCategory.Movement => "身法",
             ItemCategory.Anomaly => "异变",
-            ItemCategory.Pill => "丹药",
             ItemCategory.Skill => "功法",
             ItemCategory.Herb => "灵药",
             ItemCategory.Ore => "灵矿",

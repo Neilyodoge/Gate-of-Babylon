@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="ExtractResultPanel.uss" />
+    <ui:VisualElement name="overlay" class="erp-overlay">
+        <ui:VisualElement name="panel" class="erp-panel">
+            <ui:Label name="title" text="撤 离 成 功" class="erp-title" />
+            <ui:Label name="realm" text="" class="erp-realm" />
+            <ui:VisualElement name="divider" class="erp-divider" />
+            <ui:VisualElement name="rows" class="erp-rows" />
+            <ui:VisualElement name="divider2" class="erp-divider" />
+            <ui:Label name="bonus" text="" class="erp-bonus" />
+            <ui:Button name="confirm" text="返 回 洞 府" class="erp-confirm" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

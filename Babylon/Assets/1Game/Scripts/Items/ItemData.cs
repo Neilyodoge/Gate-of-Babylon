@@ -19,20 +19,20 @@ namespace XianTu
     /// </summary>
     public enum ItemCategory
     {
-        Attack,         // ⚔️ 攻伐灵物
-        Defense,        // 🛡️ 护体灵物
-        Movement,       // 👟 身法灵物
-        Anomaly,        // 🔮 异变灵物
-        Pill,           // 💊 丹药（v0.5.1 炼丹房meta系统已移除；保留枚举值防序列化错位；现仅余回灵丹/灵藤草等局内灵物，待内容 pass 归入异变）
-        Skill,          // 📜 功法
+        Attack        = 0,  // ⚔️ 攻伐灵物
+        Defense       = 1,  // 🛡️ 护体灵物
+        Movement      = 2,  // 👟 身法灵物
+        Anomaly       = 3,  // 🔮 异变灵物
+        // 4 = 原 Pill（已删除，编号跳过保序列化兼容）
+        Skill         = 5,  // 📜 功法
 
         // === v0.5 洞府素材类（搜打撤核心，需活着撤离才能带回洞府）===
-        Herb,           // 🌿 灵药（炼丹房原料）
-        Ore,            // 🪨 灵矿（炼器房原料）
-        BeastMaterial,  // 🐉 妖兽材料（灵兽园 / 炼器房原料）
-        ScripturePage,  // 📃 古籍残页（藏经阁拼合功法）
-        PlantSeed,      // 🌱 灵植种子（灵田种植）
-        ArraySigil      // 🪶 阵法符（阵法台部署）
+        Herb          = 6,  // 🌿 灵药（炼丹房原料）
+        Ore           = 7,  // 🪨 灵矿（炼器房原料）
+        BeastMaterial = 8,  // 🐉 妖兽材料（灵兽园 / 炼器房原料）
+        ScripturePage = 9,  // 📃 古籍残页（藏经阁拼合功法）
+        PlantSeed     = 10, // 🌱 灵植种子（灵田种植）
+        ArraySigil    = 11  // 🪶 阵法符（阵法台部署）
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ namespace XianTu
         public ItemScope scope = ItemScope.RunOnly;
         /// <summary>
         /// 加工后的产物 itemName（v0.5 Week 8 技术债清理）。
-        /// 链式管线：种子(<see cref="ItemCategory.PlantSeed"/>) → 灵药(<see cref="ItemCategory.Herb"/>) → 丹药(<see cref="ItemCategory.Pill"/>)。
+        /// 链式管线：种子(<see cref="ItemCategory.PlantSeed"/>) → 灵药(<see cref="ItemCategory.Herb"/>)。
         /// 留空表示该物品没有下游产物（如丹药本身，或纯展示型素材）。
         /// 替代旧的 <c>seedName.Replace("种子","灵药")</c> 字符串硬替换。
         /// </summary>
