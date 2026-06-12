@@ -59,6 +59,7 @@ MonoBehaviour:
   armLethalGuard: 0
   lethalGuardDuration: 0
   heavenEarthShift: 0
+  avatarSpecial: 0
   zoneDuration: 5
   zoneRadius: 0
   zoneTickInterval: 0.5
@@ -67,7 +68,39 @@ MonoBehaviour:
   zonePullSpeed: 0
   zoneFollowPlayer: 0
   zoneBurnDPS: 0
-  modifierDefs: []
+  modifierDefs:
+  - modifiedName: "\u6C34\u955C\xB7\u5BD2\u6D41"
+    requiredTag: 2
+    requiredCount: 1
+    leaveZone: 0
+    zoneRadius: 2.5
+    zoneDuration: 3
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.15
+    addBurn: 0
+    burnDPS: 4
+    burnDuration: 3
+    addFreeze: 1
+    freezeChance: 0.5
+    freezeDuration: 1.5
+    addThunderStrike: 0
+    thunderMul: 0.6
+  - modifiedName: "\u6C34\u955C\xB7\u6CB8\u817E"
+    requiredTag: 1
+    requiredCount: 1
+    leaveZone: 0
+    zoneRadius: 2.5
+    zoneDuration: 3
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.15
+    addBurn: 1
+    burnDPS: 4
+    burnDuration: 2
+    addFreeze: 0
+    freezeChance: 1
+    freezeDuration: 2
+    addThunderStrike: 0
+    thunderMul: 0.6
   playAnimation: 0
   vfxPrefab: {fileID: 0}
   vfxDuration: 1.5

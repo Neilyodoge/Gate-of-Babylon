@@ -106,6 +106,13 @@ namespace XianTu
 
         /// <summary>已点亮的系精通节点 id 列表（化身×系节点，二值解锁）。洞府家业，终身保留。</summary>
         public List<string> masteryNodeIds = new();
+
+        // ========== GDD §9.1.7：天赋树渐进解锁 ==========
+        /// <summary>
+        /// 已解锁的成长树分支标签列表（格式 "avatar_branchLabel"，如 "metal_锐金·破阵"）。
+        /// 初始：每化身第一条分支免费解锁；更多分支通过机缘/成就/剧情解锁。
+        /// </summary>
+        public List<string> unlockedGrowthBranches = new();
     }
 
     /// <summary>链式机缘的"待回访"条目：某个机缘选择会埋下一个 N 局后回访的后续事件。</summary>

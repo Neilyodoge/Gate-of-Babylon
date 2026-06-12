@@ -6,6 +6,44 @@
 
 ---
 
+## v0.6.3 · GDD 逻辑迭代（2026-06-12）
+
+GDD 对照审计后的一轮系统实装，覆盖 7 项 gap。
+
+### 三选一灵物卡牌（GDD §5.6）
+- 新增 `BattleRewardUI`（UITK）：战斗房通关后弹出 3 张灵物卡片供选择（或跳过），取代旧的地面直接掉落。
+- `BattleRoom.OnRoomCleared()` 改为先 `RollRewardCandidates(3)` → 弹 UI → 选完才发布 `RoomCleared` 开传送门。
+- 独立 roll 逻辑：不重复、按品阶权重、受 `FeatureFlags.EnableSpiritItems` 和通关掉落概率控制。
+
+### 化身配表 runtime（GDD §4.9）
+- `ItemData` 新增 `configId` 字段（对接 `Item_InRun_Config`，与 `SkillData.configId` 对齐）。
+- 新增 `AvatarRestriction.cs`（静态工具类）：
+  - `GrantDefaultItem(pool)`：入秘境时按 `Avatar_Base_Config.DefaultItem_ID` 匹配 configId 赋初始灵物。
+  - `IsAllowed(item)` / `FilterPool(pool)`：黑名单过滤（`Restriction` 字段），已接入 `BattleRoom.RollRewardCandidates` 和 `ShopRoom.GenerateShopItems`。
+
+### 天赋树渐进解锁（GDD §9.1.7）
+- `SaveData` 新增 `unlockedGrowthBranches` 列表。
+- `GrowthUITK`：首次打开自动解锁每化身第一条分支；第二条分支显示 🔒 提示（"需机缘/成就解锁"）。
+- 外部 API：`GrowthUITK.UnlockBranch(avatar, branchLabel)` 供机缘/成就回调。
+
+### 御物傀儡技能同步（GDD §4.3.5）
+- `SpiritRootEarthController` 订阅 `SkillCastStarted` → 玩家释放 Q/E/R 时所有活跃土傀立即跟随开火。
+- `EarthPuppetTurret` 新增 `SyncFire(damage)` 方法（伤害 = 玩家攻击 × 10% × 坐镇倍率）。
+
+### 枯荣逆旅被动补全（GDD §4.3.2 注）
+- `SpiritRootWoodController` 三项补全：
+  - 全局种子计数器 `_totalSeedCount`，上限 99（`globalSeedCap`）。
+  - 技能命中不再消耗种子（改为"共鸣"额外伤害），仅主动 `DetonateSeeds()` 消耗。
+  - 常驻被动 `KuRong_Passive` StatusEffect：每层种子 +0.1% 攻击（`passiveDmgPerSeed`），实时刷新。
+
+### §6.5 槽位修饰扩充
+- 8 个技能 SO 新增 `modifierDefs`（MCP 批量设置）：
+  - 烈焰斩（焚天/寒霜）、寒冰封印（永冻/雷冰）、烈焰掌（焰灭/冰火）、御剑术（雷剑/焰剑）
+  - 影步（风刃/霜步）、混沌吞噬（焚烧/雷霆）、轮回一击（焚天/雷裂）、水镜术（寒流/沸腾）
+- 总覆盖 14/30 技能（剩余为 Buff/Heal/AvatarSpecial 类型）。
+
+---
+
 ## v0.6.2 · 八条反馈处理（2026-06-10）
 
 一轮玩家反馈修复 + 系统增强，覆盖 UI/掉落/洞府/撤离。

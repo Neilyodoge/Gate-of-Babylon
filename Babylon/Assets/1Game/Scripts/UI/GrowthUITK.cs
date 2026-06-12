@@ -102,16 +102,30 @@ namespace XianTu
             if (_header != null)
                 _header.text = $"化身：{avatarName}　·　本体境界：{cult.CurrentRealmName}　·　灵力：{insight.PermanentInsight}";
 
-            // ── 系精通（本命系 · 根基分出两条分支）──
+            // ── 系精通（本命系 · 根基分出两条分支，渐进解锁）──
             string sysName = SystemMasteryRegistry.SystemName(SystemMasteryRegistry.BodySystem(avatar));
             _content.Add(Section($"系精通 · {sysName}（花灵力 · 根基分两路）"));
+
+            EnsureFirstBranchUnlocked(avatar);
+            var branchSet = new System.Collections.Generic.HashSet<string>(SaveSystem.Instance.Data.unlockedGrowthBranches);
             string lastBranch = null;
             foreach (var node in SystemMasteryRegistry.NodesFor(avatar))
             {
                 if (node.tier > 0 && node.branchLabel != lastBranch)
                 {
-                    _content.Add(BranchHeader("◈ " + node.branchLabel));
                     lastBranch = node.branchLabel;
+                    string branchKey = BranchKey(avatar, node.branchLabel);
+                    if (!branchSet.Contains(branchKey))
+                    {
+                        _content.Add(LockedBranchHint(node.branchLabel));
+                        continue;
+                    }
+                    _content.Add(BranchHeader("◈ " + node.branchLabel));
+                }
+                if (node.tier > 0)
+                {
+                    string branchKey = BranchKey(avatar, node.branchLabel);
+                    if (!branchSet.Contains(branchKey)) continue;
                 }
                 _content.Add(MakeMasteryRow(node));
             }
@@ -222,6 +236,62 @@ namespace XianTu
             var l = new Label(text);
             l.AddToClassList("gr-row__desc");
             return l;
+        }
+
+        private static string BranchKey(SpiritRootType avatar, string branchLabel)
+            => $"{avatar}_{branchLabel}";
+
+        /// <summary>首次打开时自动解锁每化身的第一条分支。</summary>
+        private static void EnsureFirstBranchUnlocked(SpiritRootType avatar)
+        {
+            var save = SaveSystem.Instance.Data;
+            string firstBranch = null;
+            foreach (var node in SystemMasteryRegistry.NodesFor(avatar))
+            {
+                if (node.tier == 1 && !string.IsNullOrEmpty(node.branchLabel))
+                {
+                    firstBranch = node.branchLabel;
+                    break;
+                }
+            }
+            if (firstBranch == null) return;
+            string key = BranchKey(avatar, firstBranch);
+            if (!save.unlockedGrowthBranches.Contains(key))
+            {
+                save.unlockedGrowthBranches.Add(key);
+                SaveSystem.Instance.Save();
+            }
+        }
+
+        private static VisualElement LockedBranchHint(string branchLabel)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("gr-row");
+            row.AddToClassList("gr-row--locked");
+            row.style.marginLeft = 16;
+            var icon = new Label("🔒");
+            icon.style.fontSize = 16;
+            icon.style.marginRight = 6;
+            row.Add(icon);
+            var label = new Label($"{branchLabel}（需机缘/成就解锁）");
+            label.AddToClassList("gr-row__desc");
+            label.style.color = new Color(0.5f, 0.5f, 0.55f);
+            row.Add(label);
+            return row;
+        }
+
+        /// <summary>
+        /// 外部调用：解锁某化身的某分支（用于机缘事件 / 成就回调）。
+        /// 示例：GrowthUITK.UnlockBranch(SpiritRootType.Metal, "御金·铁壁");
+        /// </summary>
+        public static void UnlockBranch(SpiritRootType avatar, string branchLabel)
+        {
+            var save = SaveSystem.Instance.Data;
+            string key = BranchKey(avatar, branchLabel);
+            if (save.unlockedGrowthBranches.Contains(key)) return;
+            save.unlockedGrowthBranches.Add(key);
+            SaveSystem.Instance.Save();
+            Debug.Log($"<color=#dfcfff>[成长] 分支解锁：{avatar} · {branchLabel}</color>");
         }
     }
 }

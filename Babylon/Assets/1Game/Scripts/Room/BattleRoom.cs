@@ -211,14 +211,66 @@ namespace XianTu
 
             Debug.Log($"<color=green>房间清理完成！</color>");
 
-            // 掉落奖励灵物
-            SpawnRewards();
-
-            // 掉落奖励功法
+            // 掉落奖励功法（仍为世界拾取物）
             SpawnSkillReward();
 
-            // 发布事件
-            GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
+            // GDD §5.6：三选一灵物卡牌 — 取代旧的地面掉落
+            var candidates = RollRewardCandidates(3);
+            if (candidates != null && candidates.Length > 0)
+            {
+                BattleRewardUI.Show(candidates, _ =>
+                {
+                    GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
+                });
+            }
+            else
+            {
+                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
+            }
+        }
+
+        /// <summary>从掉落池中 roll N 个不重复的候选灵物（用于三选一 UI）。</summary>
+        private ItemData[] RollRewardCandidates(int count)
+        {
+            if (rewardPool == null || rewardPool.Length == 0) return null;
+            if (!FeatureFlags.EnableSpiritItems) return null;
+
+            var config = GameConfig.Instance;
+
+            // 通关掉落概率判定（debug 模式跳过）
+            if (config != null && !config.debugMaxItemDropRate)
+            {
+                if (Random.value > config.通关掉落概率) return null;
+            }
+
+            var validPool = new List<ItemData>();
+            foreach (var d in rewardPool)
+                if (d != null && AvatarRestriction.IsAllowed(d)) validPool.Add(d);
+            if (validPool.Count == 0) return null;
+
+            var picked = new List<ItemData>();
+            var usedIndices = new HashSet<int>();
+            for (int i = 0; i < count && picked.Count < validPool.Count; i++)
+            {
+                ItemRarity rarity = config != null ? config.RollRarity(_roomIndex) : ItemRarity.Fan;
+                var candidates = new List<int>();
+                for (int j = 0; j < validPool.Count; j++)
+                {
+                    if (!usedIndices.Contains(j) && validPool[j].rarity == rarity)
+                        candidates.Add(j);
+                }
+                if (candidates.Count == 0)
+                {
+                    for (int j = 0; j < validPool.Count; j++)
+                        if (!usedIndices.Contains(j)) candidates.Add(j);
+                }
+                if (candidates.Count == 0) break;
+                int idx = candidates[Random.Range(0, candidates.Count)];
+                picked.Add(validPool[idx]);
+                usedIndices.Add(idx);
+            }
+
+            return picked.Count > 0 ? picked.ToArray() : null;
         }
 
         private void SpawnRewards()

@@ -24,8 +24,12 @@ namespace XianTu
         [Header("种子参数")]
         [SerializeField] private float seedDuration = 6f;
         [SerializeField] private int maxSeedsPerEnemy = 5;
-        [SerializeField] private float seedDpsPerStack = 0.1f;  // 每颗每秒 ×0.1 攻击 DoT
+        [SerializeField] private float seedDpsPerStack = 0.1f;
         [SerializeField] private float seedTickInterval = 1f;
+
+        [Header("枯荣逆旅被动")]
+        [SerializeField] private int globalSeedCap = 99;
+        [SerializeField] private float passiveDmgPerSeed = 0.001f; // +0.1% per seed
 
         [Header("引爆参数")]
         [SerializeField] private float detonateDamagePerSeed = 0.5f;
@@ -37,6 +41,10 @@ namespace XianTu
         private SpiritRootController _root;
         private StatusEffectController _ownStatus;
 
+        private int _totalSeedCount;
+        private const string KuRongPassiveId = "KuRong_Passive";
+
+        public int TotalSeedCount => _totalSeedCount;
         public bool HasTalentFertileSoil => _ownStatus != null && _ownStatus.Has(TalentFertileSoilId);
         private float EffectiveSeedDuration => HasTalentFertileSoil ? seedDuration * 2f : seedDuration;
 
@@ -72,11 +80,14 @@ namespace XianTu
         private void ApplySeedTo(GameObject enemy)
         {
             if (enemy == null) return;
+            if (_totalSeedCount >= globalSeedCap) return;
+
             var statusCtrl = enemy.GetComponent<StatusEffectController>();
             if (statusCtrl == null)
-            {
                 statusCtrl = enemy.AddComponent<StatusEffectController>();
-            }
+
+            var existing = statusCtrl.Get(ParasiteSeedEffectId);
+            if (existing != null && existing.stacks >= maxSeedsPerEnemy) return;
 
             var seedDpsRef = _player != null ? _player.Stats.attackDamage * seedDpsPerStack : seedDpsPerStack;
 
@@ -93,23 +104,51 @@ namespace XianTu
                 description = $"每秒受 {seedDpsRef:F1} 木属性持续伤害",
                 uiColor = new Color(0.4f, 0.9f, 0.4f),
                 onTick = OnSeedTick,
-                onExpire = OnSeedExpired
+                onExpire = OnSeedExpiredTracked
             });
 
-            // 视觉提示：敌人头顶绿色叶片（用 N 个小球绕成圆圈）+ 飘字
-            FxFactory.RefreshHeadSeedIcons(enemy.transform, applied != null ? applied.stacks : 1, new Color(0.4f, 0.95f, 0.4f, 1f));
+            _totalSeedCount++;
+            RefreshKuRongPassive();
 
+            FxFactory.RefreshHeadSeedIcons(enemy.transform, applied != null ? applied.stacks : 1, new Color(0.4f, 0.95f, 0.4f, 1f));
             GameEvents.Publish(new GameEvents.DamageNumberRequested
             {
                 WorldPosition = enemy.transform.position + Vector3.up * 1.8f,
                 Damage = 0,
-                SpecialTag = "+1 种子"
+                SpecialTag = $"+1 种子（{_totalSeedCount}/{globalSeedCap}）"
             });
         }
 
-        private void OnSeedExpired(StatusEffect eff, GameObject host)
+        private void OnSeedExpiredTracked(StatusEffect eff, GameObject host)
         {
             if (host != null) FxFactory.ClearHeadSeedIcons(host.transform);
+            _totalSeedCount = Mathf.Max(0, _totalSeedCount - (eff != null ? eff.stacks : 1));
+            RefreshKuRongPassive();
+        }
+
+        private void RefreshKuRongPassive()
+        {
+            if (_ownStatus == null) return;
+            _ownStatus.Remove(KuRongPassiveId);
+            if (_totalSeedCount <= 0) return;
+            float bonus = passiveDmgPerSeed * _totalSeedCount;
+            _ownStatus.Apply(new StatusEffect
+            {
+                id = KuRongPassiveId,
+                isBuff = true,
+                elementTag = ElementTag.Wood,
+                stacks = _totalSeedCount,
+                maxStacks = globalSeedCap,
+                defaultDuration = -1f,
+                duration = -1f,
+                modifiers = new System.Collections.Generic.List<StatModifier>
+                {
+                    StatModifier.Percent(StatType.AttackDamage, bonus)
+                },
+                displayName = $"枯荣 · 蓄势",
+                description = $"全局 {_totalSeedCount} 颗种子 → 攻击 +{bonus * 100:F1}%",
+                uiColor = new Color(0.4f, 0.9f, 0.4f)
+            });
         }
 
         private void OnSeedTick(StatusEffect eff, GameObject host, float dt)
@@ -146,11 +185,13 @@ namespace XianTu
                 float dmg = _player.Stats.attackDamage * detonateDamagePerSeed * n;
                 var d = col.GetComponent<IDamageable>();
                 if (d != null) d.OnDamage(dmg, col.transform.position, _player.gameObject);
+                _totalSeedCount = Mathf.Max(0, _totalSeedCount - n);
                 sc.Remove(ParasiteSeedEffectId);
                 FxFactory.ClearHeadSeedIcons(col.transform);
                 FxFactory.SpawnElementBurst(col.transform.position + Vector3.up * 0.5f, ElementTag.Wood, 1.5f + 0.2f * n, 0.5f);
                 detonated++;
             }
+            RefreshKuRongPassive();
             GameEvents.Publish(new GameEvents.DamageNumberRequested
             {
                 WorldPosition = transform.position + Vector3.up * 2.6f,
@@ -175,7 +216,6 @@ namespace XianTu
             float radius = detonateBaseRadius + detonateRadiusPerSeed * seedCount;
             float damage = _player.Stats.attackDamage * detonateDamagePerSeed * seedCount;
 
-            // 引爆 AOE
             var hits = Physics.OverlapSphere(evt.HitPoint, radius, enemyLayer);
             foreach (var col in hits)
             {
@@ -184,11 +224,9 @@ namespace XianTu
                     d.OnDamage(damage, col.transform.position, _player != null ? _player.gameObject : gameObject);
             }
 
-            // 消耗所有种子 + 清掉头顶图标
-            statusCtrl.Remove(ParasiteSeedEffectId);
-            FxFactory.ClearHeadSeedIcons(evt.Target.transform);
+            // 枯荣逆旅被动：技能命中不消耗种子，只造成额外伤害
+            // 种子由自然过期或主动引爆（DetonateSeeds）消耗
 
-            // 视觉：绿色 AOE 圆环 + 落点元素爆发（绿色球+绕飞小球）
             Color woodColor = new Color(0.4f, 0.95f, 0.4f, 1f);
             FxFactory.SpawnAOERing(evt.HitPoint + Vector3.up * 0.05f, radius, woodColor, 0.6f);
             FxFactory.SpawnElementBurst(evt.HitPoint, ElementTag.Wood, radius * 0.8f, 0.55f);
@@ -204,7 +242,7 @@ namespace XianTu
             {
                 WorldPosition = evt.HitPoint + Vector3.up * 1.5f,
                 Damage = damage,
-                SpecialTag = $"种子×{seedCount} 引爆"
+                SpecialTag = $"种子×{seedCount} 共鸣"
             });
         }
     }

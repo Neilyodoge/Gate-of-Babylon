@@ -90,5 +90,43 @@ namespace XianTu
             FxFactory.SpawnElementBurst(muzzle, ElementTag.Earth, 0.5f, 0.18f);
             FxFactory.SpawnElementBurst(impact + Vector3.up * 0.3f, ElementTag.Earth, _aoeRadius, 0.35f);
         }
+
+        /// <summary>
+        /// GDD §4.3.5 / §6.7.4：玩家释放技能时，傀儡立即跟随开火一次（同步伤害由调用方传入）。
+        /// </summary>
+        public void SyncFire(float damage)
+        {
+            if (_player == null) return;
+
+            int n = Physics.OverlapSphereNonAlloc(transform.position, _range, _buf, _mask);
+            Transform nearest = null;
+            float best = float.MaxValue;
+            for (int i = 0; i < n; i++)
+            {
+                var c = _buf[i];
+                if (c == null || c.CompareTag("Player")) continue;
+                float d = (c.transform.position - transform.position).sqrMagnitude;
+                if (d < best) { best = d; nearest = c.transform; }
+            }
+            if (nearest == null) return;
+
+            Vector3 impact = nearest.position;
+            var aoe = Physics.OverlapSphere(impact, _aoeRadius, _mask);
+            foreach (var c in aoe)
+            {
+                if (c == null || c.CompareTag("Player")) continue;
+                var dmgable = c.GetComponent<IDamageable>();
+                if (dmgable != null) dmgable.OnDamage(damage, c.transform.position, _player.gameObject);
+            }
+
+            Color earth = FxFactory.ElementColor(ElementTag.Earth);
+            Vector3 muzzle = transform.position + Vector3.up * 1.1f;
+            Vector3 aim = impact + Vector3.up * 0.6f;
+            Vector3 dir = aim - muzzle;
+            float dist = dir.magnitude;
+            if (dist > 0.01f)
+                FxFactory.SpawnSliceLine(muzzle, dir.normalized, dist, new Color(earth.r, earth.g, earth.b, 0.5f), 0.12f);
+            FxFactory.SpawnElementBurst(impact + Vector3.up * 0.3f, ElementTag.Earth, _aoeRadius * 0.6f, 0.2f);
+        }
     }
 }

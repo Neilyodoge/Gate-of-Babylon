@@ -245,7 +245,10 @@ namespace XianTu
                         ItemRarity rarity = config.RollRarity();
                         var candidates = new List<ItemData>();
                         foreach (var d in _shopItems)
-                            if (d != null && d.rarity == rarity) candidates.Add(d);
+                            if (d != null && d.rarity == rarity && AvatarRestriction.IsAllowed(d)) candidates.Add(d);
+                        if (candidates.Count == 0)
+                            foreach (var d in _shopItems)
+                                if (d != null && AvatarRestriction.IsAllowed(d)) candidates.Add(d);
                         item = candidates.Count > 0 ? candidates[Random.Range(0, candidates.Count)]
                                                     : _shopItems[Random.Range(0, _shopItems.Length)];
                     }

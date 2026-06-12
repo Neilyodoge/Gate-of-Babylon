@@ -274,6 +274,9 @@ namespace XianTu
             // v0.5 Week 4：把已解锁的炼器灵物注入本局梦境掉落池
             AugmentItemPoolFromForge();
 
+            // GDD §4.9：化身初始灵物（DefaultItem_ID）
+            AvatarRestriction.GrantDefaultItem(itemPool);
+
             // 生成整局的房间布局
             GenerateLevelLayout();
 

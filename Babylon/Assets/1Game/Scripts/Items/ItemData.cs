@@ -56,6 +56,8 @@ namespace XianTu
     public class ItemData : ScriptableObject
     {
         [Header("基础信息")]
+        /// <summary>对接 Item_InRun_Config 的行 ID（0=不接表）。用于 Avatar 的 DefaultItem_ID / Restriction 匹配。</summary>
+        public int configId = 0;
         public string itemName = "未命名灵物";
         [TextArea(2, 4)]
         public string description = "灵物描述";

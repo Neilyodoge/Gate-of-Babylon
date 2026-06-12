@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="BattleRewardUI.uss" />
+    <ui:VisualElement name="overlay" class="br-overlay">
+        <ui:VisualElement name="center" class="br-center">
+            <ui:Label text="· 战利品 ·" class="br-title" />
+            <ui:Label text="选择一件灵物带走（点击卡片或按 1 / 2 / 3）" class="br-sub" />
+            <ui:VisualElement name="cards" class="br-cards" />
+            <ui:Button name="skip" text="跳 过" class="br-skip" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

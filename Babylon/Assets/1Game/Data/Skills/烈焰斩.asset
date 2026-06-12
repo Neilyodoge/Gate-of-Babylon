@@ -44,6 +44,7 @@ MonoBehaviour:
   healScaling: 0.3
   summonDuration: 8
   summonDamage: 10
+  summonIsDecoy: 0
   buffDuration: 0
   buffAttackSpeedPct: 0
   buffMoveSpeedPct: 0
@@ -55,6 +56,10 @@ MonoBehaviour:
   runTotalDamageRatio: 0.1
   dashInvulnerable: 0
   dashInvulnDuration: 0
+  armLethalGuard: 0
+  lethalGuardDuration: 0
+  heavenEarthShift: 0
+  avatarSpecial: 0
   zoneDuration: 5
   zoneRadius: 0
   zoneTickInterval: 0.5
@@ -63,7 +68,39 @@ MonoBehaviour:
   zonePullSpeed: 0
   zoneFollowPlayer: 0
   zoneBurnDPS: 0
-  modifierDefs: []
+  modifierDefs:
+  - modifiedName: "\u70C8\u7130\u65A9\xB7\u711A\u5929"
+    requiredTag: 1
+    requiredCount: 1
+    leaveZone: 1
+    zoneRadius: 2
+    zoneDuration: 3
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.12
+    addBurn: 0
+    burnDPS: 4
+    burnDuration: 3
+    addFreeze: 0
+    freezeChance: 1
+    freezeDuration: 2
+    addThunderStrike: 0
+    thunderMul: 0.6
+  - modifiedName: "\u70C8\u7130\u65A9\xB7\u5BD2\u971C"
+    requiredTag: 2
+    requiredCount: 1
+    leaveZone: 0
+    zoneRadius: 2.5
+    zoneDuration: 3
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.15
+    addBurn: 0
+    burnDPS: 4
+    burnDuration: 3
+    addFreeze: 1
+    freezeChance: 0.5
+    freezeDuration: 1.5
+    addThunderStrike: 0
+    thunderMul: 0.6
   playAnimation: 0
   vfxPrefab: {fileID: 0}
   vfxDuration: 1.5

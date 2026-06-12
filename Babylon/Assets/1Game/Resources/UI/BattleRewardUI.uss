@@ -1,0 +1,138 @@
+/* 战斗房三选一灵物奖励 · UITK */
+
+.br-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.82);
+}
+
+.br-center {
+    align-items: center;
+}
+
+.br-title {
+    font-size: 32px;
+    -unity-font-style: bold;
+    color: rgb(255, 216, 115);
+    -unity-text-align: middle-center;
+    letter-spacing: 3px;
+}
+
+.br-sub {
+    font-size: 14px;
+    color: rgba(185, 185, 215, 0.85);
+    -unity-text-align: middle-center;
+    margin-top: 8px;
+    margin-bottom: 30px;
+}
+
+.br-cards {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.br-card {
+    width: 220px;
+    min-height: 310px;
+    margin-left: 14px;
+    margin-right: 14px;
+    background-color: rgba(22, 18, 15, 0.97);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+    align-items: center;
+    padding-bottom: 14px;
+    transition-property: translate, border-color, background-color;
+    transition-duration: 0.12s;
+}
+
+.br-card:hover {
+    translate: 0 -10px;
+    border-color: rgba(255, 216, 90, 0.7);
+    background-color: rgba(32, 26, 20, 0.99);
+}
+
+.br-accent {
+    height: 5px;
+    width: 100%;
+}
+
+.br-icon {
+    width: 60px;
+    height: 60px;
+    border-top-left-radius: 30px;
+    border-top-right-radius: 30px;
+    border-bottom-left-radius: 30px;
+    border-bottom-right-radius: 30px;
+    margin-top: 22px;
+    margin-bottom: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.br-icon-label {
+    font-size: 28px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.br-name {
+    font-size: 20px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-bottom: 2px;
+}
+
+.br-rarity {
+    font-size: 12px;
+    color: rgba(200, 195, 180, 0.7);
+    -unity-text-align: middle-center;
+    margin-bottom: 10px;
+}
+
+.br-effect {
+    font-size: 13px;
+    color: rgba(220, 214, 205, 0.9);
+    white-space: normal;
+    -unity-text-align: upper-center;
+    padding-left: 12px;
+    padding-right: 12px;
+    flex-grow: 1;
+}
+
+.br-hot {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(255, 224, 110);
+    -unity-text-align: middle-center;
+    margin-top: 10px;
+}
+
+.br-skip {
+    margin-top: 24px;
+    padding-left: 32px;
+    padding-right: 32px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    font-size: 14px;
+    color: rgba(180, 170, 160, 0.7);
+    background-color: rgba(40, 35, 30, 0.6);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    transition-property: color, background-color;
+    transition-duration: 0.15s;
+}
+
+.br-skip:hover {
+    color: rgba(255, 200, 130, 0.9);
+    background-color: rgba(60, 50, 40, 0.8);
+}

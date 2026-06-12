@@ -150,6 +150,7 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.MeleeHitConnected>(OnMeleeHit);
             GameEvents.Subscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             GameEvents.Subscribe<GameEvents.EarthShieldStackConsumed>(OnShieldConsumed);
+            GameEvents.Subscribe<GameEvents.SkillCastStarted>(OnPlayerSkillCast);
         }
 
         private void OnDisable()
@@ -157,6 +158,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.MeleeHitConnected>(OnMeleeHit);
             GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
             GameEvents.Unsubscribe<GameEvents.EarthShieldStackConsumed>(OnShieldConsumed);
+            GameEvents.Unsubscribe<GameEvents.SkillCastStarted>(OnPlayerSkillCast);
 
             // 失活时收一下视觉 + 复位土傀增伤
             EarthPuppetTurret.GlobalDamageMul = 1f;
@@ -198,6 +200,45 @@ namespace XianTu
             go.transform.position = pos;
             go.AddComponent<EarthPuppetTurret>().Init(_player, mask, passivePuppetLife);
             _passivePuppets.Add(go);
+        }
+
+        // ============================ GDD §4.3.5 / §6.7.4 技能同步 ============================
+        // 玩家释放 Q/E/R → 所有活跃土傀立即跟随开火一次（伤害 = 玩家攻击 × SyncDmgRatio）
+        private const float SyncDmgRatio = 0.10f;
+
+        private void OnPlayerSkillCast(GameEvents.SkillCastStarted evt)
+        {
+            if (_root == null || _root.CurrentRoot != SpiritRootType.Earth) return;
+            if (_player == null) return;
+
+            _passivePuppets.RemoveAll(p => p == null);
+            _puppetTurrets.RemoveAll(p => p == null);
+
+            float dmg = _player.Stats.attackDamage * SyncDmgRatio * Mathf.Max(0.1f, EarthPuppetTurret.GlobalDamageMul);
+            int syncCount = 0;
+
+            foreach (var go in _passivePuppets)
+            {
+                if (go == null) continue;
+                var turret = go.GetComponent<EarthPuppetTurret>();
+                if (turret != null) { turret.SyncFire(dmg); syncCount++; }
+            }
+            foreach (var go in _puppetTurrets)
+            {
+                if (go == null) continue;
+                var turret = go.GetComponent<EarthPuppetTurret>();
+                if (turret != null) { turret.SyncFire(dmg); syncCount++; }
+            }
+
+            if (syncCount > 0)
+            {
+                GameEvents.Publish(new GameEvents.DamageNumberRequested
+                {
+                    WorldPosition = transform.position + Vector3.up * 2.2f,
+                    Damage = 0,
+                    SpecialTag = $"傀儡同步 ×{syncCount}"
+                });
+            }
         }
 
         // ============================ 烙印 [v0.6 已移除] ============================

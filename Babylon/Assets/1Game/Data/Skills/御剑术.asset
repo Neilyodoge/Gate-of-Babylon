@@ -68,7 +68,39 @@ MonoBehaviour:
   zonePullSpeed: 0
   zoneFollowPlayer: 0
   zoneBurnDPS: 0
-  modifierDefs: []
+  modifierDefs:
+  - modifiedName: "\u5FA1\u5251\u672F\xB7\u96F7\u5251"
+    requiredTag: 3
+    requiredCount: 1
+    leaveZone: 0
+    zoneRadius: 2.5
+    zoneDuration: 3
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.15
+    addBurn: 0
+    burnDPS: 4
+    burnDuration: 3
+    addFreeze: 0
+    freezeChance: 1
+    freezeDuration: 2
+    addThunderStrike: 1
+    thunderMul: 0.4
+  - modifiedName: "\u5FA1\u5251\u672F\xB7\u7130\u5251"
+    requiredTag: 1
+    requiredCount: 1
+    leaveZone: 0
+    zoneRadius: 2.5
+    zoneDuration: 3
+    zoneTickInterval: 0.5
+    zoneDamageMul: 0.15
+    addBurn: 1
+    burnDPS: 4
+    burnDuration: 2.5
+    addFreeze: 0
+    freezeChance: 1
+    freezeDuration: 2
+    addThunderStrike: 0
+    thunderMul: 0.6
   playAnimation: 0
   vfxPrefab: {fileID: 0}
   vfxDuration: 1
