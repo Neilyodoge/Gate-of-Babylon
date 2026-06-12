@@ -51,6 +51,7 @@ namespace XianTu.LevelDesign
         public AvatarBaseRow GetAvatar(int id) => Avatars.TryGetValue(id, out var r) ? r : null;
         public SkillBaseRow GetSkillBase(int id) => SkillBases.TryGetValue(id, out var r) ? r : null;
         public SkillEffectRow GetSkillEffect(int id) => SkillEffects.TryGetValue(id, out var r) ? r : null;
+        public ItemInRunRow GetItem(int id) => ItemsInRun.TryGetValue(id, out var r) ? r : null;
 
         private void LoadAll()
         {

@@ -282,10 +282,10 @@ namespace XianTu
             var damageable = _target.GetComponent<IDamageable>();
             if (damageable != null)
             {
-                float damage = stats.CalculateDamage();
+                float targetDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                var (damage, _) = stats.CalcMeleeDamage(targetDef);
                 damageable.OnDamage(damage, transform.position, gameObject);
 
-                // 吸血词缀：回复伤害的10%
                 if (_hasVampiric)
                 {
                     float heal = damage * 0.1f;
@@ -327,7 +327,7 @@ namespace XianTu
             // 闪电链：对玩家位置周围造成范围伤害
             Vector3 targetPos = _target.position;
             float radius = 2.5f;
-            float damage = stats.attackDamage * 0.6f;
+            float damage = stats.CalcSkillDamage(0f, 0.6f).damage;
 
             // 视觉效果：闪电球
             var lightning = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -650,11 +650,13 @@ namespace XianTu
             {
                 elite.stats.maxHp = config.敌人基础血量 * eliteHpMul * hpMultiplier;
                 elite.stats.attackDamage = config.敌人基础攻击力 * eliteDmgMul * dmgMultiplier;
+                elite.stats.defense = config.敌人基础防御力 * 2f;
             }
             else
             {
                 elite.stats.maxHp = 90f * hpMultiplier;
                 elite.stats.attackDamage = 12f * dmgMultiplier;
+                elite.stats.defense = 6f;
             }
             elite.stats.currentHp = elite.stats.maxHp;
             elite._roomLevel = roomLevel;

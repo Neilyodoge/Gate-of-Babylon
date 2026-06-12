@@ -10,8 +10,8 @@ namespace XianTu
         [Header("基础参数")]
         [SerializeField] private float lifetime = 5f;
 
-        // 运行时数据
         private float _damage;
+        private float _armorPen;
         private Vector3 _direction;
         private float _speed;
         private int _pierceRemaining;
@@ -33,9 +33,10 @@ namespace XianTu
         /// 初始化投射物参数（含元素 + 释放者引用，用于命中元素表现）
         /// </summary>
         public void Initialize(float damage, Vector3 direction, float speed, int pierceCount, float burnDPS,
-                                ElementTag elementTag, PlayerController owner)
+                                ElementTag elementTag, PlayerController owner, float armorPen = 0f)
         {
             _damage = damage;
+            _armorPen = armorPen;
             _direction = direction.normalized;
             _speed = speed;
             _pierceRemaining = pierceCount;
@@ -75,7 +76,10 @@ namespace XianTu
             var damageable = other.GetComponent<IDamageable>();
             if (damageable != null)
             {
-                damageable.OnDamage(_damage, transform.position, gameObject);
+                float finalDmg = _damage;
+                if (damageable.Stats != null)
+                    finalDmg = Mathf.Max(1f, _damage - damageable.Stats.defense * (1f - Mathf.Clamp01(_armorPen)));
+                damageable.OnDamage(finalDmg, transform.position, gameObject);
 
                 // 灼烧效果
                 if (_burnDPS > 0)

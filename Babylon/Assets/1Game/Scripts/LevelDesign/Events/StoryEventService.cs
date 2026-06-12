@@ -138,7 +138,7 @@ namespace XianTu.LevelDesign
 
             // 暂未挂接到具体 SO 时，至少把事实写入日志 + Flag
             BossFlagSet.Instance.Add($"reward_{row.Name_CN}", 1);
-            Debug.Log($"[StoryEvent] ✓ 获得（占位）：{row.Name_CN} —— {row.Text_CN}");
+            Debug.Log($"[StoryEvent] ✓ 获得（占位）：{row.Name_CN} —— {row.Desc_CN}");
         }
 
         private void ConsumeItemCost(int itemRowID)

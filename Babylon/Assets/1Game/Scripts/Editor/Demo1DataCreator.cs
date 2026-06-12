@@ -736,7 +736,7 @@ namespace XianTu.Editor
             item.itemName = "火灵珠";
             item.description = "蕴含火灵之力的珠子，攻击附带灼烧效果。\n叠加可增强灼烧伤害，集齐五颗可引发焚天冲击波。";
             item.rarity = ItemRarity.Fan;
-            item.category = ItemCategory.Attack;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 5, 8 };
             item.burnDamagePerSecond = 5f;
@@ -750,7 +750,7 @@ namespace XianTu.Editor
             item.itemName = "风灵珠";
             item.description = "凝聚风灵之力，持有者身轻如燕。\n叠加可进一步提升移速，集齐五颗闪避后留下风之残影。";
             item.rarity = ItemRarity.Fan;
-            item.category = ItemCategory.Movement;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 5 };
             item.moveSpeedBonusPercent = 0.1f;
@@ -763,7 +763,7 @@ namespace XianTu.Editor
             item.itemName = "玉佩";
             item.description = "温润的灵玉所制，可抵御部分伤害。\n叠加增强减伤效果，集齐五块可触发玉碎免死。";
             item.rarity = ItemRarity.Fan;
-            item.category = ItemCategory.Defense;
+            item.category = ItemCategory.MechanicEnhance;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 5 };
             item.damageReductionBonus = 0.05f;
@@ -777,7 +777,7 @@ namespace XianTu.Editor
             item.itemName = "锈铁飞剑";
             item.description = "一柄锈迹斑斑的飞剑，此剑虽锈，剑意犹存。\n叠加增加攻击力和穿透，集齐五柄可召唤剑阵护体。";
             item.rarity = ItemRarity.Fan;
-            item.category = ItemCategory.Attack;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 5, 8 };
             item.attackBonus = 3f;
@@ -792,7 +792,7 @@ namespace XianTu.Editor
             item.itemName = "回灵丹";
             item.description = "服用后灵力充盈，生命力大增。\n击杀敌人时可回复少量生命，集齐五颗可触发涅槃复活。";
             item.rarity = ItemRarity.Fan;
-            item.category = ItemCategory.Defense;
+            item.category = ItemCategory.MechanicEnhance;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 5 };
             item.maxHpBonus = 20f;
@@ -809,7 +809,7 @@ namespace XianTu.Editor
             item.itemName = "雷灵珠";
             item.description = "蕴含雷霆之力的灵珠，攻击时有概率触发雷击。\n叠加增强暴击率和暴击伤害。";
             item.rarity = ItemRarity.Ling;
-            item.category = ItemCategory.Attack;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 4, 7 };
             item.attackBonus = 5f;
@@ -823,7 +823,7 @@ namespace XianTu.Editor
             item.itemName = "影遁衣";
             item.description = "以暗影之力编织的灵衣，穿戴后身形飘忽。\n大幅提升移速和攻速，闪避后短暂隐身。";
             item.rarity = ItemRarity.Ling;
-            item.category = ItemCategory.Movement;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 4 };
             item.moveSpeedBonusPercent = 0.15f;
@@ -839,7 +839,7 @@ namespace XianTu.Editor
             item.itemName = "龙鳞甲";
             item.description = "取自上古真龙的鳞片，坚不可摧。\n大幅提升减伤和生命上限，受击时反弹伤害。";
             item.rarity = ItemRarity.Xuan;
-            item.category = ItemCategory.Defense;
+            item.category = ItemCategory.MechanicEnhance;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 3, 5 };
             item.damageReductionBonus = 0.12f;
@@ -854,7 +854,7 @@ namespace XianTu.Editor
             item.itemName = "凤凰羽";
             item.description = "凤凰涅槃后遗落的神羽，蕴含重生之力。\n大幅提升攻击力，击杀回复大量生命。";
             item.rarity = ItemRarity.Xuan;
-            item.category = ItemCategory.Attack;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 3 };
             item.attackBonus = 8f;
@@ -871,7 +871,7 @@ namespace XianTu.Editor
             item.itemName = "虚空石";
             item.description = "来自虚空裂隙的神秘矿石，扭曲时空之力。\n全属性大幅提升，攻击附带虚空侵蚀。";
             item.rarity = ItemRarity.Di;
-            item.category = ItemCategory.Attack;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 2, 4 };
             item.attackBonus = 12f;
@@ -893,7 +893,7 @@ namespace XianTu.Editor
             item.itemName = "寒冰玉髓";
             item.description = "万年寒冰凝结的玉髓，触之刺骨。\n攻击有概率冻结敌人，叠加增强冻结概率。";
             item.rarity = ItemRarity.Ling;
-            item.category = ItemCategory.Anomaly;
+            item.category = ItemCategory.MechanicModify;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 4 };
             item.freezeChance = 0.1f;
@@ -908,7 +908,7 @@ namespace XianTu.Editor
             item.itemName = "血珊瑚";
             item.description = "深海血色珊瑚，蕴含嗜血之力。\n击杀回复生命，攻击附带微弱灼烧。";
             item.rarity = ItemRarity.Fan;
-            item.category = ItemCategory.Anomaly;
+            item.category = ItemCategory.MechanicModify;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 5 };
             item.healOnKill = 4f;
@@ -923,7 +923,7 @@ namespace XianTu.Editor
             item.itemName = "破镜碎片";
             item.description = "破碎的照妖镜残片，映射出敌人的弱点。\n大幅提升暴击率和暴击伤害。";
             item.rarity = ItemRarity.Xuan;
-            item.category = ItemCategory.Anomaly;
+            item.category = ItemCategory.MechanicModify;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 3 };
             item.critRateBonus = 0.12f;
@@ -938,7 +938,7 @@ namespace XianTu.Editor
             item.itemName = "灵藤草";
             item.description = "灵山深处的藤蔓精华，服用后身轻体健。\n提升生命上限和移速，击杀回复少量生命。";
             item.rarity = ItemRarity.Ling;
-            item.category = ItemCategory.Defense;
+            item.category = ItemCategory.MechanicEnhance;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 4 };
             item.maxHpBonus = 25f;
@@ -954,7 +954,7 @@ namespace XianTu.Editor
             item.itemName = "星辰尘";
             item.description = "坠落的星辰碎屑，蕴含时空加速之力。\n极大提升移速和攻速，闪避距离增加。";
             item.rarity = ItemRarity.Di;
-            item.category = ItemCategory.Movement;
+            item.category = ItemCategory.StatStacking;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 2 };
             item.moveSpeedBonusPercent = 0.25f;
@@ -969,7 +969,7 @@ namespace XianTu.Editor
             item.itemName = "引魂灯";
             item.description = "引渡亡魂的古灯，击杀敌人时吸收残魂。\n大幅提升暴击和击杀回复，攻击附带灼烧。";
             item.rarity = ItemRarity.Di;
-            item.category = ItemCategory.Anomaly;
+            item.category = ItemCategory.MechanicModify;
             item.stackable = true;
             item.qualitativeThresholds = new int[] { 2 };
             item.critRateBonus = 0.12f;
@@ -986,7 +986,7 @@ namespace XianTu.Editor
             item.itemName = "混沌核心";
             item.description = "混沌初开时遗留的本源之力，持有者攻守兼备。\n全属性极大提升，受击反弹伤害。";
             item.rarity = ItemRarity.Tian;
-            item.category = ItemCategory.Defense;
+            item.category = ItemCategory.MechanicEnhance;
             item.stackable = false;
             item.damageReductionBonus = 0.2f;
             item.maxHpBonus = 80f;
@@ -1003,7 +1003,7 @@ namespace XianTu.Editor
             item.itemName = "天道珠";
             item.description = "蕴含天道法则的至宝，持有者如有神助。\n全属性极大提升，攻击附带天雷制裁。";
             item.rarity = ItemRarity.Tian;
-            item.category = ItemCategory.Attack;
+            item.category = ItemCategory.StatStacking;
             item.stackable = false;
             item.attackBonus = 20f;
             item.attackBonusPercent = 0.25f;

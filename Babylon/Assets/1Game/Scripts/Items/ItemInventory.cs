@@ -168,6 +168,11 @@ namespace XianTu
             _playerStats.pierceCount = _baseStats.pierceCount;
             _playerStats.projectileSpeed = _baseStats.projectileSpeed;
             _playerStats.dashCooldown = _baseStats.dashCooldown;
+            _playerStats.defense = _baseStats.defense;
+            _playerStats.avatarCoefficient = _baseStats.avatarCoefficient;
+            _playerStats.damageBonusPercent = _baseStats.damageBonusPercent;
+            _playerStats.armorPenPercent = _baseStats.armorPenPercent;
+            _playerStats.skillDamagePercent = _baseStats.skillDamagePercent;
 
             float attackFlatBonus = 0f;
             float attackPercentBonus = 0f;
@@ -277,7 +282,7 @@ namespace XianTu
 
                 switch (item.category)
                 {
-                    case ItemCategory.Anomaly:
+                    case ItemCategory.MechanicModify:
                         if (c >= 5)
                             _playerStats.critRate = Mathf.Clamp01(_playerStats.critRate + 0.15f);
                         break;
@@ -448,21 +453,17 @@ namespace XianTu
 
             switch (item.category)
             {
-                case ItemCategory.Attack:
+                case ItemCategory.StatStacking:
                     if (count == 5)
-                        return "攻伐灵力共鸣，攻击附带灵力余波";
+                        return "数值共鸣，全属性强化";
                     break;
-                case ItemCategory.Defense:
+                case ItemCategory.MechanicEnhance:
                     if (count == 5)
-                        return "护体灵力共鸣，受击时有概率格挡";
+                        return "机制共鸣，强化效果翻倍";
                     break;
-                case ItemCategory.Movement:
+                case ItemCategory.MechanicModify:
                     if (count == 5)
-                        return "身法灵力共鸣，移动留下残影";
-                    break;
-                case ItemCategory.Anomaly:
-                    if (count == 5)
-                        return "异变灵力共鸣！暴击率+15%，攻击附带灵力爆发";
+                        return "机制共鸣！暴击率+15%，攻击附带灵力爆发";
                     break;
             }
 

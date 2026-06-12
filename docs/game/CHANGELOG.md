@@ -6,6 +6,43 @@
 
 ---
 
+## V.05 · 数值公式 + 灵物系统重构（2026-06-12）
+
+GDD V.05 版本规划的核心落地：数值公式建立 + 灵物系统全面重构 + 全量接入。
+
+### §13 数值公式重写
+- `CombatStats` 新增 5 个 GDD §13 属性：`defense`(防御力)、`avatarCoefficient`(化身系数)、`damageBonusPercent`(增伤百分比)、`armorPenPercent`(减防百分比)、`skillDamagePercent`(技能伤害加成)。
+- `StatType` 枚举新增 `Defense` / `AvatarCoefficient` / `DamageBonusPercent` / `ArmorPenPercent` / `SkillDamagePercent`。
+- `CombatStats` 新增 `CalcMeleeDamage(targetDef)` / `CalcSkillDamage(targetDef, skillMul)` / `BuildSummonDamage()` 方法，实现 GDD §13 的四条公式：
+  - 普攻：`(base × (1 + avatarCoeff + dmgBonus%) - enemyDef × (1 - armorPen%)) × critDmg`
+  - 技能：上式 `× skillDmg × (1 + skillDmgPct)`
+- `StatusEffectController` / `SpiritRootController` / `ItemInventory.RecalculateStats` 均已支持新 5 属性的 buff 叠加。
+
+### §13 公式全量接入
+- **玩家侧**：`PlayerCombat.CheckMeleeHit`（近战连招）、`CastAreaSkill`（范围技能）、`CastProjectileSkill`（投射物技能）、`CastDashSkill`（冲刺留痕）、`CastSummonSkill`（召唤技能）全部切换至 `CalcMeleeDamage` / `CalcSkillDamage` / `BuildSummonDamage`。
+- **衍生伤害**：`ActiveSkillZone`（持续区域 tick）、`Projectile`（投射物命中含 armorPen 传递）、`EarthPuppetTurret`（傀儡炮击）全部接入新公式。
+- **化身机制**：`SpiritRootWaterController`（影息斩/息影瞬步/水痕收割）、`SpiritRootGoldController`（灵压爆发/大破/剑心大爆发）全部接入。
+- **敌人侧**：`EnemyBase` / `EnemyElite` / `EnemyBoss` / `EnemyCharger` / `EnemyMage` / `EnemyRanged` / `EnemyProjectile` / `InnerDemonTribulation` 攻击均改用新公式。
+- **敌人防御力**：`GameConfig` 新增 `敌人基础防御力 = 3`；普通×1 / 远程×0.5 / 冲锋×1.5 / 法师×0.6 / 精英×2 / Boss×3。
+- **化身系数**：`SpiritRootRegistry` 中每个化身注入 `AvatarCoefficient`：金 0.10 / 木 0.05 / 水 0.08 / 火 0.12 / 土 0.03。
+- **ItemPool 同步**：20 个灵物 SO 已同步到 `Resources/Items`，运行时加载就绪。
+- 旧 `CalculateDamage()` 调用点已清零（向后兼容方法仍保留但不再有调用方）。
+
+### §5 灵物系统重构
+- **分类重写**：`ItemCategory` 从旧 6 类（Attack/Defense/Movement/Anomaly/Skill/洞府材料）改为 GDD §5.2 的 3+1+6 结构：
+  - `StatStacking`(数值堆叠) / `MechanicEnhance`(机制增强) / `MechanicModify`(机制修改) + `Skill`(功法) + 洞府素材不变。
+  - 旧类型保留为 `[Obsolete]` 别名，序列化兼容。
+- **旧灵物全部删除**：`Assets/1Game/Data/Items/` 下 30 个旧 SO 已清除。
+- **20 个新灵物 SO 已创建**（按 GDD §5.4 设计 + 自行扩充）：
+  - 数值堆叠类 ×10：药蛇之血 / 朱睛冰蟾 / 化界石 / 凝血丹 / 九阳石 / 玄铁护符 / 疾风草 / 天雷印 / 灵龟甲 / 破军符
+  - 机制增强类 ×5：岩甲符 / 寒玉髓 / 烈焰精华 / 灵泉石 / 蚀甲虫
+  - 机制修改类 ×5：磨剑石 / 因果丝 / 裂空符 / 万灵珠 / 混沌珠
+- **配表就绪**：`Item_InRun_Config.csv` 重写（20 行 × 25 列，含 GDD §13 新属性列）；`ConfigTables.ItemInRunRow` 与 `CsvToJsonImporter` 同步更新。
+- **SynergySystem** 全部协同条件已迁移至新分类。
+- **CodexUITK / ConfigDashboard / ForgeRoom / Demo1DataCreator** 引用全面更新。
+
+---
+
 ## v0.6.3 · GDD 逻辑迭代（2026-06-12）
 
 GDD 对照审计后的一轮系统实装，覆盖 7 项 gap。

@@ -375,7 +375,8 @@ namespace XianTu
             var damageable = _target.GetComponent<IDamageable>();
             if (damageable != null)
             {
-                float damage = stats.CalculateDamage();
+                float targetDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                var (damage, _) = stats.CalcMeleeDamage(targetDef);
                 damageable.OnDamage(damage, transform.position, gameObject);
             }
         }
@@ -660,6 +661,7 @@ namespace XianTu
             {
                 enemy.stats.maxHp = config.敌人基础血量 * hpMultiplier;
                 enemy.stats.attackDamage = config.敌人基础攻击力 * dmgMultiplier;
+                enemy.stats.defense = config.敌人基础防御力;
             }
             else
             {

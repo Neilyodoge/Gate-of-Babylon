@@ -170,9 +170,10 @@ namespace XianTu
                     var damageable = col.GetComponent<IDamageable>();
                     if (damageable != null)
                     {
-                        // 根据连招段数计算伤害倍率
                         float damageMultiplier = GetComboDamageMultiplier(_playerAnim.ComboStep);
-                        float damage = _player.Stats.CalculateDamage() * damageMultiplier;
+                        float targetDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                        var (damage, _) = _player.Stats.CalcMeleeDamage(targetDef);
+                        damage *= damageMultiplier;
 
                         Vector3 hitPoint = col.ClosestPoint(origin);
 
@@ -793,13 +794,19 @@ namespace XianTu
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
                     {
-                        float damage = skill.damageFromRunTotal
-                            ? RunCombatStats.TotalPlayerDamage * skill.runTotalDamageRatio * damageMul
-                            : (SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
+                        float targetDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                        float damage;
+                        if (skill.damageFromRunTotal)
+                            damage = RunCombatStats.TotalPlayerDamage * skill.runTotalDamageRatio * damageMul;
+                        else
+                        {
+                            float skillBase = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
+                            var (d, _) = _player.Stats.CalcSkillDamage(targetDef, skillBase / Mathf.Max(1f, _player.Stats.attackDamage));
+                            damage = d * damageMul;
+                        }
                         damageable.OnDamage(damage, hit.transform.position, gameObject);
                         if (firstSkillHit == null) firstSkillHit = hit.gameObject;
 
-                        // 寒冰封印类：命中按概率冻结
                         if (skill.freezeOnHitChance > 0f && Random.value < skill.freezeOnHitChance)
                             SkillModifierApplier.ApplyFreeze(hit.gameObject, skill.freezeOnHitDuration);
                     }
@@ -910,7 +917,10 @@ namespace XianTu
         {
             Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
             Vector3 dir = _player.AimDirection;
-            float damage = (SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling) * damageMul;
+            float skillBase = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
+            float skillMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
+            var (damage, _) = _player.Stats.CalcSkillDamage(0f, skillMul);
+            damage *= damageMul;
 
             int count = Mathf.Max(1, skill.projectileCount);
             float halfSpread = skill.spreadAngle * 0.5f;
@@ -935,7 +945,7 @@ namespace XianTu
 
                     var projectile = proj.GetComponent<Projectile>();
                     if (projectile != null)
-                        projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0, skill.elementTag, _player);
+                        projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0, skill.elementTag, _player, _player.Stats.armorPenPercent);
                 }
                 else if (showDebugVisuals)
                 {
@@ -1407,14 +1417,19 @@ namespace XianTu
             // 如果留下伤害区域，对路径上的敌人造成伤害
             if (skill.leaveTrail)
             {
-                float damage = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
+                float skillBase = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
+                float sMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
                 var hits = Physics.OverlapCapsule(startPos + Vector3.up * 0.5f,
                     targetPos + Vector3.up * 0.5f, 1.5f, enemyLayer);
                 foreach (var hit in hits)
                 {
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
-                        damageable.OnDamage(damage, hit.transform.position, gameObject);
+                    {
+                        float tDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                        var (dmg, _) = _player.Stats.CalcSkillDamage(tDef, sMul);
+                        damageable.OnDamage(dmg, hit.transform.position, gameObject);
+                    }
                 }
             }
 
@@ -1496,7 +1511,8 @@ namespace XianTu
             }
 
             Vector3 spawnPos = transform.position + _player.AimDirection * 2f;
-            float damage = skill.summonDamage + _player.Stats.attackDamage * skill.damageScaling;
+            float baseRatio = skill.damageScaling;
+            var (damage, _) = _player.Stats.BuildSummonDamage(baseRatio, skill.summonDamage);
             float duration = skill.summonDuration;
 
             // 创建召唤物
@@ -1556,7 +1572,7 @@ namespace XianTu
 
             // 添加Projectile组件
             var projComp = proj.AddComponent<Projectile>();
-            projComp.Initialize(damage, direction, speed, 0, 0, elementTag, _player);
+            projComp.Initialize(damage, direction, speed, 0, 0, elementTag, _player, _player.Stats.armorPenPercent);
 
             // 确保有触发器碰撞体
             var col = proj.GetComponent<Collider>();

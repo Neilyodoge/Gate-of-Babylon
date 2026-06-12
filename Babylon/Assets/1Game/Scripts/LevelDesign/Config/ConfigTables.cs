@@ -117,19 +117,44 @@ namespace XianTu.LevelDesign
     }
 
     // ------------------------------------------------------------
-    // §12.2.3 Item_InRun_Config — 局内道具
+    // §5 V.05 Item_InRun_Config — 局内灵物（3 类新分类）
     // ------------------------------------------------------------
     [Serializable]
     public class ItemInRunRow
     {
         public int ID;
         public string Name_CN;
-        public string Text_CN;
-        public int Type;
-        public string Icon;
-        public int MaxStack = 1;
-        public int EffectID;
-        public float Duration;
+        public string Desc_CN;
+        public string Category;   // StatStacking / MechanicEnhance / MechanicModify
+        public string Rarity;     // Fan / Ling / Xuan / Di / Tian
+
+        // 数值属性（对应 ItemData 字段）
+        public float AtkBonus;
+        public float AtkBonusPct;
+        public float MaxHpBonus;
+        public float MaxHpBonusPct;
+        public float MoveSpeedPct;
+        public float DmgReduction;
+        public float CritRate;
+        public float CritDmg;
+        public float AtkSpeedPct;
+        public int   PierceBonus;
+        public float ProjSpeedPct;
+
+        // GDD §13 新属性
+        public float DefenseBonus;
+        public float DmgBonusPct;
+        public float ArmorPenPct;
+        public float SkillDmgPct;
+
+        // 特殊效果
+        public float BurnDPS;
+        public float FreezeChance;
+        public float HealOnKill;
+
+        // 叠加标签 & 上限
+        public string StackTag;
+        public int MaxStack = 99;
     }
 
     // ------------------------------------------------------------

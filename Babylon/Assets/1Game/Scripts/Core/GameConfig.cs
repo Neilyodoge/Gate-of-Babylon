@@ -76,6 +76,9 @@ namespace XianTu
         [Tooltip("普通小怪的基础攻击力。不同敌人类型会在此基础上乘以系数（如法师×1.5、远程×1.2、Boss×3）。")]
         public float 敌人基础攻击力 = 5f;
 
+        [Tooltip("GDD §13：普通敌人基础防御力。精英×2，Boss×3。")]
+        public float 敌人基础防御力 = 3f;
+
         [Tooltip("敌人的移动速度（单位/秒）。所有敌人类型共用此值。")]
         [Range(1f, 8f)]
         public float 敌人移动速度 = 3f;
@@ -333,6 +336,7 @@ namespace XianTu
             stats.maxHp = 敌人基础血量;
             stats.currentHp = 敌人基础血量;
             stats.attackDamage = 敌人基础攻击力;
+            stats.defense = 敌人基础防御力;
             stats.moveSpeed = 敌人移动速度;
         }
     }

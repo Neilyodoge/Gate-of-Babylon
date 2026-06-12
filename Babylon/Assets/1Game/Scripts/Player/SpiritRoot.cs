@@ -65,7 +65,8 @@ namespace XianTu
                 displayColor = new Color(1f, 0.85f, 0.2f),
                 baseModifiers = new List<StatModifier>
                 {
-                    StatModifier.Flat(StatType.PierceCount, 1)
+                    StatModifier.Flat(StatType.PierceCount, 1),
+                    StatModifier.Flat(StatType.AvatarCoefficient, 0.10f)
                 },
                 tooltip = "选剑魄 = 选「御金时机流」。飞剑自律补刀打底，窗口内每次完美收刀 ×1.5 爆发，3 次连续完美进入剑心通明。",
                 starterItemName = "锈铁飞剑",
@@ -81,7 +82,10 @@ namespace XianTu
                 passive = "副词条：每清完一个房间回复 3% 生命（v0.3 版 8% → 减半，去掉 -20% 最大生命惩罚）。核心机制：普攻种【寄生种子】，技能引爆所有种子 ×0.5/颗 AOE。",
                 starterItemHint = "起手携带：聚灵草",
                 displayColor = new Color(0.4f, 0.9f, 0.4f),
-                baseModifiers = new List<StatModifier>(),  // v0.3.2：去掉 -20% MaxHp 惩罚
+                baseModifiers = new List<StatModifier>
+                {
+                    StatModifier.Flat(StatType.AvatarCoefficient, 0.05f)
+                },
                 tooltip = "选青囊 = 选「普攻 ↔ 技能强耦合循环」。普攻铺 5 颗种子 → 技能一波收割 → 普攻继续铺。",
                 starterItemName = "灵藤草",
                 mechanicEnabled = true,   // v0.3.3 已落地
@@ -98,7 +102,8 @@ namespace XianTu
                 displayColor = new Color(0.3f, 0.7f, 1f),
                 baseModifiers = new List<StatModifier>
                 {
-                    StatModifier.Flat(StatType.DamageReduction, 0.03f)
+                    StatModifier.Flat(StatType.DamageReduction, 0.03f),
+                    StatModifier.Flat(StatType.AvatarCoefficient, 0.08f)
                 },
                 tooltip = "选影刃 = 选「闪避变输出」。战斗循环：闪避→影息斩标记→技能爆破→再闪避换位。",
                 starterItemName = "玉佩",
@@ -116,7 +121,8 @@ namespace XianTu
                 displayColor = new Color(1f, 0.4f, 0.1f),
                 baseModifiers = new List<StatModifier>
                 {
-                    StatModifier.Percent(StatType.AttackDamage, 0.03f)
+                    StatModifier.Percent(StatType.AttackDamage, 0.03f),
+                    StatModifier.Flat(StatType.AvatarCoefficient, 0.12f)
                 },
                 tooltip = "选业火 = 选「燃血豪赌」。越残血越猛，主动入狂火爆发但燃血涨心魔——高风险高回报。",
                 starterItemName = "火灵珠",
@@ -134,7 +140,8 @@ namespace XianTu
                 displayColor = new Color(0.85f, 0.7f, 0.4f),
                 baseModifiers = new List<StatModifier>
                 {
-                    StatModifier.Percent(StatType.MaxHp, 0.05f)
+                    StatModifier.Percent(StatType.MaxHp, 0.05f),
+                    StatModifier.Flat(StatType.AvatarCoefficient, 0.03f)
                 },
                 tooltip = "选御物 = 选「召物成军」。自律土傀打底，兵阵合一成阵爆发——指挥傀儡群压制战场。",
                 starterItemName = "龙鳞甲",

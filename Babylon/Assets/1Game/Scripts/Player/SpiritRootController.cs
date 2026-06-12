@@ -199,6 +199,21 @@ namespace XianTu
                     case StatType.ProjectileSpeed:
                         baseStats.projectileSpeed *= 1f + v;
                         break;
+                    case StatType.Defense:
+                        baseStats.defense += v;
+                        break;
+                    case StatType.AvatarCoefficient:
+                        baseStats.avatarCoefficient += v;
+                        break;
+                    case StatType.DamageBonusPercent:
+                        baseStats.damageBonusPercent += v;
+                        break;
+                    case StatType.ArmorPenPercent:
+                        baseStats.armorPenPercent = Mathf.Clamp01(baseStats.armorPenPercent + v);
+                        break;
+                    case StatType.SkillDamagePercent:
+                        baseStats.skillDamagePercent += v;
+                        break;
                 }
             }
         }

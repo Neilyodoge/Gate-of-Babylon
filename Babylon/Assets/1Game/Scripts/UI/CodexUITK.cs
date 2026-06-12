@@ -135,8 +135,8 @@ namespace XianTu
 
         private static readonly ItemCategory[] _categoryValues =
         {
-            ItemCategory.Attack, ItemCategory.Defense, ItemCategory.Movement,
-            ItemCategory.Anomaly, ItemCategory.Skill
+            ItemCategory.StatStacking, ItemCategory.MechanicEnhance, ItemCategory.MechanicModify,
+            ItemCategory.Skill
         };
 
         private static readonly SpiritRootType[] _allRoots =
@@ -319,10 +319,9 @@ namespace XianTu
 
         private static string CategoryName(ItemCategory c) => c switch
         {
-            ItemCategory.Attack => "攻伐",
-            ItemCategory.Defense => "护体",
-            ItemCategory.Movement => "身法",
-            ItemCategory.Anomaly => "异变",
+            ItemCategory.StatStacking => "数值堆叠",
+            ItemCategory.MechanicEnhance => "机制增强",
+            ItemCategory.MechanicModify => "机制修改",
             ItemCategory.Skill => "功法",
             ItemCategory.Herb => "灵药",
             ItemCategory.Ore => "灵矿",
@@ -330,6 +329,12 @@ namespace XianTu
             ItemCategory.ScripturePage => "古籍残页",
             ItemCategory.PlantSeed => "灵植种子",
             ItemCategory.ArraySigil => "阵法符",
+#pragma warning disable CS0612, CS0618
+            ItemCategory.Attack => "数值堆叠",
+            ItemCategory.Defense => "机制增强",
+            ItemCategory.Movement => "数值堆叠",
+            ItemCategory.Anomaly => "机制修改",
+#pragma warning restore CS0612, CS0618
             _ => "?"
         };
 

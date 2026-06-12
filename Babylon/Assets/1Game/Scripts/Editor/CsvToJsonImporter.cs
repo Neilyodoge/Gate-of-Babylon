@@ -193,12 +193,29 @@ namespace XianTu.LevelDesign.Editor
             {
                 ID = ParseInt(GetCol(h, c, "ID")),
                 Name_CN = GetCol(h, c, "Name_CN"),
-                Text_CN = GetCol(h, c, "Text_CN"),
-                Type = ParseInt(GetCol(h, c, "Type")),
-                Icon = GetCol(h, c, "Icon"),
-                MaxStack = ParseInt(GetCol(h, c, "MaxStack"), 1),
-                EffectID = ParseInt(GetCol(h, c, "EffectID")),
-                Duration = ParseFloat(GetCol(h, c, "Duration"))
+                Desc_CN = GetCol(h, c, "Desc_CN"),
+                Category = GetCol(h, c, "Category"),
+                Rarity = GetCol(h, c, "Rarity"),
+                AtkBonus = ParseFloat(GetCol(h, c, "AtkBonus")),
+                AtkBonusPct = ParseFloat(GetCol(h, c, "AtkBonusPct")),
+                MaxHpBonus = ParseFloat(GetCol(h, c, "MaxHpBonus")),
+                MaxHpBonusPct = ParseFloat(GetCol(h, c, "MaxHpBonusPct")),
+                MoveSpeedPct = ParseFloat(GetCol(h, c, "MoveSpeedPct")),
+                DmgReduction = ParseFloat(GetCol(h, c, "DmgReduction")),
+                CritRate = ParseFloat(GetCol(h, c, "CritRate")),
+                CritDmg = ParseFloat(GetCol(h, c, "CritDmg")),
+                AtkSpeedPct = ParseFloat(GetCol(h, c, "AtkSpeedPct")),
+                PierceBonus = ParseInt(GetCol(h, c, "PierceBonus")),
+                ProjSpeedPct = ParseFloat(GetCol(h, c, "ProjSpeedPct")),
+                DefenseBonus = ParseFloat(GetCol(h, c, "DefenseBonus")),
+                DmgBonusPct = ParseFloat(GetCol(h, c, "DmgBonusPct")),
+                ArmorPenPct = ParseFloat(GetCol(h, c, "ArmorPenPct")),
+                SkillDmgPct = ParseFloat(GetCol(h, c, "SkillDmgPct")),
+                BurnDPS = ParseFloat(GetCol(h, c, "BurnDPS")),
+                FreezeChance = ParseFloat(GetCol(h, c, "FreezeChance")),
+                HealOnKill = ParseFloat(GetCol(h, c, "HealOnKill")),
+                StackTag = GetCol(h, c, "StackTag"),
+                MaxStack = ParseInt(GetCol(h, c, "MaxStack"), 99)
             };
         }
 

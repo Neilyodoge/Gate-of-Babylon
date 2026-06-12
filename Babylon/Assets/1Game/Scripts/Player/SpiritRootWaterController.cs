@@ -140,13 +140,17 @@ namespace XianTu
                 Vector3 end = evt.EndPosition;
                 Vector3 start = end - dir * shadowStepPathLength;
                 LayerMask mask = ResolveShadowMask();
-                float dmg = _player.Stats.attackDamage * shadowStepPathDamageRatio;
                 var hits = Physics.OverlapCapsule(start + Vector3.up * 0.5f, end + Vector3.up * 0.5f, 1.2f, mask);
                 foreach (var c in hits)
                 {
                     if (c == null || c.CompareTag("Player")) continue;
                     var d = c.GetComponent<IDamageable>();
-                    if (d != null) d.OnDamage(dmg, c.transform.position, _player.gameObject);
+                    if (d != null)
+                    {
+                        float tDef = d.Stats != null ? d.Stats.defense : 0f;
+                        var (dmg, _) = _player.Stats.CalcSkillDamage(tDef, shadowStepPathDamageRatio);
+                        d.OnDamage(dmg, c.transform.position, _player.gameObject);
+                    }
                 }
                 FxFactory.SpawnSliceLine(start, dir, shadowStepPathLength, water, 0.3f);
             }
@@ -180,13 +184,15 @@ namespace XianTu
             var dmgable = target.GetComponent<IDamageable>();
             if (dmgable != null)
             {
-                float bonusDmg = _player.Stats.CalculateDamage() * shadowDamageBonus;
+                float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                var (bonusDmg, _) = _player.Stats.CalcMeleeDamage(tDef);
+                bonusDmg *= shadowDamageBonus;
                 dmgable.OnDamage(bonusDmg, hitPoint, gameObject);
 
-                // 双影天赋：再加一次 ×0.5 攻击的溅射伤害
                 if (HasTalentDoubleShadow)
                 {
-                    float splash = _player.Stats.attackDamage * 0.5f;
+                    var (splash, _s) = _player.Stats.CalcMeleeDamage(tDef);
+                    splash *= 0.5f;
                     dmgable.OnDamage(splash, hitPoint, gameObject);
                     GameEvents.Publish(new GameEvents.DamageNumberRequested
                     {
@@ -234,7 +240,7 @@ namespace XianTu
             {
                 HitPoint = hitPoint,
                 Target = target,
-                DamageDealt = _player.Stats.CalculateDamage() * (1f + shadowDamageBonus)
+                DamageDealt = _player.Stats.CalcMeleeDamage(0f).damage * (1f + shadowDamageBonus)
             });
         }
 
@@ -286,7 +292,8 @@ namespace XianTu
             var dmgable = evt.Target.GetComponent<IDamageable>();
             if (dmgable != null && _player != null)
             {
-                float bonus = _player.Stats.attackDamage * skillDamageBonusOnMarked;
+                float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                var (bonus, _) = _player.Stats.CalcSkillDamage(tDef, skillDamageBonusOnMarked);
                 dmgable.OnDamage(bonus, evt.HitPoint, _player.gameObject);
             }
 

@@ -6,11 +6,11 @@
 > **引擎**：Unity（3D URP）
 > **平台**：PC（Steam）
 > **参考作品**：《Shape of Dreams / 梦之形》《以撒的结合》
-> **文档版本**：v0.6.2（八条反馈处理 · 2026-06-10）
-> **历史版本**：v0.5.5（修仙原生系统落地 + 秘境异象 · 2026-06-02）｜ v0.5.4（去除"梦境"框架 · 2026-05-28）｜ v0.5（搜打撤 + 洞府 meta · 2026-05-16）
-> **最后更新**：2026-06-10
+> **文档版本**：V.05（数值公式 + 灵物重构 · 2026-06-12）
+> **历史版本**：v0.6.2（八条反馈处理 · 2026-06-10）｜ v0.5.5（修仙原生系统落地 + 秘境异象 · 2026-06-02）｜ v0.5.4（去除"梦境"框架 · 2026-05-28）｜ v0.5（搜打撤 + 洞府 meta · 2026-05-16）
+> **最后更新**：2026-06-12
 >
-> **v0.6.2 变更摘要**：① **灵物系统全面恢复**（`EnableSpiritItems = true`，掉落/拾取/协同/商店全链路）；② **撤离成果面板**（`ExtractResultPanel` UITK）+ 层深倍率（每层 +15%）；③ **闭关成色战斗加成**（`JingjieQuality` buff：瑕 0%/凡 +2%/上 +5%/完美 +8% 全属性）；④ **Buff 悬停 tooltip**（`BuffBarUITK` hover 显示描述/属性/时间）；⑤ **化身卡片角色标签**（删「★ 本命」，改全卡 `roleTag`：近战·御金/续航·御木 等）；⑥ **撤离后洞府残留清理**（ExtractPoint/Portal/InnerDemon 销毁）。
+> **V.05 变更摘要**：① **GDD §13 数值公式落地**（CombatStats 新增 defense/avatarCoefficient/damageBonusPercent/armorPenPercent/skillDamagePercent + CalcMeleeDamage/CalcSkillDamage）；② **§5 灵物系统全面重构**（ItemCategory 改为 StatStacking/MechanicEnhance/MechanicModify 三类；旧 30 灵物全删，新建 20 灵物 SO；Item_InRun_Config.csv 重写 25 列）；③ 三选一灵物卡牌已完成（v0.6.3 延续）。
 > **配套复查**：[2026-04-28 战斗系统阶段性复查](../../reviews/2026-04-28-战斗系统阶段性复查.md)
 
 ---
@@ -205,13 +205,14 @@
 
 ---
 
-> 📊 **【实现现状】(v0.6.2 / 2026-06-11 更新)**
+> 📊 **【实现现状】(V.05 / 2026-06-12 更新)**
 >
 > | 卖点 | 状态 |
 > |------|------|
-> | 以撒式自由 Build | 🟡 ~30 灵物 + ~30 Synergy 已能形成 Build，距离"150+/100+"仍有距离 |
-> | 机制型 Synergy | 🟢 方向对齐：质变 + 协同 + 6.5 槽位修饰部分接入 |
+> | 以撒式自由 Build | 🟡 V.05 重构后 20 灵物（3 新分类） + ~30 Synergy（待用新分类重写），距离"150+/100+"仍有距离 |
+> | 机制型 Synergy | 🟡 旧协同已迁移至新分类别名；需按 StatStacking/MechanicEnhance/MechanicModify 重新设计 |
 > | 化身 = 玩法修改器（v0.3.2） | 🟢 副词条层 + 核心机制层（金/木/水/土）已实现；天赋树 GrowthUITK 部分实现；火待 v0.6 重设计 |
+> | 数值公式（GDD §13） | 🟢 V.05 新增 5 属性 + 4 条公式已落地（CalcMeleeDamage / CalcSkillDamage） |
 > | 修仙叙事 + 多结局抉择 | 🟡 洞府 Hub 已实现（`VillageHub`）；叙事/多结局待 Demo3 |
 > | 100+ 隐藏组合 | 🟡 已实现 ~30 个分类计数型；特定道具/五行/条件类型未实现 |
 >
@@ -1096,6 +1097,14 @@ v0.3 阶段实现的 5 化身（金=穿透 / 木=清房回血 / 水=反伤 / 火
 > - `BattleRewardUI`（UITK）：战斗房通关弹出 3 张灵物卡片（或跳过），取代旧的地面掉落。
 > - `BattleRoom.OnRoomCleared()` → `RollRewardCandidates(3)` → `BattleRewardUI.Show()` → 选完发布 `RoomCleared`。
 > - 卡片 roll：不重复、按品阶权重、受通关掉落概率控制；商店/掉落同时接入 `AvatarRestriction.IsAllowed()` 黑名单过滤。
+
+> **📊【实现现状】🟢 V.05 灵物系统重构已落地（2026-06-12）**：
+> - `ItemCategory` 重写：`StatStacking`(数值堆叠) / `MechanicEnhance`(机制增强) / `MechanicModify`(机制修改) + Skill + 洞府素材。旧类型保留为 `[Obsolete]` 别名。
+> - 旧灵物 30 个 SO 全删；新建 20 个 SO（10 数值堆叠 + 5 机制增强 + 5 机制修改）。
+> - `Item_InRun_Config.csv` 重写 20 行 ×25 列（含 GDD §13 新属性：DefenseBonus/DmgBonusPct/ArmorPenPct/SkillDmgPct）。
+> - `ConfigTables.ItemInRunRow` + `CsvToJsonImporter.ParseItemInRunRow` 同步更新。
+> - `SynergySystem` / `CodexUITK` / `ConfigDashboard` / `ForgeRoom` / `Demo1DataCreator` 全部迁移至新分类。
+> - **待后续**：协同系统需按新 3 类重新设计（当前通过别名映射保持编译）；机制修改类灵物（磨剑石/因果丝/裂空符等）的运行时效果需补实现。
 
 ---
 
@@ -3458,6 +3467,14 @@ Boss 击败 → 出现撤离点（参考 8.1.5）
 ## 13 数值说明：
 目前先出一些比较简单的公式，后续若有基础属性添加则在去扩展公式；
 
+> 📊 **【实现现状】🟢 V.05 全面接入（2026-06-12）**：
+> - `CombatStats` 新增 5 字段：`defense` / `avatarCoefficient` / `damageBonusPercent` / `armorPenPercent` / `skillDamagePercent`。
+> - `CalcMeleeDamage(targetDef)` / `CalcSkillDamage(targetDef, skillMul)` / `BuildSummonDamage()` 精确实现下方 4 条公式。
+> - **全量接入**：`PlayerCombat`（近战/Area/投射物/冲刺/召唤）、`ActiveSkillZone`、`Projectile`、`EarthPuppetTurret`、5 种敌人（Base/Ranged/Charger/Mage/Elite/Boss）、`InnerDemonTribulation`、`SpiritRootWater/GoldController` 全部改用新公式，旧 `CalculateDamage()` 调用清零。
+> - **敌人防御力**：`GameConfig.敌人基础防御力 = 3`；普通×1 / 远程×0.5 / 冲锋×1.5 / 法师×0.6 / 精英×2 / Boss×3。
+> - **化身系数**：金 0.10 / 木 0.05 / 水 0.08 / 火 0.12 / 土 0.03（通过 `SpiritRootRegistry.baseModifiers` 自动应用）。
+> - `StatType` 枚举扩展，`StatusEffectController` / `SpiritRootController` / `ItemInventory` 均支持新属性 buff 叠加。
+
 ### 13.1 基础属性整理：
 | 名称 | 说明 |
 | :--- | :--- |
@@ -3493,8 +3510,8 @@ Boss 击败 → 出现撤离点（参考 8.1.5）
 2.制作内容确认：
 2.1 基础数值公式，详细见**13 数值说明**
 2.2 灵物系统重构，详见**5. 灵物系统（道具体系）**
-· 灵物系统为本次V0.5最重要的修改，必须在本次制作时完成，有疑问和不确定内容则优先确定好在进行制作；
-· 目前灵物数量过少，本次制作需要更新至20个灵物，交给你自行填充；
+· 灵物系统为本次V0.5最重要的修改，必须在本次制作时完成，有疑问和不确定内容需要优先反馈，最终得到确认后再进行制作；
+· 目前灵物数量过少，本次制作需要更新至20个灵物，交给你自行填充（之前的灵物全部删除）；
 · 本次制作没有配置表格，请根据之前习惯配置灵物相关表格方便策划进行调整；
 2.3 新增战斗房三选一机制，每次打完战斗房需要出现3张卡牌，卡牌内放置灵物制作好的灵物让玩家选择即可；（注：只有战斗房战斗结束才有）
 

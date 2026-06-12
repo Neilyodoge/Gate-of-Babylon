@@ -565,7 +565,13 @@ namespace XianTu
             if (dist < MeleeRange)
             {
                 CameraShake.TriggerMedium();
-                _target.GetComponent<IDamageable>()?.OnDamage(stats.attackDamage * 1.5f, transform.position, gameObject);
+                var chargeDmgable = _target.GetComponent<IDamageable>();
+                if (chargeDmgable != null)
+                {
+                    float tDef = chargeDmgable.Stats != null ? chargeDmgable.Stats.defense : 0f;
+                    var (chDmg, _) = stats.CalcMeleeDamage(tDef);
+                    chargeDmgable.OnDamage(chDmg * 1.5f, transform.position, gameObject);
+                }
                 _state = MirrorState.Stunned;
                 _stateTimer = 0.6f;
                 _chargeCooldown = ChargeIntervalBase;
@@ -608,7 +614,13 @@ namespace XianTu
                     float d = Vector3.Distance(transform.position, p.position);
                     if (d <= SwipeRadius)
                     {
-                        p.GetComponent<IDamageable>()?.OnDamage(stats.attackDamage, transform.position, gameObject);
+                        var swipeDmgable = p.GetComponent<IDamageable>();
+                        if (swipeDmgable != null)
+                        {
+                            float sDef = swipeDmgable.Stats != null ? swipeDmgable.Stats.defense : 0f;
+                            var (sDmg, _) = stats.CalcMeleeDamage(sDef);
+                            swipeDmgable.OnDamage(sDmg, transform.position, gameObject);
+                        }
                     }
                 }
                 _swipeCooldown = SwipeIntervalBase;

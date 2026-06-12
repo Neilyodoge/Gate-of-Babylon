@@ -146,7 +146,11 @@ namespace XianTu
                     {
                         var damageable = _target.GetComponent<IDamageable>();
                         if (damageable != null)
-                            damageable.OnDamage(stats.attackDamage, transform.position, gameObject);
+                        {
+                            float tDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                            var (chgDmg, _) = stats.CalcMeleeDamage(tDef);
+                            damageable.OnDamage(chgDmg, transform.position, gameObject);
+                        }
                         // 命中爆环 + 镜头中震
                         FxFactory.SpawnAOERing(transform.position + Vector3.up * 0.05f, 1.6f,
                             new Color(1f, 0.35f, 0.2f, 1f), lifetime: 0.4f);
@@ -413,11 +417,13 @@ namespace XianTu
             {
                 enemy.stats.maxHp = config.敌人基础血量 * 1.5f * hpMultiplier;
                 enemy.stats.attackDamage = config.敌人基础攻击力 * 2f * dmgMultiplier;
+                enemy.stats.defense = config.敌人基础防御力 * 1.5f;
             }
             else
             {
                 enemy.stats.maxHp = 50f * hpMultiplier;
                 enemy.stats.attackDamage = 15f * dmgMultiplier;
+                enemy.stats.defense = 4.5f;
             }
             enemy.stats.currentHp = enemy.stats.maxHp;
             enemy._roomLevel = roomLevel;

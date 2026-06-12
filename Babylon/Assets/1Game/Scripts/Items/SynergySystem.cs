@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+#pragma warning disable CS0612 // Suppress Obsolete warnings for legacy synergy category references
+
 namespace XianTu
 {
     /// <summary>
@@ -36,7 +38,7 @@ namespace XianTu
             {
                 name = "风火轮",
                 description = "攻伐x3 + 身法x2 → 冲刺留下火墙，灼烧经过的敌人",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Movement },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.StatStacking },
                 requiredCounts = new[] { 3, 2 },
                 displayColor = new Color(1f, 0.5f, 0.1f)
             });
@@ -45,7 +47,7 @@ namespace XianTu
             {
                 name = "金刚不坏",
                 description = "护体x5 → 受击30%概率完全格挡并反弹伤害",
-                requiredCategories = new[] { ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 5 },
                 displayColor = new Color(1f, 0.85f, 0.2f)
             });
@@ -55,8 +57,8 @@ namespace XianTu
                 name = "天人合一",
                 description = "4种分类各x3 → 每30秒随机元素爆发（火/冰/风/雷）",
                 requiredCategories = new[] {
-                    ItemCategory.Attack, ItemCategory.Defense,
-                    ItemCategory.Movement, ItemCategory.Anomaly
+                    ItemCategory.StatStacking, ItemCategory.MechanicEnhance,
+                    ItemCategory.StatStacking, ItemCategory.MechanicModify
                 },
                 requiredCounts = new[] { 3, 3, 3, 3 },
                 displayColor = new Color(1f, 0.95f, 0.5f)
@@ -66,7 +68,7 @@ namespace XianTu
             {
                 name = "嗜血狂魔",
                 description = "攻伐x4 + 护体x1 → 击杀后嗜血5秒：攻速翻倍，持续掉血",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 4, 1 },
                 displayColor = new Color(0.9f, 0.1f, 0.2f)
             });
@@ -75,7 +77,7 @@ namespace XianTu
             {
                 name = "冰火两重天",
                 description = "攻伐x2 + 异变x2 → 攻击附带灼烧+冻结，暴击率+10%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicModify },
                 requiredCounts = new[] { 2, 2 },
                 displayColor = new Color(0.5f, 0.3f, 1f)
             });
@@ -84,7 +86,7 @@ namespace XianTu
             {
                 name = "灵龟护体",
                 description = "护体x5 → 受击回复少量生命，减伤+10%",
-                requiredCategories = new[] { ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 5 },
                 displayColor = new Color(0.2f, 0.8f, 0.5f)
             });
@@ -93,7 +95,7 @@ namespace XianTu
             {
                 name = "疾风骤雨",
                 description = "身法x3 + 攻伐x2 → 攻速+30%，移速+20%，攻击力+15%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Attack },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.StatStacking },
                 requiredCounts = new[] { 3, 2 },
                 displayColor = new Color(0.3f, 0.9f, 1f)
             });
@@ -102,7 +104,7 @@ namespace XianTu
             {
                 name = "万毒归宗",
                 description = "异变x3 + 护体x2 → 灼烧伤害翻倍，击杀回复+50%",
-                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.MechanicModify, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 3, 2 },
                 displayColor = new Color(0.6f, 0.1f, 0.8f)
             });
@@ -111,7 +113,7 @@ namespace XianTu
             {
                 name = "铜墙铁壁",
                 description = "护体x4 + 身法x1 → 减伤+20%，受击反弹15%伤害",
-                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Movement },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance, ItemCategory.StatStacking },
                 requiredCounts = new[] { 4, 1 },
                 displayColor = new Color(0.8f, 0.7f, 0.3f)
             });
@@ -120,7 +122,7 @@ namespace XianTu
             {
                 name = "暗影刺客",
                 description = "身法x2 + 异变x2 + 攻伐x1 → 暴击伤害+80%，暴击率+8%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Attack },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicModify, ItemCategory.StatStacking },
                 requiredCounts = new[] { 2, 2, 1 },
                 displayColor = new Color(0.3f, 0.1f, 0.3f)
             });
@@ -134,31 +136,31 @@ namespace XianTu
             _synergies.Add(new SynergyDef
             {
                 name = "剑势如山", description = "攻伐x6 → 攻击力+30%、暴击伤害+25%",
-                requiredCategories = new[] { ItemCategory.Attack }, requiredCounts = new[] { 6 },
+                requiredCategories = new[] { ItemCategory.StatStacking }, requiredCounts = new[] { 6 },
                 displayColor = new Color(1f, 0.7f, 0.2f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "玄龟铁衣", description = "护体x4 → 减伤+18%、最大生命+15%",
-                requiredCategories = new[] { ItemCategory.Defense }, requiredCounts = new[] { 4 },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance }, requiredCounts = new[] { 4 },
                 displayColor = new Color(0.5f, 0.65f, 0.85f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "风行天下", description = "身法x4 → 移速+25%、攻速+20%",
-                requiredCategories = new[] { ItemCategory.Movement }, requiredCounts = new[] { 4 },
+                requiredCategories = new[] { ItemCategory.StatStacking }, requiredCounts = new[] { 4 },
                 displayColor = new Color(0.5f, 1f, 0.85f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "诡道", description = "异变x4 → 暴击率+18%、暴击伤害+50%",
-                requiredCategories = new[] { ItemCategory.Anomaly }, requiredCounts = new[] { 4 },
+                requiredCategories = new[] { ItemCategory.MechanicModify }, requiredCounts = new[] { 4 },
                 displayColor = new Color(0.7f, 0.3f, 0.95f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "归元护体", description = "护体x3 → 最大生命+25%、减伤+8%",
-                requiredCategories = new[] { ItemCategory.Defense }, requiredCounts = new[] { 3 },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance }, requiredCounts = new[] { 3 },
                 displayColor = new Color(1f, 0.55f, 0.7f)
             });
 
@@ -166,70 +168,70 @@ namespace XianTu
             _synergies.Add(new SynergyDef
             {
                 name = "山岳镇魂", description = "攻伐x3 + 护体x2 → 攻击+15%、最大生命+20%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 3, 2 },
                 displayColor = new Color(0.85f, 0.65f, 0.35f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "剑光如电", description = "攻伐x2 + 身法x2 → 攻击+12%、攻速+25%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Movement },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.StatStacking },
                 requiredCounts = new[] { 2, 2 },
                 displayColor = new Color(1f, 0.85f, 0.4f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "杀阵噬血", description = "攻伐x3 + 异变x1 → 攻击+18%、暴击率+8%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicModify },
                 requiredCounts = new[] { 3, 1 },
                 displayColor = new Color(0.95f, 0.3f, 0.45f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "御体长生", description = "护体x4 → 最大生命+22%、减伤+8%",
-                requiredCategories = new[] { ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 4 },
                 displayColor = new Color(0.55f, 0.9f, 0.7f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "霜雪重身", description = "护体x2 + 异变x2 → 最大生命+15%、减伤+12%",
-                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Anomaly },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance, ItemCategory.MechanicModify },
                 requiredCounts = new[] { 2, 2 },
                 displayColor = new Color(0.45f, 0.7f, 1f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "御风踏雪", description = "身法x2 + 护体x2 → 移速+18%、减伤+10%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 2, 2 },
                 displayColor = new Color(0.7f, 0.95f, 1f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "千里追风", description = "身法x3 + 护体x1 → 移速+18%、攻速+15%、最大生命+8%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 3, 1 },
                 displayColor = new Color(0.85f, 1f, 0.7f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "邪锋", description = "身法x2 + 异变x3 → 暴击伤害+60%、暴击率+12%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicModify },
                 requiredCounts = new[] { 2, 3 },
                 displayColor = new Color(0.65f, 0.35f, 0.95f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "丹魂凝结", description = "异变x3 + 护体x1 → 暴击率+10%、攻击+15%",
-                requiredCategories = new[] { ItemCategory.Anomaly, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.MechanicModify, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 3, 1 },
                 displayColor = new Color(0.85f, 0.45f, 0.85f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "铁壁长虹", description = "护体x4 + 异变x1 → 减伤+18%、最大生命+20%",
-                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Anomaly },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance, ItemCategory.MechanicModify },
                 requiredCounts = new[] { 4, 1 },
                 displayColor = new Color(0.7f, 0.75f, 0.55f)
             });
@@ -238,35 +240,35 @@ namespace XianTu
             _synergies.Add(new SynergyDef
             {
                 name = "三才阵", description = "攻伐x2 + 护体x2 + 身法x1 → 全能：攻击+10%、减伤+10%、移速+10%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense, ItemCategory.Movement },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicEnhance, ItemCategory.StatStacking },
                 requiredCounts = new[] { 2, 2, 1 },
                 displayColor = new Color(1f, 0.95f, 0.55f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "狂剑诀", description = "攻伐x3 + 护体x1 + 异变x1 → 攻击+22%、暴击率+10%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Defense, ItemCategory.Anomaly },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicEnhance, ItemCategory.MechanicModify },
                 requiredCounts = new[] { 3, 1, 1 },
                 displayColor = new Color(1f, 0.5f, 0.35f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "御灵护身", description = "护体x3 + 身法x2 → 减伤+10%、移速+12%、最大生命+12%",
-                requiredCategories = new[] { ItemCategory.Defense, ItemCategory.Movement },
+                requiredCategories = new[] { ItemCategory.MechanicEnhance, ItemCategory.StatStacking },
                 requiredCounts = new[] { 3, 2 },
                 displayColor = new Color(0.55f, 0.95f, 0.85f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "杀生丹诀", description = "攻伐x2 + 异变x2 + 护体x1 → 暴击伤害+65%、攻击+10%",
-                requiredCategories = new[] { ItemCategory.Attack, ItemCategory.Anomaly, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicModify, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 2, 2, 1 },
                 displayColor = new Color(0.95f, 0.35f, 0.55f)
             });
             _synergies.Add(new SynergyDef
             {
                 name = "风雷诀", description = "身法x2 + 异变x2 + 护体x1 → 攻速+22%、暴击率+10%",
-                requiredCategories = new[] { ItemCategory.Movement, ItemCategory.Anomaly, ItemCategory.Defense },
+                requiredCategories = new[] { ItemCategory.StatStacking, ItemCategory.MechanicModify, ItemCategory.MechanicEnhance },
                 requiredCounts = new[] { 2, 2, 1 },
                 displayColor = new Color(0.85f, 0.75f, 1f)
             });

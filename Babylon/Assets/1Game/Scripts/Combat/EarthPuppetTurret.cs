@@ -70,13 +70,17 @@ namespace XianTu
 
             // 对落点 AOE 炮击
             Vector3 impact = nearest.position;
-            float dmg = _player.Stats.attackDamage * _dmgRatio * Mathf.Max(0.1f, GlobalDamageMul);
             var aoe = Physics.OverlapSphere(impact, _aoeRadius, _mask);
             foreach (var c in aoe)
             {
                 if (c == null || c.CompareTag("Player")) continue;
                 var dmgable = c.GetComponent<IDamageable>();
-                if (dmgable != null) dmgable.OnDamage(dmg, c.transform.position, _player.gameObject);
+                if (dmgable != null)
+                {
+                    float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                    var (dmg, _) = _player.Stats.BuildSummonDamage(_dmgRatio * Mathf.Max(0.1f, GlobalDamageMul));
+                    dmgable.OnDamage(dmg, c.transform.position, _player.gameObject);
+                }
             }
 
             // 视觉：炮口闪光 + 一道土黄冲击束（傀儡 → 敌人）+ 命中爆，让"攻击过程"可见

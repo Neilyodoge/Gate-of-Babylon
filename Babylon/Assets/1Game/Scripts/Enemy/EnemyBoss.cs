@@ -308,7 +308,9 @@ namespace XianTu
             var damageable = _target.GetComponent<IDamageable>();
             if (damageable != null)
             {
-                float damage = stats.attackDamage * (_phase == BossPhase.Phase2 ? 1.3f : 1f);
+                float tDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                var (damage, _) = stats.CalcMeleeDamage(tDef);
+                damage *= (_phase == BossPhase.Phase2 ? 1.3f : 1f);
                 damageable.OnDamage(damage, transform.position, gameObject);
             }
         }
@@ -356,7 +358,11 @@ namespace XianTu
             {
                 var damageable = _target.GetComponent<IDamageable>();
                 if (damageable != null)
-                    damageable.OnDamage(stats.attackDamage * 1.5f, transform.position, gameObject);
+                {
+                    float tDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                    var (d, _) = stats.CalcMeleeDamage(tDef);
+                    damageable.OnDamage(d * 1.5f, transform.position, gameObject);
+                }
                 EndAction(1.0f);
             }
 
@@ -425,7 +431,11 @@ namespace XianTu
                 {
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
-                        damageable.OnDamage(stats.attackDamage * 1.2f, _aoeTargetPos, gameObject);
+                    {
+                        float tDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                        var (aoeDmg, _) = stats.CalcSkillDamage(tDef, 1.2f);
+                        damageable.OnDamage(aoeDmg, _aoeTargetPos, gameObject);
+                    }
                 }
             }
         }
@@ -512,7 +522,6 @@ namespace XianTu
         private void ExecuteLeapImpact()
         {
             float impactRadius = aoeRadius * 1.5f;
-            float damage = stats.attackDamage * 2f;
 
             // 冲击波视觉
             var impact = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -546,7 +555,11 @@ namespace XianTu
                 {
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
-                        damageable.OnDamage(damage, transform.position, gameObject); // 重击
+                    {
+                        float tDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                        var (leapDmg, _) = stats.CalcSkillDamage(tDef, 2f);
+                        damageable.OnDamage(leapDmg, transform.position, gameObject);
+                    }
                 }
             }
 
@@ -586,12 +599,9 @@ namespace XianTu
         private void ExecuteShockwave()
         {
             float radius = 5f;
-            float damage = stats.attackDamage * 0.8f;
 
-            // 扩散环视觉效果
             StartCoroutine(ShockwaveVisual(radius));
 
-            // 范围伤害 + 击退
             var hits = Physics.OverlapSphere(transform.position, radius);
             foreach (var hit in hits)
             {
@@ -599,7 +609,11 @@ namespace XianTu
                 {
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null)
-                        damageable.OnDamage(damage, transform.position, gameObject);
+                    {
+                        float tDef = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                        var (swDmg, _) = stats.CalcSkillDamage(tDef, 0.8f);
+                        damageable.OnDamage(swDmg, transform.position, gameObject);
+                    }
 
                     // 击退玩家
                     var playerCC = hit.GetComponent<CharacterController>();
@@ -921,11 +935,13 @@ namespace XianTu
             {
                 boss.stats.maxHp = config.敌人基础血量 * 8f * hpMultiplier;
                 boss.stats.attackDamage = config.敌人基础攻击力 * 3f * dmgMultiplier;
+                boss.stats.defense = config.敌人基础防御力 * 3f;
             }
             else
             {
                 boss.stats.maxHp = 300f * hpMultiplier;
                 boss.stats.attackDamage = 20f * dmgMultiplier;
+                boss.stats.defense = 9f;
             }
             boss.stats.currentHp = boss.stats.maxHp;
             boss._roomLevel = roomLevel;

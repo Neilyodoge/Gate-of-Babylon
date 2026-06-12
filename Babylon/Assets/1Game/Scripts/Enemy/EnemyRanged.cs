@@ -415,13 +415,15 @@ namespace XianTu
             var config = GameConfig.Instance;
             if (config != null)
             {
-                enemy.stats.maxHp = config.敌人基础血量 * 0.7f * hpMultiplier; // 远程血少
-                enemy.stats.attackDamage = config.敌人基础攻击力 * 1.2f * dmgMultiplier; // 伤害高
+                enemy.stats.maxHp = config.敌人基础血量 * 0.7f * hpMultiplier;
+                enemy.stats.attackDamage = config.敌人基础攻击力 * 1.2f * dmgMultiplier;
+                enemy.stats.defense = config.敌人基础防御力 * 0.5f;
             }
             else
             {
                 enemy.stats.maxHp = 20f * hpMultiplier;
                 enemy.stats.attackDamage = 8f * dmgMultiplier;
+                enemy.stats.defense = 1.5f;
             }
             enemy.stats.currentHp = enemy.stats.maxHp;
             enemy._roomLevel = roomLevel;

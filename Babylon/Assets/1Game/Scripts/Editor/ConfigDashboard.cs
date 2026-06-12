@@ -636,10 +636,9 @@ namespace XianTu
         {
             switch (category)
             {
-                case ItemCategory.Attack: return "⚔️";
-                case ItemCategory.Defense: return "🛡️";
-                case ItemCategory.Movement: return "👟";
-                case ItemCategory.Anomaly: return "🔮";
+                case ItemCategory.StatStacking: return "⚔️";
+                case ItemCategory.MechanicEnhance: return "🛡️";
+                case ItemCategory.MechanicModify: return "🔮";
                 case ItemCategory.Skill: return "📜";
                 default: return "";
             }

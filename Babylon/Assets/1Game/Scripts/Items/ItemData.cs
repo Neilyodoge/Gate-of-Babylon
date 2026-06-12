@@ -15,24 +15,31 @@ namespace XianTu
     }
 
     /// <summary>
-    /// 灵物分类（仅用于内部标签和掉落权重）
+    /// 灵物分类（GDD §5.2 V.05 重构：3 类局内灵物 + 功法 + 洞府素材）。
+    /// 旧分类（Attack/Defense/Movement/Anomaly）已弃用。
     /// </summary>
     public enum ItemCategory
     {
-        Attack        = 0,  // ⚔️ 攻伐灵物
-        Defense       = 1,  // 🛡️ 护体灵物
-        Movement      = 2,  // 👟 身法灵物
-        Anomaly       = 3,  // 🔮 异变灵物
-        // 4 = 原 Pill（已删除，编号跳过保序列化兼容）
-        Skill         = 5,  // 📜 功法
+        // === GDD §5.2 V.05 新分类 ===
+        StatStacking    = 0,  // ⚔️ 数值堆叠类（攻击力/生命值等纯数值强化）
+        MechanicEnhance = 1,  // 🛡️ 机制增强类（强化现有机制的数值，如冰冻+0.5s）
+        MechanicModify  = 2,  // 🔮 机制修改类（改变机制逻辑，如攻击附带剑气）
 
-        // === v0.5 洞府素材类（搜打撤核心，需活着撤离才能带回洞府）===
-        Herb          = 6,  // 🌿 灵药（炼丹房原料）
-        Ore           = 7,  // 🪨 灵矿（炼器房原料）
-        BeastMaterial = 8,  // 🐉 妖兽材料（灵兽园 / 炼器房原料）
-        ScripturePage = 9,  // 📃 古籍残页（藏经阁拼合功法）
-        PlantSeed     = 10, // 🌱 灵植种子（灵田种植）
-        ArraySigil    = 11  // 🪶 阵法符（阵法台部署）
+        Skill           = 5,  // 📜 功法
+
+        // === 洞府素材类（搜打撤核心，需活着撤离才能带回洞府）===
+        Herb          = 6,  // 🌿 灵药
+        Ore           = 7,  // 🪨 灵矿
+        BeastMaterial = 8,  // 🐉 妖兽材料
+        ScripturePage = 9,  // 📃 古籍残页
+        PlantSeed     = 10, // 🌱 灵植种子
+        ArraySigil    = 11, // 🪶 阵法符
+
+        // === 向后兼容别名（旧 SO 读取不报错，运行时等同新类型）===
+        [System.Obsolete("Use StatStacking")] Attack   = 20,
+        [System.Obsolete("Use MechanicEnhance")] Defense  = 21,
+        [System.Obsolete("Use StatStacking")] Movement = 22,
+        [System.Obsolete("Use MechanicModify")] Anomaly  = 23
     }
 
     /// <summary>
@@ -63,7 +70,7 @@ namespace XianTu
         public string description = "灵物描述";
         public Sprite icon;
         public ItemRarity rarity = ItemRarity.Fan;
-        public ItemCategory category = ItemCategory.Attack;
+        public ItemCategory category = ItemCategory.StatStacking;
         /// <summary>
         /// v0.5 搜打撤核心：用途分类。
         /// 决定拾取后进入"局内背包（ItemInventory）" 还是"洞府素材背包（CaveInventory）"，

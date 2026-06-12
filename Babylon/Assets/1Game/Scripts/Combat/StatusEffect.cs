@@ -32,7 +32,14 @@ namespace XianTu
         CritRate,
         CritDamage,
         PierceCount,
-        ProjectileSpeed
+        ProjectileSpeed,
+
+        // === GDD §13 新增（v0.7 数值公式） ===
+        Defense,              // 防御力（平坦值，敌人专用）
+        AvatarCoefficient,    // 化身系数（per-avatar 乘区）
+        DamageBonusPercent,   // 增伤百分比（通用乘区）
+        ArmorPenPercent,      // 减防百分比（穿甲）
+        SkillDamagePercent    // 技能伤害加成（技能专用乘区）
     }
 
     /// <summary>

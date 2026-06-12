@@ -55,7 +55,12 @@ namespace XianTu
             {
                 var damageable = other.GetComponent<IDamageable>();
                 if (damageable != null)
-                    damageable.OnDamage(_damage, transform.position, gameObject);
+                {
+                    float finalDmg = _damage;
+                    if (damageable.Stats != null)
+                        finalDmg = Mathf.Max(1f, _damage - damageable.Stats.defense);
+                    damageable.OnDamage(finalDmg, transform.position, gameObject);
+                }
             }
 
             // 碰到玩家或墙壁/障碍物都销毁

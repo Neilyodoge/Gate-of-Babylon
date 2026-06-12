@@ -139,7 +139,9 @@ namespace XianTu
             var dmgable = evt.Target.GetComponent<IDamageable>();
             if (dmgable != null && _player != null)
             {
-                float bonus = _player.Stats.attackDamage * 0.5f;
+                float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                var (bonus, _) = _player.Stats.CalcMeleeDamage(tDef);
+                bonus *= 0.5f;
                 dmgable.OnDamage(bonus, evt.HitPoint, _player.gameObject);
                 GameEvents.Publish(new GameEvents.DamageNumberRequested
                 {
@@ -284,14 +286,12 @@ namespace XianTu
             // 御金·磁牵：先把周围敌人拉向身前聚拢，再让爆发扇形一网打尽
             MagnetPull(transform.position);
 
-            float baseDamage = _player.Stats.CalculateDamage() * burstDamageMultiplier;
             LayerMask mask = ResolveEnemyLayer();
             var hits = Physics.OverlapSphere(origin, burstRadius, mask);
             int hitCount = 0;
             Vector3 lastHitPos = origin;
             foreach (var col in hits)
             {
-                // 关键：跳过玩家自身（防止"打自己掉血"bug）
                 if (col == null) continue;
                 if (col.transform == transform || col.transform.IsChildOf(transform)) continue;
                 if (col.CompareTag("Player")) continue;
@@ -302,6 +302,10 @@ namespace XianTu
 
                 var dmgable = col.GetComponent<IDamageable>();
                 if (dmgable == null) continue;
+
+                float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                var (baseDamage, _) = _player.Stats.CalcMeleeDamage(tDef);
+                baseDamage *= burstDamageMultiplier;
 
                 Vector3 hp = col.ClosestPoint(origin);
                 dmgable.OnDamage(baseDamage, hp, gameObject);
@@ -384,7 +388,6 @@ namespace XianTu
             Vector3 forward = _player.AimDirection;
             float radius = burstRadius * 1.5f;
             float mult = burstDamageMultiplier * (inSwordHeart ? 4f : 2f);
-            float baseDamage = _player.Stats.CalculateDamage() * mult;
             LayerMask mask = ResolveEnemyLayer();
 
             var hits = Physics.OverlapSphere(origin, radius, mask);
@@ -396,7 +399,9 @@ namespace XianTu
                 if (Vector3.Angle(forward, dir) > 70f) continue;
                 var dmgable = col.GetComponent<IDamageable>();
                 if (dmgable == null) continue;
-                dmgable.OnDamage(baseDamage, col.ClosestPoint(origin), gameObject);
+                float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                var (dmg, _) = _player.Stats.CalcMeleeDamage(tDef);
+                dmgable.OnDamage(dmg * mult, col.ClosestPoint(origin), gameObject);
             }
 
             Color gold = new Color(1f, 0.85f, 0.2f, 1f);

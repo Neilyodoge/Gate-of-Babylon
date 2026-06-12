@@ -23,8 +23,20 @@ namespace XianTu
         public float critDamage = 1.5f;
 
         [Header("防御")]
-        /// <summary>减伤比例 0~1</summary>
+        /// <summary>减伤比例 0~1（旧系统兼容）</summary>
         public float damageReduction = 0f;
+        /// <summary>防御力（GDD §13 平坦值，用于新伤害公式）</summary>
+        public float defense = 0f;
+
+        [Header("GDD §13 新增乘区")]
+        /// <summary>化身系数（per-avatar，如金 0.05 / 木 0.03 等）</summary>
+        public float avatarCoefficient = 0f;
+        /// <summary>增伤百分比（通用乘区，来自灵物/buff 等）</summary>
+        public float damageBonusPercent = 0f;
+        /// <summary>减防百分比（穿甲，降低目标防御的有效值）</summary>
+        public float armorPenPercent = 0f;
+        /// <summary>技能伤害加成（技能专用乘区）</summary>
+        public float skillDamagePercent = 0f;
 
         [Header("移动")]
         public float moveSpeed = 6f;
@@ -39,30 +51,62 @@ namespace XianTu
         /// <summary>是否存活</summary>
         public bool IsAlive => currentHp > 0;
 
+        // ======================== GDD §13 伤害公式 ========================
+        //
+        // 基础伤害 = (base × (1 + avatarCoeff [+ dmgBonus%]) - targetDef × (1 - armorPen%)) × [skillDmg] × critDmg?
+        //
+        // 普攻：skillDmg = 1（不参与）
+        // 技能：skillDmg = SkillData.baseDamage（或 skillDamagePercent 加成后的值）
+        // critDmg 仅暴击时乘入
+        // ===================================================================
+
         /// <summary>
-        /// 计算最终伤害（考虑暴击）
+        /// GDD §13 普攻伤害（不含技能乘区）。
+        /// targetDefense = 目标 CombatStats.defense。
         /// </summary>
-        public float CalculateDamage()
+        public (float damage, bool isCrit) CalcMeleeDamage(float targetDefense)
         {
-            bool isCrit = Random.value < critRate;
-            float damage = attackDamage;
-            if (isCrit)
-                damage *= critDamage;
-            return damage;
+            float raw = attackDamage * (1f + avatarCoefficient + damageBonusPercent)
+                      - targetDefense * (1f - Mathf.Clamp01(armorPenPercent));
+            raw = Mathf.Max(1f, raw);
+
+            bool crit = Random.value < critRate;
+            if (crit) raw *= critDamage;
+            return (raw, crit);
         }
 
         /// <summary>
-        /// 召唤物 / 衍生伤害的统一构造（GDD 6.7.2）。
-        /// 不再让"焚天/剑阵/御风/元素爆发"等 hardcode 调用 attackDamage*ratio，
-        /// 而是经过本方法以继承玩家的暴击 / 加成。
+        /// GDD §13 技能伤害（含技能乘区）。
+        /// skillMul 来自 SkillData 的伤害倍率（1.0 = 100%）。
         /// </summary>
-        /// <param name="baseRatio">该衍生伤害基于玩家攻击的倍率</param>
-        /// <param name="flatBonus">附加的固定伤害（例如焚天的 _fireBurstDamage 基础值）</param>
-        /// <param name="inheritCrit">是否参与暴击 roll</param>
-        /// <returns>(damage, isCrit)</returns>
+        public (float damage, bool isCrit) CalcSkillDamage(float targetDefense, float skillMul)
+        {
+            float raw = attackDamage * (1f + avatarCoefficient + damageBonusPercent)
+                      - targetDefense * (1f - Mathf.Clamp01(armorPenPercent));
+            raw = Mathf.Max(1f, raw);
+            raw *= Mathf.Max(0.01f, skillMul * (1f + skillDamagePercent));
+
+            bool crit = Random.value < critRate;
+            if (crit) raw *= critDamage;
+            return (raw, crit);
+        }
+
+        /// <summary>
+        /// 向后兼容：旧版 CalculateDamage()，不走新防御公式（targetDefense=0）。
+        /// 调用方如不传入目标防御，退化为旧行为。
+        /// </summary>
+        public float CalculateDamage()
+        {
+            var (dmg, _) = CalcMeleeDamage(0f);
+            return dmg;
+        }
+
+        /// <summary>
+        /// 召唤物 / 衍生伤害（GDD 6.7.2 兼容入口）。
+        /// </summary>
         public (float damage, bool isCrit) BuildSummonDamage(float baseRatio, float flatBonus = 0f, bool inheritCrit = true)
         {
-            float dmg = flatBonus + attackDamage * baseRatio;
+            float dmg = flatBonus + attackDamage * baseRatio * (1f + avatarCoefficient + damageBonusPercent);
             bool isCrit = false;
             if (inheritCrit && Random.value < critRate)
             {
@@ -73,11 +117,14 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 受到伤害，返回实际伤害值
+        /// GDD §13 受伤：先走 defense 新公式减伤，再叠旧 damageReduction。
+        /// attackerArmorPen 由攻击方提供（通常已在 CalcMeleeDamage/CalcSkillDamage 中处理，
+        /// 此处 rawDamage 已经是减防后的值；damageReduction 作为额外层保留兼容）。
         /// </summary>
         public float TakeDamage(float rawDamage)
         {
             float actualDamage = rawDamage * (1f - Mathf.Clamp01(damageReduction));
+            actualDamage = Mathf.Max(0f, actualDamage);
             currentHp = Mathf.Max(0, currentHp - actualDamage);
             return actualDamage;
         }

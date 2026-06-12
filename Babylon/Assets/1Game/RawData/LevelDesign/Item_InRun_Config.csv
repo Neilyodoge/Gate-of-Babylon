@@ -1,5 +1,21 @@
-ID,Name_CN,Text_CN,Type,Icon,MaxStack,EffectID,Duration
-2001,风灵珠,使用后维持 10 分钟身轻如燕，移动速度增加 20%。,1,feng_ling_zhu,5,1,600
-2002,回灵丹,立即回复 30% 生命。,1,hui_ling_dan,9,2,0
-3001,九转还魂丹,传说中的天品丹药，死亡后原地复活，全属性 +20% 持续 30 秒。,1,jiu_zhuan,1,3,30
-9001,逆命符,消耗后可清除最近一条 Boss Flag（撤回上一次事件选择的影响）。,3,ni_ming_fu,3,99,0
+ID,Name_CN,Desc_CN,Category,Rarity,AtkBonus,AtkBonusPct,MaxHpBonus,MaxHpBonusPct,MoveSpeedPct,DmgReduction,CritRate,CritDmg,AtkSpeedPct,PierceBonus,ProjSpeedPct,DefenseBonus,DmgBonusPct,ArmorPenPct,SkillDmgPct,BurnDPS,FreezeChance,HealOnKill,StackTag,MaxStack
+1001,药蛇之血,增加5%生命值,StatStacking,Fan,0,0,0,0.05,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,99
+1002,朱睛冰蟾,增加10%攻击力,StatStacking,Ling,0,0.10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,99
+1003,化界石,增加灵物10%的攻击力,StatStacking,Ling,0,0.10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,99
+1004,凝血丹,增加15点攻击力,StatStacking,Fan,15,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,,99
+1005,九阳石,增加8%暴击率,StatStacking,Xuan,0,0,0,0,0,0,0.08,0,0,0,0,0,0,0,0,0,0,0,,99
+1006,玄铁护符,增加5%减伤,StatStacking,Fan,0,0,0,0,0,0.05,0,0,0,0,0,0,0,0,0,0,0,0,,99
+1007,疾风草,增加8%移动速度,StatStacking,Fan,0,0,0,0,0.08,0,0,0,0,0,0,0,0,0,0,0,0,0,,99
+1008,天雷印,增加20%暴击伤害,StatStacking,Xuan,0,0,0,0,0,0,0,0.20,0,0,0,0,0,0,0,0,0,0,,99
+1009,灵龟甲,增加50点生命和3%减伤,StatStacking,Ling,0,0,50,0,0,0.03,0,0,0,0,0,0,0,0,0,0,0,0,,99
+1010,破军符,增加15%增伤,StatStacking,Di,0,0,0,0,0,0,0,0,0,0,0,0,0.15,0,0,0,0,0,,99
+2001,岩甲符,护盾回复量额外增加50%,MechanicEnhance,Fan,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,shield_enhance,99
+2002,寒玉髓,冰冻持续时间额外增加0.5秒,MechanicEnhance,Ling,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.10,0,freeze_enhance,99
+2003,烈焰精华,灼烧伤害提升100%,MechanicEnhance,Ling,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,burn_enhance,99
+2004,灵泉石,击杀回复额外增加5点生命,MechanicEnhance,Fan,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,heal_enhance,99
+2005,蚀甲虫,增加10%减防,MechanicEnhance,Xuan,0,0,0,0,0,0,0,0,0,0,0,0,0,0.10,0,0,0,0,armor_pen,99
+3001,磨剑石,每次攻击发射一道剑气（最多5层）,MechanicModify,Fan,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,sword_qi,5
+3002,因果丝,释放技能时命中目标额外增加1个（最多10层）,MechanicModify,Ling,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,extra_target,10
+3003,裂空符,投射物分裂为2,MechanicModify,Xuan,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,proj_split,3
+3004,万灵珠,攻击附带元素爆发,MechanicModify,Di,0,0,0,0,0,0,0,0,0,0,0,0,0.10,0,0.05,2,0,0,elem_burst,1
+3005,混沌珠,所有攻击随机附带五行元素,MechanicModify,Tian,0,0.15,0,0,0,0,0.05,0.30,0,0,0,0,0.10,0,0.10,0,0,0,chaos_elem,1

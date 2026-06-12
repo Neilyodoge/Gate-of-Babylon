@@ -333,7 +333,7 @@ namespace XianTu
                 costs = new List<ForgeCost> { new("寒铁矿", 5), new("妖兽骨片", 3) },
                 configure = it =>
                 {
-                    it.category = ItemCategory.Attack;
+                    it.category = ItemCategory.StatStacking;
                     it.rarity = ItemRarity.Di;
                     it.attackBonusPercent = 0.35f;
                     it.attackSpeedBonusPercent = 0.15f;
@@ -348,7 +348,7 @@ namespace XianTu
                 costs = new List<ForgeCost> { new("寒铁矿", 4), new("火灵草灵药", 2) },
                 configure = it =>
                 {
-                    it.category = ItemCategory.Defense;
+                    it.category = ItemCategory.MechanicEnhance;
                     it.rarity = ItemRarity.Di;
                     it.maxHpBonusPercent = 0.30f;
                     it.damageReductionBonus = 0.10f;
@@ -363,7 +363,7 @@ namespace XianTu
                 costs = new List<ForgeCost> { new("妖兽骨片", 4), new("寒霜花灵药", 2) },
                 configure = it =>
                 {
-                    it.category = ItemCategory.Movement;
+                    it.category = ItemCategory.StatStacking;
                     it.rarity = ItemRarity.Di;
                     it.moveSpeedBonusPercent = 0.25f;
                     it.attackSpeedBonusPercent = 0.10f;
@@ -378,7 +378,7 @@ namespace XianTu
                 costs = new List<ForgeCost> { new("妖兽骨片", 6) },
                 configure = it =>
                 {
-                    it.category = ItemCategory.Attack;
+                    it.category = ItemCategory.StatStacking;
                     it.rarity = ItemRarity.Di;
                     it.critRateBonus = 0.15f;
                     it.healOnKill = 5f;
@@ -393,7 +393,7 @@ namespace XianTu
                 costs = new List<ForgeCost> { new("寒铁矿", 3), new("妖兽骨片", 3), new("火灵草灵药", 1) },
                 configure = it =>
                 {
-                    it.category = ItemCategory.Anomaly;
+                    it.category = ItemCategory.MechanicModify;
                     it.rarity = ItemRarity.Tian;
                     it.burnDamagePerSecond = 10f;
                     it.attackBonusPercent = 0.20f;
@@ -410,7 +410,7 @@ namespace XianTu
                 costs = new List<ForgeCost> { new("妖丹", 1), new("灵砂", 4), new("妖兽骨片", 4) },
                 configure = it =>
                 {
-                    it.category = ItemCategory.Attack;
+                    it.category = ItemCategory.StatStacking;
                     it.rarity = ItemRarity.Tian;
                     it.attackBonusPercent = 0.35f;
                     it.attackSpeedBonusPercent = 0.15f;
@@ -426,7 +426,7 @@ namespace XianTu
                 costs = new List<ForgeCost> { new("灵砂", 5), new("寒铁矿", 2) },
                 configure = it =>
                 {
-                    it.category = ItemCategory.Anomaly;
+                    it.category = ItemCategory.MechanicModify;
                     it.rarity = ItemRarity.Di;
                     it.burnDamagePerSecond = 14f;
                     it.critRateBonus = 0.12f;

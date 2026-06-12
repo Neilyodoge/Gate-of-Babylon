@@ -94,10 +94,13 @@ namespace XianTu
 
                 if (_damagePerTick > 0f && _player != null)
                 {
-                    float dmg = _player.Stats.attackDamage * _damagePerTick;
                     var dmgable = c.GetComponent<IDamageable>();
                     if (dmgable != null)
+                    {
+                        float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                        var (dmg, _) = _player.Stats.CalcSkillDamage(tDef, _damagePerTick);
                         dmgable.OnDamage(dmg, c.transform.position, _player.gameObject);
+                    }
                 }
 
                 if (_slowPct > 0f)
