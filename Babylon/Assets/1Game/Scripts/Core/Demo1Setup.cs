@@ -334,7 +334,6 @@ namespace XianTu
             {
                 Debug.LogWarning("[Demo1Setup] itemPool 为空，尝试自动加载灵物数据...");
 #if UNITY_EDITOR
-                // 编辑器模式下自动从 Data/Items 加载所有 ItemData
                 var guids = UnityEditor.AssetDatabase.FindAssets("t:ItemData", new[] { "Assets/1Game/Data/Items" });
                 if (guids.Length > 0)
                 {
@@ -346,15 +345,22 @@ namespace XianTu
                         if (item != null) items.Add(item);
                     }
                     itemPool = items.ToArray();
-                    Debug.Log($"<color=green>[Demo1Setup] 自动加载了 {itemPool.Length} 个灵物数据</color>");
+                    Debug.Log($"<color=green>[Demo1Setup] 编辑器自动加载了 {itemPool.Length} 个灵物数据</color>");
                 }
-                else
-                {
-                    Debug.LogError("[Demo1Setup] 未找到任何 ItemData！请在 Assets/1Game/Data/Items 下创建灵物数据。");
-                }
-#else
-                Debug.LogError("[Demo1Setup] itemPool 为空！请在 Inspector 中配置灵物池，或运行编辑器工具 '仙途秘境 → 配置场景'。");
 #endif
+                if (itemPool == null || itemPool.Length == 0)
+                {
+                    var loaded = Resources.LoadAll<ItemData>("Items");
+                    if (loaded != null && loaded.Length > 0)
+                    {
+                        itemPool = loaded;
+                        Debug.Log($"<color=green>[Demo1Setup] 从 Resources/Items 加载了 {itemPool.Length} 个灵物</color>");
+                    }
+                    else
+                    {
+                        Debug.LogError("[Demo1Setup] itemPool 为空且 Resources/Items 无灵物！请配置灵物池。");
+                    }
+                }
             }
 
             // 如果 skillPool 为空或全部为null，也尝试自动加载
@@ -389,28 +395,33 @@ namespace XianTu
 #endif
             }
 
-            // 设置灵物池（过滤掉 null 元素）
-            if (itemPool != null && itemPool.Length > 0)
+            // 设置灵物池（过滤掉 null 元素，失败时从 Resources 兜底）
+            var validItems = new System.Collections.Generic.List<ItemData>();
+            if (itemPool != null)
             {
-                var validItems = new System.Collections.Generic.List<ItemData>();
                 foreach (var item in itemPool)
                     if (item != null) validItems.Add(item);
-
+            }
+            if (validItems.Count == 0)
+            {
+                var res = Resources.LoadAll<ItemData>("Items");
+                if (res != null)
+                    foreach (var r in res)
+                        if (r != null) validItems.Add(r);
                 if (validItems.Count > 0)
-                {
-                    var poolField = typeof(GameManager).GetField("itemPool",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    poolField?.SetValue(gm, validItems.ToArray());
-                    Debug.Log($"<color=green>[Demo1Setup] 灵物池已传递给 GameManager：{validItems.Count} 个灵物（原始 {itemPool.Length} 个，过滤 null 后 {validItems.Count} 个）</color>");
-                }
-                else
-                {
-                    Debug.LogError("[Demo1Setup] 灵物池全部为 null！敌人将无法掉落灵物！");
-                }
+                    Debug.Log($"<color=green>[Demo1Setup] Resources 兜底加载了 {validItems.Count} 个灵物</color>");
+            }
+            if (validItems.Count > 0)
+            {
+                var poolField = typeof(GameManager).GetField("itemPool",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                poolField?.SetValue(gm, validItems.ToArray());
+                itemPool = validItems.ToArray();
+                Debug.Log($"<color=green>[Demo1Setup] 灵物池已传递给 GameManager：{validItems.Count} 个灵物</color>");
             }
             else
             {
-                Debug.LogError("[Demo1Setup] 灵物池为空！敌人将无法掉落灵物！");
+                Debug.LogError("[Demo1Setup] 灵物池为空且 Resources/Items 无灵物！敌人将无法掉落灵物！");
             }
 
             // 设置功法池

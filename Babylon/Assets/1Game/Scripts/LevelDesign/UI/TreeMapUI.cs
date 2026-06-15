@@ -90,6 +90,7 @@ namespace XianTu.LevelDesign
             _doc.panelSettings = panelSettings;
             _doc.visualTreeAsset = tree;
             _doc.sortingOrder = 11f;
+            XianTu.ChineseFontHelper.Apply(_doc.rootVisualElement);
 
             var root = _doc.rootVisualElement;
             if (root == null) return;

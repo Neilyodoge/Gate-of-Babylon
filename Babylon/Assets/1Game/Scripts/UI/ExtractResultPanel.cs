@@ -41,6 +41,7 @@ namespace XianTu
             _doc.panelSettings = panelSettings;
             _doc.visualTreeAsset = tree;
             _doc.sortingOrder = 15f;
+            ChineseFontHelper.Apply(_doc.rootVisualElement);
 
             var root = _doc.rootVisualElement;
             if (root != null && root.childCount == 0 && tree != null)

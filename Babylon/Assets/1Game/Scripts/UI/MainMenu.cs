@@ -128,6 +128,7 @@ namespace XianTu
             _doc.panelSettings = panelSettings;
             _doc.visualTreeAsset = tree;
             _doc.sortingOrder = 0f;   // 主菜单在最底层，弹层在其上
+            ChineseFontHelper.Apply(_doc.rootVisualElement);
 
             var root = _doc.rootVisualElement;
             if (root == null) return;
