@@ -13,6 +13,90 @@
             "shortcutSlot": 0,
             "createdTimeStamp": 1781578075017,
             "modifiedTimeStamp": 1781578075017
+        },
+        {
+            "guid": "3c474f0e8acd4da45a0b2167e3796bbd",
+            "title": "真得给咕佬磕一个了",
+            "comment": "",
+            "titleColor": {
+                "r": 1.0,
+                "g": 0.3999999761581421,
+                "b": 0.8368141055107117,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1781591922957,
+            "modifiedTimeStamp": 1781591922957
+        },
+        {
+            "guid": "f8c8a74eaf767934dad9476e91aaa886",
+            "title": "S_效果展示",
+            "comment": "",
+            "titleColor": {
+                "r": 0.3999999761581421,
+                "g": 0.6960349082946777,
+                "b": 1.0,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1781593970239,
+            "modifiedTimeStamp": 1781593970239
+        },
+        {
+            "guid": "78e69308a5dee374594b45ea11999355",
+            "title": "S_角色",
+            "comment": "",
+            "titleColor": {
+                "r": 0.4000000059604645,
+                "g": 0.6941176652908325,
+                "b": 1.0,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1781593994242,
+            "modifiedTimeStamp": 1781594015684
+        },
+        {
+            "guid": "bcac21cbd6f72c44c95b87eec6ccc4e6",
+            "title": "后处理&renderfeature",
+            "comment": "",
+            "titleColor": {
+                "r": 0.3999999761581421,
+                "g": 1.0,
+                "b": 0.6719695329666138,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1781594053516,
+            "modifiedTimeStamp": 1781594053516
+        },
+        {
+            "guid": "c6156212181f08042a3985bd4e90526f",
+            "title": "效果总",
+            "comment": "",
+            "titleColor": {
+                "r": 1.0,
+                "g": 0.6619117856025696,
+                "b": 0.3999999761581421,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1781594070739,
+            "modifiedTimeStamp": 1781594070739
+        },
+        {
+            "guid": "2fc7f0e84a2cc824698bcf8ebdd2bb35",
+            "title": "通用shader",
+            "comment": "",
+            "titleColor": {
+                "r": 1.0,
+                "g": 0.8031871914863586,
+                "b": 0.3999999761581421,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1781594101540,
+            "modifiedTimeStamp": 1781594101540
         }
     ]
 }

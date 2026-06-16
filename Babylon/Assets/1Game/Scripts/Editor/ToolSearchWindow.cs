@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -32,6 +33,9 @@ namespace XianTu
 
         /// <summary>是否为专用工具（true=专用工具Tab，false=通用工具Tab）</summary>
         public bool IsSpecialized;
+
+        /// <summary>关联的菜单路径（用于自动检测去重，菜单类工具填写）</summary>
+        public string MenuPath;
     }
 
     // ========================================================================
@@ -75,79 +79,20 @@ namespace XianTu
             // ============================================================
 
             // ---- 美术工具 (ArtTools) ----
-            list.Add(new ToolEntry
-            {
-                Name = "批量重命名",
-                Category = "ArtTools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/美术工具/批量重命名"),
-                ScriptPath = "Assets/Tools/Editor/ArtTools/BatchAssetRenamer.cs"
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "贴图规范化",
-                Category = "ArtTools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/美术工具/贴图规范化"),
-                ScriptPath = "Assets/Tools/Editor/ArtTools/TextureNormalizer.cs"
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "SDF Generator",
-                Category = "ArtTools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/美术工具/SDF Generator"),
-                ScriptPath = "Assets/Tools/Editor/ArtTools/SDFGenerator.cs"
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "平滑法线烘焙",
-                Category = "ArtTools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/美术工具/平滑法线烘焙"),
-                ScriptPath = "Assets/Tools/Editor/ArtTools/SmoothNormalBaker.cs"
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "Bent Normal Baker",
-                Category = "ArtTools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/美术工具/Bent Normal Baker"),
-                ScriptPath = "Assets/Tools/Editor/ArtTools/BentNormalBakeTool.cs"
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "Prefab资源快速复制",
-                Category = "ArtTools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/美术工具/Prefab资源快速复制"),
-                ScriptPath = "Assets/Tools/Editor/ArtTools/PrefabAssetExtractor.cs"
-            });
+            list.Add(MenuTool("批量重命名", "ArtTools", "nTools/美术工具/批量重命名", "Assets/Tools/Editor/ArtTools/BatchAssetRenamer.cs"));
+            list.Add(MenuTool("贴图规范化", "ArtTools", "nTools/美术工具/贴图规范化", "Assets/Tools/Editor/ArtTools/TextureNormalizer.cs"));
+            list.Add(MenuTool("SDF Generator", "ArtTools", "nTools/美术工具/SDF Generator", "Assets/Tools/Editor/ArtTools/SDFGenerator.cs"));
+            list.Add(MenuTool("平滑法线烘焙", "ArtTools", "nTools/美术工具/平滑法线烘焙", "Assets/Tools/Editor/ArtTools/BentNormalBakeTool.cs"));
+            list.Add(MenuTool("Prefab资源快速复制", "ArtTools", "nTools/美术工具/Prefab资源快速复制", "Assets/Tools/Editor/ArtTools/PrefabAssetExtractor.cs"));
 
             // ---- TA工具 (TATools) ----
-            list.Add(new ToolEntry
-            {
-                Name = "通道重映射",
-                Category = "TATools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/TA工具/通道重映射"),
-                ScriptPath = "Assets/Tools/Editor/TATools/ChannelRemapper.cs"
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "SRP Batcher Checker",
-                Category = "TATools",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/TA工具/SRP Batcher Checker"),
-                ScriptPath = "Assets/Tools/Editor/TATools/SRPBatcherChecker.cs"
-            });
+            list.Add(MenuTool("通道重映射", "TATools", "nTools/TA工具/通道重映射", "Assets/Tools/Editor/TATools/ChannelRemapper.cs"));
+            list.Add(MenuTool("SRP Batcher Checker", "TATools", "nTools/TA工具/SRP Batcher Checker", "Assets/Tools/Editor/TATools/SRPBatcherChecker.cs"));
+            list.Add(MenuTool("Shader批量替换", "TATools", "Tools_3D/美术/场景/Shader批量替换", "Assets/Tools/Editor/TATools/shader批量替换/TLShaderReplacer.cs"));
+            list.Add(MenuTool("材质批量调参", "TATools", "Tools_3D/美术/材质批量调参", "Assets/Tools/Editor/TATools/材质参数批量替换/TLMaterialBatchEditor.cs"));
 
             // ---- 性能优化 (OptimizeTool) ----
-            list.Add(new ToolEntry
-            {
-                Name = "场景优化",
-                Category = "OptimizeTool",
-                OnClick = () => EditorApplication.ExecuteMenuItem("nTools/性能优化/场景优化"),
-                ScriptPath = "Assets/Tools/Editor/OptimizeTool/SceneOptimizeTool.cs"
-            });
+            list.Add(MenuTool("场景优化", "OptimizeTool", "nTools/性能优化/场景优化", "Assets/Tools/Editor/OptimizeTool/SceneOptimizeTool.cs"));
 
             // ============================================================
             // 专用工具 —— 1Game/Scripts/Editor 下的项目工具
@@ -476,12 +421,136 @@ namespace XianTu
                 IsSpecialized = true
             });
 
+            // 自动检测：补充扫描到的、尚未手动登记的菜单工具
+            AppendAutoDetectedMenuTools(list);
+
             return list;
+        }
+
+        // ============================================================
+        // 自动检测
+        // ============================================================
+
+        /// <summary>
+        /// 自动扫描的菜单根前缀。只有位于这些前缀下的 [MenuItem] 才会被自动收录，
+        /// 避免把 Unity 内置菜单（File/Edit/GameObject 等）也扫进来。
+        /// 新增工具菜单根时，在此追加即可。
+        /// </summary>
+        private static readonly string[] AutoScanMenuRoots = { "nTools/", "Tools_3D/美术/" };
+
+        /// <summary>
+        /// 自动检测：扫描工程内所有带 [MenuItem] 的方法，把位于指定菜单根下、
+        /// 且尚未在上面手动登记过的工具补充进列表。
+        /// 这样新增带 [MenuItem] 的工具后，无需手动改本文件即可被搜索到。
+        /// </summary>
+        private static void AppendAutoDetectedMenuTools(List<ToolEntry> list)
+        {
+            // 已手动登记的菜单路径，用于去重（保留手写条目的分类/名称/描述）
+            var known = new HashSet<string>(
+                list.Where(t => !string.IsNullOrEmpty(t.MenuPath)).Select(t => t.MenuPath));
+
+            var methods = TypeCache.GetMethodsWithAttribute<MenuItem>();
+            foreach (var method in methods)
+            {
+                foreach (var attr in method.GetCustomAttributes(typeof(MenuItem), false))
+                {
+                    var mi = attr as MenuItem;
+                    // 跳过空属性与校验函数（validate 重载只是控制可用状态，不是工具入口）
+                    if (mi == null || mi.validate)
+                        continue;
+
+                    string path = mi.menuItem;
+                    if (string.IsNullOrEmpty(path))
+                        continue;
+
+                    // 仅收录项目工具菜单根下的项
+                    bool underRoot = false;
+                    for (int i = 0; i < AutoScanMenuRoots.Length; i++)
+                    {
+                        if (path.StartsWith(AutoScanMenuRoots[i], StringComparison.Ordinal))
+                        {
+                            underRoot = true;
+                            break;
+                        }
+                    }
+                    if (!underRoot)
+                        continue;
+
+                    // 去重：已手动登记或已自动登记过的菜单跳过
+                    if (known.Contains(path))
+                        continue;
+                    known.Add(path);
+
+                    // 名称取菜单叶子节点，分类取上一级菜单目录
+                    string capturedPath = path;
+                    string[] seg = path.Split('/');
+                    string name = seg[seg.Length - 1];
+                    string category = seg.Length >= 2 ? seg[seg.Length - 2] : "自动发现";
+
+                    string scriptPath = GetScriptPath(method.DeclaringType);
+
+                    list.Add(new ToolEntry
+                    {
+                        Name = name,
+                        Category = category,
+                        MenuPath = capturedPath,
+                        OnClick = () => EditorApplication.ExecuteMenuItem(capturedPath),
+                        ScriptPath = scriptPath,
+                        IsSpecialized = false
+                    });
+                }
+            }
+        }
+
+        // 类型 -> 脚本路径 的全局缓存（域重载后自动清空，首次访问时构建）
+        private static Dictionary<Type, string> _typeToScriptPath;
+
+        /// <summary>
+        /// 根据类型查找其所在的 .cs 脚本路径（用于帮助按钮定位）。
+        /// 通过 MonoScript.GetClass() 匹配，能兼容“文件名与类名不一致”的情况。
+        /// </summary>
+        private static string GetScriptPath(Type type)
+        {
+            if (type == null)
+                return null;
+
+            if (_typeToScriptPath == null)
+            {
+                _typeToScriptPath = new Dictionary<Type, string>();
+                string[] guids = AssetDatabase.FindAssets("t:MonoScript");
+                foreach (var guid in guids)
+                {
+                    string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                    var ms = AssetDatabase.LoadAssetAtPath<MonoScript>(assetPath);
+                    if (ms == null)
+                        continue;
+                    Type cls = ms.GetClass();
+                    if (cls != null && !_typeToScriptPath.ContainsKey(cls))
+                        _typeToScriptPath[cls] = assetPath;
+                }
+            }
+
+            _typeToScriptPath.TryGetValue(type, out string found);
+            return found;
         }
 
         // ============================================================
         // 辅助方法
         // ============================================================
+
+        /// <summary>创建一个菜单类工具条目（同时记录菜单路径，供自动检测去重）</summary>
+        private static ToolEntry MenuTool(string name, string category, string menuPath, string scriptPath)
+        {
+            string capturedPath = menuPath;
+            return new ToolEntry
+            {
+                Name = name,
+                Category = category,
+                MenuPath = capturedPath,
+                OnClick = () => EditorApplication.ExecuteMenuItem(capturedPath),
+                ScriptPath = scriptPath
+            };
+        }
 
         /// <summary>在 Project 窗口中选中并高亮资产</summary>
         private static void SelectAsset(string path)
