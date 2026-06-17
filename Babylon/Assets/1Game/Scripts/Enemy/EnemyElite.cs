@@ -97,7 +97,7 @@ namespace XianTu
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
-                _originalColors[i] = _renderers[i].material.color;
+                _originalColors[i] = MaterialHelper.SafeGetColor(_renderers[i].material);
         }
 
         private void Start()
@@ -676,7 +676,7 @@ namespace XianTu
         {
             if (_renderers == null) return;
             foreach (var r in _renderers)
-                if (r != null) r.material.color = color;
+                if (r != null) MaterialHelper.SafeSetColor(r.material, color);
         }
 
         private void RestoreColors()
@@ -684,7 +684,7 @@ namespace XianTu
             if (_renderers == null || _originalColors == null) return;
             for (int i = 0; i < _renderers.Length; i++)
                 if (_renderers[i] != null && i < _originalColors.Length)
-                    _renderers[i].material.color = _originalColors[i];
+                    MaterialHelper.SafeSetColor(_renderers[i].material, _originalColors[i]);
         }
     }
 }

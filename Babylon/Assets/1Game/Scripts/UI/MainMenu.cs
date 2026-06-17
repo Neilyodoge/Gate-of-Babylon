@@ -95,6 +95,7 @@ namespace XianTu
             DestroyIfExists("CodexUITK");
             DestroyIfExists("SettingsUI");
             DestroyIfExists("SpiritRootSelectUITK");
+            DestroyIfExists("CharacterSelectUITK");
             DestroyIfExists("BuffBarUITK");
             DestroyIfExists("SpiritRootMechanicHUD");
             DestroyIfExists("CaveEconomy");

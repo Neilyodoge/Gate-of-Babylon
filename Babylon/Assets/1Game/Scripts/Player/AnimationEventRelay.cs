@@ -24,11 +24,15 @@ namespace XianTu
                 Debug.LogWarning($"[AnimationEventRelay] 未找到 PlayerAnimator 组件！请确保父物体上挂载了 PlayerAnimator。");
             }
 
-            // 查找 Bip001 根骨骼（递归搜索子物体）
+            // 查找根骨骼（递归搜索子物体）。
+            // Frank_Katana 用 Bip001；其它美术资源（如法师 Mori）骨架命名不同，
+            // 回退到 SkinnedMeshRenderer.rootBone 自动识别，找不到则跳过（依赖导入设置的原地锁定）。
             _rootBone = FindChildRecursive(transform, "Bip001");
             if (_rootBone == null)
             {
-                Debug.LogWarning("[AnimationEventRelay] 未找到 Bip001 骨骼！动画位移锁定可能不完整。");
+                var smr = GetComponentInChildren<SkinnedMeshRenderer>();
+                if (smr != null && smr.rootBone != null)
+                    _rootBone = smr.rootBone;
             }
         }
 

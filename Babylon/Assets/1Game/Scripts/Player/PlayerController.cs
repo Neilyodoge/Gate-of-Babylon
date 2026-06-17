@@ -650,5 +650,82 @@ namespace XianTu
         {
             modelTransform = model;
         }
+
+        /// <summary>
+        /// 运行时应用主角档案：热替换模型 + 动画控制器，并重配普攻形态（剑客近战 / 法师远程）。
+        /// 与化身正交——切换主角不影响已选化身的数值与机制。
+        /// 在村庄「问道使」处改选时调用，也用于 Demo1Setup 初始构建。
+        /// </summary>
+        public void ApplyCharacterProfile(PlayerCharacterProfile profile)
+        {
+            if (profile == null || profile.modelPrefab == null) return;
+
+            // 1. 移除旧模型（modelTransform 指向的子物体，或名为 PlayerModel 的子物体）
+            Transform old = modelTransform;
+            if (old == null)
+            {
+                var t = transform.Find("PlayerModel");
+                if (t != null) old = t;
+            }
+            if (old != null && old != transform)
+                Destroy(old.gameObject);
+
+            // 2. 实例化新模型
+            var model = Instantiate(profile.modelPrefab, transform);
+            model.name = "PlayerModel";
+            model.transform.localPosition = Vector3.zero;
+            model.transform.localRotation = Quaternion.identity;
+            float s = profile.modelScale > 0.001f ? profile.modelScale : 1f;
+            model.transform.localScale = Vector3.one * s;
+
+            // 3. 动画控制器 + 关闭 Root Motion（位移由 CharacterController 驱动）
+            // 兜底：部分美术资源（如 Generic 骨架的 Mori）模型 FBX 不自带 Animator，
+            // 这里若找不到就补建一个，并绑定档案里记录的 Avatar，保证动画能播。
+            var animator = model.GetComponentInChildren<Animator>();
+            if (animator == null)
+                animator = model.AddComponent<Animator>();
+            if (animator != null)
+            {
+                if (profile.animatorController != null)
+                    animator.runtimeAnimatorController = profile.animatorController;
+                if (animator.avatar == null && profile.modelAvatar != null)
+                    animator.avatar = profile.modelAvatar;
+                animator.applyRootMotion = false;
+
+                if (animator.GetComponent<AnimationEventRelay>() == null)
+                    animator.gameObject.AddComponent<AnimationEventRelay>();
+            }
+
+            // 4. 重新接线（缓存引用在构建顺序上可能尚未就绪，这里兜底 GetComponent）
+            modelTransform = model.transform;
+            var playerAnim = _playerAnim != null ? _playerAnim : GetComponent<PlayerAnimator>();
+            if (playerAnim != null)
+            {
+                playerAnim.SetAnimator(animator);
+                playerAnim.ResetCombo();
+            }
+
+            // 5. 普攻形态 + 挂点偏移 + 特效覆盖
+            var combat = _combat != null ? _combat : GetComponent<PlayerCombat>();
+            if (combat != null)
+            {
+                combat.ConfigureBasicAttack(profile);
+
+                var attackOrigin = transform.Find("AttackOrigin");
+                if (attackOrigin != null)
+                    attackOrigin.localPosition = profile.attackOriginOffset;
+
+                var slashPoint = transform.Find("SlashVFXPoint");
+                if (slashPoint != null)
+                    slashPoint.localPosition = profile.slashVFXOffset;
+
+                if (profile.slashVFXPrefab != null && slashPoint != null)
+                    combat.SetSlashVFX(profile.slashVFXPrefab, slashPoint);
+                if (profile.hitVFXPrefab != null)
+                    combat.SetHitVFX(profile.hitVFXPrefab);
+            }
+
+            Debug.Log($"<color=cyan>[主角] 已切换为 {profile.displayName}（{profile.roleTag}）</color>");
+        }
     }
 }

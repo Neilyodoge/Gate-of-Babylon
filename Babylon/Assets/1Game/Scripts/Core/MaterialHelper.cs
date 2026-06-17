@@ -148,6 +148,28 @@ namespace XianTu
             renderer.SetPropertyBlock(mpb);
         }
 
+        /// <summary>
+        /// 安全读取材质主色：URP/Lit 用 _BaseColor，旧版/内置用 _Color。
+        /// 若两者皆无（如部分 Shader Graph / Legacy 粒子着色器），返回白色且不刷错误日志。
+        /// </summary>
+        public static Color SafeGetColor(Material m)
+        {
+            if (m == null) return Color.white;
+            if (m.HasProperty(_baseColorId)) return m.GetColor(_baseColorId);
+            if (m.HasProperty(_colorId)) return m.GetColor(_colorId);
+            return Color.white;
+        }
+
+        /// <summary>
+        /// 安全写入材质主色：找不到颜色属性时静默跳过，避免 "doesn't have a color property" 报错。
+        /// </summary>
+        public static void SafeSetColor(Material m, Color c)
+        {
+            if (m == null) return;
+            if (m.HasProperty(_baseColorId)) m.SetColor(_baseColorId, c);
+            else if (m.HasProperty(_colorId)) m.SetColor(_colorId, c);
+        }
+
         /// <summary>创建一个 Unlit 材质</summary>
         public static Material CreateUnlit(Color color)
         {

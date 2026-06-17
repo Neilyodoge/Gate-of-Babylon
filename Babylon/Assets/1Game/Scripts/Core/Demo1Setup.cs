@@ -134,10 +134,19 @@ namespace XianTu
             cc.center = new Vector3(0, 0.9f, 0);
 
             // ========== 角色模型 ==========
-            Transform modelTransform;
+            // 优先走主角档案系统（PlayerCharacterProfile）：若已选档案且带模型，
+            // 则跳过这里的序列化模型构建，改由 PlayerController.ApplyCharacterProfile 在组件就绪后热构建。
+            var selectedProfile = PlayerCharacterRegistry.Selected;
+            bool useProfile = selectedProfile != null && selectedProfile.modelPrefab != null;
+
+            Transform modelTransform = null;
             Animator modelAnimator = null;
 
-            if (playerModelPrefab != null)
+            if (useProfile)
+            {
+                // 模型延迟到组件挂载后由 ApplyCharacterProfile 构建
+            }
+            else if (playerModelPrefab != null)
             {
                 // 使用真实模型
                 var model = Instantiate(playerModelPrefab, playerGo.transform);
@@ -293,6 +302,11 @@ namespace XianTu
             playerGo.AddComponent<SpiritSlotSystem>();
             playerGo.AddComponent<PlayerResources>();
             playerGo.AddComponent<QualitativeEffectRunner>();
+
+            // 主角档案系统：组件就绪后热构建所选主角模型（剑客/法师）。
+            // 默认档案（sortOrder 最小）一般为剑客，与旧的 Frank_Katana 一致。
+            if (useProfile)
+                playerCtrl.ApplyCharacterProfile(selectedProfile);
         }
 
         private void SetupCamera()

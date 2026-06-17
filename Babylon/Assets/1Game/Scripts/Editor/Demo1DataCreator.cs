@@ -15,13 +15,22 @@ namespace XianTu.Editor
         private const string CONTROLLER_PATH = "Assets/1Game/Data/";
         private const string SCENE_PATH = "Assets/1Game/Scenes/";
 
-        // Frank_Katana 资源路径
-        private const string FRANK_ANIM_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Animations/";
-        private const string FRANK_ANIM_FBX_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Animations/FBX/";
-        private const string FRANK_MESH_PATH = "Assets/1Game/ArtRes/Package/Frank_Katana/Assets/Meshes/";
+        // Frank_Katana 资源路径（位于 Package/Character/ 下）
+        private const string FRANK_ANIM_PATH = "Assets/1Game/ArtRes/Package/Character/Frank_Katana/Assets/Animations/";
+        private const string FRANK_ANIM_FBX_PATH = "Assets/1Game/ArtRes/Package/Character/Frank_Katana/Assets/Animations/FBX/";
+        private const string FRANK_MESH_PATH = "Assets/1Game/ArtRes/Package/Character/Frank_Katana/Assets/Meshes/";
 
         // 怪物资源包路径
         private const string MONSTER_PACK_PATH = "Assets/1Game/ArtRes/Package/Monsters Ultimate Pack 05 Cute Series/";
+
+        // 法系主角 Mori 资源包路径（文件夹为中文名：模型/动画/贴图，用 FindAssets 规避编码问题）
+        private const string MAGIC_PACK_PATH = "Assets/1Game/ArtRes/Package/Character/magic";
+        // 元素怪资源包路径
+        private const string ELEMENTALS_PACK_PATH = "Assets/1Game/ArtRes/Package/Monster/StylizedFantasyElementalsPack";
+        // 主角档案存放路径（Resources 下，供 PlayerCharacterRegistry 加载）
+        private const string CHAR_PROFILE_PATH = "Assets/1Game/Resources/CharacterProfiles/";
+        // 法师主角模型文件名
+        private const string MORI_FBX_NAME = "Mori.FBX";
 
         // ==================== 菜单项 ====================
 
@@ -94,7 +103,8 @@ namespace XianTu.Editor
             if (AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(controllerPath) != null)
                 AssetDatabase.DeleteAsset(controllerPath);
 
-            var controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+            // Suriyun 角色包在全局命名空间有同名 AnimatorController(MonoBehaviour)，此处全限定避免冲突。
+            var controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
 
             // 添加参数
             controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
@@ -552,7 +562,445 @@ namespace XianTu.Editor
             Selection.activeObject = config;
         }
 
+        // ==================== ⑦ 法系主角 Mori ====================
+
+        [MenuItem("仙途秘境/⑦ 配置法系主角 Mori", false, 7)]
+        public static void SetupMagicCharacter()
+        {
+            EnsureDirectory(CHAR_PROFILE_PATH);
+
+            SetupMoriMaterials();
+            SetupMoriRig();   // 必须在创建控制器前：生成 Avatar 并让模型自带 Animator
+            var moriController = CreateMoriAnimatorController();
+            CreateCharacterProfiles(moriController);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            Debug.Log("<color=green>✅ 法系主角 Mori 配置完成！村庄『问道使』NPC 处可选择剑修/法修。</color>");
+        }
+
+        /// <summary>
+        /// 修正 Mori 的骨骼/Avatar 设置。Mori 包默认 Generic + NoAvatar，
+        /// 导致模型实例化后不带 Animator、且分文件动画无法重定向。
+        /// 这里：① 模型 FBX 生成自身 Avatar（顺带让 prefab 自带 Animator）；
+        ///       ② 所有动画 FBX 复用该 Avatar，保证 Generic 重定向到同一骨架。
+        /// </summary>
+        private static void SetupMoriRig()
+        {
+            string moriPath = FindAssetPath(MAGIC_PACK_PATH, MORI_FBX_NAME);
+            if (string.IsNullOrEmpty(moriPath))
+            {
+                Debug.LogWarning("  ⚠️ 未找到 Mori.FBX，跳过骨骼配置");
+                return;
+            }
+
+            var modelImp = AssetImporter.GetAtPath(moriPath) as ModelImporter;
+            if (modelImp != null)
+            {
+                modelImp.animationType = ModelImporterAnimationType.Generic;
+                modelImp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+                modelImp.SaveAndReimport();
+            }
+
+            Avatar moriAvatar = null;
+            foreach (var a in AssetDatabase.LoadAllAssetsAtPath(moriPath))
+                if (a is Avatar av) { moriAvatar = av; break; }
+
+            if (moriAvatar == null)
+            {
+                Debug.LogWarning("  ⚠️ 未能生成 MoriAvatar，分文件动画可能无法播放");
+                return;
+            }
+
+            int n = 0;
+            string[] guids = AssetDatabase.FindAssets("Mori t:Model", new[] { MAGIC_PACK_PATH });
+            foreach (var guid in guids)
+            {
+                string p = AssetDatabase.GUIDToAssetPath(guid);
+                if (System.IO.Path.GetFileName(p).Equals(MORI_FBX_NAME, System.StringComparison.OrdinalIgnoreCase)) continue;
+                var imp = AssetImporter.GetAtPath(p) as ModelImporter;
+                if (imp == null) continue;
+                imp.animationType = ModelImporterAnimationType.Generic;
+                imp.avatarSetup = ModelImporterAvatarSetup.CopyFromOther;
+                imp.sourceAvatar = moriAvatar;
+                imp.SaveAndReimport();
+                n++;
+            }
+            Debug.Log($"  Mori 骨骼配置完成：模型生成 {moriAvatar.name}，{n} 个动画 FBX 复用该 Avatar");
+        }
+
+        /// <summary>把 Mori.FBX 的材质重映射到包内的 M_Mori 等 .mat（按名搜索全工程）。</summary>
+        private static void SetupMoriMaterials()
+        {
+            string moriPath = FindAssetPath(MAGIC_PACK_PATH, MORI_FBX_NAME);
+            if (string.IsNullOrEmpty(moriPath))
+            {
+                Debug.LogWarning("  ⚠️ 未找到 Mori.FBX，跳过材质配置");
+                return;
+            }
+
+            var importer = AssetImporter.GetAtPath(moriPath) as ModelImporter;
+            if (importer == null) return;
+
+            importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
+            importer.SearchAndRemapMaterials(ModelImporterMaterialName.BasedOnMaterialName,
+                ModelImporterMaterialSearch.Everywhere);
+            importer.SaveAndReimport();
+            Debug.Log("  已重映射 Mori 材质（按名搜索全工程）");
+        }
+
+        /// <summary>创建 Mori 法师的 Animator Controller（与玩家状态机同构，使用施法动画）。</summary>
+        private static UnityEditor.Animations.AnimatorController CreateMoriAnimatorController()
+        {
+            string controllerPath = CONTROLLER_PATH + "MoriAnimatorController.controller";
+            if (AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(controllerPath) != null)
+                AssetDatabase.DeleteAsset(controllerPath);
+
+            var controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+
+            controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
+            controller.AddParameter("MoveX", AnimatorControllerParameterType.Float);
+            controller.AddParameter("MoveZ", AnimatorControllerParameterType.Float);
+            controller.AddParameter("Attack", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("AttackIndex", AnimatorControllerParameterType.Int);
+            controller.AddParameter("Evade", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Hit", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Die", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Skill", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("IsAttacking", AnimatorControllerParameterType.Bool);
+
+            // 加载 Mori 动画（带回退）
+            var idleClip = LoadMoriClip("Mori_IdleLoop");
+            var runClip = LoadMoriClip("Mori_Run");
+            // 普攻 = 直线施法起手（远程凝灵弹在 OnSlashVFX 点发射）
+            var attackClip = LoadMoriClip("Mori_SpellLOS_Cast_Start") ?? LoadMoriClip("Mori_Attack");
+            // 闪避 = 跑步起步过渡（避免占用 Run/Idle 循环，防止给循环动画加结束事件）
+            var evadeClip = LoadMoriClip("Mori_RunTransition_Start") ?? LoadMoriClip("Mori_Ability_IdleToAbility");
+            var hitClip = LoadMoriClip("Mori_FlailLoop") ?? LoadMoriClip("Mori_StunnedLoop");
+            var dieClip = LoadMoriClip("Mori_DeathLoop");
+            var skillClip = LoadMoriClip("Mori_SpellGlobal_Cast_Start") ?? LoadMoriClip("Mori_Ability_Cast_Start");
+
+            BuildPlayerStateMachine(controller, idleClip, runClip, attackClip, attackClip, attackClip,
+                evadeClip, hitClip, dieClip, skillClip);
+
+            // 动画事件（普攻三段共用同一剪辑，事件加一次即可）
+            AddAttackAnimationEvents(attackClip, 0);
+            AddSimpleEndEvent(evadeClip, "OnEvadeEnd");
+            AddSimpleEndEvent(hitClip, "OnHitEnd");
+            AddSimpleEndEvent(skillClip, "OnSkillEnd");
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"<color=green>✅ MoriAnimatorController 创建完成：{controllerPath}</color>");
+
+            int missing = 0;
+            if (idleClip == null) { Debug.LogWarning("  ⚠️ 缺 Mori Idle"); missing++; }
+            if (runClip == null) { Debug.LogWarning("  ⚠️ 缺 Mori Run"); missing++; }
+            if (attackClip == null) { Debug.LogWarning("  ⚠️ 缺 Mori Attack/Cast"); missing++; }
+            if (dieClip == null) { Debug.LogWarning("  ⚠️ 缺 Mori Death"); missing++; }
+            if (missing == 0) Debug.Log("<color=green>  Mori 关键动画加载成功</color>");
+
+            return controller;
+        }
+
+        /// <summary>创建剑修/法修两张主角档案到 Resources/CharacterProfiles/。</summary>
+        private static void CreateCharacterProfiles(RuntimeAnimatorController moriController)
+        {
+            // ===== 剑修（默认，沿用 Frank_Katana） =====
+            var frankFbx = AssetDatabase.LoadAssetAtPath<GameObject>(
+                FRANK_MESH_PATH + "Frank_RPG_Katana_Unity_Y_top.FBX");
+            var playerController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                CONTROLLER_PATH + "PlayerAnimatorController.controller");
+
+            var sword = LoadOrCreateProfile(CHAR_PROFILE_PATH + "剑修.asset");
+            sword.characterId = "sword";
+            sword.displayName = "剑修";
+            sword.roleTag = "近战 · 御剑";
+            sword.description = "近身三段连斩，刀光凌厉。\n霸体连招，贴脸输出。";
+            sword.themeColor = new Color(0.95f, 0.78f, 0.30f);
+            sword.sortOrder = 0;
+            sword.modelPrefab = frankFbx;
+            sword.animatorController = playerController;
+            sword.modelScale = 1f;
+            sword.rangedBasicAttack = false;
+            sword.attackOriginOffset = new Vector3(0f, 0.9f, 0.6f);
+            sword.slashVFXOffset = new Vector3(0f, 1.0f, 0.8f);
+            EditorUtility.SetDirty(sword);
+
+            // ===== 法修（Mori，远程） =====
+            var moriFbx = AssetDatabase.LoadAssetAtPath<GameObject>(FindAssetPath(MAGIC_PACK_PATH, MORI_FBX_NAME));
+
+            var mage = LoadOrCreateProfile(CHAR_PROFILE_PATH + "法修.asset");
+            mage.characterId = "mage";
+            mage.displayName = "法修";
+            mage.roleTag = "远程 · 御灵";
+            mage.description = "御灵远击，左键凝灵弹轰敌。\n走位放风筝，技能为核心。";
+            mage.themeColor = new Color(0.35f, 0.75f, 0.95f);
+            mage.sortOrder = 1;
+            mage.modelPrefab = moriFbx;
+            mage.animatorController = moriController;
+            mage.modelScale = 0.03f;   // Mori 原始导入尺寸约为玩家百倍，缩到 0.03 匹配
+            // 记录模型 Avatar，运行时若实例不带 Animator 则补建并绑定（Generic 骨架兜底）
+            string moriPathForAvatar = FindAssetPath(MAGIC_PACK_PATH, MORI_FBX_NAME);
+            if (!string.IsNullOrEmpty(moriPathForAvatar))
+                foreach (var a in AssetDatabase.LoadAllAssetsAtPath(moriPathForAvatar))
+                    if (a is Avatar av) { mage.modelAvatar = av; break; }
+            mage.rangedBasicAttack = true;
+            mage.basicElement = ElementTag.Water;
+            mage.basicProjectileSpeed = 18f;
+            mage.basicDamageMultiplier = 1f;
+            mage.attackOriginOffset = new Vector3(0f, 1.1f, 0.5f);
+            mage.slashVFXOffset = new Vector3(0f, 1.2f, 0.7f);
+            EditorUtility.SetDirty(mage);
+
+            Debug.Log($"  剑修档案：{(frankFbx != null ? "Frank ✓" : "❌ 模型未找到")} / 控制器 {(playerController != null ? "✓" : "❌ 先跑步骤③")}");
+            Debug.Log($"  法修档案：{(moriFbx != null ? "Mori ✓" : "❌ 模型未找到")} / 控制器 {(moriController != null ? "✓" : "❌")}");
+        }
+
+        private static PlayerCharacterProfile LoadOrCreateProfile(string path)
+        {
+            var a = AssetDatabase.LoadAssetAtPath<PlayerCharacterProfile>(path);
+            if (a == null)
+            {
+                a = ScriptableObject.CreateInstance<PlayerCharacterProfile>();
+                AssetDatabase.CreateAsset(a, path);
+            }
+            return a;
+        }
+
+        /// <summary>从 magic 包加载指定名称的 Mori 动画剪辑（FindAssets 规避中文文件夹编码问题）。</summary>
+        private static AnimationClip LoadMoriClip(string clipName)
+        {
+            string[] guids = AssetDatabase.FindAssets(clipName, new[] { MAGIC_PACK_PATH });
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!(path.EndsWith(".FBX") || path.EndsWith(".fbx"))) continue;
+                if (System.IO.Path.GetFileNameWithoutExtension(path) != clipName) continue;
+                var assets = AssetDatabase.LoadAllAssetsAtPath(path);
+                foreach (var a in assets)
+                    if (a is AnimationClip c && !c.name.StartsWith("__preview__")) return c;
+            }
+            Debug.LogWarning($"  未找到 Mori 动画：{clipName}");
+            return null;
+        }
+
+        /// <summary>在给定文件夹内按精确文件名查找资产路径。</summary>
+        private static string FindAssetPath(string folder, string fileNameWithExt)
+        {
+            string nameNoExt = System.IO.Path.GetFileNameWithoutExtension(fileNameWithExt);
+            string[] guids = AssetDatabase.FindAssets(nameNoExt, new[] { folder });
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (System.IO.Path.GetFileName(path).Equals(fileNameWithExt, System.StringComparison.OrdinalIgnoreCase))
+                    return path;
+            }
+            return null;
+        }
+
+        // ==================== ⑧ 元素怪接入 ====================
+
+        [MenuItem("仙途秘境/⑧ 接入元素怪到 MonsterPrefabs（五行）", false, 8)]
+        public static void WireElementalMonsters()
+        {
+            string configPath = "Assets/1Game/Resources/MonsterPrefabs.asset";
+            var config = AssetDatabase.LoadAssetAtPath<MonsterPrefabs>(configPath);
+            if (config == null)
+            {
+                config = ScriptableObject.CreateInstance<MonsterPrefabs>();
+                AssetDatabase.CreateAsset(config, configPath);
+            }
+
+            // 五行映射：土=近战, 风=远程, 火=冲锋, 水=法师, 火金=Boss
+            var earth = LoadElemental("EarthElemental_Green.prefab");
+            var air = LoadElemental("AirElemental_Wind.prefab");
+            var lava = LoadElemental("LavaElemental_Red.prefab");
+            var water = LoadElemental("WaterElemental_Blue.prefab");
+            var boss = LoadElemental("LavaElemental_Gold.prefab");
+
+            if (earth != null) config.普通小怪Prefab = earth;
+            if (air != null) config.远程敌人Prefab = air;
+            if (lava != null) config.冲锋敌人Prefab = lava;
+            if (water != null) config.法师敌人Prefab = water;
+            if (boss != null) config.Boss敌人Prefab = boss;
+
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            Debug.Log("<color=green>✅ 元素怪已接入 MonsterPrefabs（五行映射）</color>");
+            Debug.Log($"  土·近战：{(earth != null ? "EarthElemental_Green ✓" : "❌")}");
+            Debug.Log($"  风·远程：{(air != null ? "AirElemental_Wind ✓" : "❌")}");
+            Debug.Log($"  火·冲锋：{(lava != null ? "LavaElemental_Red ✓" : "❌")}");
+            Debug.Log($"  水·法师：{(water != null ? "WaterElemental_Blue ✓" : "❌")}");
+            Debug.Log($"  金火·Boss：{(boss != null ? "LavaElemental_Gold ✓" : "❌")}");
+            Selection.activeObject = config;
+        }
+
+        private static GameObject LoadElemental(string fileNameWithExt)
+        {
+            string path = FindAssetPath(ELEMENTALS_PACK_PATH, fileNameWithExt);
+            return string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        }
+
         // ==================== 动画工具方法 ====================
+
+        /// <summary>
+        /// 构建玩家状态机（状态 + 转换）。Frank 与 Mori 共用，只是注入的剪辑不同。
+        /// 调用方负责创建 controller、添加参数、加载剪辑与添加动画事件。
+        /// </summary>
+        private static void BuildPlayerStateMachine(
+            UnityEditor.Animations.AnimatorController controller,
+            AnimationClip idleClip, AnimationClip runClip,
+            AnimationClip attack1Clip, AnimationClip attack2Clip, AnimationClip attack3Clip,
+            AnimationClip evadeClip, AnimationClip hitClip, AnimationClip dieClip, AnimationClip skillClip)
+        {
+            var rootStateMachine = controller.layers[0].stateMachine;
+
+            var idleState = rootStateMachine.AddState("Idle", new Vector3(0, 0, 0));
+            if (idleClip != null) idleState.motion = idleClip;
+            rootStateMachine.defaultState = idleState;
+
+            var runState = rootStateMachine.AddState("Run", new Vector3(0, 120, 0));
+            if (runClip != null) runState.motion = runClip;
+
+            var attack1State = rootStateMachine.AddState("Attack1", new Vector3(300, 0, 0));
+            if (attack1Clip != null) attack1State.motion = attack1Clip;
+            attack1State.speed = 1.3f;
+
+            var attack2State = rootStateMachine.AddState("Attack2", new Vector3(300, 80, 0));
+            if (attack2Clip != null) attack2State.motion = attack2Clip;
+            attack2State.speed = 1.3f;
+
+            var attack3State = rootStateMachine.AddState("Attack3", new Vector3(300, 160, 0));
+            if (attack3Clip != null) attack3State.motion = attack3Clip;
+            attack3State.speed = 1.3f;
+
+            var evadeState = rootStateMachine.AddState("Evade", new Vector3(-300, 0, 0));
+            if (evadeClip != null) evadeState.motion = evadeClip;
+
+            var hitState = rootStateMachine.AddState("Hit", new Vector3(-300, 120, 0));
+            if (hitClip != null) hitState.motion = hitClip;
+
+            var dieState = rootStateMachine.AddState("Die", new Vector3(-300, 240, 0));
+            if (dieClip != null) dieState.motion = dieClip;
+
+            var skillState = rootStateMachine.AddState("Skill", new Vector3(300, 240, 0));
+            if (skillClip != null) skillState.motion = skillClip;
+
+            var idleToRun = idleState.AddTransition(runState);
+            idleToRun.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+            idleToRun.hasExitTime = false;
+            idleToRun.duration = 0.15f;
+
+            var runToIdle = runState.AddTransition(idleState);
+            runToIdle.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
+            runToIdle.hasExitTime = false;
+            runToIdle.duration = 0.15f;
+
+            var anyToAttack1 = rootStateMachine.AddAnyStateTransition(attack1State);
+            anyToAttack1.AddCondition(AnimatorConditionMode.If, 0, "Attack");
+            anyToAttack1.AddCondition(AnimatorConditionMode.Equals, 0, "AttackIndex");
+            anyToAttack1.hasExitTime = false;
+            anyToAttack1.duration = 0.1f;
+            anyToAttack1.canTransitionToSelf = false;
+
+            var anyToAttack2 = rootStateMachine.AddAnyStateTransition(attack2State);
+            anyToAttack2.AddCondition(AnimatorConditionMode.If, 0, "Attack");
+            anyToAttack2.AddCondition(AnimatorConditionMode.Equals, 1, "AttackIndex");
+            anyToAttack2.hasExitTime = false;
+            anyToAttack2.duration = 0.05f;
+            anyToAttack2.canTransitionToSelf = false;
+
+            var anyToAttack3 = rootStateMachine.AddAnyStateTransition(attack3State);
+            anyToAttack3.AddCondition(AnimatorConditionMode.If, 0, "Attack");
+            anyToAttack3.AddCondition(AnimatorConditionMode.Equals, 2, "AttackIndex");
+            anyToAttack3.hasExitTime = false;
+            anyToAttack3.duration = 0.05f;
+            anyToAttack3.canTransitionToSelf = false;
+
+            AddAttackExit(attack1State, runState, idleState);
+            AddAttackExit(attack2State, runState, idleState);
+            AddAttackExit(attack3State, runState, idleState);
+
+            var anyToEvade = rootStateMachine.AddAnyStateTransition(evadeState);
+            anyToEvade.AddCondition(AnimatorConditionMode.If, 0, "Evade");
+            anyToEvade.hasExitTime = false;
+            anyToEvade.duration = 0.1f;
+            anyToEvade.canTransitionToSelf = false;
+
+            var evadeToRun = evadeState.AddTransition(runState);
+            evadeToRun.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+            evadeToRun.hasExitTime = true;
+            evadeToRun.exitTime = 0.9f;
+            evadeToRun.duration = 0.1f;
+
+            var evadeToIdle = evadeState.AddTransition(idleState);
+            evadeToIdle.hasExitTime = true;
+            evadeToIdle.exitTime = 0.9f;
+            evadeToIdle.duration = 0.15f;
+
+            var anyToHit = rootStateMachine.AddAnyStateTransition(hitState);
+            anyToHit.AddCondition(AnimatorConditionMode.If, 0, "Hit");
+            anyToHit.hasExitTime = false;
+            anyToHit.duration = 0.05f;
+            anyToHit.canTransitionToSelf = false;
+
+            var hitToRun = hitState.AddTransition(runState);
+            hitToRun.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+            hitToRun.hasExitTime = true;
+            hitToRun.exitTime = 0.9f;
+            hitToRun.duration = 0.1f;
+
+            var hitToIdle = hitState.AddTransition(idleState);
+            hitToIdle.hasExitTime = true;
+            hitToIdle.exitTime = 0.9f;
+            hitToIdle.duration = 0.15f;
+
+            var anyToDie = rootStateMachine.AddAnyStateTransition(dieState);
+            anyToDie.AddCondition(AnimatorConditionMode.If, 0, "Die");
+            anyToDie.hasExitTime = false;
+            anyToDie.duration = 0.1f;
+            anyToDie.canTransitionToSelf = false;
+
+            var anyToSkill = rootStateMachine.AddAnyStateTransition(skillState);
+            anyToSkill.AddCondition(AnimatorConditionMode.If, 0, "Skill");
+            anyToSkill.hasExitTime = false;
+            anyToSkill.duration = 0.1f;
+            anyToSkill.canTransitionToSelf = false;
+
+            var skillToRun = skillState.AddTransition(runState);
+            skillToRun.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+            skillToRun.hasExitTime = true;
+            skillToRun.exitTime = 0.9f;
+            skillToRun.duration = 0.1f;
+
+            var skillToIdle = skillState.AddTransition(idleState);
+            skillToIdle.hasExitTime = true;
+            skillToIdle.exitTime = 0.9f;
+            skillToIdle.duration = 0.15f;
+        }
+
+        /// <summary>攻击状态的兜底退出过渡（→ Run / → Idle）。</summary>
+        private static void AddAttackExit(
+            UnityEditor.Animations.AnimatorState atkState,
+            UnityEditor.Animations.AnimatorState runState,
+            UnityEditor.Animations.AnimatorState idleState)
+        {
+            var toRun = atkState.AddTransition(runState);
+            toRun.AddCondition(AnimatorConditionMode.IfNot, 0, "IsAttacking");
+            toRun.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+            toRun.hasExitTime = true;
+            toRun.exitTime = 0.95f;
+            toRun.duration = 0.05f;
+
+            var toIdle = atkState.AddTransition(idleState);
+            toIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "IsAttacking");
+            toIdle.hasExitTime = true;
+            toIdle.exitTime = 0.95f;
+            toIdle.duration = 0.05f;
+        }
 
         /// <summary>从 Frank_Katana FBX 文件中加载动画剪辑</summary>
         private static AnimationClip LoadAnimClip(string clipName)

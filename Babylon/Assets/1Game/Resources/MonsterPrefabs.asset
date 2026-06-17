@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e668a7bd8959a3e4693a3353b1ebfdb6, type: 3}
   m_Name: MonsterPrefabs
   m_EditorClassIdentifier: 
-  "\u666E\u901A\u5C0F\u602APrefab": {fileID: 7092166590737220422, guid: 2fd6d6c14fb243743a0b5a4e363a7592, type: 3}
-  "\u8FDC\u7A0B\u654C\u4EBAPrefab": {fileID: 3434728605036859870, guid: ddac70f8069b6e642a93d864c92beca7, type: 3}
-  "\u51B2\u950B\u654C\u4EBAPrefab": {fileID: 8866050419410387341, guid: ef1ce2ba2eea93644ad671d274a90acd, type: 3}
-  "\u6CD5\u5E08\u654C\u4EBAPrefab": {fileID: 4381662266584662169, guid: 473fd7f4807f0ff44ba075c57c8e0910, type: 3}
-  "Boss\u654C\u4EBAPrefab": {fileID: 29666394940913172, guid: 32a31c60827cb7b4dacea823c9a33f95, type: 3}
+  "\u666E\u901A\u5C0F\u602APrefab": {fileID: 3323720242290215732, guid: 35f41776ace298b448caca8e71a9ef8f, type: 3}
+  "\u8FDC\u7A0B\u654C\u4EBAPrefab": {fileID: 7507445929137760294, guid: 11d481901188e184091c34c1a81c5488, type: 3}
+  "\u51B2\u950B\u654C\u4EBAPrefab": {fileID: 1331890821213243041, guid: 052ea3aeedde74a44bf959dc85e15781, type: 3}
+  "\u6CD5\u5E08\u654C\u4EBAPrefab": {fileID: 2097827472302657340, guid: ac24d348ed0eea048a271e360f3ca7ff, type: 3}
+  "Boss\u654C\u4EBAPrefab": {fileID: 4685546102585767789, guid: abec01c83c231304e9d4055afb7999f9, type: 3}

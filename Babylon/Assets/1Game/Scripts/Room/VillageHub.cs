@@ -102,6 +102,12 @@ namespace XianTu
             _npc = npcGo.AddComponent<SpiritRootNPC>();
             _npc.Build();
 
+            // ===== NPC：问道使（右侧）—— 选择主角（剑修 / 法修）=====
+            var charNpcGo = new GameObject("CharacterSelectNPC");
+            charNpcGo.transform.SetParent(transform, false);
+            charNpcGo.transform.localPosition = new Vector3(7f, 0f, 2f);
+            charNpcGo.AddComponent<CharacterSelectNPC>().Build();
+
             // ===== 山门：通向第一关（前方）=====
             var portalGo = new GameObject("VillagePortal");
             portalGo.transform.SetParent(transform, false);
@@ -263,6 +269,104 @@ namespace XianTu
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
                 SpiritRootSelectUITK.Show();
+        }
+
+        private void OnPlayerEnter()
+        {
+            _playerInRange = true;
+            InteractionRouter.Register(this);
+        }
+
+        private void OnPlayerExit()
+        {
+            _playerInRange = false;
+            InteractionRouter.Unregister(this);
+            if (_headCard != null) _headCard.SetHintVisible(false);
+        }
+
+        private void OnDestroy()
+        {
+            InteractionRouter.Unregister(this);
+        }
+    }
+
+    // ============================================================
+    //                  NPC：问道使（主角选择）
+    // ============================================================
+
+    /// <summary>
+    /// 问道使 NPC：玩家走近按 F → 弹 CharacterSelectUITK（选择剑修 / 法修主角）。
+    /// 与司命使（化身）并列，优先级同为 30。
+    /// </summary>
+    public class CharacterSelectNPC : MonoBehaviour, IInteractable
+    {
+        public Vector3 InteractionWorldPos => transform.position;
+        public int InteractionPriority => 30;
+        public bool IsInteractionAvailable => _playerInRange;
+        public bool IsRoutedActive { get; set; }
+
+        private bool _playerInRange;
+        private NpcHeadCard _headCard;
+        private GameObject _bodyGo;
+
+        public void Build()
+        {
+            _bodyGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            _bodyGo.name = "NPC_Body";
+            _bodyGo.transform.SetParent(transform, false);
+            _bodyGo.transform.localPosition = new Vector3(0, 1f, 0);
+            var bodyCol = _bodyGo.GetComponent<Collider>();
+            if (bodyCol != null) Destroy(bodyCol);
+
+            var bodyRend = _bodyGo.GetComponent<Renderer>();
+            if (bodyRend != null)
+            {
+                var mat = new Material(MaterialHelper.GetLitShader());
+                mat.color = new Color(0.4f, 0.75f, 0.7f);
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(0.25f, 0.55f, 0.5f) * 0.4f);
+                bodyRend.material = mat;
+            }
+
+            _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
+            {
+                displayName = "问道使",
+                icon = "☯",
+                roleSub = "主角选择",
+                hintText = "按 [F] 选择主角",
+                themeColor = new Color(0.4f, 0.85f, 0.78f),
+                yOffset = 2.6f,
+                showLongRangeMarker = true
+            });
+
+            var trig = new GameObject("InteractTrigger");
+            trig.transform.SetParent(transform, false);
+            var sc = trig.AddComponent<SphereCollider>();
+            sc.isTrigger = true;
+            sc.radius = 2.5f;
+            var rb = trig.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+
+            var bridge = trig.AddComponent<TriggerBridge>();
+            bridge.OnEnter = OnPlayerEnter;
+            bridge.OnExit = OnPlayerExit;
+        }
+
+        private void Update()
+        {
+            if (_headCard != null)
+            {
+                bool wantHint = IsRoutedActive && !CharacterSelectUITK.IsVisible;
+                _headCard.SetHintVisible(wantHint);
+            }
+
+            if (!IsRoutedActive) return;
+            if (CharacterSelectUITK.IsVisible) return;
+
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.fKey.wasPressedThisFrame)
+                CharacterSelectUITK.Show();
         }
 
         private void OnPlayerEnter()

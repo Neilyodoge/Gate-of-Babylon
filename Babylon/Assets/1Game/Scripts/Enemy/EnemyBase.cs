@@ -91,7 +91,7 @@ namespace XianTu
             _stunTimer = Mathf.Max(_stunTimer, duration);
             // 简化视觉提示：闪一下蓝色
             for (int i = 0; i < _renderers.Length; i++)
-                if (_renderers[i] != null) _renderers[i].material.color = new Color(0.4f, 0.8f, 1f, 1f);
+                if (_renderers[i] != null) MaterialHelper.SafeSetColor(_renderers[i].material, new Color(0.4f, 0.8f, 1f, 1f));
             _hitFlashTimer = duration;
             GameEvents.Publish(new GameEvents.DamageNumberRequested
             {
@@ -107,7 +107,7 @@ namespace XianTu
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
-                _originalColors[i] = _renderers[i].material.color;
+                _originalColors[i] = MaterialHelper.SafeGetColor(_renderers[i].material);
         }
 
         private void Start()
@@ -292,9 +292,9 @@ namespace XianTu
             foreach (var r in _renderers)
                 if (r != null)
                 {
-                    var c = r.material.color;
+                    var c = MaterialHelper.SafeGetColor(r.material);
                     c.a = 0.4f;
-                    r.material.color = c;
+                    MaterialHelper.SafeSetColor(r.material, c);
                 }
         }
 
@@ -695,7 +695,7 @@ namespace XianTu
         {
             if (_renderers == null) return;
             foreach (var r in _renderers)
-                if (r != null) r.material.color = color;
+                if (r != null) MaterialHelper.SafeSetColor(r.material, color);
         }
 
         /// <summary>恢复所有Renderer的原始颜色</summary>
@@ -704,7 +704,7 @@ namespace XianTu
             if (_renderers == null || _originalColors == null) return;
             for (int i = 0; i < _renderers.Length; i++)
                 if (_renderers[i] != null && i < _originalColors.Length)
-                    _renderers[i].material.color = _originalColors[i];
+                    MaterialHelper.SafeSetColor(_renderers[i].material, _originalColors[i]);
         }
 
         /// <summary>递归设置所有子物体的Layer</summary>

@@ -56,6 +56,33 @@ namespace XianTu
         private bool _hasHitThisSwing;
         private int _lastHitComboStep = -1;
 
+        // ==================== 远程普攻（法系主角） ====================
+        // 由 PlayerCharacterProfile 配置：勾选后左键不再做近战扇形判定，
+        // 而是在挥击动画事件（OnSlashVFX）点向瞄准方向发射一枚投射物。
+        private bool _rangedBasic;
+        private GameObject _basicProjPrefab;
+        private float _basicProjSpeed = 18f;
+        private ElementTag _basicElement = ElementTag.None;
+        private float _basicDamageMul = 1f;
+
+        /// <summary>当前主角是否为远程普攻（法系）。</summary>
+        public bool IsRangedBasic => _rangedBasic;
+
+        /// <summary>由主角档案配置普攻形态（剑客近战 / 法师远程）。</summary>
+        public void ConfigureBasicAttack(PlayerCharacterProfile profile)
+        {
+            if (profile == null)
+            {
+                _rangedBasic = false;
+                return;
+            }
+            _rangedBasic = profile.rangedBasicAttack;
+            _basicProjPrefab = profile.basicProjectilePrefab;
+            _basicProjSpeed = profile.basicProjectileSpeed > 0.01f ? profile.basicProjectileSpeed : 18f;
+            _basicElement = profile.basicElement;
+            _basicDamageMul = profile.basicDamageMultiplier > 0.01f ? profile.basicDamageMultiplier : 1f;
+        }
+
         private void Awake()
         {
             _player = GetComponent<PlayerController>();
@@ -131,6 +158,9 @@ namespace XianTu
         /// <summary>在攻击判定窗口内检测敌人</summary>
         private void CheckMeleeHit()
         {
+            // 远程主角：普攻不做近战扇形判定，伤害由 OnSlashVFXRequested 发射的投射物结算
+            if (_rangedBasic) return;
+
             if (!_playerAnim.IsHitWindowOpen)
             {
                 // 非攻击判定窗口时也绘制攻击范围（淡色）
@@ -330,6 +360,10 @@ namespace XianTu
             if (runner != null)
                 runner.OnPlayerAttackHit();
 
+            // 远程主角（法系）：挥击动画到点 → 发射一枚法术投射物
+            if (_rangedBasic)
+                FireBasicProjectile();
+
             if (slashVFXPrefab == null) return;
 
             // 与命中判定同源：把 spawnPoint.localPosition 当成沿瞄准方向的偏移
@@ -351,6 +385,45 @@ namespace XianTu
                 vfx = Instantiate(slashVFXPrefab, spawnPos, rot);
                 Destroy(vfx, 1.5f);
             }
+        }
+
+        /// <summary>
+        /// 远程主角普攻：向瞄准方向发射一枚投射物。
+        /// 伤害走近战公式（含连招段倍率），命中时由 Projectile 结算目标防御/穿甲。
+        /// </summary>
+        private void FireBasicProjectile()
+        {
+            Vector3 spawnPos = GetAimRelativeWorldPos(
+                attackOrigin, transform.position + _player.AimDirection * 0.6f + Vector3.up * 0.9f);
+            Vector3 dir = _player.AimDirection;
+            if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
+            Quaternion rot = Quaternion.LookRotation(dir);
+
+            float comboMul = GetComboDamageMultiplier(_playerAnim.ComboStep);
+            var (damage, _) = _player.Stats.CalcMeleeDamage(0f);
+            damage *= comboMul * _basicDamageMul;
+
+            if (_basicProjPrefab != null)
+            {
+                GameObject proj;
+                if (ObjectPool.Instance != null)
+                    proj = ObjectPool.Instance.Get(_basicProjPrefab, spawnPos, rot);
+                else
+                    proj = Instantiate(_basicProjPrefab, spawnPos, rot);
+
+                var projectile = proj.GetComponent<Projectile>();
+                if (projectile != null)
+                    projectile.Initialize(damage, dir, _basicProjSpeed, 0, 0, _basicElement, _player, _player.Stats.armorPenPercent);
+            }
+            else if (showDebugVisuals)
+            {
+                CreateDebugProjectile(spawnPos, dir, _basicProjSpeed, damage, 1f, _basicElement);
+            }
+
+            // 命中事件（融合层：木化身种子、金化身窗口等订阅）—— 远程普攻也算一次"出手"
+            int comboStep = _playerAnim.ComboStep;
+            if (comboStep == 2)
+                ReduceRandomSkillCooldown(0.10f);
         }
 
         /// <summary>生成打击特效</summary>
