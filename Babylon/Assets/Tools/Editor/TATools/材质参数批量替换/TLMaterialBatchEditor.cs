@@ -30,8 +30,8 @@ public class TLMaterialBatchEditor : EditorWindow
         public Material material;
         public string path;
         public bool selected = true;
-        public bool fromPrefab;     // 是否来自 Prefab/Prefab 变体引用（而非文件夹内直接的 .mat）
-        public string sourceLabel;  // 首个引用该材质的 Prefab 名称，用于界面提示
+        public bool isExternal;   // 材质球不在当前选中文件夹内（来自文件夹内 Prefab 的引用）
+        public string sourceInfo; // 来源说明（如来自哪个 Prefab），用于鼠标悬停提示
     }
 
     class PropInfo
@@ -61,9 +61,11 @@ public class TLMaterialBatchEditor : EditorWindow
     string m_FolderPath = "";
     DefaultAsset m_FolderAsset;
     int m_TotalMats;
+    int m_ExternalMats; // 不在所选文件夹内的材质数量（来自 Prefab 引用）
+    bool m_Scanned;     // 是否已执行过扫描（用于区分「未扫描」与「扫描后为空」）
     bool m_ShowOnlyModified;
 
-    [MenuItem("nTools/TA工具/mat批量调参")]
+    [MenuItem("Tools_3D/美术/材质批量调参")]
     public static void Open()
     {
         var win = GetWindow<TLMaterialBatchEditor>(false, "材质批量调参", true);
@@ -80,48 +82,59 @@ public class TLMaterialBatchEditor : EditorWindow
     {
         m_Groups.Clear();
         m_TotalMats = 0;
+        m_ExternalMats = 0;
+        m_Scanned = true;
 
         if (string.IsNullOrEmpty(m_FolderPath) || !AssetDatabase.IsValidFolder(m_FolderPath))
             return;
 
         var map = new Dictionary<Shader, ShaderGroup>();
-        // 去重：同一个源材质可能既是文件夹内的 .mat，又被多个 Prefab 引用
-        var seenMaterials = new HashSet<Material>();
+        var seenMats = new HashSet<Material>(); // 去重：同一材质只收集一次
 
         try
         {
-            // 1. 直接扫描文件夹内的 .mat 材质
+            // 1. 收集文件夹内的独立材质资产
             var matGuids = AssetDatabase.FindAssets("t:Material", new[] { m_FolderPath });
             for (int i = 0; i < matGuids.Length; i++)
             {
                 if (EditorUtility.DisplayCancelableProgressBar("扫描材质",
-                    $"材质 ({i + 1}/{matGuids.Length})", (float)i / matGuids.Length))
-                {
+                    $"材质 ({i + 1}/{matGuids.Length})", (float)i / Mathf.Max(1, matGuids.Length)))
                     return;
-                }
 
                 var path = AssetDatabase.GUIDToAssetPath(matGuids[i]);
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-                AddMaterialToGroup(map, seenMaterials, mat, path, null);
+                AddMaterial(map, seenMats, mat, false, null);
             }
 
-            // 2. 扫描文件夹内的 Prefab / Prefab 变体，收集其引用的源材质
-            //    即便文件夹内没有 .mat，只要 Prefab 引用了 .mat 也能显示出来；
-            //    由于取的是 sharedMaterial 指向的源资源，修改时直接写回源 .mat。
+            // 2. 收集文件夹内 Prefab 上引用的材质（Renderer.sharedMaterials）
+            //    这些材质可能位于其它文件夹，标记为「外部材质」并给出来源提示
             var prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { m_FolderPath });
             for (int i = 0; i < prefabGuids.Length; i++)
             {
                 if (EditorUtility.DisplayCancelableProgressBar("扫描 Prefab 材质",
-                    $"Prefab ({i + 1}/{prefabGuids.Length})", (float)i / prefabGuids.Length))
-                {
+                    $"Prefab ({i + 1}/{prefabGuids.Length})", (float)i / Mathf.Max(1, prefabGuids.Length)))
                     return;
-                }
 
                 var prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-                if (prefab == null) continue;
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (go == null) continue;
 
-                CollectPrefabMaterials(map, seenMaterials, prefab);
+                var renderers = go.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in renderers)
+                {
+                    if (r == null) continue;
+                    var mats = r.sharedMaterials;
+                    if (mats == null) continue;
+                    foreach (var mat in mats)
+                    {
+                        if (mat == null) continue;
+                        var matPath = AssetDatabase.GetAssetPath(mat);
+                        // 材质 path 以「所选文件夹/」开头才算文件夹内
+                        bool inFolder = !string.IsNullOrEmpty(matPath)
+                            && matPath.StartsWith(m_FolderPath + "/");
+                        AddMaterial(map, seenMats, mat, !inFolder, prefabPath);
+                    }
+                }
             }
         }
         finally
@@ -129,19 +142,25 @@ public class TLMaterialBatchEditor : EditorWindow
             EditorUtility.ClearProgressBar();
         }
 
-        m_TotalMats = seenMaterials.Count;
+        foreach (var g in map.Values)
+        {
+            m_TotalMats += g.materials.Count;
+            m_ExternalMats += g.materials.Count(e => e.isExternal);
+        }
+
         m_Groups = map.Values.OrderBy(g => g.shaderName).ToList();
     }
 
     /// <summary>
-    /// 将一个材质加入对应 Shader 分组（自动去重）。
+    /// 将材质加入对应 Shader 分组（自动去重）。
     /// </summary>
-    /// <param name="fromPrefabName">非空表示该材质来自 Prefab 引用，用于界面提示。</param>
-    void AddMaterialToGroup(Dictionary<Shader, ShaderGroup> map, HashSet<Material> seen,
-        Material mat, string path, string fromPrefabName)
+    /// <param name="isExternal">材质是否不在当前选中文件夹内</param>
+    /// <param name="sourcePrefabPath">外部材质来源 Prefab 路径（用于提示）</param>
+    void AddMaterial(Dictionary<Shader, ShaderGroup> map, HashSet<Material> seen,
+        Material mat, bool isExternal, string sourcePrefabPath)
     {
         if (mat == null || mat.shader == null) return;
-        if (!seen.Add(mat)) return; // 已收录，跳过
+        if (!seen.Add(mat)) return; // 已收集过则跳过
 
         if (!map.TryGetValue(mat.shader, out var group))
         {
@@ -149,41 +168,16 @@ public class TLMaterialBatchEditor : EditorWindow
             map[mat.shader] = group;
         }
 
-        group.materials.Add(new MatEntry
+        var entry = new MatEntry
         {
             material = mat,
-            path = path,
-            fromPrefab = !string.IsNullOrEmpty(fromPrefabName),
-            sourceLabel = fromPrefabName
-        });
-    }
+            path = AssetDatabase.GetAssetPath(mat),
+            isExternal = isExternal,
+        };
+        if (isExternal && !string.IsNullOrEmpty(sourcePrefabPath))
+            entry.sourceInfo = $"引用自 Prefab: {System.IO.Path.GetFileName(sourcePrefabPath)}\n材质路径: {entry.path}";
 
-    /// <summary>
-    /// 收集 Prefab（含 Prefab 变体）所有 Renderer 引用的源材质（仅限独立的 .mat 资源）。
-    /// </summary>
-    void CollectPrefabMaterials(Dictionary<Shader, ShaderGroup> map, HashSet<Material> seen, GameObject prefab)
-    {
-        var renderers = prefab.GetComponentsInChildren<Renderer>(true);
-        foreach (var renderer in renderers)
-        {
-            if (renderer == null) continue;
-
-            var mats = renderer.sharedMaterials;
-            if (mats == null) continue;
-
-            foreach (var mat in mats)
-            {
-                if (mat == null) continue;
-
-                // 只收录作为独立 .mat 资源存在的源材质（可写回）。
-                // 排除内置材质、FBX 内嵌的子资源材质等不可单独编辑的情况。
-                string matPath = AssetDatabase.GetAssetPath(mat);
-                if (string.IsNullOrEmpty(matPath)) continue;
-                if (!matPath.EndsWith(".mat", System.StringComparison.OrdinalIgnoreCase)) continue;
-
-                AddMaterialToGroup(map, seen, mat, matPath, prefab.name);
-            }
-        }
+        group.materials.Add(entry);
     }
 
     /// <summary>
@@ -218,17 +212,11 @@ public class TLMaterialBatchEditor : EditorWindow
             {
                 prop.rangeMin = ShaderUtil.GetRangeLimits(group.shader, i, 1);
                 prop.rangeMax = ShaderUtil.GetRangeLimits(group.shader, i, 2);
-                if (Mathf.Approximately(prop.rangeMin, 0f) && Mathf.Approximately(prop.rangeMax, 1f))
-                    prop.isToggle = true;
             }
 
-            // Float 类型：名字含 Toggle/Enable/Use 视为 Toggle
-            if (propType == ShaderUtil.ShaderPropertyType.Float)
-            {
-                string lower = propName.ToLowerInvariant();
-                if (lower.Contains("toggle") || lower.Contains("enable") || lower.Contains("_use"))
-                    prop.isToggle = true;
-            }
+            // 仅「驱动变体(keyword)」的属性才视为开关：[Toggle]/[Toggle(_KW)]/[KeywordEnum]。
+            // 避免把 Range(0,1) 滑条、名字含 enable/use、或恰好取值 0/1 的普通 Float 误判成开关。
+            prop.isToggle = IsKeywordToggleProperty(group.shader, propName);
 
             // 从第一个材质读默认值作为参考
             if (group.materials.Count > 0)
@@ -239,9 +227,6 @@ public class TLMaterialBatchEditor : EditorWindow
                     case ShaderUtil.ShaderPropertyType.Float:
                     case ShaderUtil.ShaderPropertyType.Range:
                         prop.floatValue = refMat.GetFloat(propName);
-                        if (propType == ShaderUtil.ShaderPropertyType.Float
-                            && (Mathf.Approximately(prop.floatValue, 0f) || Mathf.Approximately(prop.floatValue, 1f)))
-                            prop.isToggle = true;
                         break;
                     case ShaderUtil.ShaderPropertyType.Color:
                         prop.colorValue = refMat.GetColor(propName);
@@ -288,8 +273,9 @@ public class TLMaterialBatchEditor : EditorWindow
 
         EditorGUILayout.EndHorizontal();
 
+        string extInfo = m_ExternalMats > 0 ? $"（其中 {m_ExternalMats} 个不在文件夹内）" : "";
         EditorGUILayout.LabelField($"文件夹: {(string.IsNullOrEmpty(m_FolderPath) ? "未指定" : m_FolderPath)}    " +
-            $"材质总数: {m_TotalMats}    Shader 分组: {m_Groups.Count}", EditorStyles.miniLabel);
+            $"材质总数: {m_TotalMats}{extInfo}    Shader 分组: {m_Groups.Count}", EditorStyles.miniLabel);
     }
 
     void DrawFolderField()
@@ -333,6 +319,18 @@ public class TLMaterialBatchEditor : EditorWindow
     void DrawGroupList()
     {
         m_Scroll = EditorGUILayout.BeginScrollView(m_Scroll);
+
+        // 扫描后没有任何材质时给出提示
+        if (m_Scanned && !string.IsNullOrEmpty(m_FolderPath) && m_Groups.Count == 0)
+        {
+            EditorGUILayout.HelpBox(
+                "当前文件夹下未找到任何材质球。\n" +
+                "（已同时检索文件夹内 Prefab 引用的材质）\n" +
+                "请确认所选文件夹是否正确，或其中是否存在材质 / 带材质的 Prefab。",
+                MessageType.Warning);
+            EditorGUILayout.EndScrollView();
+            return;
+        }
 
         string filter = string.IsNullOrEmpty(m_SearchFilter) ? "" : m_SearchFilter.ToLowerInvariant();
 
@@ -396,6 +394,16 @@ public class TLMaterialBatchEditor : EditorWindow
 
     void DrawMaterialSelection(ShaderGroup group)
     {
+        // 组级提示：该分组存在不在所选文件夹内的材质
+        int groupExtCount = group.materials.Count(e => e.isExternal);
+        if (groupExtCount > 0)
+        {
+            EditorGUILayout.HelpBox(
+                $"该分组有 {groupExtCount} 个材质球不在当前选中文件夹内（来自 Prefab 引用）。\n" +
+                "可以一并修改，但请注意修改会影响其原始资产。",
+                MessageType.Warning);
+        }
+
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("材质列表", EditorStyles.boldLabel, GUILayout.Width(60));
         GUILayout.FlexibleSpace();
@@ -426,12 +434,13 @@ public class TLMaterialBatchEditor : EditorWindow
             EditorGUILayout.BeginHorizontal();
             entry.selected = EditorGUILayout.Toggle(entry.selected, GUILayout.Width(16));
             EditorGUILayout.ObjectField(entry.material, typeof(Material), false);
-            // 标识来自 Prefab 引用的源材质，提示修改会写回源 .mat
-            if (entry.fromPrefab)
+            if (entry.isExternal)
             {
-                GUILayout.Label(new GUIContent("Prefab",
-                    $"该材质来自 Prefab「{entry.sourceLabel}」引用，修改将写回源材质：\n{entry.path}"),
-                    EditorStyles.miniBoldLabel, GUILayout.Width(48));
+                var prevColor = GUI.color;
+                GUI.color = new Color(1f, 0.78f, 0.2f);
+                GUILayout.Label(new GUIContent("⚠ 不在所选文件夹", entry.sourceInfo),
+                    EditorStyles.miniLabel, GUILayout.Width(110));
+                GUI.color = prevColor;
             }
             EditorGUILayout.EndHorizontal();
         }
@@ -614,6 +623,35 @@ public class TLMaterialBatchEditor : EditorWindow
                 return i;
         }
         return 0;
+    }
+
+    /// <summary>
+    /// 判断属性是否为「驱动变体(keyword)」的开关。
+    /// 依据 shader 声明的 attribute：[Toggle] / [Toggle(_KW)] / [KeywordEnum(...)] 才算；
+    /// [ToggleUI]（不驱动 keyword）、Range(0,1) 滑条、普通 Float 都不算。
+    /// 用属性 attribute 判定，避免按数值/命名启发式误判。
+    /// </summary>
+    static bool IsKeywordToggleProperty(Shader shader, string propName)
+    {
+        if (shader == null) return false;
+
+        int idx = shader.FindPropertyIndex(propName);
+        if (idx < 0) return false;
+
+        string[] attrs = shader.GetPropertyAttributes(idx);
+        if (attrs == null) return false;
+
+        for (int i = 0; i < attrs.Length; i++)
+        {
+            string a = attrs[i];
+            if (string.IsNullOrEmpty(a)) continue;
+
+            // [Toggle] 或 [Toggle(_KEYWORD)]：注意排除 [ToggleUI]（"ToggleUI" 不会命中下面两条）
+            if (a == "Toggle" || a.StartsWith("Toggle(")) return true;
+            // [KeywordEnum(A,B,C)]：多状态变体
+            if (a.StartsWith("KeywordEnum")) return true;
+        }
+        return false;
     }
 
     void ReadPropertyFromMaterial(PropInfo prop, Material mat)
