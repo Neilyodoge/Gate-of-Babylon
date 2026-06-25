@@ -44,7 +44,8 @@
 
 ## 🗄️ 归档与参考
 - **历史快照 / 复查**：[docs/reviews/](../reviews/)（按日期归档的进度与复查）
-- **已归档路线图**：[开发路线图.md](design/开发路线图.md)（Demo1 期，已被 Demo路线图 取代）
+- **已归档路线图**：[_archive/开发路线图.md](design/_archive/开发路线图.md)（Demo1 期，已被 Demo路线图 取代）
+- **已归档 GDD 旧版本**：[design/_archive/](design/_archive/)（V.06 及更早的 GDD 备份，V.07 起以 `GDD_秘境探索.md` 为准）
 - **参考分析**：[梦之形 Shape of Dreams 全面分析](../梦之形_Shape_of_Dreams_全面分析.md) · [TH 与 URP 对比](../TH与URP对比.md)
 - **工程文档（随代码）** → [`Babylon/Assets/1Game/Docs/` 索引](../../Babylon/Assets/1Game/Docs/README.md)：程序架构 / 数据流 / 掉率系统 / Debug 工具 / 配置说明 / 资源(灵物·功法)配置指南 等，偏实现、给程序看（有自己的分类索引）。
 
