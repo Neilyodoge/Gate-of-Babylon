@@ -10,9 +10,6 @@ namespace XianTu
     /// </summary>
     public class Demo1Setup : MonoBehaviour
     {
-        [Header("灵物池（可选，不配置则使用内置测试数据）")]
-        [SerializeField] private ItemData[] itemPool;
-
         [Header("功法池（可选，自动配置会填充）")]
         [SerializeField] private SkillData[] skillPool;
 
@@ -279,34 +276,83 @@ namespace XianTu
                 Debug.Log("<color=yellow>[Demo1Setup] Q技能未配置，已使用内置落石术</color>");
             }
 
-            // E槽位：开局留空，等玩家自己捡取功法
+            // E槽位：V.08 起始 3 个核心技能无空窗；testSkillE 未配置则从 Skills 目录挑一个
             if (testSkillE != null)
             {
                 combat.EquipSkillE(testSkillE);
             }
             else
             {
-                Debug.Log("<color=yellow>[Demo1Setup] E技能槽位留空，等待玩家探索获取</color>");
+                var pickedE = PickStartingSkillFromDisk(combat.GetSkillInSlot(0));
+                if (pickedE != null)
+                {
+                    combat.EquipSkillE(pickedE);
+                    Debug.Log($"<color=yellow>[Demo1Setup] E技能未配置，自动分配：{pickedE.skillName}</color>");
+                }
+                else
+                {
+                    Debug.Log("<color=yellow>[Demo1Setup] E技能槽位留空，等待玩家探索获取</color>");
+                }
             }
 
-            // R槽位：开局留空，等玩家自己捡取功法
+            // R槽位：V.08 起始 3 个核心技能无空窗
             if (testSkillR != null)
             {
                 combat.EquipSkillR(testSkillR);
             }
             else
             {
-                Debug.Log("<color=yellow>[Demo1Setup] R技能槽位留空，等待玩家探索获取</color>");
+                var pickedR = PickStartingSkillFromDisk(combat.GetSkillInSlot(0), combat.GetSkillInSlot(1));
+                if (pickedR != null)
+                {
+                    combat.EquipSkillR(pickedR);
+                    Debug.Log($"<color=yellow>[Demo1Setup] R技能未配置，自动分配：{pickedR.skillName}</color>");
+                }
+                else
+                {
+                    Debug.Log("<color=yellow>[Demo1Setup] R技能槽位留空，等待玩家探索获取</color>");
+                }
             }
-            playerGo.AddComponent<ItemInventory>();
-            playerGo.AddComponent<SpiritSlotSystem>();
             playerGo.AddComponent<PlayerResources>();
-            playerGo.AddComponent<QualitativeEffectRunner>();
 
             // 主角档案系统：组件就绪后热构建所选主角模型（剑客/法师）。
             // 默认档案（sortOrder 最小）一般为剑客，与旧的 Frank_Katana 一致。
             if (useProfile)
                 playerCtrl.ApplyCharacterProfile(selectedProfile);
+        }
+
+        /// <summary>
+        /// V.08：从磁盘 SkillData 资产中挑一个尚未被占用的核心技能，用作起始槽位 fallback。
+        /// 优先选与已占用技能不同 skillType 的，确保 3 个槽位覆盖多样 build 原型。
+        /// </summary>
+        private SkillData PickStartingSkillFromDisk(params SkillData[] used)
+        {
+#if UNITY_EDITOR
+            var guids = UnityEditor.AssetDatabase.FindAssets("t:SkillData", new[] { "Assets/1Game/Data/Skills" });
+            var usedTypes = new System.Collections.Generic.HashSet<SkillType>();
+            foreach (var u in used) if (u != null) usedTypes.Add(u.skillType);
+
+            SkillData firstDifferent = null;
+            SkillData firstAny = null;
+            foreach (var g in guids)
+            {
+                var p = UnityEditor.AssetDatabase.GUIDToAssetPath(g);
+                var s = UnityEditor.AssetDatabase.LoadAssetAtPath<SkillData>(p);
+                if (s == null) continue;
+                bool alreadyUsed = false;
+                foreach (var u in used) if (u != null && u == s) { alreadyUsed = true; break; }
+                if (alreadyUsed) continue;
+
+                firstAny ??= s;
+                if (!usedTypes.Contains(s.skillType))
+                {
+                    firstDifferent ??= s;
+                }
+            }
+            return firstDifferent ?? firstAny;
+#else
+            return null;
+#endif
         }
 
         private void SetupCamera()
@@ -330,54 +376,7 @@ namespace XianTu
             var gmGo = new GameObject("GameManager");
             var gm = gmGo.AddComponent<GameManager>();
 
-            // 如果 itemPool 为空或全部为null，尝试自动加载
-            bool itemPoolEmpty = itemPool == null || itemPool.Length == 0;
-            if (!itemPoolEmpty)
-            {
-                // 检查是否全部为 null（Inspector 中配置了槽位但没拖入资产）
-                bool allNull = true;
-                foreach (var item in itemPool)
-                    if (item != null) { allNull = false; break; }
-                if (allNull)
-                {
-                    Debug.LogWarning($"[Demo1Setup] itemPool 有 {itemPool.Length} 个槽位但全部为 null，重新自动加载...");
-                    itemPoolEmpty = true;
-                }
-            }
-            if (itemPoolEmpty)
-            {
-                Debug.LogWarning("[Demo1Setup] itemPool 为空，尝试自动加载灵物数据...");
-#if UNITY_EDITOR
-                var guids = UnityEditor.AssetDatabase.FindAssets("t:ItemData", new[] { "Assets/1Game/Data/Items" });
-                if (guids.Length > 0)
-                {
-                    var items = new System.Collections.Generic.List<ItemData>();
-                    foreach (var guid in guids)
-                    {
-                        var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
-                        var item = UnityEditor.AssetDatabase.LoadAssetAtPath<ItemData>(path);
-                        if (item != null) items.Add(item);
-                    }
-                    itemPool = items.ToArray();
-                    Debug.Log($"<color=green>[Demo1Setup] 编辑器自动加载了 {itemPool.Length} 个灵物数据</color>");
-                }
-#endif
-                if (itemPool == null || itemPool.Length == 0)
-                {
-                    var loaded = Resources.LoadAll<ItemData>("Items");
-                    if (loaded != null && loaded.Length > 0)
-                    {
-                        itemPool = loaded;
-                        Debug.Log($"<color=green>[Demo1Setup] 从 Resources/Items 加载了 {itemPool.Length} 个灵物</color>");
-                    }
-                    else
-                    {
-                        Debug.LogError("[Demo1Setup] itemPool 为空且 Resources/Items 无灵物！请配置灵物池。");
-                    }
-                }
-            }
-
-            // 如果 skillPool 为空或全部为null，也尝试自动加载
+            // 如果 skillPool 为空或全部为null，尝试自动加载
             bool skillPoolEmpty = skillPool == null || skillPool.Length == 0;
             if (!skillPoolEmpty)
             {
@@ -409,35 +408,6 @@ namespace XianTu
 #endif
             }
 
-            // 设置灵物池（过滤掉 null 元素，失败时从 Resources 兜底）
-            var validItems = new System.Collections.Generic.List<ItemData>();
-            if (itemPool != null)
-            {
-                foreach (var item in itemPool)
-                    if (item != null) validItems.Add(item);
-            }
-            if (validItems.Count == 0)
-            {
-                var res = Resources.LoadAll<ItemData>("Items");
-                if (res != null)
-                    foreach (var r in res)
-                        if (r != null) validItems.Add(r);
-                if (validItems.Count > 0)
-                    Debug.Log($"<color=green>[Demo1Setup] Resources 兜底加载了 {validItems.Count} 个灵物</color>");
-            }
-            if (validItems.Count > 0)
-            {
-                var poolField = typeof(GameManager).GetField("itemPool",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                poolField?.SetValue(gm, validItems.ToArray());
-                itemPool = validItems.ToArray();
-                Debug.Log($"<color=green>[Demo1Setup] 灵物池已传递给 GameManager：{validItems.Count} 个灵物</color>");
-            }
-            else
-            {
-                Debug.LogError("[Demo1Setup] 灵物池为空且 Resources/Items 无灵物！敌人将无法掉落灵物！");
-            }
-
             // 设置功法池
             {
                 var skillList = new System.Collections.Generic.List<SkillData>();
@@ -456,16 +426,6 @@ namespace XianTu
                 if (testSkillQ != null && !skillList.Contains(testSkillQ)) skillList.Add(testSkillQ);
                 if (testSkillE != null && !skillList.Contains(testSkillE)) skillList.Add(testSkillE);
                 if (testSkillR != null && !skillList.Contains(testSkillR)) skillList.Add(testSkillR);
-
-                // 从 itemPool 中提取 linkedSkill
-                if (itemPool != null)
-                {
-                    foreach (var item in itemPool)
-                    {
-                        if (item != null && item.linkedSkill != null && !skillList.Contains(item.linkedSkill))
-                            skillList.Add(item.linkedSkill);
-                    }
-                }
 
                 var skillPoolField = typeof(GameManager).GetField("skillPool",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -486,6 +446,35 @@ namespace XianTu
                 var hitField = typeof(GameManager).GetField("enemyHitVFXPrefab",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 hitField?.SetValue(gm, hitVFXPrefab);
+            }
+
+            // 模块池注入（GDD V.07 模块化技能）
+            {
+                ModuleDef[] mods = null;
+#if UNITY_EDITOR
+                var modGuids = UnityEditor.AssetDatabase.FindAssets("t:ModuleDef", new[] { "Assets/1Game/Data/Modules" });
+                if (modGuids.Length > 0)
+                {
+                    var list = new System.Collections.Generic.List<ModuleDef>();
+                    foreach (var guid in modGuids)
+                    {
+                        var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                        var m = UnityEditor.AssetDatabase.LoadAssetAtPath<ModuleDef>(path);
+                        if (m != null) list.Add(m);
+                    }
+                    mods = list.ToArray();
+                }
+#endif
+                if (mods == null || mods.Length == 0)
+                    mods = Resources.LoadAll<ModuleDef>("Modules");
+
+                if (mods != null && mods.Length > 0)
+                {
+                    var modField = typeof(GameManager).GetField("modulePool",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    modField?.SetValue(gm, mods);
+                    Debug.Log($"<color=#00ffcc>[Demo1Setup] 模块池：{mods.Length} 个模块定义</color>");
+                }
             }
 
             // 创建 Debug 控制台（F1 打开）
@@ -624,8 +613,7 @@ namespace XianTu
 
             SetPrivateField(hud, "enemyCountText", enemyCountText.GetComponent<Text>());
 
-            // ========== 底部中央：梦之形风格技能栏 ==========
-            // 整体容器：技能图标（上排大圆）+ 灵物槽位（下排小圆）
+            // ========== 底部中央：技能栏 + 模块链状态 ==========
             var skillBarContainer = CreateUIImage(canvasGo.transform, "SkillBarContainer",
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(-480, 5), new Vector2(480, 230),
@@ -634,12 +622,8 @@ namespace XianTu
             // SkillBarUI 组件
             var skillBarUI = skillBarContainer.AddComponent<SkillBarUI>();
 
-            // 技能图标参数
-            float skillSize = 68f;       // 技能图标大小
-            float spiritSize = 80f;      // 灵物槽位大小（超大号，确保看得清）
-            float skillY = 110f;         // 技能图标Y中心（上移）
-            float spiritY = 25f;         // 灵物槽位Y中心
-            float spiritSpacing = 82f;   // 灵物槽位间距（加大）
+            float skillSize = 68f;
+            float skillY = 110f;
 
             // 技能槽位颜色（Q/E/R初始暗色，由SkillBarUI.RefreshSkillSlots根据实际状态设置）
             Color[] skillColors = {
@@ -653,10 +637,6 @@ namespace XianTu
             float[] skillXPositions = { -290f, -145f, 0f, 145f, 290f };
 
             var skillSlotRTs = new RectTransform[5];
-            var spiritSlotImages = new Image[6];
-            var spiritSlotRTs = new RectTransform[6];
-            var spiritSlotBorders = new Image[6];
-            var spiritSlotLabels = new Text[6];
 
             for (int s = 0; s < 5; s++)
             {
@@ -731,58 +711,26 @@ namespace XianTu
                         break;
                 }
 
-                // --- 灵物槽位（Q/E/R下方各2个，闪避和普攻下方没有） ---
+                // 模块链状态标签（Q/E/R 下方，显示当前链名）
                 if (s < 3)
                 {
-                    for (int sub = 0; sub < 2; sub++)
-                    {
-                        int spiritIdx = s * 2 + sub;
-                        float spiritX = sx + (sub - 0.5f) * spiritSpacing;
-                        float halfSpirit = spiritSize / 2f;
-
-                        var spiritSlot = CreateUIImage(skillBarContainer.transform, $"Spirit_{spiritIdx}",
-                            new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                            new Vector2(spiritX - halfSpirit, spiritY - halfSpirit),
-                            new Vector2(spiritX + halfSpirit, spiritY + halfSpirit),
-                            new Color(0.15f, 0.15f, 0.2f, 0.5f));
-                        spiritSlotImages[spiritIdx] = spiritSlot.GetComponent<Image>();
-                        spiritSlotRTs[spiritIdx] = spiritSlot.GetComponent<RectTransform>();
-
-                        // 灵物槽位边框（加粗醒目）
-                        var spiritBorder = CreateUIImage(spiritSlot.transform, $"SpiritBorder_{spiritIdx}",
-                            Vector2.zero, Vector2.one,
-                            new Vector2(-2.5f, -2.5f), new Vector2(2.5f, 2.5f),
-                            new Color(0.4f, 0.4f, 0.45f, 0.6f));
-                        spiritBorder.GetComponent<Image>().raycastTarget = false;
-                        spiritSlotBorders[spiritIdx] = spiritBorder.GetComponent<Image>();
-
-                        // 灵物槽位标签（超大字体）
-                        var spiritLabel = CreateUIText(spiritSlot.transform, $"SpiritLabel_{spiritIdx}",
-                        "", 22,
-                            Vector2.zero, Vector2.one,
-                            Vector2.zero, Vector2.zero);
-                        spiritLabel.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-                        spiritLabel.GetComponent<Text>().color = new Color(0.4f, 0.4f, 0.4f, 0.3f);
-                        spiritLabel.GetComponent<Text>().fontStyle = FontStyle.Bold;
-                        spiritSlotLabels[spiritIdx] = spiritLabel.GetComponent<Text>();
-                    }
-
-                    // 技能与灵物之间的连接线（装饰）
-                    var connLine = CreateUIImage(skillBarContainer.transform, $"ConnLine_{s}",
+                    var chainLabel = CreateUIText(skillBarContainer.transform, $"ChainLabel_{s}",
+                        "", 11,
                         new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                        new Vector2(sx - 1, spiritY + spiritSize / 2f),
-                        new Vector2(sx + 1, skillY - skillSize / 2f),
-                        new Color(0.4f, 0.4f, 0.5f, 0.2f));
-                    connLine.GetComponent<Image>().raycastTarget = false;
+                        new Vector2(sx - 60, skillY - halfSkill - 18),
+                        new Vector2(sx + 60, skillY - halfSkill - 2));
+                    var chainTxt = chainLabel.GetComponent<Text>();
+                    chainTxt.alignment = TextAnchor.MiddleCenter;
+                    chainTxt.color = new Color(0.4f, 0.9f, 0.8f, 0.7f);
+                    chainTxt.fontSize = 11;
+                    chainTxt.horizontalOverflow = HorizontalWrapMode.Overflow;
+                    var chainOutline = chainLabel.AddComponent<Outline>();
+                    chainOutline.effectColor = new Color(0, 0, 0, 0.8f);
+                    chainOutline.effectDistance = new Vector2(1, -1);
                 }
             }
 
-            // 绑定SkillBarUI字段
             SetPrivateField(skillBarUI, "skillSlotRTs", skillSlotRTs);
-            SetPrivateField(skillBarUI, "spiritSlotImages", spiritSlotImages);
-            SetPrivateField(skillBarUI, "spiritSlotRTs", spiritSlotRTs);
-            SetPrivateField(skillBarUI, "spiritSlotBorders", spiritSlotBorders);
-            SetPrivateField(skillBarUI, "spiritSlotLabels", spiritSlotLabels);
 
             // ========== 连招指示器（技能栏上方） ==========
             var comboPanel = CreateUIImage(canvasGo.transform, "ComboPanel",
@@ -802,48 +750,12 @@ namespace XianTu
             }
             SetPrivateField(hud, "comboIndicators", comboIndicators);
 
-            // ========== 左下角：灵物计数 ==========
-            var itemPanel = CreateUIImage(canvasGo.transform, "ItemPanel",
-                new Vector2(0, 0), new Vector2(0, 0),
-                new Vector2(20, 15), new Vector2(160, 50),
-                new Color(0.1f, 0.12f, 0.18f, 0.7f));
-
-            var itemIcon = CreateUIText(itemPanel.transform, "ItemIcon", "🔮", 18,
-                new Vector2(0, 0), new Vector2(0.25f, 1),
-                Vector2.zero, Vector2.zero);
-            itemIcon.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-
-            var itemCountText = CreateUIText(itemPanel.transform, "ItemCountText", "0", 16,
-                new Vector2(0.25f, 0), new Vector2(1, 1),
-                Vector2.zero, Vector2.zero);
-            itemCountText.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
-            itemCountText.GetComponent<Text>().color = new Color(0.7f, 0.9f, 1f);
-            SetPrivateField(hud, "itemCountText", itemCountText.GetComponent<Text>());
-
-            // ========== 左侧：灵物质变进度面板 ==========
-            var itemProgressPanel = new GameObject("ItemProgressPanel");
-            itemProgressPanel.transform.SetParent(canvasGo.transform, false);
-            var ipRt = itemProgressPanel.AddComponent<RectTransform>();
-            ipRt.anchorMin = new Vector2(0, 0.3f);
-            ipRt.anchorMax = new Vector2(0, 0.3f);
-            ipRt.pivot = new Vector2(0, 1);
-            ipRt.anchoredPosition = new Vector2(15, 100);
-            ipRt.sizeDelta = new Vector2(190, 280);
-            SetPrivateField(hud, "itemProgressPanel", ipRt);
-
-            // ========== 中央偏上：质变触发大字提示 ==========
-            var qualText = CreateUIText(canvasGo.transform, "QualitativeText", "", 26,
-                new Vector2(0.5f, 0.7f), new Vector2(0.5f, 0.7f),
-                new Vector2(-300, -20), new Vector2(300, 20));
-            var qualTxt = qualText.GetComponent<Text>();
-            qualTxt.alignment = TextAnchor.MiddleCenter;
-            qualTxt.color = new Color(1f, 0.85f, 0.2f);
-            qualTxt.supportRichText = true;
-            var qualOutline = qualText.AddComponent<Outline>();
-            qualOutline.effectColor = new Color(0, 0, 0, 0.9f);
-            qualOutline.effectDistance = new Vector2(2, -2);
-            qualText.SetActive(false);
-            SetPrivateField(hud, "qualitativeText", qualTxt);
+            // ========== 模块链装配 UI + Proc 指示 ==========
+            canvasGo.AddComponent<ModuleAssemblyUI>();
+            var procOverlay = canvasGo.AddComponent<ModuleChainProcOverlay>();
+            procOverlay.SetSkillSlots(skillSlotRTs);
+            // GDD 5.13：角色旁三竖条 Proc 指示器
+            canvasGo.AddComponent<ProcBarsHUD>();
 
             // ========== 左下角：灵力碎片计数 ==========
             var shardPanel = CreateUIImage(canvasGo.transform, "ShardPanel",
@@ -879,7 +791,7 @@ namespace XianTu
 
             // ========== 底部：操作提示 ==========
             var controlsHint = CreateUIText(canvasGo.transform, "ControlsHint",
-            "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  长按F 分解  |  拖拽换位", 12,
+            "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  M 模块装配  |  Tab Debug", 12,
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(-300, 2), new Vector2(300, 14));
             var hintTxt = controlsHint.GetComponent<Text>();
@@ -931,210 +843,6 @@ namespace XianTu
             // 注册到GameManager
             if (GameManager.Instance != null)
                 GameManager.Instance.SetMinimap(minimap);
-        }
-
-        /// <summary>创建背包UI</summary>
-        private void CreateInventoryUI(Transform canvasTransform)
-        {
-            var invGo = new GameObject("InventoryUI");
-            invGo.transform.SetParent(canvasTransform, false);
-            var invRT = invGo.AddComponent<RectTransform>();
-            invRT.anchorMin = Vector2.zero;
-            invRT.anchorMax = Vector2.one;
-            invRT.offsetMin = Vector2.zero;
-            invRT.offsetMax = Vector2.zero;
-
-            var invUI = invGo.AddComponent<InventoryUI>();
-
-            // ===== 背包面板（全屏半透明遮罩） =====
-            var panel = CreateUIImage(invGo.transform, "InvPanel",
-                Vector2.zero, Vector2.one,
-                Vector2.zero, Vector2.zero,
-                new Color(0.03f, 0.03f, 0.08f, 0.85f));
-            panel.SetActive(false); // 默认隐藏
-
-            // ===== 标题 =====
-            var title = CreateUIText(panel.transform, "InvTitle", "灵物背包 (0)", 28,
-                new Vector2(0.5f, 1), new Vector2(0.5f, 1),
-                new Vector2(-200, -55), new Vector2(200, -15));
-            var titleTxt = title.GetComponent<Text>();
-            titleTxt.alignment = TextAnchor.MiddleCenter;
-            titleTxt.color = new Color(1f, 0.9f, 0.5f);
-            titleTxt.fontStyle = FontStyle.Bold;
-            var titleOutline = title.AddComponent<Outline>();
-            titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
-            titleOutline.effectDistance = new Vector2(1.5f, -1.5f);
-
-            // ===== 关闭提示 =====
-            var closeHint = CreateUIText(panel.transform, "CloseHint", "按 Tab 关闭", 14,
-                new Vector2(0.5f, 1), new Vector2(0.5f, 1),
-                new Vector2(-60, -75), new Vector2(60, -58));
-            closeHint.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            closeHint.GetComponent<Text>().color = new Color(0.6f, 0.6f, 0.6f, 0.6f);
-
-            // ===== 左侧：灵物列表区域 =====
-            var itemSection = CreateUIImage(panel.transform, "ItemSection",
-                new Vector2(0.03f, 0.05f), new Vector2(0.48f, 0.88f),
-                Vector2.zero, Vector2.zero,
-                new Color(0.08f, 0.08f, 0.12f, 0.6f));
-
-            var itemSectionTitle = CreateUIText(itemSection.transform, "ItemSectionTitle", "持有灵物", 16,
-                new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(10, -28), new Vector2(-10, -5));
-            itemSectionTitle.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
-            itemSectionTitle.GetComponent<Text>().color = new Color(0.7f, 0.9f, 1f);
-
-            // 灵物列表内容区（带 VerticalLayoutGroup）
-            var itemListGo = new GameObject("ItemListContent");
-            itemListGo.transform.SetParent(itemSection.transform, false);
-            var itemListRT = itemListGo.AddComponent<RectTransform>();
-            itemListRT.anchorMin = new Vector2(0, 0);
-            itemListRT.anchorMax = new Vector2(1, 1);
-            itemListRT.offsetMin = new Vector2(5, 5);
-            itemListRT.offsetMax = new Vector2(-5, -35);
-            var itemListLayout = itemListGo.AddComponent<VerticalLayoutGroup>();
-            itemListLayout.spacing = 4;
-            itemListLayout.childAlignment = TextAnchor.UpperLeft;
-            itemListLayout.childForceExpandWidth = true;
-            itemListLayout.childForceExpandHeight = false;
-            itemListLayout.padding = new RectOffset(4, 4, 4, 4);
-            var itemListCSF = itemListGo.AddComponent<ContentSizeFitter>();
-            itemListCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            // ===== 右上：槽位管理区域（技能+灵物槽位） =====
-            var slotSection = CreateUIImage(panel.transform, "SlotSection",
-                new Vector2(0.52f, 0.48f), new Vector2(0.97f, 0.88f),
-                Vector2.zero, Vector2.zero,
-                new Color(0.08f, 0.08f, 0.12f, 0.6f));
-
-            var slotSectionTitle = CreateUIText(slotSection.transform, "SlotSectionTitle", "BD管理", 16,
-                new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(10, -28), new Vector2(-10, -5));
-            slotSectionTitle.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
-            slotSectionTitle.GetComponent<Text>().color = new Color(0.9f, 0.75f, 0.4f);
-
-            // 槽位列表内容区
-            var slotListGo = new GameObject("SlotListContent");
-            slotListGo.transform.SetParent(slotSection.transform, false);
-            var slotListRT = slotListGo.AddComponent<RectTransform>();
-            slotListRT.anchorMin = new Vector2(0, 0);
-            slotListRT.anchorMax = new Vector2(1, 1);
-            slotListRT.offsetMin = new Vector2(5, 5);
-            slotListRT.offsetMax = new Vector2(-5, -32);
-            var slotListLayout = slotListGo.AddComponent<VerticalLayoutGroup>();
-            slotListLayout.spacing = 3;
-            slotListLayout.childAlignment = TextAnchor.UpperLeft;
-            slotListLayout.childForceExpandWidth = true;
-            slotListLayout.childForceExpandHeight = false;
-            slotListLayout.padding = new RectOffset(3, 3, 3, 3);
-            var slotListCSF = slotListGo.AddComponent<ContentSizeFitter>();
-            slotListCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            // ===== 右下：Synergy 组合区域 =====
-            var synergySection = CreateUIImage(panel.transform, "SynergySection",
-                new Vector2(0.52f, 0.05f), new Vector2(0.97f, 0.45f),
-                Vector2.zero, Vector2.zero,
-                new Color(0.08f, 0.08f, 0.12f, 0.6f));
-
-            var synergySectionTitle = CreateUIText(synergySection.transform, "SynergySectionTitle", "灵力组合", 16,
-                new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(10, -28), new Vector2(-10, -5));
-            synergySectionTitle.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
-            synergySectionTitle.GetComponent<Text>().color = new Color(1f, 0.85f, 0.5f);
-
-            // Synergy 列表内容区
-            var synergyListGo = new GameObject("SynergyListContent");
-            synergyListGo.transform.SetParent(synergySection.transform, false);
-            var synergyListRT = synergyListGo.AddComponent<RectTransform>();
-            synergyListRT.anchorMin = new Vector2(0, 0);
-            synergyListRT.anchorMax = new Vector2(1, 1);
-            synergyListRT.offsetMin = new Vector2(5, 5);
-            synergyListRT.offsetMax = new Vector2(-5, -35);
-            var synergyListLayout = synergyListGo.AddComponent<VerticalLayoutGroup>();
-            synergyListLayout.spacing = 4;
-            synergyListLayout.childAlignment = TextAnchor.UpperLeft;
-            synergyListLayout.childForceExpandWidth = true;
-            synergyListLayout.childForceExpandHeight = false;
-            synergyListLayout.padding = new RectOffset(4, 4, 4, 4);
-            var synergyListCSF = synergyListGo.AddComponent<ContentSizeFitter>();
-            synergyListCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            // ===== 底部：属性总览 =====
-            var statsBar = CreateUIImage(panel.transform, "StatsBar",
-                new Vector2(0.05f, 0), new Vector2(0.95f, 0.04f),
-                new Vector2(0, 5), new Vector2(0, 5),
-                new Color(0, 0, 0, 0));
-            var statsText = CreateUIText(statsBar.transform, "StatsText",
-                "攻击力 | 生命 | 移速 | 暴击率 | 减伤", 12,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            statsText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            statsText.GetComponent<Text>().color = new Color(0.5f, 0.5f, 0.6f, 0.7f);
-
-            // ===== 绑定字段到 InventoryUI =====
-            SetPrivateField(invUI, "panel", panel);
-            SetPrivateField(invUI, "itemListContent", itemListGo.transform);
-            SetPrivateField(invUI, "synergyListContent", synergyListGo.transform);
-            SetPrivateField(invUI, "slotSectionContent", slotListGo.transform);
-            SetPrivateField(invUI, "titleText", titleTxt);
-        }
-
-        /// <summary>创建技能槽位</summary>
-        private (Image cdFill, Text cdText, Image iconImage) CreateSkillSlot(
-            Transform parent, string name, Vector2 offset, string label, Color bgColor)
-        {
-            float size = 60f;
-            float halfSize = size / 2f;
-
-            // 槽位背景
-            var slot = CreateUIImage(parent, $"{name}Slot",
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(offset.x - halfSize, offset.y - halfSize),
-                new Vector2(offset.x + halfSize, offset.y + halfSize),
-                bgColor);
-
-            // 图标区域（用颜色块代替图标）
-            var icon = CreateUIImage(slot.transform, $"{name}Icon",
-                Vector2.zero, Vector2.one,
-                new Vector2(4, 4), new Vector2(-4, -4),
-                new Color(1, 1, 1, 0.15f));
-
-            // CD 遮罩（Filled Image）
-            var cdFill = CreateUIImage(slot.transform, $"{name}CDFill",
-                Vector2.zero, Vector2.one,
-                new Vector2(2, 2), new Vector2(-2, -2),
-                new Color(0, 0, 0, 0.7f));
-            var cdFillImg = cdFill.GetComponent<Image>();
-            cdFillImg.type = Image.Type.Filled;
-            cdFillImg.fillMethod = Image.FillMethod.Radial360;
-            cdFillImg.fillOrigin = (int)Image.Origin360.Top;
-            cdFillImg.fillClockwise = false;
-            cdFillImg.fillAmount = 0;
-
-            // CD 文字
-            var cdText = CreateUIText(slot.transform, $"{name}CDText", label, 16,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var cdTxt = cdText.GetComponent<Text>();
-            cdTxt.alignment = TextAnchor.MiddleCenter;
-            cdTxt.fontStyle = FontStyle.Bold;
-            var cdOutline = cdText.AddComponent<Outline>();
-            cdOutline.effectColor = new Color(0, 0, 0, 0.8f);
-            cdOutline.effectDistance = new Vector2(1, -1);
-
-            // 快捷键标签
-            var keyLabel = CreateUIText(slot.transform, $"{name}Key", label.Length <= 1 ? label : "",
-                11, new Vector2(0, 1), new Vector2(0, 1),
-                new Vector2(2, -14), new Vector2(18, -2));
-            keyLabel.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            keyLabel.GetComponent<Text>().color = new Color(1, 1, 1, 0.6f);
-
-            // 边框
-            var border = CreateUIImage(slot.transform, $"{name}Border",
-                Vector2.zero, Vector2.one,
-                new Vector2(-1, -1), new Vector2(1, 1),
-                new Color(0.6f, 0.6f, 0.7f, 0.4f));
-            border.GetComponent<Image>().raycastTarget = false;
-
-            return (cdFillImg, cdTxt, icon.GetComponent<Image>());
         }
 
         /// <summary>创建死亡面板</summary>

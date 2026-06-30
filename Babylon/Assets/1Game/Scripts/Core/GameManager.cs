@@ -24,14 +24,11 @@ namespace XianTu
         [Header("房间尺寸")]
         [SerializeField] private float roomSize = 35f;
 
-        [Header("灵物池（在 Inspector 中配置）")]
-        [SerializeField] private ItemData[] itemPool;
-
-        // v0.5 Week 4：保留 Inspector 原始 pool，每局重置后再叠加已解锁的炼器灵物
-        private ItemData[] _basePool;
-
         [Header("功法池（在 Inspector 中配置）")]
         [SerializeField] private SkillData[] skillPool;
+
+        [Header("模块池（GDD V.07 模块化技能）")]
+        [SerializeField] private ModuleDef[] modulePool;
 
         [Header("敌人受击特效")]
         [SerializeField] private GameObject enemyHitVFXPrefab;
@@ -96,43 +93,26 @@ namespace XianTu
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
         public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "飞升";
 
-        /// <summary>按 itemName 在 itemPool 中查找灵物（化身起手灵物 / 调试用）</summary>
-        public ItemData FindItemByName(string itemName)
+        private void InitModuleSystem()
         {
-            if (string.IsNullOrEmpty(itemName) || itemPool == null) return null;
-            foreach (var it in itemPool)
-                if (it != null && it.itemName == itemName) return it;
-            return null;
-        }
+            var player = PlayerController.Instance;
+            if (player == null) return;
 
-        /// <summary>
-        /// v0.5 Week 4：把炼器房已解锁的灵物注入 itemPool（每局开始时调用）。
-        /// 第一次调用时备份 Inspector 原始 pool；之后每次都从备份+解锁集重建，
-        /// 避免上一局的运行时 SO 被反复追加。
-        /// </summary>
-        private void AugmentItemPoolFromForge()
-        {
-            if (_basePool == null) _basePool = itemPool;
+            var inv = player.GetComponent<ModuleInventory>();
+            if (inv == null) inv = player.gameObject.AddComponent<ModuleInventory>();
+            inv.Clear();
 
-            // v0.5 Week 6：基础池如果空 / 全 null，从 ItemPool 自动注册器（Resources/Items）兜底加载
-            bool baseEmpty = _basePool == null || _basePool.Length == 0;
-            if (!baseEmpty)
-            {
-                bool allNull = true;
-                foreach (var x in _basePool) if (x != null) { allNull = false; break; }
-                if (allNull) baseEmpty = true;
-            }
-            if (baseEmpty)
-            {
-                var auto = ItemPool.All;
-                if (auto != null && auto.Length > 0)
-                {
-                    Debug.Log($"<color=cyan>[GameManager] Inspector itemPool 为空 → 自动从 ItemPool 注册 {auto.Length} 件灵物</color>");
-                    _basePool = auto;
-                }
-            }
+            var slots = player.GetComponent<ModuleSlotManager>();
+            if (slots == null) slots = player.gameObject.AddComponent<ModuleSlotManager>();
+            slots.ClearAll();
 
-            itemPool = UnlockedItemPoolLoader.Augment(_basePool);
+            // Auto-load module pool if Inspector field is empty
+            if (modulePool == null || modulePool.Length == 0)
+                modulePool = ModulePoolLoader.LoadAll();
+
+            // Grant seed loadout (first T+E+M → auto-assemble on Q)
+            if (modulePool != null && modulePool.Length > 0)
+                ModulePoolLoader.GrantSeedLoadout(player, modulePool);
         }
 
         private const string PrefKeyTreeMapFlow = "GoB.UseTreeMapFlow";
@@ -174,13 +154,9 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
             GameEvents.Subscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
 
-            // 启动 → 进入村庄 Hub。玩家在村里：
-            //   1. 默认已选好金化身（不去 NPC 也能直接玩）
-            //   2. 想换化身 → 走司命使按 F
-            //   3. 出发 → 走山门按 F → StartNewRun()
+            // 启动 → 进入村庄 Hub。玩家在村里走配置使配模块，走山门出发。
             EnterVillageHub();
             BuffBarUITK.EnsureExists();   // v0.6：UITK 状态栏（取代旧 IMGUI StatusEffectHUD）
-            SpiritRootMechanicHUD.EnsureExists();
             RunHUD.Ensure();
             PauseMenu.Ensure();
             // v0.5 Week 9：启动时显示主菜单（暂停游戏直到玩家点"开始入梦"）
@@ -188,8 +164,7 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 生成村庄 Hub，把玩家放到中央，并自动激活默认化身（金）。
-        /// 山门触发后会调 <see cref="StartNewRun"/>。
+        /// 生成村庄 Hub，把玩家放到中央。山门触发后会调 <see cref="StartNewRun"/>。
         /// </summary>
         private void EnterVillageHub()
         {
@@ -205,9 +180,7 @@ namespace XianTu
                 Destroy(ic.gameObject);
             CleanupLeftoverPickups();
 
-            // 防御：上一局如果在面板打开时被外部强制重启（场景重载、Debug Restart…），
-            // 这里把它关掉并把 timeScale 恢复到 1，否则玩家进村会卡在 0 速度。
-            SpiritRootSelectUITK.Hide();
+            // 防御：上一局如果 timeScale 被改过，进村恢复到 1，否则玩家会卡在 0 速度。
             if (Time.timeScale < 0.9f) Time.timeScale = 1f;
 
             Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
@@ -217,26 +190,9 @@ namespace XianTu
             var hub = _currentRoomGo.AddComponent<VillageHub>();
             hub.Initialize(onPortalEntered: StartNewRun);
 
-            // 默认化身：金。玩家可以走到司命使那里重选。
-            ApplyDefaultSpiritRootIfNone();
-
             TeleportPlayer(spawnPos);
 
-            Debug.Log("<color=magenta>═══ 入梦之村 · 选择化身后从山门入梦 ═══</color>");
-        }
-
-        /// <summary>
-        /// 玩家此前没选过化身 → 自动应用默认（金）；已经选过则跳过，避免重置玩家手选的化身。
-        /// </summary>
-        private void ApplyDefaultSpiritRootIfNone()
-        {
-            var player = PlayerController.Instance;
-            if (player == null) return;
-            var ctrl = player.GetComponent<SpiritRootController>();
-            if (ctrl == null) return;
-            if (ctrl.CurrentRoot != SpiritRootType.None) return;
-
-            ctrl.Select(SpiritRootType.Metal, player.Stats);
+            Debug.Log("<color=magenta>═══ 入梦之村 · 配置模块后从山门入梦 ═══</color>");
         }
 
         /// <summary>开始新的一局</summary>
@@ -260,22 +216,16 @@ namespace XianTu
             Debug.Log("<color=magenta>  入秘境... 仙途秘境开始</color>");
             Debug.Log("<color=magenta>═══════════════════════════</color>");
 
-            // v0.5：自动应用所有跨局已解锁的化身天赋
+            // v0.5 Week 4：起手功法 / 阵法台增益 / 灵兽伙伴 —— 三个一次性 / 持久效果
             if (PlayerController.Instance != null)
             {
-                PermanentTalentLoader.Apply(PlayerController.Instance);
-                SystemMasterySystem.Apply(PlayerController.Instance);   // v0.6 阶段C：当前化身已点系精通入局
-                // v0.5 Week 4：起手功法 / 阵法台增益 / 灵兽伙伴 —— 三个一次性 / 持久效果
                 StartSkillLoader.Apply(PlayerController.Instance);
                 FormationBuffApplier.Apply(PlayerController.Instance);
                 SpiritBeastLoader.Apply(PlayerController.Instance);
             }
 
-            // v0.5 Week 4：把已解锁的炼器灵物注入本局梦境掉落池
-            AugmentItemPoolFromForge();
-
-            // GDD §4.9：化身初始灵物（DefaultItem_ID）
-            AvatarRestriction.GrantDefaultItem(itemPool);
+            // GDD V.07：初始化模块系统（确保 ModuleInventory + ModuleSlotManager 存在）
+            InitModuleSystem();
 
             // 生成整局的房间布局
             GenerateLevelLayout();
@@ -406,8 +356,9 @@ namespace XianTu
             int enemyCount = Mathf.RoundToInt((baseEnemyCount + _currentLevel * enemyCountPerLevel) * anomaly.EnemyCountMul);
             float hpMul = 1f + _currentLevel * hpScalePerLevel;
             float dmgMul = (1f + _currentLevel * dmgScalePerLevel) * anomaly.EnemyDamageMul;
-            room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, itemPool, roomSize, roomSize);
+            room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, roomSize, roomSize);
             room.SetSkillPool(skillPool);
+            room.SetModulePool(modulePool);
 
             if (enemyHitVFXPrefab != null)
                 room.SetEnemyHitVFX(enemyHitVFXPrefab);
@@ -424,10 +375,10 @@ namespace XianTu
 
             float hpMul = 1f + _currentLevel * hpScalePerLevel;
             float dmgMul = 1f + _currentLevel * dmgScalePerLevel;
-            // Boss房间：少量普通敌人 + 1个Boss
             int normalEnemyCount = 2;
-            room.Initialize(_currentLevel, normalEnemyCount, hpMul, dmgMul, itemPool, roomSize, roomSize);
+            room.Initialize(_currentLevel, normalEnemyCount, hpMul, dmgMul, roomSize, roomSize);
             room.SetSkillPool(skillPool);
+            room.SetModulePool(modulePool);
 
             if (enemyHitVFXPrefab != null)
                 room.SetEnemyHitVFX(enemyHitVFXPrefab);
@@ -435,9 +386,8 @@ namespace XianTu
             Debug.Log($"<color=red>【{CurrentRealmName}】★ Boss 房间 ★</color>");
             room.StartBattle();
 
-            // 额外生成Boss
             Vector3 bossPos = spawnPos + new Vector3(0, 0, 8f);
-            EnemyBoss.Spawn(bossPos, hpMul, dmgMul, _currentLevel, itemPool);
+            EnemyBoss.Spawn(bossPos, hpMul, dmgMul);
         }
 
         private void SpawnShopRoom(Vector3 spawnPos)
@@ -445,7 +395,7 @@ namespace XianTu
             _currentRoomGo = new GameObject($"ShopRoom_Lv{_currentLevel}_{CurrentRealmName}");
             _currentRoomGo.transform.position = spawnPos;
             var room = _currentRoomGo.AddComponent<ShopRoom>();
-            room.Initialize(_currentLevel, itemPool, skillPool);
+            room.Initialize(_currentLevel, skillPool);
             Debug.Log($"<color=yellow>【{CurrentRealmName}】商店房间 — 按F离开</color>");
         }
 
@@ -463,7 +413,7 @@ namespace XianTu
             _currentRoomGo = new GameObject($"TreasureRoom_Lv{_currentLevel}_{CurrentRealmName}");
             _currentRoomGo.transform.position = spawnPos;
             var room = _currentRoomGo.AddComponent<TreasureRoom>();
-            room.Initialize(_currentLevel, itemPool);
+            room.Initialize(_currentLevel);
             Debug.Log($"<color=yellow>【{CurrentRealmName}】宝箱房间 — 靠近开启 — 按F离开</color>");
         }
 
@@ -893,18 +843,8 @@ namespace XianTu
             }
         }
 
-        /// <summary>清理场景中残留的掉落物（上一关未拾取的灵物和功法）</summary>
         private void CleanupLeftoverPickups()
         {
-            // 清理灵物拾取物
-            var itemPickups = Object.FindObjectsOfType<ItemPickup>();
-            foreach (var pickup in itemPickups)
-            {
-                if (pickup != null)
-                    Destroy(pickup.gameObject);
-            }
-
-            // 清理功法拾取物
             var skillPickups = Object.FindObjectsOfType<SkillPickup>();
             foreach (var pickup in skillPickups)
             {
@@ -946,8 +886,6 @@ namespace XianTu
 
             if (PlayerController.Instance != null)
             {
-                PlayerController.Instance.Inventory.Clear();
-                PlayerController.Instance.SpiritSlots.Clear();
                 PlayerController.Instance.Stats.ResetHp();
             }
 

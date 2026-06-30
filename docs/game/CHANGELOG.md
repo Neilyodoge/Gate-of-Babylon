@@ -6,6 +6,41 @@
 
 ---
 
+## V.08 · 模块增强系统落地（核心动作循环 + 增强注入）（2026-06-30）
+
+把 GDD §5（V.08）的「核心技能 × 增强链 · Proc → Consume」从设计落到代码。模块链不再自走，改为挂在核心技能上做**增强器**：触发器决定何时上膛（Proc），玩家按 Q/E/R 释放核心技能时消费增强。
+
+### 数据层（ModuleDef / ModuleChain）
+- `ModuleDef` 新增 `ConsumeKind`（Single / Window / Stacks / Auto）与 `EffectRole`（Enhancement / Addon）枚举及字段：`consumeKind` / `windowSeconds` / `maxStacks` / `effectRole`，以及万能件专用的 `universalConsumeKind` / `universalEffectRole`；含 `Sprite icon` 字段。
+- `ChainConfig` 扩展 `consumeKind` / `effectRole` / `enhanceDamageMult`（增强型对核心技能的伤害倍率，base 1.0）；`ModuleChain.Compile()` 据 `effectRole` 双轨解释 `damage`，并把改造件 `DamageScale` / `代价·消耗生命` 折算进 `enhanceDamageMult`。
+
+### 触发与槽位（TriggerTracker / ModuleSlotManager）
+- `TriggerTracker` 按 `consumeKind` 重写为四套状态机（Single / Window / Stacks / Auto），对外暴露 `ThresholdProgress` / `CurrentStacks` / `WindowRemaining` / `CooldownRemaining` 供 HUD 读取。
+- `ModuleSlotManager`：`IsProc` / `ConsumeProc` / `GetConfig` / `HasChain` 按 consumeKind 工作；`Auto` 模式经回调自动释放绑定核心技能。
+- **部分链持久化**：`EquipChain` 不再丢弃未成链的半成品（只有触发器或只有效果器也会存进槽位），仅在 `IsValid` 时建 tracker，修复局内逐件装配丢模块 + UI 无法显示「待补」状态的 bug。
+
+### 释放与增强注入（PlayerCombat / SkillModifierApplier / Projectile）
+- `HandleSkills` 统一为「按键 → 释放核心技能 → 若链 Proc 则注入增强 + 消费」：`BeginEnhancement`（cast 前设伤害倍率/元素覆盖上下文）→ `UseSkill` → `EndEnhancement`（cast 后施加效果）→ `ConsumeProc`。普通、蓄力、Auto 三条释放路径均接入。
+- **增强型（Enhancement）注入核心技能**：
+  - 伤害倍率：`enhanceDamageMult`（来自改造件）乘到核心技能伤害（`UseSkill` 的 `chargeDmgMul`）。
+  - 元素覆盖：链有元素（效果自带或灼烧→火/冰冻→冰/雷→雷/毒→土）时覆盖核心技能本次命中元素（`CastAreaSkill` / `CastProjectileSkill`）。
+  - 即时自益：治疗 / 护盾 / 无敌 / 净化（复用 `ExecuteChainHeal/Shield/Invincible` + 新增 `StatusEffectController.ClearDebuffs`）。
+  - 控制 + 附加状态作用到**核心技能实际命中的敌人**：范围技同步捕获命中目标（`_enhHitTargets`）；投射技通过 `Projectile.SetEnhancement(ChainConfig)` 在命中时施加（对象池复用时 `Initialize` 重置 payload）；未命中 / 非范围则回退绕玩家半径。
+- **附加型（Addon）**：维持 spawn 独立世界效果（`ExecuteChainEffect`）。
+- 抽出共享真源 `SkillModifierApplier.ApplyEnhancementToEnemy()` / `ApplyEnhancementStatus()`，PlayerCombat 与 Projectile 共用，消除重复。
+
+### 表现层（ProcBarsHUD / ModuleAssemblyUI）
+- **角色旁三竖条 Proc 指示器**（GDD §5.13）：新增 `ProcBarsHUD`，屏幕空间跟随角色，按 Q/E/R 显示充能进度 / 就绪（元素色 + 呼吸光）/ 层数 / 窗口倒计时 / 冷却 / Auto 脉动，由 `Demo1Setup.CreateHUD` 挂到 GameCanvas。
+- **装配 UI 重做**：`ModuleAssemblyUI` 从文字列表改为卡片网格背包 + Q/E/R 三列竖向链布局，含全息预览、人类可读链效果预览、安装 toast（链激活 / 还差 X 成链）、三态配色（已激活 / 待补 / 空）。
+- `Demo1Setup` 保证开局 Q/E/R 三个核心技能无空窗（未配置则从 `Data/Skills` 兜底挑选）。
+
+### 旧系统移除
+- 「灵物」「御灵 / 化身」系统及相关 UI 已从当前可玩路径移除（历史素材保留在 `_archive` / `设定_*`）。
+
+> 实现状态（已做 / 未做的边界）见 [开发待办 · V.08 实现状态](design/开发待办.md#v08-实现状态2026-06-30)。
+
+---
+
 ## V.06 · 文档与设计主轴重构（2026-06-24）
 
 设计层从“搜打撤 + 修仙职业 / 化身成长”收束为 **长局模块化 Build + Hades 式局外结算**。

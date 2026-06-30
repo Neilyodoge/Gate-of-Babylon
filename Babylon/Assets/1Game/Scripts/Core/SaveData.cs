@@ -29,8 +29,8 @@ namespace XianTu
         /// <summary>已永久解锁的功法 id 列表（从藏经阁拼合古籍残页获得）</summary>
         public List<string> unlockedSkillIds = new();
 
-        /// <summary>已永久解锁的灵物 id 列表（从炼器房炼制获得，进入梦境掉落池）</summary>
-        public List<string> unlockedItemIds = new();
+        /// <summary>已孵化的灵兽 id 列表</summary>
+        public List<string> unlockedBeastIds = new();
 
         /// <summary>累积悟性（消耗以解锁天赋节点）</summary>
         public int accumulatedInsight = 0;

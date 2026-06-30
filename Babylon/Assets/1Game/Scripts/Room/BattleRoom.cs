@@ -16,9 +16,10 @@ namespace XianTu
         [SerializeField] private float spawnRadius = 8f;
 
         [Header("掉落奖励")]
-        [SerializeField] private ItemData[] rewardPool;
         [SerializeField] private SkillData[] skillRewardPool;
-        [SerializeField] private int rewardCount = 1;
+
+        [Header("模块掉落")]
+        [SerializeField] private ModuleDef[] moduleRewardPool;
 
         [Header("难度缩放")]
         [SerializeField] private float hpMultiplier = 1f;
@@ -38,16 +39,13 @@ namespace XianTu
         /// <summary>
         /// 初始化房间
         /// </summary>
-        public void Initialize(int roomIndex, int enemyCount, float hpMul, float dmgMul, ItemData[] rewards,
+        public void Initialize(int roomIndex, int enemyCount, float hpMul, float dmgMul,
             float width = 35f, float depth = 35f)
         {
             _roomIndex = roomIndex;
             this.enemyCount = enemyCount;
-
-            // v0.5.4：灵气浓度系统移除，敌人难度直接用关卡层数 scaling
             hpMultiplier = hpMul;
             dmgMultiplier = dmgMul;
-            rewardPool = rewards;
             roomWidth = width;
             roomDepth = depth;
 
@@ -106,7 +104,7 @@ namespace XianTu
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                var enemy = EnemyBase.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                var enemy = EnemyBase.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
                 if (_enemyHitVFXPrefab != null) enemy.SetHitVFXPrefab(_enemyHitVFXPrefab);
                 if (skillRewardPool != null) enemy.SetSkillDrops(skillRewardPool);
                 _enemies.Add(enemy);
@@ -117,7 +115,7 @@ namespace XianTu
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                var ranged = EnemyRanged.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                var ranged = EnemyRanged.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
                 if (skillRewardPool != null) ranged.SetSkillDrops(skillRewardPool);
             }
 
@@ -126,7 +124,7 @@ namespace XianTu
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                var charger = EnemyCharger.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                var charger = EnemyCharger.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
                 if (skillRewardPool != null) charger.SetSkillDrops(skillRewardPool);
             }
 
@@ -135,7 +133,7 @@ namespace XianTu
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                var mage = EnemyMage.Spawn(spawnPos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool);
+                var mage = EnemyMage.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
                 if (skillRewardPool != null) mage.SetSkillDrops(skillRewardPool);
             }
             // 生成陷阱
@@ -149,7 +147,7 @@ namespace XianTu
             {
                 Vector3 spawnPos = GetRandomSpawnPosition();
                 spawnPos.y = 0;
-                Destructible.Spawn(spawnPos, rewardPool);
+                Destructible.Spawn(spawnPos);
             }
 
             // 生成精英怪（满足层数条件且概率判定通过）
@@ -160,7 +158,7 @@ namespace XianTu
                 {
                     Vector3 elitePos = GetRandomSpawnPosition();
                     elitePos.y = 0;
-                    var elite = EnemyElite.Spawn(elitePos, hpMultiplier, dmgMultiplier, _roomIndex, rewardPool, skillRewardPool);
+                    var elite = EnemyElite.Spawn(elitePos, hpMultiplier, dmgMultiplier, skillRewardPool);
                     _totalEnemyCount++; // 精英怪额外计入总数
                 }
             }
@@ -211,120 +209,9 @@ namespace XianTu
 
             Debug.Log($"<color=green>房间清理完成！</color>");
 
-            // 掉落奖励功法（仍为世界拾取物）
             SpawnSkillReward();
-
-            // GDD §5.6：三选一灵物卡牌 — 取代旧的地面掉落
-            var candidates = RollRewardCandidates(3);
-            if (candidates != null && candidates.Length > 0)
-            {
-                BattleRewardUI.Show(candidates, _ =>
-                {
-                    GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
-                });
-            }
-            else
-            {
-                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
-            }
-        }
-
-        /// <summary>从掉落池中 roll N 个不重复的候选灵物（用于三选一 UI）。</summary>
-        private ItemData[] RollRewardCandidates(int count)
-        {
-            if (rewardPool == null || rewardPool.Length == 0) return null;
-            if (!FeatureFlags.EnableSpiritItems) return null;
-
-            var config = GameConfig.Instance;
-
-            // 通关掉落概率判定（debug 模式跳过）
-            if (config != null && !config.debugMaxItemDropRate)
-            {
-                if (Random.value > config.通关掉落概率) return null;
-            }
-
-            var validPool = new List<ItemData>();
-            foreach (var d in rewardPool)
-                if (d != null && AvatarRestriction.IsAllowed(d)) validPool.Add(d);
-            if (validPool.Count == 0) return null;
-
-            var picked = new List<ItemData>();
-            var usedIndices = new HashSet<int>();
-            for (int i = 0; i < count && picked.Count < validPool.Count; i++)
-            {
-                ItemRarity rarity = config != null ? config.RollRarity(_roomIndex) : ItemRarity.Fan;
-                var candidates = new List<int>();
-                for (int j = 0; j < validPool.Count; j++)
-                {
-                    if (!usedIndices.Contains(j) && validPool[j].rarity == rarity)
-                        candidates.Add(j);
-                }
-                if (candidates.Count == 0)
-                {
-                    for (int j = 0; j < validPool.Count; j++)
-                        if (!usedIndices.Contains(j)) candidates.Add(j);
-                }
-                if (candidates.Count == 0) break;
-                int idx = candidates[Random.Range(0, candidates.Count)];
-                picked.Add(validPool[idx]);
-                usedIndices.Add(idx);
-            }
-
-            return picked.Count > 0 ? picked.ToArray() : null;
-        }
-
-        private void SpawnRewards()
-        {
-            if (rewardPool == null || rewardPool.Length == 0) return;
-
-            // 过滤 null 元素
-            var validPool = new System.Collections.Generic.List<ItemData>();
-            foreach (var d in rewardPool) if (d != null) validPool.Add(d);
-            if (validPool.Count == 0) return;
-
-            // 通关额外奖励：先判定概率，再掉落
-            var config = GameConfig.Instance;
-            int count = config != null ? config.通关额外掉落数 : rewardCount;
-
-            // 通关掉落概率判定（debug爆率拉满时跳过判定）
-            if (config != null && !config.debugMaxItemDropRate)
-            {
-                if (Random.value > config.通关掉落概率) return; // 未通过概率判定，不掉落
-            }
-
-            for (int i = 0; i < count; i++)
-            {
-                ItemData item;
-                if (config != null)
-                {
-                    // 按品阶权重选择（层数越高，高品质比重越大）
-                    ItemRarity targetRarity = config.RollRarity(_roomIndex);
-                    var candidates = new System.Collections.Generic.List<ItemData>();
-                    foreach (var d in validPool)
-                    {
-                        if (d.rarity == targetRarity)
-                            candidates.Add(d);
-                    }
-                    item = candidates.Count > 0
-                        ? candidates[Random.Range(0, candidates.Count)]
-                        : validPool[Random.Range(0, validPool.Count)];
-                }
-                else
-                {
-                    item = validPool[Random.Range(0, validPool.Count)];
-                }
-
-                if (item != null)
-                {
-                    // 在玩家附近掉落（而非房间中心）
-                    Vector3 playerPos = PlayerController.Instance != null
-                        ? PlayerController.Instance.transform.position
-                        : transform.position;
-                    Vector3 pos = playerPos + new Vector3(
-                        Random.Range(-2f, 2f), 0, Random.Range(-2f, 2f));
-                    ItemPickup.Spawn(item, pos);
-                }
-            }
+            SpawnModuleReward();
+            GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
         }
 
         /// <summary>通关后掉落功法奖励</summary>
@@ -386,6 +273,28 @@ namespace XianTu
         public void SetSkillPool(SkillData[] skills)
         {
             skillRewardPool = skills;
+        }
+
+        public void SetModulePool(ModuleDef[] modules)
+        {
+            moduleRewardPool = modules;
+        }
+
+        private void SpawnModuleReward()
+        {
+            if (moduleRewardPool == null || moduleRewardPool.Length == 0) return;
+
+            int dropCount = Random.value < 0.5f ? 2 : 1;
+            var player = PlayerController.Instance;
+            Vector3 basePos = player != null ? player.transform.position : transform.position;
+
+            for (int i = 0; i < dropCount; i++)
+            {
+                var module = moduleRewardPool[Random.Range(0, moduleRewardPool.Length)];
+                if (module == null) continue;
+                Vector3 offset = new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f));
+                ModulePickup.Spawn(module, basePos + offset + Vector3.right * (i * 1.5f));
+            }
         }
 
         /// <summary>设置敌人受击特效</summary>

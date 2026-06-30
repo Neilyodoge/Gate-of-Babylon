@@ -1,0 +1,86 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec4abf4c21d75db4d9b84559347c77fe, type: 3}
+  m_Name: "U_\u95EA\u7535_\u843D\u96F7"
+  m_EditorClassIdentifier: 
+  moduleId: "U_\u95EA\u7535/\u843D\u96F7"
+  category: 3
+  displayName: "U_\u95EA\u7535/\u843D\u96F7"
+  description: "\u4F5C\u4E3A\u89E6\u53D1\u5668\uFF1A\u95EA\u907F\u540E\u89E6\u53D1
+    | \u4F5C\u4E3A\u6548\u679C\u5668\uFF1A\u8303\u56F4\u843D\u96F7"
+  uiDescription: "\u4F5C\u4E3A\u89E6\u53D1\u5668\uFF1A\u95EA\u907F\u540E\u89E6\u53D1
+    | \u4F5C\u4E3A\u6548\u679C\u5668\uFF1A\u8303\u56F4\u843D\u96F7"
+  icon: {fileID: 0}
+  rarity: 1
+  executionMode: 0
+  functionTags: 9
+  shapeTags: 0
+  styleTags: 8
+  triggerType: 5
+  triggerThreshold: 1
+  triggerCooldown: 3
+  triggerInterval: 5
+  consumeStacks: 1
+  moveDistanceThreshold: 10
+  healthThreshold: 0.3
+  consumeKind: 1
+  windowSeconds: 5
+  maxStacks: 3
+  effectType: 1
+  effectRole: 1
+  baseDamage: 28
+  damageScaling: 0.5
+  aoeRadius: 3.5
+  healAmount: 0
+  healScaling: 0
+  shieldAmount: 30
+  buffDuration: 5
+  buffDamageReduction: 0.3
+  projectileSpeed: 15
+  projectileCount: 1
+  spreadAngle: 0
+  slowPercent: 0.5
+  stunDuration: 1.5
+  knockbackForce: 8
+  dashDistance: 0
+  pullRadius: 6
+  dotDPS: 8
+  dotDuration: 4
+  invincibleDuration: 1
+  summonDuration: 10
+  summonDamage: 10
+  trapDuration: 8
+  vulnerableMultiplier: 1.5
+  vulnerableDuration: 3
+  vfxPrefab: {fileID: 0}
+  elementTag: 4
+  modifierType: 0
+  modifierValue: 1.5
+  burnDPS: 5
+  burnDuration: 3
+  freezeDuration: 2
+  lightningDamage: 15
+  poisonDPS: 4
+  poisonDuration: 5
+  extraCount: 1
+  costHPPercent: 0.1
+  costDamageBonus: 0.5
+  universalTriggerType: 5
+  universalTriggerThreshold: 1
+  universalTriggerCooldown: 3
+  universalEffectType: 1
+  universalEffectRole: 1
+  universalConsumeKind: 1
+  universalTriggerDesc: "\u89E6\u53D1\uFF1ADodgeFinish"
+  universalEffectDesc: "\u6548\u679C\uFF1AAreaDamage"
+  compatibleShapes: -1
+  incompatibleFunctions: 0

@@ -275,24 +275,6 @@ namespace XianTu
                 IsSpecialized = true
             });
 
-            list.Add(new ToolEntry
-            {
-                Name = "定位 SynergySystem 脚本",
-                Category = "Items",
-                OnClick = () => PingScript("Assets/1Game/Scripts/Items/SynergySystem.cs"),
-                ScriptPath = "Assets/1Game/Scripts/Items/SynergySystem.cs",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "定位 QualitativeEffectRunner 脚本",
-                Category = "Items",
-                OnClick = () => PingScript("Assets/1Game/Scripts/Items/QualitativeEffectRunner.cs"),
-                ScriptPath = "Assets/1Game/Scripts/Items/QualitativeEffectRunner.cs",
-                IsSpecialized = true
-            });
-
             // ---- 房间与关卡 (Room) ----
             list.Add(new ToolEntry
             {
@@ -319,15 +301,6 @@ namespace XianTu
                 Category = "UI",
                 OnClick = () => PingScript("Assets/1Game/Scripts/UI/GameHUD.cs"),
                 ScriptPath = "Assets/1Game/Scripts/UI/GameHUD.cs",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "定位 InventoryUI 脚本",
-                Category = "UI",
-                OnClick = () => PingScript("Assets/1Game/Scripts/UI/InventoryUI.cs"),
-                ScriptPath = "Assets/1Game/Scripts/UI/InventoryUI.cs",
                 IsSpecialized = true
             });
 

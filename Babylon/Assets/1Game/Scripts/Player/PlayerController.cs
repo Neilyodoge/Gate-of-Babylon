@@ -9,9 +9,7 @@ namespace XianTu
     /// 适配 Frank_Katana 角色模型 + 动画系统
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    [RequireComponent(typeof(ItemInventory))]
     [RequireComponent(typeof(PlayerAnimator))]
-    [RequireComponent(typeof(SpiritSlotSystem))]
     public class PlayerController : MonoBehaviour, IDamageable
     {
         [Header("属性")]
@@ -26,10 +24,8 @@ namespace XianTu
 
         // 组件缓存
         private CharacterController _cc;
-        private ItemInventory _inventory;
         private PlayerCombat _combat;
         private PlayerAnimator _playerAnim;
-        private SpiritSlotSystem _spiritSlots;
 
         // 移动状态
         private Vector3 _moveInput;
@@ -71,8 +67,6 @@ namespace XianTu
         public CombatStats Stats => stats;
         /// <summary>本帧是否请求了闪避（供 PlayerCombat 检查，避免同帧攻击抢占闪避）</summary>
         public bool DashRequestedThisFrame => _dashRequestedThisFrame;
-        public ItemInventory Inventory => _inventory;
-        public SpiritSlotSystem SpiritSlots => _spiritSlots;
         public Vector3 AimDirection => _aimDirection;
         public bool IsDashing => _isDashing;
         public int DashCharges => _dashCharges;
@@ -106,10 +100,8 @@ namespace XianTu
         {
             Instance = this;
             _cc = GetComponent<CharacterController>();
-            _inventory = GetComponent<ItemInventory>();
             _combat = GetComponent<PlayerCombat>();
             _playerAnim = GetComponent<PlayerAnimator>();
-            _spiritSlots = GetComponent<SpiritSlotSystem>();
 
             // 从 GameConfig 读取属性
             var config = GameConfig.Instance;
@@ -123,20 +115,8 @@ namespace XianTu
                 _dashRechargeDuration = config.闪避冷却时间;
             }
 
-            // StatusEffect 框架（玩家身上）—— 必须在 Inventory.Initialize 之前确保组件存在
-            // 因为 RecalculateStats 会从 StatusEffectController 读取 modifiers
             if (GetComponent<StatusEffectController>() == null)
                 gameObject.AddComponent<StatusEffectController>();
-
-            // 化身控制器（自动挂载，未选择化身时无副作用）
-            if (GetComponent<SpiritRootController>() == null)
-                gameObject.AddComponent<SpiritRootController>();
-
-            // 初始化背包系统
-            _inventory.Initialize(stats, stats);
-
-            // 初始化灵物槽位系统
-            _spiritSlots.Initialize(stats.Clone(), stats);
         }
 
         private void OnEnable()
@@ -272,9 +252,9 @@ namespace XianTu
                 // 标记本帧有闪避输入，阻止同帧的攻击输入（闪避优先级最高）
                 _dashRequestedThisFrame = true;
 
-                if (_dashCharges <= 0 && !SpiritRootWaterController.ShadowStepActive)
+                if (_dashCharges <= 0)
                 {
-                    // 没有充能，缓冲闪避输入（息影瞬步期间无视充能）
+                    // 没有充能，缓冲闪避输入
                     _playerAnim.BufferEvade();
                     return;
                 }
@@ -295,14 +275,11 @@ namespace XianTu
             _dashTimer = dashDuration;
             _dashDirection = _moveInput.sqrMagnitude > 0.01f ? _moveInput : _aimDirection;
 
-            // 消耗一层充能（息影瞬步期间闪避不消耗充能、无冷却）
-            if (!SpiritRootWaterController.ShadowStepActive)
-            {
-                _dashCharges--;
-                // 如果充能未满，开始计时恢复
-                if (_dashCharges < _dashMaxCharges && _dashRechargeTimer <= 0)
-                    _dashRechargeTimer = _dashRechargeDuration;
-            }
+            // 消耗一层充能
+            _dashCharges--;
+            // 如果充能未满，开始计时恢复
+            if (_dashCharges < _dashMaxCharges && _dashRechargeTimer <= 0)
+                _dashRechargeTimer = _dashRechargeDuration;
 
             // 发布闪避充能更新事件
             GameEvents.Publish(new GameEvents.DashChargeUpdate
@@ -316,15 +293,6 @@ namespace XianTu
             _invincible = true;
             _invincibleTimer = DASH_INVINCIBLE_TIME;
 
-            // 质变效果：御风（闪避后留下残影）
-            var runner = QualitativeEffectRunner.Instance;
-            if (runner != null)
-            {
-                runner.OnPlayerDash();
-                // 协同效果：风火轮（冲刺留火墙）
-                Vector3 dashEndPos = dashStartPos + _dashDirection * dashDistance;
-                runner.OnPlayerDashForFireTrail(dashStartPos, dashEndPos);
-            }
         }
 
         /// <summary>更新各种计时器</summary>
@@ -489,63 +457,7 @@ namespace XianTu
                 return;
             }
 
-            // 土化身：地脉护盾优先抵挡（仅消耗一次伤害，无视伤害大小）
-            var rootCtrl = GetComponent<SpiritRootController>();
-            if (rootCtrl != null && rootCtrl.TryConsumeEarthShield())
-            {
-                Debug.Log("<color=#D4B582>🪨 地脉护盾抵挡了一次伤害</color>");
-                return;
-            }
-
-            // v0.5 Week 7 · 土化身扎根：在扎根状态下输入伤害额外 ×0.7
-            var earthCtrl = GetComponent<SpiritRootEarthController>();
-            if (earthCtrl != null && earthCtrl.IsRooted)
-            {
-                damage = earthCtrl.ScaleIncomingDamage(damage);
-            }
-
-            // v0.6 · 御金塑金·甲（守）形态：额外减伤
-            var goldCtrl = GetComponent<SpiritRootGoldController>();
-            if (goldCtrl != null)
-            {
-                damage = goldCtrl.ScaleIncomingDamage(damage);
-            }
-
-            // 金刚不坏协同：30%概率完全格挡并反弹伤害
-            if (SynergySystem.IsVajraActive && Random.value < 0.3f)
-            {
-                Debug.Log("<color=yellow>🛡️ 金刚不坏格挡！反弹伤害！</color>");
-
-                // 飘字：格挡
-                GameEvents.Publish(new GameEvents.DamageNumberRequested
-                {
-                    WorldPosition = transform.position + Vector3.up * 2f,
-                    Damage = 0,
-                    SpecialTag = "格挡"
-                });
-
-                // 反弹50%伤害给攻击者
-                if (attacker != null)
-                {
-                    var attackerDamageable = attacker.GetComponent<IDamageable>();
-                    if (attackerDamageable != null)
-                    {
-                        float reflectDmg = damage * 0.5f;
-                        attackerDamageable.OnDamage(reflectDmg, attacker.transform.position, gameObject);
-
-                        // 飘字：反弹伤害
-                        GameEvents.Publish(new GameEvents.DamageNumberRequested
-                        {
-                            WorldPosition = attacker.transform.position + Vector3.up * 1.5f,
-                            Damage = reflectDmg,
-                            SpecialTag = "反弹"
-                        });
-                    }
-                }
-                return; // 完全格挡，不受伤
-            }
-
-            // 无论是否被打断，都要扣血（哈迪斯：霸体不等于无敌）
+            // 扣血
             float actual = stats.TakeDamage(damage);
 
             // 发布伤害飘字事件
@@ -592,28 +504,12 @@ namespace XianTu
                 if (guard != null && guard.TryConsume())
                     return;
 
-                // 尝试玉碎免死
-                var runner = QualitativeEffectRunner.Instance;
-                if (runner != null && runner.TryJadeShield())
-                {
-                    // 玉碎触发，免疫致命伤害
-                    return;
-                }
-
                 OnDeath();
             }
         }
 
         public void OnDeath()
         {
-            // 尝试涅槃复活
-            var runner = QualitativeEffectRunner.Instance;
-            if (runner != null && runner.TryNirvana())
-            {
-                Debug.Log("<color=yellow>🔥 涅槃复活！</color>");
-                return; // 复活成功，不触发死亡
-            }
-
             Debug.Log("<color=red>玩家死亡！梦境破碎...</color>");
             _playerAnim.PlayDie();
             GameEvents.Publish(new GameEvents.PlayerDied());

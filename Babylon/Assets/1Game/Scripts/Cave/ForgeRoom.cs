@@ -156,7 +156,7 @@ namespace XianTu
             GUILayout.Label("配方列表", new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
             _scroll = GUILayout.BeginScrollView(_scroll);
 
-            var unlocked = new HashSet<string>(SaveSystem.Instance.Data.unlockedItemIds);
+            var unlocked = new HashSet<string>();
             var recipes = ForgeLibrary.AllRecipes;
             for (int i = 0; i < recipes.Count; i++)
             {
@@ -197,8 +197,7 @@ namespace XianTu
             }
 
             var recipe = recipes[_selectedRecipeIdx];
-            var save = SaveSystem.Instance.Data;
-            bool already = save.unlockedItemIds.Contains(recipe.itemName);
+            bool already = false;
 
             var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, richText = true };
             nameStyle.normal.textColor = recipe.displayColor;
@@ -260,19 +259,8 @@ namespace XianTu
             foreach (var cost in recipe.costs)
                 SaveSystem.Instance.ConsumeCaveItem(cost.materialName, cost.amount);
 
-            // 永久解锁
-            var save = SaveSystem.Instance.Data;
-            if (!save.unlockedItemIds.Contains(recipe.itemName))
-                save.unlockedItemIds.Add(recipe.itemName);
             SaveSystem.Instance.Save();
-
-            GameEvents.Publish(new GameEvents.ForgeItemUnlocked
-            {
-                ItemName = recipe.itemName,
-                TotalUnlocked = save.unlockedItemIds.Count
-            });
-
-            Debug.Log($"<color=#b0d0ff>[炼器房] 炼制成功：{recipe.itemName}（已永久加入梦境掉落池）</color>");
+            Debug.Log($"<color=#b0d0ff>[炼器房] 炼制成功：{recipe.itemName}</color>");
         }
     }
 
@@ -437,51 +425,4 @@ namespace XianTu
         }
     }
 
-    /// <summary>
-    /// 已解锁灵物注入器 —— 把 <see cref="SaveDataV1.unlockedItemIds"/> 转成运行时 <see cref="ItemData"/> 实例，
-    /// 追加到 GameManager 的 itemPool 中，使本局所有掉落 / 商店 / 宝箱都可能出现。
-    /// </summary>
-    public static class UnlockedItemPoolLoader
-    {
-        /// <summary>
-        /// 把基础 itemPool（Inspector 配置）和 SaveData 中已解锁的灵物合并成新数组。
-        /// 不修改原数组，调用方决定是否替换。
-        /// </summary>
-        public static ItemData[] Augment(ItemData[] basePool)
-        {
-            var ids = SaveSystem.Instance.Data.unlockedItemIds;
-            if (ids == null || ids.Count == 0) return basePool;
-
-            var list = new List<ItemData>();
-            if (basePool != null) list.AddRange(basePool);
-
-            int added = 0;
-            foreach (var id in ids)
-            {
-                // 跳过已存在（防止 Inspector 已配 + 又解锁导致重复）
-                if (list.Exists(x => x != null && x.itemName == id)) continue;
-
-                var recipe = ForgeLibrary.GetByName(id);
-                if (recipe == null) continue;
-
-                var so = ScriptableObject.CreateInstance<ItemData>();
-                so.name = recipe.itemName;
-                so.itemName = recipe.itemName;
-                so.description = recipe.description;
-                so.scope = ItemScope.RunOnly;
-                so.stackable = true;
-                so.qualitativeThresholds = new[] { 3, 5 };
-                so.rarity = ItemRarity.Di;
-                recipe.configure?.Invoke(so);
-
-                list.Add(so);
-                added++;
-            }
-
-            if (added > 0)
-                Debug.Log($"<color=#b0d0ff>[UnlockedItemPoolLoader] 已解锁 {added} 件炼器灵物注入梦境掉落池</color>");
-
-            return list.ToArray();
-        }
-    }
 }

@@ -72,10 +72,7 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.PlayerDamaged>(OnPlayerDamaged);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Subscribe<GameEvents.ItemPickedUp>(OnItemPickedUp);
             GameEvents.Subscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
-            GameEvents.Subscribe<GameEvents.SynergyActivated>(OnSynergyActivated);
-            GameEvents.Subscribe<GameEvents.QualitativeTriggered>(OnQualitativeTriggered);
             GameEvents.Subscribe<GameEvents.SkillEquipped>(OnSkillEquipped);
             GameEvents.Subscribe<GameEvents.SkillDecomposed>(OnSkillDecomposed);
             GameEvents.Subscribe<GameEvents.GameWon>(OnGameWon);
@@ -89,10 +86,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.PlayerDamaged>(OnPlayerDamaged);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Unsubscribe<GameEvents.ItemPickedUp>(OnItemPickedUp);
             GameEvents.Unsubscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
-            GameEvents.Unsubscribe<GameEvents.SynergyActivated>(OnSynergyActivated);
-            GameEvents.Unsubscribe<GameEvents.QualitativeTriggered>(OnQualitativeTriggered);
             GameEvents.Unsubscribe<GameEvents.SkillEquipped>(OnSkillEquipped);
             GameEvents.Unsubscribe<GameEvents.SkillDecomposed>(OnSkillDecomposed);
             GameEvents.Unsubscribe<GameEvents.GameWon>(OnGameWon);
@@ -283,28 +277,10 @@ namespace XianTu
             PlaySFX(_config.killConfirm, 0.6f);
         }
 
-        private void OnItemPickedUp(GameEvents.ItemPickedUp evt)
-        {
-            if (_config == null || evt.Item == null) return;
-            PlayItemPickup(evt.Item.rarity);
-        }
-
         private void OnRealmBreakthrough(GameEvents.RealmBreakthrough evt)
         {
             if (_config == null) return;
             PlaySFX(_config.realmBreakthrough);
-        }
-
-        private void OnSynergyActivated(GameEvents.SynergyActivated evt)
-        {
-            if (_config == null) return;
-            PlaySFX(_config.synergyActivate);
-        }
-
-        private void OnQualitativeTriggered(GameEvents.QualitativeTriggered evt)
-        {
-            if (_config == null) return;
-            PlaySFX(_config.qualitativeTransmute);
         }
 
         private void OnSkillEquipped(GameEvents.SkillEquipped evt)

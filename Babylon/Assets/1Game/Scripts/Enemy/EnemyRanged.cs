@@ -31,9 +31,7 @@ namespace XianTu
         [SerializeField] private float projectileSpeed = 10f;
 
         [Header("掉落")]
-        [SerializeField] private ItemData[] possibleDrops;
         [SerializeField] private SkillData[] possibleSkillDrops;
-        [SerializeField] private int _roomLevel;
 
         private CharacterController _cc;
         private Transform _target;
@@ -313,7 +311,6 @@ namespace XianTu
         {
             gameObject.tag = "Untagged";
 
-            TryDropItem();
             TryDropSkill();
             GameEvents.Publish(new GameEvents.EnemyKilled
             {
@@ -321,35 +318,12 @@ namespace XianTu
                 Position = transform.position
             });
 
-            if (PlayerController.Instance != null)
-            {
-                float healAmount = PlayerController.Instance.Inventory.GetHealOnKill();
-                if (healAmount > 0)
-                    PlayerController.Instance.Stats.Heal(healAmount);
-            }
+            // 击杀回复（模块系统处理）
 
             if (HitStop.Instance != null)
                 HitStop.Instance.TriggerKill();
 
             StartCoroutine(DeathAnimation());
-        }
-
-        private void TryDropItem()
-        {
-            if (possibleDrops == null || possibleDrops.Length == 0) return;
-            var config = GameConfig.Instance;
-            float chance = 0.08f;
-            if (config != null)
-                chance = config.debugMaxItemDropRate ? 1f : config.敌人掉落概率;
-            if (Random.value > chance) return;
-
-            // 过滤 null 元素
-            var valid = new System.Collections.Generic.List<ItemData>();
-            foreach (var d in possibleDrops) if (d != null) valid.Add(d);
-            if (valid.Count == 0) return;
-
-            ItemData selectedItem = valid[Random.Range(0, valid.Count)];
-            ItemPickup.Spawn(selectedItem, transform.position);
         }
 
         private void TryDropSkill()
@@ -384,8 +358,7 @@ namespace XianTu
         }
 
         /// <summary>工厂方法：生成远程弓箭手</summary>
-        public static EnemyRanged Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f,
-            int roomLevel = 0, ItemData[] drops = null)
+        public static EnemyRanged Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
             var prefabs = MonsterPrefabs.Instance;
             var prefab = prefabs != null ? prefabs.远程敌人Prefab : null;
@@ -426,8 +399,6 @@ namespace XianTu
                 enemy.stats.defense = 1.5f;
             }
             enemy.stats.currentHp = enemy.stats.maxHp;
-            enemy._roomLevel = roomLevel;
-            if (drops != null) enemy.possibleDrops = drops;
 
             return enemy;
         }

@@ -4,7 +4,7 @@ namespace XianTu
 {
     /// <summary>
     /// 可破坏物 —— 战斗房间中的可破坏障碍物
-    /// 被玩家攻击后碎裂，有概率掉落灵力碎片和灵物
+    /// 被玩家攻击后碎裂，有概率掉落灵力碎片
     /// 用Cube/Cylinder等基础几何体表示
     /// </summary>
     public class Destructible : MonoBehaviour, IDamageable
@@ -17,8 +17,6 @@ namespace XianTu
         [SerializeField] private float dropChance = 0.4f;
         [SerializeField] private int shardMin = 1;
         [SerializeField] private int shardMax = 4;
-        [SerializeField] private float itemDropChance = 0.08f; // 灵物掉落概率（8%）
-        private ItemData[] _itemPool; // 灵物掉落池（由外部设置）
 
         private CombatStats _stats;
         private Renderer[] _renderers;
@@ -76,65 +74,20 @@ namespace XianTu
             }
         }
 
-        /// <summary>设置灵物掉落池（由BattleRoom在生成时传入）</summary>
-        public void SetItemPool(ItemData[] pool)
-        {
-            _itemPool = pool;
-        }
-
         private void OnDestroyed()
         {
             var config = GameConfig.Instance;
-            bool forceAll = config != null && config.debugMaxItemDropRate;
 
             // 掉落灵力碎片
             float shardChance = config != null ? config.可破坏物掉落概率 : dropChance;
-            if (forceAll) shardChance = 1f;
             if (Random.value < shardChance && PlayerResources.Instance != null)
             {
                 int shards = Random.Range(shardMin, shardMax + 1);
                 PlayerResources.Instance.AddShards(shards);
             }
 
-            // 掉落灵物（小概率）
-            TryDropItem(forceAll);
-
             // 碎裂动画
             StartCoroutine(DestroyAnimation());
-        }
-
-        /// <summary>尝试掉落灵物</summary>
-        private void TryDropItem(bool forceDrop)
-        {
-            if (_itemPool == null || _itemPool.Length == 0) return;
-
-            float chance = forceDrop ? 1f : itemDropChance;
-            if (Random.value >= chance) return;
-
-            var config = GameConfig.Instance;
-            ItemData selectedItem;
-            if (config != null)
-            {
-                // 可破坏物只掉凡品/灵品（低品质）
-                ItemRarity targetRarity = Random.value < 0.7f ? ItemRarity.Fan : ItemRarity.Ling;
-                var candidates = new System.Collections.Generic.List<ItemData>();
-                foreach (var item in _itemPool)
-                    if (item != null && item.rarity == targetRarity)
-                        candidates.Add(item);
-                selectedItem = candidates.Count > 0
-                    ? candidates[Random.Range(0, candidates.Count)]
-                    : _itemPool[Random.Range(0, _itemPool.Length)];
-            }
-            else
-            {
-                selectedItem = _itemPool[Random.Range(0, _itemPool.Length)];
-            }
-
-            if (selectedItem != null)
-            {
-                ItemPickup.Spawn(selectedItem, transform.position);
-                Debug.Log($"<color=cyan>[Destructible] 掉落灵物：{selectedItem.itemName}</color>");
-            }
         }
 
         private System.Collections.IEnumerator DestroyAnimation()
@@ -266,15 +219,5 @@ namespace XianTu
             return destructible;
         }
 
-        /// <summary>
-        /// 工厂方法：在指定位置生成可破坏物（带灵物掉落池）
-        /// </summary>
-        public static Destructible Spawn(Vector3 position, ItemData[] itemPool, int type = -1)
-        {
-            var d = Spawn(position, type);
-            if (itemPool != null && itemPool.Length > 0)
-                d.SetItemPool(itemPool);
-            return d;
-        }
     }
 }

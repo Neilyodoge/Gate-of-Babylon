@@ -377,19 +377,8 @@ namespace XianTu
 
         private static Color GetCurrentRootColor()
         {
-            var p = PlayerController.Instance;
-            if (p == null) return new Color(1f, 0.85f, 0.2f);
-            var rc = p.GetComponent<SpiritRootController>();
-            if (rc == null) return new Color(1f, 0.85f, 0.2f);
-            return rc.CurrentRoot switch
-            {
-                SpiritRootType.Metal => new Color(1f, 0.85f, 0.2f),
-                SpiritRootType.Wood  => new Color(0.4f, 0.95f, 0.4f),
-                SpiritRootType.Water => new Color(0.3f, 0.7f, 1f),
-                SpiritRootType.Fire  => new Color(1f, 0.4f, 0.1f),
-                SpiritRootType.Earth => new Color(0.85f, 0.7f, 0.4f),
-                _ => new Color(1f, 0.85f, 0.2f)
-            };
+            // GDD V.07：御灵系统已删，心魔镜像统一用金色基调
+            return new Color(1f, 0.85f, 0.2f);
         }
 
         private void InitFromPlayer(PlayerController player, InnerDemonCatalyst catalyst)

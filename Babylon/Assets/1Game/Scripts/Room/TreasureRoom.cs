@@ -4,12 +4,11 @@ using UnityEngine.UI;
 namespace XianTu
 {
     /// <summary>
-    /// 宝箱房间 —— 开启宝箱获得灵物
+    /// 宝箱房间 —— 开箱获得洞府素材
     /// </summary>
     public class TreasureRoom : MonoBehaviour
     {
         private int _roomIndex;
-        private ItemData[] _itemPool;
         private GameObject _roomVisuals;
         private GameObject _chest;
         private GameObject _hintCanvas;
@@ -19,10 +18,9 @@ namespace XianTu
         public float RoomWidth => 18f;
         public float RoomDepth => 18f;
 
-        public void Initialize(int roomIndex, ItemData[] itemPool)
+        public void Initialize(int roomIndex)
         {
             _roomIndex = roomIndex;
-            _itemPool = itemPool;
             BuildRoom();
         }
 
@@ -200,44 +198,7 @@ namespace XianTu
                 _hintCanvas = null;
             }
 
-            if (_itemPool == null || _itemPool.Length == 0) return;
-
-            // 掉落2-3个灵物
-            int count = Random.Range(2, 4);
-            for (int i = 0; i < count; i++)
-            {
-                var config = GameConfig.Instance;
-                ItemData item;
-                if (config != null)
-                {
-                    ItemRarity rarity = config.RollRarity();
-                    // 宝箱品阶提升一级
-                    if (rarity == ItemRarity.Fan) rarity = ItemRarity.Ling;
-                    else if (rarity == ItemRarity.Ling) rarity = ItemRarity.Xuan;
-
-                    var candidates = new System.Collections.Generic.List<ItemData>();
-                    foreach (var d in _itemPool)
-                    {
-                        if (d != null && d.rarity == rarity)
-                            candidates.Add(d);
-                    }
-                    item = candidates.Count > 0
-                        ? candidates[Random.Range(0, candidates.Count)]
-                        : _itemPool[Random.Range(0, _itemPool.Length)];
-                }
-                else
-                {
-                    item = _itemPool[Random.Range(0, _itemPool.Length)];
-                }
-
-                if (item != null)
-                {
-                    Vector3 offset = new Vector3(Random.Range(-2f, 2f), 0, Random.Range(-2f, 2f));
-                    ItemPickup.Spawn(item, transform.position + offset);
-                }
-            }
-
-            // v0.5 搜打撤：宝藏房必定额外出 2 件【洞府素材】（搜打撤"打"通宝藏的高收益锚点）
+            // v0.5 搜打撤：宝藏房必定出 2 件【洞府素材】（搜打撤"打"通宝藏的高收益锚点）
             for (int i = 0; i < 2; i++)
             {
                 Vector3 caveOffset = new Vector3(Random.Range(-1.8f, 1.8f), 0, Random.Range(-1.8f, 1.8f));

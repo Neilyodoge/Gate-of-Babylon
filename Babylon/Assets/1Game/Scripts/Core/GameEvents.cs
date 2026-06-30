@@ -72,12 +72,6 @@ namespace XianTu
         /// <summary>玩家死亡</summary>
         public struct PlayerDied { }
 
-        /// <summary>灵物被拾取</summary>
-        public struct ItemPickedUp
-        {
-            public ItemData Item;
-            public int CurrentCount; // 该灵物当前持有数量
-        }
 
         /// <summary>境界突破</summary>
         public struct RealmBreakthrough
@@ -177,28 +171,6 @@ namespace XianTu
             public bool IsAttacking; // 是否在攻击中
         }
 
-        /// <summary>Synergy 组合激活</summary>
-        public struct SynergyActivated
-        {
-            public string SynergyName;
-            public string Description;
-        }
-
-        /// <summary>灵物质变触发</summary>
-        public struct QualitativeTriggered
-        {
-            public ItemData Item;
-            public int Count;
-            public string EffectDescription;
-        }
-
-        /// <summary>灵物收集进度变化（用于UI显示质变进度条）</summary>
-        public struct ItemProgressChanged
-        {
-            public ItemData Item;
-            public int CurrentCount;
-            public int NextThreshold; // 下一个质变阈值（0=已全部触发）
-        }
 
         /// <summary>功法装备到技能槽位</summary>
         public struct SkillEquipped
@@ -213,13 +185,6 @@ namespace XianTu
             public SkillData Skill;
         }
 
-        /// <summary>灵物槽位变化</summary>
-        public struct SpiritSlotChanged
-        {
-            public int SlotIndex;
-            public ItemData NewItem;
-            public ItemData OldItem;
-        }
 
         /// <summary>资源变化（灵力碎片等）</summary>
         public struct ResourceChanged
@@ -243,14 +208,6 @@ namespace XianTu
             public int SlotIndex;
             public int ChargeLevel;     // 释放时的蓄力等级
             public SkillData Skill;
-        }
-
-        /// <summary>化身选择完成（开局或调试切换时）</summary>
-        public struct SpiritRootSelected
-        {
-            public SpiritRootType Root;
-            public string DisplayName;
-            public string Description;
         }
 
         /// <summary>技能修饰被激活（灵物在槽位中触发功法变体）</summary>
@@ -287,29 +244,6 @@ namespace XianTu
             public UnityEngine.GameObject Target;
         }
 
-        /// <summary>金化身 · 灵压窗口打开（VFX / HUD 用）</summary>
-        public struct PerfectStrikeWindowOpened
-        {
-            public float WindowDuration;  // 窗口持续时长（秒）
-            public UnityEngine.Vector3 PlayerHeadPos;  // 玩家头顶世界坐标（VFX 用）
-            public string SourceTag;  // "Melee" / "Skill" / "Dodge" / "Sword Heart"
-        }
-
-        /// <summary>金化身 · 灵压爆发触发（完美收刀成功）</summary>
-        public struct PerfectStrikeTriggered
-        {
-            public UnityEngine.Vector3 HitPoint;
-            public int ConsecutiveCount;  // 连续完美次数
-            public bool EnteredSwordHeart;  // 是否进入剑心通明
-        }
-
-        /// <summary>木化身 · 寄生种子引爆（VFX 用）</summary>
-        public struct ParasiteSeedDetonated
-        {
-            public UnityEngine.Vector3 Position;
-            public int SeedCount;     // 引爆的种子数量
-            public float ExplosionRadius;
-        }
 
         // ========== v0.5 搜打撤核心事件 ==========
 
@@ -409,12 +343,6 @@ namespace XianTu
 
         // ========== 洞府模块（Week 4）==========
 
-        /// <summary>炼器房成功炼制一件灵物 —— RunHUD 弹"新解锁"提示</summary>
-        public struct ForgeItemUnlocked
-        {
-            public string ItemName;
-            public int TotalUnlocked;
-        }
 
         /// <summary>藏经阁成功拼合一卷功法</summary>
         public struct ScriptureSkillUnlocked
@@ -438,69 +366,21 @@ namespace XianTu
             public UnityEngine.Vector3 EndDirection;
         }
 
-        /// <summary>水化身 · 影息斩触发（命中目标后留下水痕印 + 视觉反馈）</summary>
-        public struct ShadowStrikeTriggered
+        // ==================== 模块链系统（GDD V.07）====================
+
+        /// <summary>模块链槽位变化（装备/卸下/Proc 状态切换）</summary>
+        public struct ModuleChainChanged
         {
-            public UnityEngine.Vector3 HitPoint;
-            public UnityEngine.GameObject Target;
-            public float DamageDealt;
+            public int SlotIndex;
+            public bool HasChain;
+            public bool IsProc;
+            public string DisplayName;
         }
 
-        /// <summary>火化身 · 怒气变化（HUD 用，与 ResourceChanged 区分以避免混淆灵力碎片）</summary>
-        public struct RageChanged
+        /// <summary>模块被拾取</summary>
+        public struct ModulePickedUp
         {
-            public int CurrentRage;
-            public int MaxRage;
-        }
-
-        /// <summary>火化身 · 狂火开始 / 结束（视觉用）</summary>
-        public struct FireFrenzyState
-        {
-            public bool IsActive;        // true=进入狂火，false=狂火结束
-            public float Duration;       // 持续时长（IsActive=false 时为 0）
-            public bool IsForced;        // 是否强制爆发（怒气满 100 闲置 5s 触发）
-        }
-
-        // ==================== v0.5 Week 6：业焰印 / 火灵根重设计 ====================
-
-        /// <summary>火灵根 · 业焰印层数变化（用于 HUD 提示"当前接触的敌人有几层"等）</summary>
-        public struct FireBrandStackChanged
-        {
-            public GameObject Enemy;
-            public int NewStacks;
-            public int MaxStacks;
-        }
-
-        /// <summary>火灵根 · 业焰印满 5 层引爆 ——  HUD 弹"引爆！" + 视觉钩子</summary>
-        public struct FireBrandExploded
-        {
-            public Vector3 EnemyPos;
-            public int StacksConsumed;
-            public float Radius;
-        }
-
-        // ==================== v0.5 Week 7：土化身 · 山岳承负 ====================
-
-        /// <summary>土化身 · 扎根状态切换（进入 = true / 退出 = false）—— HUD + 视觉钩子</summary>
-        public struct EarthRootedStateChanged
-        {
-            public bool IsRooted;
-            public float AttackBonus;       // 仅 IsRooted=true 时有意义
-            public float DamageReduction;
-        }
-
-        /// <summary>土化身 · 地脉烙印被技能引爆（HUD 飘字 + 视觉）</summary>
-        public struct EarthSigilDetonated
-        {
-            public Vector3 Position;
-            public int StacksConsumed;
-            public int EnemiesAffected;
-        }
-
-        /// <summary>土化身 · 地脉护盾"某层被破"（视觉：让对应那块岩石板碎裂）</summary>
-        public struct EarthShieldStackConsumed
-        {
-            public int StacksRemaining;
+            public ModuleDef Module;
         }
     }
 

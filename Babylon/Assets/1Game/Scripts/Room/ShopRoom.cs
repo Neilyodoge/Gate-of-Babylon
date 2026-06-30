@@ -11,7 +11,6 @@ namespace XianTu
     /// </summary>
     public class ShopRoom : MonoBehaviour, IInteractable
     {
-        private ItemData[] _shopItems;
         private SkillData[] _shopSkills;
         private int _roomIndex;
         private GameObject _roomVisuals;
@@ -39,8 +38,7 @@ namespace XianTu
         // 商品数据
         private class ShopSlot
         {
-            public ItemData item;
-            public SkillData skill; // 功法商品
+            public SkillData skill;
             public int price;
             public bool sold;
             public VisualElement cardEl;
@@ -56,10 +54,9 @@ namespace XianTu
         private bool _playerInRange;
         private NpcHeadCard _headCard; // 统一头顶 UI（v0.3.3）
 
-        public void Initialize(int roomIndex, ItemData[] itemPool, SkillData[] skillPool = null)
+        public void Initialize(int roomIndex, SkillData[] skillPool = null)
         {
             _roomIndex = roomIndex;
-            _shopItems = itemPool;
             _shopSkills = skillPool;
             BuildRoom();
             CreateShopUI();
@@ -233,39 +230,9 @@ namespace XianTu
             const int totalSlots = 5;
             int slotIdx = 0;
 
-            // 前3个槽位：灵物（V.03 Q8：灵物屏蔽时不上架，全部让位给功法）
-            int itemSlots = FeatureFlags.EnableSpiritItems ? Mathf.Min(3, totalSlots) : 0;
-            if (_shopItems != null && _shopItems.Length > 0)
-            {
-                for (int i = 0; i < itemSlots && slotIdx < totalSlots; i++)
-                {
-                    ItemData item;
-                    var config = GameConfig.Instance;
-                    if (config != null)
-                    {
-                        ItemRarity rarity = config.RollRarity();
-                        var candidates = new List<ItemData>();
-                        foreach (var d in _shopItems)
-                            if (d != null && d.rarity == rarity && AvatarRestriction.IsAllowed(d)) candidates.Add(d);
-                        if (candidates.Count == 0)
-                            foreach (var d in _shopItems)
-                                if (d != null && AvatarRestriction.IsAllowed(d)) candidates.Add(d);
-                        item = candidates.Count > 0 ? candidates[Random.Range(0, candidates.Count)]
-                                                    : _shopItems[Random.Range(0, _shopItems.Length)];
-                    }
-                    else item = _shopItems[Random.Range(0, _shopItems.Length)];
-
-                    if (item == null) continue;
-                    _shopSlots.Add(BuildItemCard(item, CalculatePrice(item), slotIdx));
-                    slotIdx++;
-                }
-            }
-
-            // 后续槽位：功法
             if (_shopSkills != null && _shopSkills.Length > 0)
             {
-                int skillSlots = totalSlots - slotIdx;
-                for (int i = 0; i < skillSlots && slotIdx < totalSlots; i++)
+                for (int i = 0; i < totalSlots && slotIdx < totalSlots; i++)
                 {
                     var skill = _shopSkills[Random.Range(0, _shopSkills.Length)];
                     if (skill == null) continue;
@@ -273,28 +240,6 @@ namespace XianTu
                     slotIdx++;
                 }
             }
-
-            // 功法池空 → 灵物填充剩余（灵物屏蔽时跳过）
-            if (FeatureFlags.EnableSpiritItems && _shopItems != null && _shopItems.Length > 0)
-            {
-                while (slotIdx < totalSlots)
-                {
-                    var item = _shopItems[Random.Range(0, _shopItems.Length)];
-                    if (item == null) continue;
-                    _shopSlots.Add(BuildItemCard(item, CalculatePrice(item), slotIdx));
-                    slotIdx++;
-                }
-            }
-        }
-
-        private int CalculatePrice(ItemData item)
-        {
-            if (item == null) return 0;
-            // 价格 = 分解价值 × 3.5（买比卖贵）
-            // 2026-04 调整：原 2.5x。配合杀敌碎片产出减半，把单价拉高让商品更稀缺
-            // 凡 18 / 灵 53 / 玄 140 / 地 350 / 天 875
-            int basePrice = PlayerResources.GetDecomposeShards(item.rarity);
-            return Mathf.RoundToInt(basePrice * 3.5f);
         }
 
         private int CalculateSkillPrice(SkillData skill)
@@ -302,15 +247,6 @@ namespace XianTu
             // 功法价格更贵 4.5x（原 3.5x）：凡 23 / 灵 68 / 玄 180 / 地 450 / 天 1125
             int basePrice = PlayerResources.GetDecomposeShards(skill.rarity);
             return Mathf.RoundToInt(basePrice * 4.5f);
-        }
-
-        private ShopSlot BuildItemCard(ItemData item, int price, int index)
-        {
-            var slot = new ShopSlot { item = item, price = price };
-            Color rc = item.GetRarityColor();
-            var card = NewCard(rc, GetRaritySymbol(item.rarity), item.itemName, RarityName(item.rarity), GetBriefEffect(item), slot, index);
-            _cardsRow.Add(card);
-            return slot;
         }
 
         private ShopSlot BuildSkillCard(SkillData skill, int price, int index)
@@ -431,56 +367,6 @@ namespace XianTu
                 return;
             }
 
-            // 灵物商品购买
-            if (slot.item != null && PlayerController.Instance != null)
-            {
-                PlayerController.Instance.Inventory.AddItem(slot.item);
-
-                // 如果是功法类灵物，自动装备
-                if (slot.item.linkedSkill != null)
-                {
-                    var combat = PlayerController.Instance.GetComponent<PlayerCombat>();
-                    if (combat != null)
-                    {
-                        int emptySlot = combat.FindEmptySlot();
-                        if (emptySlot >= 0)
-                        {
-                            combat.EquipSkillToSlot(slot.item.linkedSkill, emptySlot);
-                            GameEvents.Publish(new GameEvents.SkillEquipped
-                            {
-                                Skill = slot.item.linkedSkill,
-                                SlotIndex = emptySlot
-                            });
-                        }
-                    }
-                }
-
-                // 放入灵物槽位
-                var spiritSlots = PlayerController.Instance.GetComponent<SpiritSlotSystem>();
-                if (spiritSlots != null)
-                {
-                    // 检查是否已有相同灵物
-                    bool hasSame = false;
-                    for (int i = 0; i < spiritSlots.Slots.Count; i++)
-                    {
-                        if (spiritSlots.Slots[i].item == slot.item)
-                        {
-                            hasSame = true;
-                            break;
-                        }
-                    }
-                    if (!hasSame)
-                    {
-                        int empty = spiritSlots.FindEmptySlot();
-                        if (empty >= 0)
-                            spiritSlots.SetSlot(empty, slot.item);
-                    }
-                }
-            }
-
-            ApplySold(slot);
-            Debug.Log($"<color=green>购买成功：{slot.item.itemName}（花费 {slot.price} 灵力碎片）</color>");
-
             RefreshShardsDisplay();
             RefreshAllCards();
         }
@@ -514,22 +400,13 @@ namespace XianTu
             if (_tooltipEl == null || _tooltipTitle == null || _tooltipBody == null) return;
             var slot = _shopSlots[slotIndex];
 
-            if (slot.skill != null)
-            {
-                _tooltipTitle.text = $"{slot.skill.skillName}（{RarityName(slot.skill.rarity)} · 功法）";
-                _tooltipTitle.style.color = RarityColor(slot.skill.rarity);
-                string eff = slot.skill.skillType == SkillType.Heal
-                    ? $"类型：{SkillTypeName(slot.skill.skillType)}　治疗：{slot.skill.healAmount} (+{slot.skill.healScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s"
-                    : $"类型：{SkillTypeName(slot.skill.skillType)}　伤害：{slot.skill.baseDamage} (+{slot.skill.damageScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s";
-                _tooltipBody.text = $"{slot.skill.description}\n{eff}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 灵力碎片")}";
-                _tooltipEl.style.visibility = Visibility.Visible;
-                return;
-            }
-
-            if (slot.item == null) return;
-            _tooltipTitle.text = $"{slot.item.itemName}（{RarityName(slot.item.rarity)}）";
-            _tooltipTitle.style.color = slot.item.GetRarityColor();
-            _tooltipBody.text = $"{slot.item.description}\n{GetDetailedEffect(slot.item)}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 灵力碎片")}";
+            if (slot.skill == null) return;
+            _tooltipTitle.text = $"{slot.skill.skillName}（{RarityName(slot.skill.rarity)} · 功法）";
+            _tooltipTitle.style.color = RarityColor(slot.skill.rarity);
+            string eff = slot.skill.skillType == SkillType.Heal
+                ? $"类型：{SkillTypeName(slot.skill.skillType)}　治疗：{slot.skill.healAmount} (+{slot.skill.healScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s"
+                : $"类型：{SkillTypeName(slot.skill.skillType)}　伤害：{slot.skill.baseDamage} (+{slot.skill.damageScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s";
+            _tooltipBody.text = $"{slot.skill.description}\n{eff}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 灵力碎片")}";
             _tooltipEl.style.visibility = Visibility.Visible;
         }
 
@@ -601,60 +478,6 @@ namespace XianTu
         }
 
         // ==================== 工具方法 ====================
-
-        private string GetBriefEffect(ItemData item)
-        {
-            var parts = new List<string>();
-            if (item.attackBonus > 0) parts.Add($"攻+{item.attackBonus}");
-            if (item.attackBonusPercent > 0) parts.Add($"攻+{item.attackBonusPercent * 100:0}%");
-            if (item.maxHpBonus > 0) parts.Add($"命+{item.maxHpBonus}");
-            if (item.maxHpBonusPercent > 0) parts.Add($"命+{item.maxHpBonusPercent * 100:0}%");
-            if (item.moveSpeedBonusPercent > 0) parts.Add($"速+{item.moveSpeedBonusPercent * 100:0}%");
-            if (item.damageReductionBonus > 0) parts.Add($"减伤+{item.damageReductionBonus * 100:0}%");
-            if (item.critRateBonus > 0) parts.Add($"暴击+{item.critRateBonus * 100:0}%");
-            if (item.healOnKill > 0) parts.Add($"击杀回复{item.healOnKill}");
-            if (item.burnDamagePerSecond > 0) parts.Add($"灼烧{item.burnDamagePerSecond}/s");
-            if (item.linkedSkill != null) parts.Add($"功法：{item.linkedSkill.skillName}");
-            return parts.Count > 0 ? string.Join("\n", parts) : "基础灵物";
-        }
-
-        private string GetDetailedEffect(ItemData item)
-        {
-            var parts = new List<string>();
-            if (item.attackBonus > 0) parts.Add($"⚔ 攻击力 +{item.attackBonus}");
-            if (item.attackBonusPercent > 0) parts.Add($"⚔ 攻击力 +{item.attackBonusPercent * 100:0}%");
-            if (item.maxHpBonus > 0) parts.Add($"♥ 生命上限 +{item.maxHpBonus}");
-            if (item.maxHpBonusPercent > 0) parts.Add($"♥ 生命上限 +{item.maxHpBonusPercent * 100:0}%");
-            if (item.moveSpeedBonusPercent > 0) parts.Add($"👟 移速 +{item.moveSpeedBonusPercent * 100:0}%");
-            if (item.attackSpeedBonusPercent > 0) parts.Add($"⚡ 攻速 +{item.attackSpeedBonusPercent * 100:0}%");
-            if (item.damageReductionBonus > 0) parts.Add($"🛡 减伤 +{item.damageReductionBonus * 100:0}%");
-            if (item.critRateBonus > 0) parts.Add($"✧ 暴击率 +{item.critRateBonus * 100:0}%");
-            if (item.healOnKill > 0) parts.Add($"♥ 击杀回复 {item.healOnKill}");
-            if (item.burnDamagePerSecond > 0) parts.Add($"🔥 灼烧 {item.burnDamagePerSecond}/秒");
-            if (item.pierceBonus > 0) parts.Add($"↣ 穿透 +{item.pierceBonus}");
-            if (item.linkedSkill != null)
-            {
-                var sk = item.linkedSkill;
-                string typeStr = sk.skillType switch
-                {
-                SkillType.AreaDamage => "范围伤害",
-                SkillType.Projectile => "投射物",
-                SkillType.Dash => "位移",
-                SkillType.Buff => "增益",
-                SkillType.Heal => "治疗",
-                SkillType.Summon => "召唤",
-                    _ => "未知"
-                };
-                parts.Add($"📜 功法：{sk.skillName}（{typeStr}）");
-                parts.Add($"   伤害 {sk.baseDamage} | CD {sk.cooldown}s");
-            }
-            if (item.stackable && item.qualitativeThresholds != null && item.qualitativeThresholds.Length > 0)
-            {
-                string thresholds = string.Join("/", item.qualitativeThresholds);
-                parts.Add($"<color=#FFD700>✨ {thresholds}个触发质变</color>");
-            }
-            return parts.Count > 0 ? string.Join("\n", parts) : "基础灵物，无特殊效果";
-        }
 
         private string GetRaritySymbol(ItemRarity rarity)
         {

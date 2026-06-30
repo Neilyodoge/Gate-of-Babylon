@@ -59,20 +59,13 @@ namespace XianTu
                 SkillType.Buff => "增益",
                 SkillType.Heal => "治疗",
                 SkillType.Summon => "召唤",
-                SkillType.AvatarSpecial => "化身专属",
                 _ => "其他"
             };
 
-            bool isExclusive = skillData.skillType == SkillType.AvatarSpecial;
-            string exclusiveTag = isExclusive ? " [专属]" : "";
-            string titleStr = $"{skillData.skillName}{exclusiveTag}（{GetRarityName(skillData.rarity)}）";
+            string titleStr = $"{skillData.skillName}（{GetRarityName(skillData.rarity)}）";
 
             int shards = PlayerResources.GetDecomposeShards(skillData.rarity);
-            string hint;
-            if (isExclusive && !IsCurrentAvatarMatch())
-                hint = "<color=#ff6666>化身不符，无法装备</color>  |  长按[F] 分解";
-            else
-                hint = $"[F] 装备  |  长按[F] 分解（{shards} 灵力碎片）";
+            string hint = $"[F] 装备  |  长按[F] 分解（{shards} 灵力碎片）";
 
             return new PickupPromptData
             {
@@ -83,15 +76,6 @@ namespace XianTu
                 desc = skillData.description,
                 promptHint = hint
             };
-        }
-
-        private bool IsCurrentAvatarMatch()
-        {
-            if (skillData.skillType != SkillType.AvatarSpecial) return true;
-            if (skillData.RequiredRoot == SpiritRootType.None) return true;
-            var pc = PlayerController.Instance;
-            var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
-            return root != null && root.CurrentRoot == skillData.RequiredRoot;
         }
 
         // 换槽模态中：拦截 Q/E/R/Esc，跳过本帧 F 逻辑
@@ -112,12 +96,6 @@ namespace XianTu
         private void TryPickup()
         {
             if (skillData == null || _combat == null) return;
-
-            if (!IsCurrentAvatarMatch())
-            {
-                Debug.Log($"<color=#ff6666>[SkillPickup] {skillData.skillName} 为化身专属（需 {skillData.RequiredRoot}），当前化身不符 → 拒绝装备</color>");
-                return;
-            }
 
             int emptySlot = _combat.FindEmptySlot();
             if (emptySlot >= 0)
@@ -273,14 +251,10 @@ namespace XianTu
 
         // ==================== 工厂 ====================
 
-        /// <summary>从技能池中随机选一个当前化身可用的技能（跳过其他化身专属），null = 池中无合法选项。</summary>
+        /// <summary>从技能池中随机选一个技能，null = 池中无合法选项。</summary>
         public static SkillData PickValid(SkillData[] pool)
         {
             if (pool == null || pool.Length == 0) return null;
-
-            var pc = PlayerController.Instance;
-            var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
-            var curRoot = root != null ? root.CurrentRoot : SpiritRootType.None;
 
             // Shuffle indices for fair randomness
             int[] idx = new int[pool.Length];
@@ -295,9 +269,6 @@ namespace XianTu
             {
                 var s = pool[i];
                 if (s == null) continue;
-                if (s.skillType == SkillType.AvatarSpecial && s.RequiredRoot != SpiritRootType.None
-                    && s.RequiredRoot != curRoot)
-                    continue;
                 return s;
             }
             return null;
@@ -307,18 +278,6 @@ namespace XianTu
         public static SkillPickup Spawn(SkillData data, Vector3 position)
         {
             if (data == null) return null;
-
-            // 化身专属技能：只对对应化身掉落；非该化身一律不生成（任何掉落来源都经此处）
-            if (data.skillType == SkillType.AvatarSpecial && data.RequiredRoot != SpiritRootType.None)
-            {
-                var pc = PlayerController.Instance;
-                var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
-                if (root == null || root.CurrentRoot != data.RequiredRoot)
-                {
-                    Debug.Log($"<color=#999999>[SkillPickup] {data.skillName} 为化身专属（需 {data.RequiredRoot}），当前化身不符 → 跳过掉落</color>");
-                    return null;
-                }
-            }
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"SkillPickup_{data.skillName}";

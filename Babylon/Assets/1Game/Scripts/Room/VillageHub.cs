@@ -7,7 +7,7 @@ namespace XianTu
     /// <summary>
     /// 村庄 Hub —— 玩家入梦后的"现实"出生点（参考 Hades 2 的 Mourning Fields）。
     /// 不属于 6 层境界的任何一层，玩家在此进行：
-    ///   1. 通过 NPC 选择 / 重选化身（默认金化身，玩家可不交互直接出发）
+    ///   1. 走配置使按 F → 打开模块装配界面配置初始 Build（GDD V.07）
     ///   2. 走山门 → 调 GameManager.StartNewRun() 进入第一关
     ///
     /// 视觉上比常规战斗房间更大、更暖、装饰性更强；不会清残留拾取物（Hub 本身没有掉落）。
@@ -18,7 +18,6 @@ namespace XianTu
         public float RoomDepth => 32f;
 
         private GameObject _roomVisuals;
-        private SpiritRootNPC _npc;
         private VillagePortal _portal;
 
         /// <summary>玩家出生位置（房间中心）</summary>
@@ -95,18 +94,13 @@ namespace XianTu
 
         private void BuildNpcAndPortal(Action onPortalEntered)
         {
-            // ===== NPC：司命使（左侧）=====
-            var npcGo = new GameObject("SpiritRootNPC");
-            npcGo.transform.SetParent(transform, false);
-            npcGo.transform.localPosition = new Vector3(-7f, 0f, 2f);
-            _npc = npcGo.AddComponent<SpiritRootNPC>();
-            _npc.Build();
+            // GDD V.07：只保留山门 + 配置使（模块 Build 配置）
 
-            // ===== NPC：问道使（右侧）—— 选择主角（剑修 / 法修）=====
-            var charNpcGo = new GameObject("CharacterSelectNPC");
-            charNpcGo.transform.SetParent(transform, false);
-            charNpcGo.transform.localPosition = new Vector3(7f, 0f, 2f);
-            charNpcGo.AddComponent<CharacterSelectNPC>().Build();
+            // ===== NPC：配置使（左侧）—— 打开模块装配界面配置初始 Build =====
+            var configNpcGo = new GameObject("ModuleConfigNPC");
+            configNpcGo.transform.SetParent(transform, false);
+            configNpcGo.transform.localPosition = new Vector3(-6f, 0f, 2f);
+            configNpcGo.AddComponent<ModuleConfigNPC>().Build();
 
             // ===== 山门：通向第一关（前方）=====
             var portalGo = new GameObject("VillagePortal");
@@ -114,40 +108,6 @@ namespace XianTu
             portalGo.transform.localPosition = new Vector3(0f, 0f, RoomDepth / 2f - 4f);
             _portal = portalGo.AddComponent<VillagePortal>();
             _portal.Build(onPortalEntered);
-
-            // ===== v0.6 洞府裁剪 =====
-            // 退役（不再生成）：灵田 LingTian / 灵兽园 SpiritBeastGarden / 阵法台 FormationPlatform
-            // 隐藏（待灵物解封）：炼器房 ForgeRoom（→ 凝灵阁）
-            // 暂留：悟道蒲团（天赋树）——待天赋入口迁到选化身页（阶段C）后再移除
-
-            // ===== 悟道蒲团模块（天赋树·暂留）=====
-            var wuDaoGo = new GameObject("WuDaoCushion");
-            wuDaoGo.transform.SetParent(transform, false);
-            wuDaoGo.transform.localPosition = new Vector3(-7f, 0f, -3f);
-            wuDaoGo.AddComponent<WuDaoCushion>();
-
-            // ===== 藏经阁模块（保留）=====
-            var scriptureGo = new GameObject("ScripturePavilion");
-            scriptureGo.transform.SetParent(transform, false);
-            scriptureGo.transform.localPosition = new Vector3(-10f, 0f, 4f);
-            scriptureGo.AddComponent<ScripturePavilion>();
-
-            // ===== v0.5.4 局外 meta 模块（闭关石室 / 灵脉台）=====
-            // V.03（Q7）：局外洞府 meta 暂缓，本版本不生成这两个模块（代码保留，开关恢复）
-            if (FeatureFlags.EnableCaveMeta)
-            {
-                // ===== 闭关石室（v0.5.4 本体境界模块，左侧中）=====
-                var meditationGo = new GameObject("MeditationChamber");
-                meditationGo.transform.SetParent(transform, false);
-                meditationGo.transform.localPosition = new Vector3(-10f, 0f, 0f);
-                meditationGo.AddComponent<MeditationChamber>();
-
-                // ===== 灵脉台（v0.5.4 灵脉模块，右侧中）=====
-                var veinGo = new GameObject("SpiritVeinModule");
-                veinGo.transform.SetParent(transform, false);
-                veinGo.transform.localPosition = new Vector3(10f, 0f, 0f);
-                veinGo.AddComponent<SpiritVeinModule>();
-            }
         }
 
         // ==================== 工具：世界空间贴文字 ====================
@@ -189,15 +149,13 @@ namespace XianTu
     }
 
     // ============================================================
-    //                    NPC：司命使（化身选择）
+    //              NPC：配置使（模块 Build 配置）
     // ============================================================
 
     /// <summary>
-    /// 司命使 NPC：玩家走近按 F → 弹 SpiritRootSelectUITK（化身选择）。
-    /// 优先级 30，介于商店 (40) / 升级台 (35) 与拾取物 (20/25) 之间，
-    /// 防止玩家站在 NPC 身边时被路边的小灵物抢交互焦点。
+    /// 配置使 NPC（GDD V.07 §4.1）：玩家走近按 F → 打开 ModuleAssemblyUI 配置初始模块 Build。
     /// </summary>
-    public class SpiritRootNPC : MonoBehaviour, IInteractable
+    public class ModuleConfigNPC : MonoBehaviour, IInteractable
     {
         public Vector3 InteractionWorldPos => transform.position;
         public int InteractionPriority => 30;
@@ -206,135 +164,33 @@ namespace XianTu
 
         private bool _playerInRange;
         private NpcHeadCard _headCard;
-        private GameObject _bodyGo;
 
         public void Build()
         {
-            // NPC 身体（圆柱）
-            _bodyGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            _bodyGo.name = "NPC_Body";
-            _bodyGo.transform.SetParent(transform, false);
-            _bodyGo.transform.localPosition = new Vector3(0, 1f, 0);
-            var bodyCol = _bodyGo.GetComponent<Collider>();
+            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            body.name = "NPC_Body";
+            body.transform.SetParent(transform, false);
+            body.transform.localPosition = new Vector3(0, 1f, 0);
+            var bodyCol = body.GetComponent<Collider>();
             if (bodyCol != null) Destroy(bodyCol);
 
-            var bodyRend = _bodyGo.GetComponent<Renderer>();
+            var bodyRend = body.GetComponent<Renderer>();
             if (bodyRend != null)
             {
                 var mat = new Material(MaterialHelper.GetLitShader());
-                mat.color = new Color(0.6f, 0.5f, 0.85f);
+                mat.color = new Color(0.3f, 0.7f, 0.9f);
                 mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", new Color(0.4f, 0.3f, 0.7f) * 0.4f);
-                bodyRend.material = mat;
-            }
-
-            // 统一 NPC 头顶卡片（紫色主题 · 化身选择）
-            _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
-            {
-                displayName = "司命使",
-                icon = "✦",
-                roleSub = "化身选择",
-                hintText = "按 [F] 选择化身",
-                themeColor = new Color(0.78f, 0.55f, 1f),
-                yOffset = 2.6f,
-                showLongRangeMarker = true
-            });
-
-            // 触发器（更大一点，方便玩家走过去）
-            var trig = new GameObject("InteractTrigger");
-            trig.transform.SetParent(transform, false);
-            var sc = trig.AddComponent<SphereCollider>();
-            sc.isTrigger = true;
-            sc.radius = 2.5f;
-            var rb = trig.AddComponent<Rigidbody>();
-            rb.isKinematic = true;
-            rb.useGravity = false;
-
-            var bridge = trig.AddComponent<TriggerBridge>();
-            bridge.OnEnter = OnPlayerEnter;
-            bridge.OnExit = OnPlayerExit;
-        }
-
-        private void Update()
-        {
-            if (_headCard != null)
-            {
-                bool wantHint = IsRoutedActive && !SpiritRootSelectUITK.IsVisible;
-                _headCard.SetHintVisible(wantHint);
-            }
-
-            if (!IsRoutedActive) return;
-            if (SpiritRootSelectUITK.IsVisible) return;
-
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.fKey.wasPressedThisFrame)
-                SpiritRootSelectUITK.Show();
-        }
-
-        private void OnPlayerEnter()
-        {
-            _playerInRange = true;
-            InteractionRouter.Register(this);
-        }
-
-        private void OnPlayerExit()
-        {
-            _playerInRange = false;
-            InteractionRouter.Unregister(this);
-            if (_headCard != null) _headCard.SetHintVisible(false);
-        }
-
-        private void OnDestroy()
-        {
-            InteractionRouter.Unregister(this);
-        }
-    }
-
-    // ============================================================
-    //                  NPC：问道使（主角选择）
-    // ============================================================
-
-    /// <summary>
-    /// 问道使 NPC：玩家走近按 F → 弹 CharacterSelectUITK（选择剑修 / 法修主角）。
-    /// 与司命使（化身）并列，优先级同为 30。
-    /// </summary>
-    public class CharacterSelectNPC : MonoBehaviour, IInteractable
-    {
-        public Vector3 InteractionWorldPos => transform.position;
-        public int InteractionPriority => 30;
-        public bool IsInteractionAvailable => _playerInRange;
-        public bool IsRoutedActive { get; set; }
-
-        private bool _playerInRange;
-        private NpcHeadCard _headCard;
-        private GameObject _bodyGo;
-
-        public void Build()
-        {
-            _bodyGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            _bodyGo.name = "NPC_Body";
-            _bodyGo.transform.SetParent(transform, false);
-            _bodyGo.transform.localPosition = new Vector3(0, 1f, 0);
-            var bodyCol = _bodyGo.GetComponent<Collider>();
-            if (bodyCol != null) Destroy(bodyCol);
-
-            var bodyRend = _bodyGo.GetComponent<Renderer>();
-            if (bodyRend != null)
-            {
-                var mat = new Material(MaterialHelper.GetLitShader());
-                mat.color = new Color(0.4f, 0.75f, 0.7f);
-                mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", new Color(0.25f, 0.55f, 0.5f) * 0.4f);
+                mat.SetColor("_EmissionColor", new Color(0.2f, 0.5f, 0.75f) * 0.5f);
                 bodyRend.material = mat;
             }
 
             _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
             {
-                displayName = "问道使",
-                icon = "☯",
-                roleSub = "主角选择",
-                hintText = "按 [F] 选择主角",
-                themeColor = new Color(0.4f, 0.85f, 0.78f),
+                displayName = "配置使",
+                icon = "⚙",
+                roleSub = "模块配置",
+                hintText = "按 [F] 配置 Build",
+                themeColor = new Color(0.3f, 0.7f, 0.95f),
                 yOffset = 2.6f,
                 showLongRangeMarker = true
             });
@@ -357,16 +213,16 @@ namespace XianTu
         {
             if (_headCard != null)
             {
-                bool wantHint = IsRoutedActive && !CharacterSelectUITK.IsVisible;
+                bool wantHint = IsRoutedActive && !ModuleAssemblyUI.IsVisible;
                 _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
-            if (CharacterSelectUITK.IsVisible) return;
+            if (ModuleAssemblyUI.IsVisible) return;
 
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
-                CharacterSelectUITK.Show();
+                ModuleAssemblyUI.Instance?.Toggle();
         }
 
         private void OnPlayerEnter()
@@ -516,12 +372,12 @@ namespace XianTu
 
             if (_headCard != null)
             {
-                bool wantHint = IsRoutedActive && !SpiritRootSelectUITK.IsVisible;
+                bool wantHint = IsRoutedActive && !ModuleAssemblyUI.IsVisible;
                 _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
-            if (SpiritRootSelectUITK.IsVisible) return;
+            if (ModuleAssemblyUI.IsVisible) return;
 
             // v0.6：道伤已移除，山门不再因任何状态阻拦
             if (_headCard != null) _headCard.UpdateHintText("按 [F] 入秘境");

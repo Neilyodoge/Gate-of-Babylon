@@ -247,9 +247,8 @@ namespace XianTu
             ("背包", "Tab"),
             ("服丹", "G"),
             ("暂停菜单", "Esc"),
-            ("Debug 控制台", "F1"),
-            ("化身狂火激活（业火）", "V"),
-            ("渡劫 / 心魔劫触发", "V / B"),
+            ("Debug 控制台", "Tab"),
+            ("模块装配", "M"),
         };
 
         private void BuildControls()

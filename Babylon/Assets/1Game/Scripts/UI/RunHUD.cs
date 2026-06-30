@@ -54,9 +54,6 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.TribulationStarted>(OnTribulationStarted);
             GameEvents.Subscribe<GameEvents.TribulationBoltTelegraph>(OnTribulationBoltTelegraph);
             GameEvents.Subscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
-            GameEvents.Subscribe<GameEvents.FireBrandExploded>(OnFireBrandExploded);
-            GameEvents.Subscribe<GameEvents.EarthRootedStateChanged>(OnEarthRootedChanged);
-            GameEvents.Subscribe<GameEvents.EarthSigilDetonated>(OnEarthSigilDetonated);
         }
 
         private void OnDisable()
@@ -70,9 +67,6 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.TribulationStarted>(OnTribulationStarted);
             GameEvents.Unsubscribe<GameEvents.TribulationBoltTelegraph>(OnTribulationBoltTelegraph);
             GameEvents.Unsubscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
-            GameEvents.Unsubscribe<GameEvents.FireBrandExploded>(OnFireBrandExploded);
-            GameEvents.Unsubscribe<GameEvents.EarthRootedStateChanged>(OnEarthRootedChanged);
-            GameEvents.Unsubscribe<GameEvents.EarthSigilDetonated>(OnEarthSigilDetonated);
         }
 
         // ========== 顿悟 / 渡劫 状态 ==========
@@ -118,39 +112,6 @@ namespace XianTu
             _insightAccumDelta = 0;
             _insightAccumCount = 0;
             _insightFlushTimer = 0f;
-        }
-
-        // 业焰印引爆飘字（火灵根专属反馈）—— 与"顿悟时刻"同款大字体
-        private void OnFireBrandExploded(GameEvents.FireBrandExploded evt)
-        {
-            _toasts.Add(new PickupToast
-            {
-                text = $"🔥 业焰印 ×{evt.StacksConsumed} 引爆 🔥",
-                color = new Color(1f, 0.5f, 0.15f),
-                remaining = ToastDuration * 0.8f
-            });
-        }
-
-        // v0.5 Week 7 · 土化身专属反馈：扎根 / 烙印引爆
-        private void OnEarthRootedChanged(GameEvents.EarthRootedStateChanged evt)
-        {
-            if (!evt.IsRooted) return;
-            _toasts.Add(new PickupToast
-            {
-                text = "🪨 山岳承负 · 扎根",
-                color = new Color(0.85f, 0.7f, 0.35f),
-                remaining = ToastDuration * 0.7f
-            });
-        }
-
-        private void OnEarthSigilDetonated(GameEvents.EarthSigilDetonated evt)
-        {
-            _toasts.Add(new PickupToast
-            {
-                text = $"🪨 地脉镇压 ×{evt.StacksConsumed} (波及 {evt.EnemiesAffected})",
-                color = new Color(0.85f, 0.7f, 0.35f),
-                remaining = ToastDuration * 0.8f
-            });
         }
 
         private void OnTribulationStarted(GameEvents.TribulationStarted evt)
@@ -288,7 +249,6 @@ namespace XianTu
             if (MainMenu.IsVisible) return;   // 主菜单(UITK)时不画游戏内 HUD
             EnsureStyles();
 
-            DrawSidePanel();
             DrawPickupToasts();
             DrawInsightBar();
             DrawAnomalyStatus();
@@ -488,55 +448,6 @@ namespace XianTu
             };
             dxStyle.normal.textColor = dxColor;
             GUI.Label(new Rect(0, 82f, Screen.width, 20f), $"道心 · {dxState}（{shiftStr}）", dxStyle);
-        }
-
-        private void DrawSidePanel()
-        {
-            const float W = 240f;
-            const float X = 12f;
-            float yCursor = 200f;
-
-            // ===== 本局缓冲 =====
-            var cave = CaveInventory.Instance;
-            int pendingTotal = cave.TotalPendingCount;
-
-            int pendingPanelHeight = 56 + Mathf.Max(0, cave.CurrentRunBuffer.Count) * 16 + 32;
-            var pendingRect = new Rect(X, yCursor, W, pendingPanelHeight);
-            GUI.Box(pendingRect, "", _bgStyle);
-
-            GUILayout.BeginArea(pendingRect);
-            GUILayout.Space(6);
-            GUILayout.Label($"<color=#ffd47a>本局 · 洞府素材 ({pendingTotal})</color>", _titleStyle);
-
-            if (pendingTotal == 0)
-            {
-                GUILayout.Label("<color=#7a8898>梦中尚未拾到任何素材</color>", _hintStyle);
-            }
-            else
-            {
-                foreach (var kv in cave.CurrentRunBuffer)
-                {
-                    GUILayout.Label($"· {kv.Key}  ×{kv.Value}", _itemStyle);
-                }
-            }
-            GUILayout.Space(4);
-            GUILayout.Label("<color=#8aa0b8>需活着到出梦点撤离 · 死亡丢失</color>", _hintStyle);
-            GUILayout.EndArea();
-
-            yCursor += pendingPanelHeight + 8;
-
-            // ===== 洞府资源 =====
-            var economy = CaveEconomy.Instance;
-            var data = SaveSystem.Instance.Data;
-
-            var qiRect = new Rect(X, yCursor, W, 64);
-            GUI.Box(qiRect, "", _bgStyle);
-
-            GUILayout.BeginArea(qiRect);
-            GUILayout.Space(6);
-            GUILayout.Label($"<color=#88ccff>洞府 · 灵气 {economy.Qi}</color>", _titleStyle);
-            GUILayout.Label($"<color=#a8b8c8>累积素材种类 {data.caveInventory.Count}</color>", _itemStyle);
-            GUILayout.EndArea();
         }
 
         private void DrawPickupToasts()

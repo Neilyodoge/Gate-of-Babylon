@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 namespace XianTu
 {
@@ -26,7 +25,6 @@ namespace XianTu
     /// 精英怪 —— 带词缀的强化敌人
     /// 比普通怪更强，有特殊词缀效果
     /// 头顶有金色"精英"标识和词缀名称
-    /// 击杀必定掉落灵物
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public class EnemyElite : MonoBehaviour, IDamageable
@@ -50,9 +48,7 @@ namespace XianTu
         [SerializeField] private EliteAffix affix2;
 
         [Header("掉落")]
-        [SerializeField] private ItemData[] possibleDrops;
         [SerializeField] private SkillData[] possibleSkillDrops;
-        [SerializeField] private int _roomLevel;
 
         private CharacterController _cc;
         private Transform _target;
@@ -479,8 +475,6 @@ namespace XianTu
             gameObject.tag = "Untagged";
             DestroyAttackWarning();
 
-            // 精英怪必定掉落灵物
-            TryDropItem(true);
             TryDropSkill();
 
             // v0.5 搜打撤：精英怪 40% 概率额外掉一件【洞府素材】（独立 roll，不抢灵物槽位）
@@ -494,7 +488,7 @@ namespace XianTu
                 for (int i = 0; i < 2; i++)
                 {
                     Vector3 offset = new Vector3(Random.Range(-1.5f, 1.5f), 0, Random.Range(-1.5f, 1.5f));
-                    var minion = EnemyBase.Spawn(transform.position + offset, 0.4f, 0.4f, _roomLevel, possibleDrops);
+                    var minion = EnemyBase.Spawn(transform.position + offset, 0.4f, 0.4f);
                     if (minion != null && possibleSkillDrops != null)
                         minion.SetSkillDrops(possibleSkillDrops);
                 }
@@ -507,64 +501,13 @@ namespace XianTu
                 Position = transform.position
             });
 
-            if (PlayerController.Instance != null)
-            {
-                float healAmount = PlayerController.Instance.Inventory.GetHealOnKill();
-                if (healAmount > 0)
-                    PlayerController.Instance.Stats.Heal(healAmount);
-            }
+            // 击杀回复（模块系统处理）
 
             if (HitStop.Instance != null)
                 HitStop.Instance.TriggerKill();
 
             Debug.Log("<color=yellow>⚔ 精英怪被击败！</color>");
             StartCoroutine(DeathAnimation());
-        }
-
-        private void TryDropItem(bool guaranteed)
-        {
-            if (possibleDrops == null || possibleDrops.Length == 0) return;
-
-            // 过滤掉 null 元素
-            var validDrops = new List<ItemData>();
-            foreach (var d in possibleDrops)
-                if (d != null) validDrops.Add(d);
-            if (validDrops.Count == 0) return;
-
-            if (!guaranteed)
-            {
-                var config = GameConfig.Instance;
-                float chance = config != null ? (config.debugMaxItemDropRate ? 1f : config.敌人掉落概率) : 0.05f;
-                if (Random.value > chance) return;
-            }
-
-            // 精英怪掉落2个灵物
-            for (int i = 0; i < 2; i++)
-            {
-                var config = GameConfig.Instance;
-                ItemData selectedItem;
-                if (config != null)
-                {
-                    ItemRarity targetRarity = config.RollRarity(_roomLevel);
-                    var candidates = new List<ItemData>();
-                    foreach (var item in validDrops)
-                        if (item.rarity == targetRarity)
-                            candidates.Add(item);
-                    selectedItem = candidates.Count > 0
-                        ? candidates[Random.Range(0, candidates.Count)]
-                        : validDrops[Random.Range(0, validDrops.Count)];
-                }
-                else
-                {
-                    selectedItem = validDrops[Random.Range(0, validDrops.Count)];
-                }
-
-                if (selectedItem != null)
-                {
-                    Vector3 offset = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f));
-                    ItemPickup.Spawn(selectedItem, transform.position + offset);
-                }
-            }
         }
 
         private void TryDropSkill()
@@ -597,7 +540,7 @@ namespace XianTu
 
         /// <summary>工厂方法：生成精英怪</summary>
         public static EnemyElite Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f,
-            int roomLevel = 0, ItemData[] drops = null, SkillData[] skillDrops = null)
+            SkillData[] skillDrops = null)
         {
             var prefabs = MonsterPrefabs.Instance;
             // 精英怪使用普通小怪Prefab但放大
@@ -659,8 +602,6 @@ namespace XianTu
                 elite.stats.defense = 6f;
             }
             elite.stats.currentHp = elite.stats.maxHp;
-            elite._roomLevel = roomLevel;
-            if (drops != null) elite.possibleDrops = drops;
             if (skillDrops != null) elite.possibleSkillDrops = skillDrops;
 
             Debug.Log($"<color=yellow>⚔ 精英怪出现！词缀：{GetAffixName(elite.affix1)} + {GetAffixName(elite.affix2)}</color>");

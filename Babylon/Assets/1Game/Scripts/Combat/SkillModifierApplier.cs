@@ -26,38 +26,7 @@ namespace XianTu
             LayerMask enemyLayer)
         {
             if (skill == null || skill.modifierDefs == null || skill.modifierDefs.Length == 0) return;
-            if (player == null || player.SpiritSlots == null) return;
-
-            var slotItems = player.SpiritSlots.GetItemsInSkillSlot(skillSlotIndex);
-            if (slotItems.Count == 0) return;
-
-            // 统计槽内每个 modTag 的件数
-            var tagCount = new Dictionary<ElementTag, int>();
-            foreach (var it in slotItems)
-            {
-                if (it.modTag == ElementTag.None) continue;
-                tagCount.TryGetValue(it.modTag, out int c);
-                tagCount[it.modTag] = c + 1;
-            }
-            if (tagCount.Count == 0) return;
-
-            foreach (var mod in skill.modifierDefs)
-            {
-                if (mod == null) continue;
-                if (!tagCount.TryGetValue(mod.requiredTag, out int count) || count < mod.requiredCount) continue;
-
-                ApplySingleModifier(mod, targetPos, radius, hitTargets, player, enemyLayer);
-
-                GameEvents.Publish(new GameEvents.SkillModifierActivated
-                {
-                    SlotIndex = skillSlotIndex,
-                    ModifiedSkillName = string.IsNullOrEmpty(mod.modifiedName) ? skill.skillName : mod.modifiedName,
-                    PrimaryTag = mod.requiredTag
-                });
-
-                if (!string.IsNullOrEmpty(mod.modifiedName))
-                    Debug.Log($"<color=#FF9933>修饰激活：{skill.skillName} → {mod.modifiedName} ({mod.requiredTag})</color>");
-            }
+            if (player == null) return;
         }
 
         private static void ApplySingleModifier(
@@ -169,6 +138,58 @@ namespace XianTu
         /// 只要 SkillData.elementTag != None，命中所有目标都会产生对应元素效果（灼烧/冻结/雷击/差异化 VFX）。
         /// v0.3.3：使用 FxFactory 按元素生成有显著区别的粒子效果（火橙球 / 冰蓝晶 / 雷黄锯齿 / 风青绿环 / 土棕方 / 木绿球 / 穿刺白线）。
         /// </summary>
+        /// <summary>
+        /// V.08 增强：对单个敌人施加链的控制效果（减速/眩晕/击退/易伤）+ modifier 附加状态（灼烧/冰冻/毒）。
+        /// 供 PlayerCombat（范围技命中目标）与 Projectile（投射物命中）共用，单一真源。
+        /// center 用于计算击退方向（一般传玩家位置）。
+        /// </summary>
+        public static void ApplyEnhancementToEnemy(ChainConfig cfg, GameObject target, Vector3 center, PlayerController owner)
+        {
+            if (target == null) return;
+
+            switch (cfg.effectType)
+            {
+                case EffectType.Slow:
+                    ApplyFreeze(target, cfg.stunDuration > 0f ? cfg.stunDuration : 2f);
+                    break;
+                case EffectType.Stun:
+                    ApplyFreeze(target, cfg.stunDuration);
+                    break;
+                case EffectType.Knockback:
+                    var rb = target.GetComponent<Rigidbody>();
+                    if (rb != null)
+                    {
+                        Vector3 dir = (target.transform.position - center);
+                        dir.y = 0f;
+                        dir = dir.sqrMagnitude > 0.0001f ? dir.normalized : target.transform.forward;
+                        rb.AddForce(dir * cfg.knockbackForce, ForceMode.Impulse);
+                    }
+                    break;
+                case EffectType.MarkVulnerable:
+                    var dmgable = target.GetComponent<IDamageable>();
+                    if (dmgable != null && owner != null)
+                    {
+                        float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                        float vuln = cfg.damage * cfg.vulnerableMultiplier;
+                        float sMul = vuln / Mathf.Max(1f, owner.Stats.attackDamage);
+                        var (dmg, _) = owner.Stats.CalcSkillDamage(tDef, sMul);
+                        dmgable.OnDamage(dmg, target.transform.position, owner.gameObject);
+                    }
+                    break;
+            }
+
+            ApplyEnhancementStatus(cfg, target);
+        }
+
+        /// <summary>对单个敌人施加 modifier 附加状态（灼烧/冰冻/毒）。</summary>
+        public static void ApplyEnhancementStatus(ChainConfig cfg, GameObject target)
+        {
+            if (target == null) return;
+            if (cfg.addBurn) ApplyBurn(target, cfg.burnDPS, cfg.burnDuration);
+            if (cfg.addFreeze) ApplyFreeze(target, cfg.freezeDuration);
+            if (cfg.addPoison) ApplyBurn(target, cfg.poisonDPS, cfg.poisonDuration);
+        }
+
         public static void ApplyElementImpact(
             ElementTag tag,
             Vector3 impactPos,

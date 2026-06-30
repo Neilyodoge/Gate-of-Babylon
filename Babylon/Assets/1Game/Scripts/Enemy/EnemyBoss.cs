@@ -32,9 +32,6 @@ namespace XianTu
         [SerializeField] private float chargeDuration = 0.6f;
         [SerializeField] private float chargePrepTime = 0.8f;
 
-        [Header("掉落")]
-        [SerializeField] private ItemData[] possibleDrops;
-        [SerializeField] private int _roomLevel;
 
         private CharacterController _cc;
         private Transform _target;
@@ -239,12 +236,7 @@ namespace XianTu
             {
                 Vector3 offset = new Vector3(Random.Range(-3f, 3f), 0, Random.Range(-3f, 3f));
                 Vector3 pos = transform.position + offset;
-                var enemy = EnemyBase.Spawn(pos, 0.5f, 0.5f, _roomLevel, possibleDrops);
-                if (enemy != null)
-                {
-                    // 通知房间系统
-                    // 小怪不计入房间敌人数
-                }
+                EnemyBase.Spawn(pos, 0.5f, 0.5f);
             }
         }
 
@@ -821,7 +813,6 @@ namespace XianTu
             DecrementAlive();
 
             DestroyWarningIndicator();
-            TryDropItem();
 
             // v0.5 搜打撤：Boss 必定掉一件【洞府素材】（境界 Boss 是搜打撤的关键收益点）
             CaveMaterialPool.SpawnRandom(transform.position + new Vector3(1.5f, 0, 0), 1f);
@@ -843,30 +834,11 @@ namespace XianTu
                 Enemy = gameObject, Position = transform.position
             });
 
-            if (PlayerController.Instance != null)
-            {
-                float healAmount = PlayerController.Instance.Inventory.GetHealOnKill();
-                if (healAmount > 0) PlayerController.Instance.Stats.Heal(healAmount);
-            }
+            // 击杀回复（模块系统处理）
 
             if (HitStop.Instance != null) HitStop.Instance.TriggerKill();
             Debug.Log("<color=yellow>★★★ Boss 被击败！★★★</color>");
             StartCoroutine(DeathAnimation());
-        }
-
-        private void TryDropItem()
-        {
-            // Boss 必定掉落
-            if (possibleDrops == null || possibleDrops.Length == 0) return;
-            for (int i = 0; i < 3; i++) // 掉3个
-            {
-                ItemData item = possibleDrops[Random.Range(0, possibleDrops.Length)];
-                if (item != null)
-                {
-                    Vector3 offset = new Vector3(Random.Range(-1.5f, 1.5f), 0, Random.Range(-1.5f, 1.5f));
-                    ItemPickup.Spawn(item, transform.position + offset);
-                }
-            }
         }
 
         private IEnumerator DeathAnimation()
@@ -890,8 +862,7 @@ namespace XianTu
         }
 
         /// <summary>工厂方法：生成Boss</summary>
-        public static EnemyBoss Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f,
-            int roomLevel = 0, ItemData[] drops = null)
+        public static EnemyBoss Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
             var prefabs = MonsterPrefabs.Instance;
             var prefab = prefabs != null ? prefabs.Boss敌人Prefab : null;
@@ -944,8 +915,6 @@ namespace XianTu
                 boss.stats.defense = 9f;
             }
             boss.stats.currentHp = boss.stats.maxHp;
-            boss._roomLevel = roomLevel;
-            if (drops != null) boss.possibleDrops = drops;
 
             // GDD §12.3：根据 BossFlagSet 应用形态修正 + 出场对白
             // 仅在 LevelDesign 系统就绪时生效；不就绪则保持原有数值（向下兼容）。

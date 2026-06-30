@@ -122,21 +122,7 @@ namespace XianTu.LevelDesign
                 return;
             }
 
-            // 优先映射到现有 ItemData SO（按 itemName 匹配）
-            var gm = GameManager.Instance;
-            var itemData = gm != null ? gm.FindItemByName(row.Name_CN) : null;
-            if (itemData != null)
-            {
-                var inv = UnityEngine.Object.FindObjectOfType<ItemInventory>();
-                if (inv != null)
-                {
-                    inv.AddItem(itemData);
-                    Debug.Log($"[StoryEvent] ✓ 获得灵物：{row.Name_CN}");
-                    return;
-                }
-            }
-
-            // 暂未挂接到具体 SO 时，至少把事实写入日志 + Flag
+            // 把事实写入日志 + Flag
             BossFlagSet.Instance.Add($"reward_{row.Name_CN}", 1);
             Debug.Log($"[StoryEvent] ✓ 获得（占位）：{row.Name_CN} —— {row.Desc_CN}");
         }

@@ -9,11 +9,11 @@ namespace XianTu
     /// 核心职责：
     /// 1. 添加 / 刷新 / 移除 StatusEffect（按 id）
     /// 2. 每帧推进 duration / tickTimer，到期触发 onExpire
-    /// 3. 把所有 StatusEffect 的 modifiers 聚合，作为 ItemInventory.RecalculateStats 末尾的一步
+    /// 3. 把所有 StatusEffect 的 modifiers 聚合到 CombatStats 上
     /// 4. 元素反应（5.6）的入口：检查命中元素与已有元素状态的反应表
     ///
     /// 与现有系统的边界：
-    /// - 对玩家：和 ItemInventory / SpiritSlotSystem / SynergySystem 平行，由 ItemInventory.RecalculateStats 主动 pull modifiers
+    /// - 对玩家：属性聚合管线的一环
     /// - 对敌人：单独跑 Update 推进 duration，到期清状态；不参与玩家属性聚合
     /// </summary>
     public class StatusEffectController : MonoBehaviour
@@ -26,8 +26,6 @@ namespace XianTu
         public event System.Action<StatusEffect> OnEffectAdded;
         public event System.Action<StatusEffect> OnEffectChanged;
         public event System.Action<StatusEffect> OnEffectRemoved;
-
-        // 通过有无 ItemInventory 判断是否挂在玩家身上：玩家上每次 modifiers 变化要触发属性重算
 
         /// <summary>
         /// 添加一个状态。同 id 已存在时叠层 + 刷新持续时间。
@@ -92,6 +90,15 @@ namespace XianTu
             foreach (var id in ids) Remove(id);
         }
 
+        /// <summary>仅移除负面状态（debuff），保留增益。用于净化类增强。</summary>
+        public void ClearDebuffs()
+        {
+            var ids = new List<string>();
+            foreach (var kv in _effects)
+                if (!kv.Value.isBuff) ids.Add(kv.Key);
+            foreach (var id in ids) Remove(id);
+        }
+
         private void Update()
         {
             if (_effects.Count == 0) return;
@@ -127,7 +134,6 @@ namespace XianTu
 
         /// <summary>
         /// 把所有状态的 modifiers 聚合到给定 CombatStats 上。
-        /// 由 <see cref="ItemInventory.RecalculateStats"/> 末尾调用，以确保属性单一写入入口。
         /// </summary>
         public void ApplyModifiersTo(CombatStats stats)
         {
@@ -187,7 +193,7 @@ namespace XianTu
                 }
             }
 
-            // 与 ItemInventory 中相同的"先叠 flat 再乘 pct"风格
+            // 先叠 flat 再乘 pct
             stats.attackDamage = (stats.attackDamage + atkFlat) * (1f + atkPct);
             stats.maxHp = (stats.maxHp + hpFlat) * (1f + hpPct);
             stats.moveSpeed *= (1f + msPct);
@@ -207,8 +213,6 @@ namespace XianTu
 
         private void NotifyPlayerStatsDirty()
         {
-            var inv = GetComponent<ItemInventory>();
-            if (inv != null) inv.RecalculatePlayerStats();
         }
     }
 }

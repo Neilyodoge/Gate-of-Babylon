@@ -145,38 +145,6 @@ namespace XianTu
         [Range(0f, 1f)]
         public float 可破坏物掉落概率 = 0.4f;
 
-        // ==================== 掉落 ====================
-        [Header("═══ 掉落概率 ═══")]
-        [Tooltip("凡品灵物的掉落权重。权重越高出现概率越大。所有品阶权重之和为100%。")]
-        public float 凡品掉率权重 = 50f;
-
-        [Tooltip("灵品灵物的掉落权重。")]
-        public float 灵品掉率权重 = 30f;
-
-        [Tooltip("玄品灵物的掉落权重。")]
-        public float 玄品掉率权重 = 15f;
-
-        [Tooltip("地品灵物的掉落权重。稀有度较高。")]
-        public float 地品掉率权重 = 4f;
-
-        [Tooltip("天品灵物的掉落权重。最稀有品阶。")]
-        public float 天品掉率权重 = 1f;
-
-        [Tooltip("每只敌人死亡时掉落灵物的固定概率。0.05=5%。掉率不随层数变化，除非有灵物增幅。")]
-        [Range(0f, 1f)]
-        public float 敌人掉落概率 = 0.05f;
-
-        [Tooltip("（已废弃，掉率现在固定不变）每深入一层掉落概率增加的值。设为0表示不增加。")]
-        [Range(0f, 0.2f)]
-        public float 每层掉率增加 = 0f;
-
-        [Tooltip("通关战斗房间后额外掉落灵物的概率。0.25=25%概率掉一1个。设为0则通关不额外掉落。")]
-        [Range(0f, 1f)]
-        public float 通关掉落概率 = 0.25f;
-        [Tooltip("通关战斗房间后额外掉落的灵物数量（在玩家附近生成，需先通过通关掉落概率判定）。")]
-        [Range(0, 5)]
-        public int 通关额外掉落数 = 1;
-
         [Header("═══ 功法掉落 ═══")]
         [Tooltip("敌人死亡时掉落功法的概率。0.03=3%。功法比灵物更稀有。")]
         [Range(0f, 1f)]
@@ -188,34 +156,15 @@ namespace XianTu
 
         // ==================== V.03 范围开关 ====================
         [Header("═══ V.03 范围开关（详见 GDD「V.03 范围确认」）═══")]
-        [Tooltip("Q8：整套灵物功能（局内拾取/槽位/协同/质变）。V.03 暂时屏蔽 → 取消勾选。勾选则恢复灵物系统。")]
-        public bool 启用灵物系统 = true;
-
-        [Tooltip("局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 系统）。常规启用；取消勾选则整套暂缓。不影响化身选择/进秘境/炼器藏经等既有模块。")]
+        [Tooltip("局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 系统）。常规启用；取消勾选则整套暂缓。")]
         public bool 启用洞府meta = true;
 
         // ==================== Debug 爆率覆盖 ====================
-        /// <summary>Debug模式下是否拉满灵物爆率（运行时设置，不序列化）</summary>
-        private static bool _debugMaxItemDropRate = false;
-        public bool debugMaxItemDropRate
-        {
-            get => _debugMaxItemDropRate;
-            set => _debugMaxItemDropRate = value;
-        }
-
-        /// <summary>Debug模式下是否拉满功法爆率（运行时设置，不序列化）</summary>
         private static bool _debugMaxSkillDropRate = false;
         public bool debugMaxSkillDropRate
         {
             get => _debugMaxSkillDropRate;
             set => _debugMaxSkillDropRate = value;
-        }
-
-        /// <summary>兼容旧接口：同时控制灵物和功法爆率</summary>
-        public bool debugMaxDropRate
-        {
-            get => _debugMaxItemDropRate && _debugMaxSkillDropRate;
-            set { _debugMaxItemDropRate = value; _debugMaxSkillDropRate = value; }
         }
 
         // ==================== 近战攻击 ====================
@@ -247,70 +196,6 @@ namespace XianTu
         public float 技能释放速度 = 1f;
 
         // ==================== 工具方法 ====================
-
-        /// <summary>
-        /// 根据品阶获取掉率权重
-        /// </summary>
-        public float GetDropWeight(ItemRarity rarity)
-        {
-            return rarity switch
-            {
-                ItemRarity.Fan => 凡品掉率权重,
-                ItemRarity.Ling => 灵品掉率权重,
-                ItemRarity.Xuan => 玄品掉率权重,
-                ItemRarity.Di => 地品掉率权重,
-                ItemRarity.Tian => 天品掉率权重,
-                _ => 凡品掉率权重
-            };
-        }
-
-        /// <summary>
-        /// 获取总权重
-        /// </summary>
-        public float GetTotalDropWeight()
-        {
-            return 凡品掉率权重 + 灵品掉率权重 + 玄品掉率权重 + 地品掉率权重 + 天品掉率权重;
-        }
-
-        /// <summary>
-        /// 按权重随机选择一个品阶（不考虑层数）
-        /// </summary>
-        public ItemRarity RollRarity()
-        {
-            return RollRarity(0);
-        }
-
-        /// <summary>
-        /// 按权重随机选择一个品阶（考虑层数，层数越高高品质权重越大）
-        /// 每层高品质权重提升：灵品+5, 玄品+3, 地品+1.5, 天品+0.5，凡品-10（最低5）
-        /// </summary>
-        public ItemRarity RollRarity(int floorLevel)
-        {
-            // 基于层数动态调整权重
-            float fanW = Mathf.Max(5f, 凡品掉率权重 - floorLevel * 10f);
-            float lingW = 灵品掉率权重 + floorLevel * 5f;
-            float xuanW = 玄品掉率权重 + floorLevel * 3f;
-            float diW = 地品掉率权重 + floorLevel * 1.5f;
-            float tianW = 天品掉率权重 + floorLevel * 0.5f;
-
-            float total = fanW + lingW + xuanW + diW + tianW;
-            float roll = Random.Range(0f, total);
-
-            float cumulative = 0f;
-            cumulative += fanW;
-            if (roll < cumulative) return ItemRarity.Fan;
-
-            cumulative += lingW;
-            if (roll < cumulative) return ItemRarity.Ling;
-
-            cumulative += xuanW;
-            if (roll < cumulative) return ItemRarity.Xuan;
-
-            cumulative += diW;
-            if (roll < cumulative) return ItemRarity.Di;
-
-            return ItemRarity.Tian;
-        }
 
         /// <summary>
         /// 将配置应用到玩家属性

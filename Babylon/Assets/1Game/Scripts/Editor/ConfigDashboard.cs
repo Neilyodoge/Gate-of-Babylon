@@ -18,7 +18,6 @@ namespace XianTu
         private const string GAME_CONFIG_PATH = "Assets/1Game/Resources/GameConfig.asset";
         private const string AUDIO_CONFIG_PATH = "Assets/1Game/Resources/AudioConfig.asset";
         private const string MONSTER_PREFABS_PATH = "Assets/1Game/Resources/MonsterPrefabs.asset";
-        private const string ITEMS_DIR = "Assets/1Game/Data/Items";
         private const string SKILLS_DIR = "Assets/1Game/Data/Skills";
 
         // ============================================================
@@ -28,13 +27,11 @@ namespace XianTu
         private bool _foldGlobal = true;
         private bool _foldAudio = true;
         private bool _foldMonster = true;
-        private bool _foldItems = true;
         private bool _foldSkills = true;
         private bool _foldScene = true;
         private bool _foldQuickStart = false;
 
         // 缓存
-        private List<string> _itemAssets = new List<string>();
         private List<string> _skillAssets = new List<string>();
         private double _lastRefreshTime;
 
@@ -113,17 +110,7 @@ namespace XianTu
         // ============================================================
         private void RefreshAssetLists()
         {
-            _itemAssets.Clear();
             _skillAssets.Clear();
-
-            if (AssetDatabase.IsValidFolder(ITEMS_DIR))
-            {
-                var guids = AssetDatabase.FindAssets("t:ScriptableObject", new[] { ITEMS_DIR });
-                _itemAssets = guids.Select(AssetDatabase.GUIDToAssetPath)
-                    .Where(p => p.EndsWith(".asset"))
-                    .OrderBy(p => Path.GetFileNameWithoutExtension(p))
-                    .ToList();
-            }
 
             if (AssetDatabase.IsValidFolder(SKILLS_DIR))
             {
@@ -172,10 +159,7 @@ namespace XianTu
             // ---- 3. 怪物配置 ----
             DrawMonsterConfig();
 
-            // ---- 4. 灵物数据 ----
-            DrawItemData();
-
-            // ---- 5. 功法数据 ----
+            // ---- 4. 功法数据 ----
             DrawSkillData();
 
             // ---- 6. 场景配置 ----
@@ -316,79 +300,6 @@ namespace XianTu
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawItemData()
-        {
-            string label = $"🔮 灵物数据 — {_itemAssets.Count} 个";
-            _foldItems = EditorGUILayout.Foldout(_foldItems, label, true, EditorStyles.foldoutHeader);
-            if (!_foldItems) return;
-
-            EditorGUILayout.BeginVertical(_sectionBgStyle);
-
-            EditorGUILayout.LabelField($"目录：{ITEMS_DIR}/", EditorStyles.miniLabel);
-            EditorGUILayout.Space(2);
-
-            if (_itemAssets.Count == 0)
-            {
-                EditorGUILayout.LabelField("暂无灵物数据，请执行 ② 创建 Demo1 测试数据", _statusMissing);
-            }
-            else
-            {
-                foreach (var path in _itemAssets)
-                {
-                    var item = AssetDatabase.LoadAssetAtPath<ItemData>(path);
-                    if (item == null) continue;
-
-                    EditorGUILayout.BeginHorizontal();
-
-                    // 品阶颜色标记
-                    string rarityIcon = GetRarityIcon(item.rarity);
-                    string categoryIcon = GetCategoryIcon(item.category);
-
-                    if (GUILayout.Button($"{rarityIcon} {item.itemName} {categoryIcon}",
-                        EditorStyles.linkLabel, GUILayout.Height(18)))
-                    {
-                        Selection.activeObject = item;
-                        EditorGUIUtility.PingObject(item);
-                    }
-
-                    GUILayout.FlexibleSpace();
-                    GUILayout.Label($"{item.rarity} · {item.category}", EditorStyles.miniLabel);
-
-                    EditorGUILayout.EndHorizontal();
-                }
-            }
-
-            EditorGUILayout.Space(4);
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("新建灵物", GUILayout.Height(22)))
-            {
-                // 在 Items 目录下创建新灵物
-                if (!AssetDatabase.IsValidFolder(ITEMS_DIR))
-                {
-                    AssetDatabase.CreateFolder("Assets/1Game/Data", "Items");
-                }
-                var newItem = ScriptableObject.CreateInstance<ItemData>();
-                string newPath = AssetDatabase.GenerateUniqueAssetPath(ITEMS_DIR + "/新灵物.asset");
-                AssetDatabase.CreateAsset(newItem, newPath);
-                AssetDatabase.SaveAssets();
-                Selection.activeObject = newItem;
-                EditorGUIUtility.PingObject(newItem);
-                RefreshAssetLists();
-            }
-            if (GUILayout.Button("打开目录", GUILayout.Height(22)))
-            {
-                var folder = AssetDatabase.LoadAssetAtPath<Object>(ITEMS_DIR);
-                if (folder != null)
-                {
-                    Selection.activeObject = folder;
-                    EditorGUIUtility.PingObject(folder);
-                }
-            }
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.EndVertical();
-        }
-
         private void DrawSkillData()
         {
             string label = $"📜 功法数据 — {_skillAssets.Count} 个";
@@ -468,7 +379,6 @@ namespace XianTu
             EditorGUILayout.LabelField("场景中 Demo1Setup 组件的 Inspector 字段：", _tipStyle);
             EditorGUILayout.Space(2);
 
-            DrawTipRow("itemPool", "灵物数据数组（掉落池）— 可选，自动配置会填入");
             DrawTipRow("testSkillQ/E/R", "Q/E/R 槽位默认技能 — 可选，有兜底");
             DrawTipRow("playerModelPrefab", "角色模型 Prefab — 可选，为空用胶囊体");
             DrawTipRow("animatorController", "动画控制器 — 可选，自动创建");
@@ -619,29 +529,5 @@ namespace XianTu
             filled += arr.Take(expectedLength).Count(c => c != null);
         }
 
-        private string GetRarityIcon(ItemRarity rarity)
-        {
-            switch (rarity)
-            {
-                case ItemRarity.Fan: return "⚪";
-                case ItemRarity.Ling: return "🟢";
-                case ItemRarity.Xuan: return "🔵";
-                case ItemRarity.Di: return "🟣";
-                case ItemRarity.Tian: return "🟡";
-                default: return "⚪";
-            }
-        }
-
-        private string GetCategoryIcon(ItemCategory category)
-        {
-            switch (category)
-            {
-                case ItemCategory.StatStacking: return "⚔️";
-                case ItemCategory.MechanicEnhance: return "🛡️";
-                case ItemCategory.MechanicModify: return "🔮";
-                case ItemCategory.Skill: return "📜";
-                default: return "";
-            }
-        }
     }
 }

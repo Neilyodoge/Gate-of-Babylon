@@ -30,9 +30,6 @@ namespace XianTu
         private float _originalAttack;  // 原始攻击力（用于恢复）
         private bool _speedBoost;       // 加速模式
         private float _originalSpeed;   // 原始移速
-        private bool _maxItemDropRate;   // 灵物爆率拉满
-        private bool _maxSkillDropRate;  // 功法爆率拉满
-
         // 日志
         private List<string> _logMessages = new();
         private Text _logText;
@@ -61,14 +58,6 @@ namespace XianTu
         private void Start()
         {
             CreateToggleButton();
-
-            // 从 GameConfig 同步 debug 状态（场景重新加载后 static 字段可能仍为 true）
-            var config = GameConfig.Instance;
-            if (config != null)
-            {
-                _maxItemDropRate = config.debugMaxItemDropRate;
-                _maxSkillDropRate = config.debugMaxSkillDropRate;
-            }
         }
 
         private void Update()
@@ -270,53 +259,6 @@ namespace XianTu
             AddLog("<color=#88CCFF>✦ +5000 灵力碎片</color>");
         }
 
-        /// <summary>
-        /// 把背包里已持有的每种灵物直接补满到其最高质变阈值，
-        /// 途径每一个阈值都会正常触发 QualitativeTriggered 事件（走 AddItem 本来的逻辑），
-        /// 方便快速测试 5 件 / 8 件质变态。没有阈值配置的灵物按 5 件兜底。
-        /// </summary>
-        private void MaxOutHeldItems()
-        {
-            if (PlayerController.Instance == null) return;
-            var inventory = PlayerController.Instance.Inventory;
-            if (inventory == null) return;
-
-            var items = inventory.GetAllItems();
-            if (items.Count == 0)
-            {
-                AddLog("<color=gray>💎 当前背包无灵物，无法升满</color>");
-                return;
-            }
-
-            int totalAdded = 0;
-            int bumpedKinds = 0;
-            foreach (var (item, currentCount) in items)
-            {
-                int target = 5;
-                if (item.qualitativeThresholds != null && item.qualitativeThresholds.Length > 0)
-                {
-                    target = 0;
-                    foreach (int t in item.qualitativeThresholds)
-                        if (t > target) target = t;
-                }
-
-                int needed = target - currentCount;
-                if (needed <= 0) continue;
-
-                for (int i = 0; i < needed; i++)
-                    inventory.AddItem(item);
-
-                totalAdded += needed;
-                bumpedKinds++;
-            }
-
-            if (bumpedKinds == 0)
-                AddLog("<color=gray>💎 所有灵物已在最高阈值</color>");
-            else
-                AddLog($"<color=yellow>💎 灵物一键升满：{bumpedKinds} 种 +{totalAdded} 件</color>");
-            RefreshStatus();
-        }
-
         /// <summary>强制通关当前房间</summary>
         private void ClearCurrentRoom()
         {
@@ -335,148 +277,6 @@ namespace XianTu
             PlayerController.Instance.Stats.attackDamage += 50f;
             AddLog($"<color=red>⚔ 攻击力 +50（当前：{PlayerController.Instance.Stats.attackDamage:F0}）</color>");
             RefreshStatus();
-        }
-
-        /// <summary>调试：打印 ConfigDatabase 已加载的全部表（验证 CSV→JSON→运行时读取链路）。</summary>
-        private void DumpConfigTables()
-        {
-            var db = XianTu.LevelDesign.ConfigDatabase.Instance;
-            AddLog($"<color=#c8d0a0>📋 配表：地图{db.MapStructures.Count} 房间{db.RoomSockets.Count} 事件{db.StoryEvents.Count} Boss{db.BossPhases.Count} 道具{db.ItemsInRun.Count} 素材{db.CaveMaterials.Count}</color>");
-            AddLog($"<color=#c8d0a0>📋 战斗表：化身{db.Avatars.Count} 主动技能{db.SkillBases.Count} 效果{db.SkillEffects.Count}</color>");
-            foreach (var kv in db.Avatars)
-                AddLog($"<color=#9cc0ff>· 化身[{kv.Key}] {kv.Value.Name_CN} / {kv.Value.ControllerScript}</color>");
-            foreach (var kv in db.SkillBases)
-                AddLog($"<color=#9cc0ff>· 技能[{kv.Key}] {kv.Value.Name_CN} (Type{kv.Value.Type} CD{kv.Value.BaseCooldown} 倍率{kv.Value.BaseDamageRatio})</color>");
-            if (db.Avatars.Count == 0 && db.SkillBases.Count == 0)
-                AddLog("<color=#ffaa66>战斗表为空——请先在 Unity 菜单「修仙图/导表」(Ctrl+Shift+T) 把 CSV 导成 JSON</color>");
-        }
-
-        /// <summary>调试：临时开/关灵物系统（V.03 Q8 默认关）。重进秘境后生效。</summary>
-        private void ToggleSpiritItemsFlag()
-        {
-            FeatureFlags.EnableSpiritItems = !FeatureFlags.EnableSpiritItems;
-            AddLog($"<color=#c79bff>🔮 灵物系统 → {(FeatureFlags.EnableSpiritItems ? "已启用" : "已屏蔽")}（重进秘境/重开商店后生效）</color>");
-        }
-
-        /// <summary>调试：临时开/关洞府 meta（闭关/灵脉/机缘，V.03 Q7 默认关）。回洞府后生效。</summary>
-        private void ToggleCaveMetaFlag()
-        {
-            FeatureFlags.EnableCaveMeta = !FeatureFlags.EnableCaveMeta;
-            AddLog($"<color=#9be0c0>🏔 洞府meta → {(FeatureFlags.EnableCaveMeta ? "已启用" : "已暂缓")}（回洞府/重进秘境后生效）</color>");
-        }
-
-        /// <summary>调试：+200 修为（历练值→存量→修为 一条龙，方便直接测渡劫战）。</summary>
-        private void BoostCultivationExp()
-        {
-            var cult = CultivationSystem.Instance;
-            cult.AddRunTempering(200, "debug");
-            cult.CommitOnExtract();      // → 历练值存量
-            cult.CultivateToExp(200);    // → 修为
-            string canBt = cult.CanBreakthrough ? "（修为已够，可冲击境界）" : "";
-            AddLog($"<color=#9cc0ff>🧘 修为 +200 → {cult.CurrentExp}/{cult.NextBreakthroughCost} · 当前 {cult.CurrentRealmName}{canBt}</color>");
-        }
-
-        /// <summary>调试：+200 历练值存量（测洞府"修为 vs 灵脉"分配）。</summary>
-        private void BoostRunTempering()
-        {
-            var cult = CultivationSystem.Instance;
-            cult.AddRunTempering(200, "debug");
-            cult.CommitOnExtract();      // 直接结算进存量
-            AddLog($"<color=#9cc0ff>🧘 历练值存量 +200 → {cult.TemperingPool}（去闭关石室/灵脉台分配）</color>");
-        }
-
-        /// <summary>调试：+200 灵脉经验。</summary>
-        private void BoostSpiritVein()
-        {
-            SpiritVeinSystem.Instance.InjectExp(200, "调试");
-            var v = SpiritVeinSystem.Instance;
-            AddLog($"<color=#9be0c0>💎 灵脉经验 +200 → {v.LevelName}（掉率 +{v.DropBonus * 100:F0}%）</color>");
-        }
-
-        /// <summary>调试：强制触发一次机缘事件（无视概率，按当前灵脉等级筛池）。</summary>
-        private void TriggerOpportunity()
-        {
-            CaveOpportunitySystem.Instance.ForceTrigger();
-            AddLog($"<color=#ffd47a>✦ 触发机缘（灵脉 {SpiritVeinSystem.Instance.LevelName}）—— 灵脉越高，可撞见越高级的机缘</color>");
-        }
-
-        /// <summary>调试：模拟一次回府（链式机缘计数 +1），到期则触发回访。先选"赠予灵药/接纳剑灵"埋点，再点几次即可看回访。</summary>
-        private void AdvanceOpportunityChain()
-        {
-            CaveOpportunitySystem.Instance.DebugAdvanceReturn();
-            int pending = SaveSystem.Instance.Data.pendingOpportunities.Count;
-            AddLog($"<color=#ffd47a>🔗 回府计数 → {SaveSystem.Instance.Data.caveReturnCount}（待回访 {pending} 条）</color>");
-        }
-
-        /// <summary>调试：道心 -25（测心摇 / 入魔阈值的局内减益）。</summary>
-        private void LowerDaoxin()
-        {
-            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeDaoxin(-25);
-            var h = XianTu.LevelDesign.PlayerStateHooks.Instance;
-            AddLog($"<color=#b0c8ff>🧿 道心 → {h.Daoxin}（{h.DaoxinState}）</color>");
-        }
-
-        /// <summary>调试：道心 +25（测入定增益）。</summary>
-        private void RaiseDaoxin()
-        {
-            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeDaoxin(25);
-            var h = XianTu.LevelDesign.PlayerStateHooks.Instance;
-            AddLog($"<color=#b0c8ff>🧘 道心 → {h.Daoxin}（{h.DaoxinState}）</color>");
-        }
-
-        /// <summary>调试：因果债 +12（测业障受伤增益）。</summary>
-        private void AddKarma()
-        {
-            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeKarma(12);
-            AddLog($"<color=#d8b0a0>☯ 因果债 → {XianTu.LevelDesign.PlayerStateHooks.Instance.KarmaDebt}</color>");
-        }
-
-        /// <summary>调试：因果债 -12（测善缘庇佑）。</summary>
-        private void ReduceKarma()
-        {
-            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeKarma(-12);
-            AddLog($"<color=#a0d090>🍀 因果债 → {XianTu.LevelDesign.PlayerStateHooks.Instance.KarmaDebt}</color>");
-        }
-
-        /// <summary>调试：寿元 -25（测衰朽 / 油尽灯枯减益）。</summary>
-        private void ReduceLifespan()
-        {
-            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeLifespan(-25);
-            AddLog($"<color=#c0b0a0>⏳ 寿元 → {XianTu.LevelDesign.PlayerStateHooks.Instance.Lifespan} 年</color>");
-        }
-
-        /// <summary>调试：寿元 +25。</summary>
-        private void AddLifespan()
-        {
-            XianTu.LevelDesign.PlayerStateHooks.Instance.ChangeLifespan(25);
-            AddLog($"<color=#c0b0a0>⏳ 寿元 → {XianTu.LevelDesign.PlayerStateHooks.Instance.Lifespan} 年</color>");
-        }
-
-        /// <summary>调试：强制设定本局秘境异象。</summary>
-        private void SetAnomaly(RealmAnomaly a)
-        {
-            RealmAnomalySystem.Instance.DebugSet(a);
-            var info = RealmAnomalySystem.Info(a);
-            AddLog($"<color=#c8a0ff>{info.icon} 秘境异象 → {info.name}</color>");
-        }
-
-        /// <summary>调试：在玩家身边掉一颗灵脉道具（测秘境掉落拾取 → 灵脉经验）。</summary>
-        private void DropSpiritVeinItem()
-        {
-            var p = PlayerController.Instance;
-            if (p == null) { AddLog("<color=red>无玩家</color>"); return; }
-            var pk = SpiritVeinPickup.Spawn("地脉精华", 200, p.transform.position + p.transform.forward * 2f);
-            AddLog(pk != null
-                ? "<color=#9be0c0>💎 已掉落「地脉精华」(+200 灵脉) · 走近自动汲取</color>"
-                : "<color=#ffaa66>洞府 meta 未启用，灵脉道具不生成</color>");
-        }
-
-        /// <summary>调试：+50 心魔值（满 100 且正在打 Boss 时触发乱入）。</summary>
-        private void BoostInnerDemon()
-        {
-            InnerDemonMeter.Instance.DebugAddMeter(50f);
-            string hint = EnemyBoss.AliveCount > 0 ? "（有 Boss，满值即乱入）" : "（需在 Boss 战中才会乱入）";
-            AddLog($"<color=#ff8899>👹 心魔值 +50 → {Mathf.RoundToInt(InnerDemonMeter.Instance.Meter)}/100 {hint}</color>");
         }
 
         /// <summary>提升最大生命</summary>
@@ -511,46 +311,162 @@ namespace XianTu
             AddLog("<color=magenta>↺ 重新开始</color>");
         }
 
-        /// <summary>灵物爆率拉满</summary>
-        private void ToggleMaxItemDropRate()
-        {
-            _maxItemDropRate = !_maxItemDropRate;
-            var config = GameConfig.Instance;
-            if (config != null)
-            {
-                config.debugMaxItemDropRate = _maxItemDropRate;
-                // 验证设置是否生效
-                Debug.Log($"[DebugConsole] debugMaxItemDropRate 设置为 {_maxItemDropRate}，验证读取: {config.debugMaxItemDropRate}");
+        // ==================== 模块链调试 ====================
 
-                // 检查灵物池
-                if (_maxItemDropRate && GameManager.Instance != null)
-                {
-                    var poolField = typeof(GameManager).GetField("itemPool",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    var pool = poolField?.GetValue(GameManager.Instance) as ItemData[];
-                    if (pool == null || pool.Length == 0)
-                        Debug.LogError("[DebugConsole] ⚠ GameManager.itemPool 为空！敌人无法掉落灵物！");
-                    else
-                        Debug.Log($"[DebugConsole] ✓ GameManager.itemPool 有 {pool.Length} 个灵物");
-                }
-            }
-            else
-            {
-                Debug.LogWarning("[DebugConsole] GameConfig.Instance 为 null！");
-            }
-            AddLog(_maxItemDropRate ? "<color=yellow>💎 灵物爆率拉满 开启</color>" : "<color=gray>💎 灵物爆率拉满 关闭</color>");
-            RefreshStatus();
+        /// <summary>确保玩家身上有模块背包 + 槽位管理器（村庄 Hub 里这俩可能还没创建）。</summary>
+        private ModuleInventory EnsureModuleComponents()
+        {
+            var player = PlayerController.Instance;
+            if (player == null) return null;
+            var inv = player.GetComponent<ModuleInventory>();
+            if (inv == null) inv = player.gameObject.AddComponent<ModuleInventory>();
+            if (player.GetComponent<ModuleSlotManager>() == null)
+                player.gameObject.AddComponent<ModuleSlotManager>();
+            return inv;
         }
 
-        /// <summary>功法爆率拉满</summary>
-        private void ToggleMaxSkillDropRate()
+        private void GrantAllModules()
         {
-            _maxSkillDropRate = !_maxSkillDropRate;
-            var config = GameConfig.Instance;
-            if (config != null)
-                config.debugMaxSkillDropRate = _maxSkillDropRate;
-            AddLog(_maxSkillDropRate ? "<color=cyan>📜 功法爆率拉满 开启</color>" : "<color=gray>📜 功法爆率拉满 关闭</color>");
-            RefreshStatus();
+            var inv = EnsureModuleComponents();
+            if (inv == null) { AddLog("<color=red>玩家不存在</color>"); return; }
+
+            var pool = GetModulePool();
+            if (pool == null || pool.Length == 0) { AddLog("<color=red>模块池为空</color>"); return; }
+
+            foreach (var m in pool)
+                if (m != null) inv.Add(m);
+
+            AddLog($"<color=#00ffcc>📦 已发放 {pool.Length} 个模块到背包</color>");
+            OpenAssemblyUI();
+        }
+
+        private void GrantAllModulesX3()
+        {
+            var inv = EnsureModuleComponents();
+            if (inv == null) { AddLog("<color=red>玩家不存在</color>"); return; }
+
+            var pool = GetModulePool();
+            if (pool == null || pool.Length == 0) { AddLog("<color=red>模块池为空</color>"); return; }
+
+            for (int r = 0; r < 3; r++)
+                foreach (var m in pool)
+                    if (m != null) inv.Add(m);
+
+            AddLog($"<color=#00ffcc>📦📦 已发放 {pool.Length * 3} 个模块到背包（每种 x3）</color>");
+            OpenAssemblyUI();
+        }
+
+        /// <summary>打开模块装配界面（无视战斗状态），让玩家手动配链。</summary>
+        private void OpenAssemblyUI()
+        {
+            if (ModuleAssemblyUI.Instance == null)
+            {
+                AddLog("<color=yellow>装配界面未初始化（ModuleAssemblyUI 不存在）</color>");
+                return;
+            }
+            ModuleAssemblyUI.Instance.ForceOpen();
+            // 关掉 Debug 面板，避免遮挡装配界面
+            _isOpen = false;
+            if (_panelGo != null) _panelGo.SetActive(false);
+            AddLog("<color=#9be0c0>🔧 已打开模块装配界面 · 手动配链（Q/E/R）</color>");
+        }
+
+        private void AutoAssembleQChain()
+        {
+            if (PlayerController.Instance == null) return;
+            var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
+            var slots = PlayerController.Instance.GetComponent<ModuleSlotManager>();
+            if (inv == null || slots == null) { AddLog("<color=red>模块系统组件未找到</color>"); return; }
+
+            var triggers = inv.GetForSlot(0);
+            var effects = inv.GetForSlot(1);
+            var modifiers = inv.GetByCategory(ModuleCategory.Modifier);
+
+            if (triggers.Count == 0 || effects.Count == 0)
+            {
+                AddLog("<color=yellow>背包中缺少可放入触发器/效果器槽位的模块</color>");
+                return;
+            }
+
+            var chain = new ModuleChain
+            {
+                trigger = triggers[0],
+                effect = effects[0],
+                modifier0 = modifiers.Count > 0 ? modifiers[0] : null
+            };
+            slots.EquipChain(0, chain);
+            AddLog($"<color=#00ffcc>⚡ Q 链已装配：{chain.DisplayName}</color>");
+        }
+
+        private void AutoAssembleAllChains()
+        {
+            if (PlayerController.Instance == null) return;
+            var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
+            var slots = PlayerController.Instance.GetComponent<ModuleSlotManager>();
+            if (inv == null || slots == null) { AddLog("<color=red>模块系统组件未找到</color>"); return; }
+
+            var triggers = inv.GetForSlot(0);
+            var effects = inv.GetForSlot(1);
+            var modifiers = inv.GetByCategory(ModuleCategory.Modifier);
+
+            int assembled = 0;
+            var usedT = new System.Collections.Generic.HashSet<ModuleDef>();
+            var usedE = new System.Collections.Generic.HashSet<ModuleDef>();
+
+            for (int s = 0; s < 3; s++)
+            {
+                ModuleDef t = null, e = null, m = null;
+                foreach (var tr in triggers) { if (!usedT.Contains(tr)) { t = tr; break; } }
+                foreach (var ef in effects) { if (!usedE.Contains(ef)) { e = ef; break; } }
+                if (t == null || e == null) break;
+
+                usedT.Add(t);
+                usedE.Add(e);
+                if (modifiers.Count > s) m = modifiers[s];
+
+                var chain = new ModuleChain { trigger = t, effect = e, modifier0 = m };
+                slots.EquipChain(s, chain);
+                assembled++;
+                AddLog($"<color=#00ffcc>⚡ {(s == 0 ? "Q" : s == 1 ? "E" : "R")} 链：{chain.DisplayName}</color>");
+            }
+            AddLog($"<color=cyan>共装配 {assembled} 条链</color>");
+        }
+
+        private void ClearAllModules()
+        {
+            if (PlayerController.Instance == null) return;
+            var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
+            var slots = PlayerController.Instance.GetComponent<ModuleSlotManager>();
+            if (inv != null) inv.Clear();
+            if (slots != null) slots.ClearAll();
+            AddLog("<color=gray>🗑 模块背包 + 链槽位已清空</color>");
+        }
+
+        private ModuleDef[] GetModulePool()
+        {
+            if (GameManager.Instance != null)
+            {
+                var field = typeof(GameManager).GetField("modulePool",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field != null)
+                {
+                    var pool = field.GetValue(GameManager.Instance) as ModuleDef[];
+                    if (pool != null && pool.Length > 0) return pool;
+                }
+            }
+#if UNITY_EDITOR
+            var guids = UnityEditor.AssetDatabase.FindAssets("t:ModuleDef", new[] { "Assets/1Game/Data/Modules" });
+            var list = new System.Collections.Generic.List<ModuleDef>();
+            foreach (var guid in guids)
+            {
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var m = UnityEditor.AssetDatabase.LoadAssetAtPath<ModuleDef>(path);
+                if (m != null) list.Add(m);
+            }
+            return list.ToArray();
+#else
+            return System.Array.Empty<ModuleDef>();
+#endif
         }
 
         // ==================== UI 创建 ====================
@@ -696,44 +612,6 @@ namespace XianTu
             CreateSectionHeader(contentGo.transform, "【 属性调整 】");
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
             CreateButton(contentGo.transform, "✦ 灵力碎片 +5000", new Color(0.25f, 0.4f, 0.55f), AddShardsLarge);
-            CreateButton(contentGo.transform, "📜 功法爆率拉满", new Color(0.2f, 0.4f, 0.5f), ToggleMaxSkillDropRate);
-            CreateButton(contentGo.transform, "🗡 发当前化身专属技能", new Color(0.45f, 0.3f, 0.5f), GrantAvatarSpecialSkill);
-
-            // --- V.03 范围开关（运行时临时覆盖，便于测试被屏蔽的系统）---
-            CreateSectionHeader(contentGo.transform, "【 V.03 范围开关 】");
-            CreateButton(contentGo.transform, "🔮 灵物系统：开/关", new Color(0.45f, 0.3f, 0.5f), ToggleSpiritItemsFlag);
-            CreateButton(contentGo.transform, "🏔 洞府meta：开/关", new Color(0.3f, 0.45f, 0.45f), ToggleCaveMetaFlag);
-            CreateButton(contentGo.transform, "📋 配表自检（打印已加载表）", new Color(0.4f, 0.4f, 0.3f), DumpConfigTables);
-
-            // --- 本体境界（v0.5.4 渡劫战测试）---
-            CreateSectionHeader(contentGo.transform, "【 本体境界 】");
-            CreateButton(contentGo.transform, "🧘 修为 +200（直给·测渡劫）", new Color(0.35f, 0.45f, 0.6f), BoostCultivationExp);
-            CreateButton(contentGo.transform, "🧘 历练值存量 +200（测分配）", new Color(0.3f, 0.4f, 0.55f), BoostRunTempering);
-            CreateButton(contentGo.transform, "💎 灵脉经验 +200", new Color(0.3f, 0.55f, 0.45f), BoostSpiritVein);
-            CreateButton(contentGo.transform, "✦ 触发机缘事件", new Color(0.45f, 0.4f, 0.2f), TriggerOpportunity);
-            CreateButton(contentGo.transform, "👹 心魔值 +50", new Color(0.5f, 0.18f, 0.25f), BoostInnerDemon);
-
-            // --- 道心 / 因果（v0.5.5 抉择后果测试）---
-            CreateSectionHeader(contentGo.transform, "【 道心 / 因果 】");
-            CreateButton(contentGo.transform, "🧿 道心 -25（测心摇/入魔）", new Color(0.3f, 0.35f, 0.55f), LowerDaoxin);
-            CreateButton(contentGo.transform, "🧘 道心 +25（测入定）", new Color(0.35f, 0.5f, 0.6f), RaiseDaoxin);
-            CreateButton(contentGo.transform, "☯ 因果 +12（测业障）", new Color(0.5f, 0.35f, 0.3f), AddKarma);
-            CreateButton(contentGo.transform, "🍀 因果 -12（测善缘）", new Color(0.35f, 0.5f, 0.35f), ReduceKarma);
-            CreateButton(contentGo.transform, "⏳ 寿元 -25（测衰朽）", new Color(0.5f, 0.42f, 0.35f), ReduceLifespan);
-            CreateButton(contentGo.transform, "⏳ 寿元 +25", new Color(0.4f, 0.48f, 0.42f), AddLifespan);
-
-            // --- 秘境异象（v0.5.5 每局变量）---
-            CreateSectionHeader(contentGo.transform, "【 秘境异象 】");
-            CreateButton(contentGo.transform, "⚡ 异象 · 雷泽", new Color(0.35f, 0.4f, 0.55f), () => SetAnomaly(RealmAnomaly.LeiZe));
-            CreateButton(contentGo.transform, "🌊 异象 · 灵潮汹涌", new Color(0.25f, 0.45f, 0.5f), () => SetAnomaly(RealmAnomaly.LingChao));
-            CreateButton(contentGo.transform, "😈 异象 · 心魔滋生", new Color(0.45f, 0.3f, 0.45f), () => SetAnomaly(RealmAnomaly.DemonGrowth));
-            CreateButton(contentGo.transform, "♻ 异象 · 万灵复苏", new Color(0.3f, 0.5f, 0.35f), () => SetAnomaly(RealmAnomaly.Revival));
-            CreateButton(contentGo.transform, "🩸 异象 · 血月", new Color(0.5f, 0.28f, 0.28f), () => SetAnomaly(RealmAnomaly.BloodMoon));
-            CreateButton(contentGo.transform, "☯ 异象 · 道心试炼", new Color(0.35f, 0.42f, 0.55f), () => SetAnomaly(RealmAnomaly.DaoHeartTrial));
-            CreateButton(contentGo.transform, "⚖ 异象 · 因果轮回", new Color(0.5f, 0.44f, 0.28f), () => SetAnomaly(RealmAnomaly.KarmaEcho));
-            CreateButton(contentGo.transform, "✨ 异象 · 机缘频现", new Color(0.55f, 0.5f, 0.28f), () => SetAnomaly(RealmAnomaly.OpportunityRush));
-            CreateButton(contentGo.transform, "⛰ 异象 · 清除", new Color(0.4f, 0.4f, 0.42f), () => SetAnomaly(RealmAnomaly.None));
-
             // --- 房间控制 ---
             CreateSectionHeader(contentGo.transform, "【 房间跳转 】");
             CreateButton(contentGo.transform, "☠ 清除所有敌人", new Color(0.5f, 0.15f, 0.15f), KillAllEnemies);
@@ -744,6 +622,15 @@ namespace XianTu
             CreateButton(contentGo.transform, "♥ 跳转 → 休息", new Color(0.15f, 0.35f, 0.5f), GotoRestRoom);
             CreateButton(contentGo.transform, "★ 跳转 → 宝箱", new Color(0.5f, 0.35f, 0.1f), GotoTreasureRoom);
             CreateButton(contentGo.transform, "↑ 跳转 → 升级", new Color(0.2f, 0.5f, 0.3f), GotoUpgradeRoom);
+
+            // --- 模块链系统（GDD V.07）---
+            CreateSectionHeader(contentGo.transform, "【 模块链 】");
+            CreateButton(contentGo.transform, "🔧 打开装配界面（手动配链）", new Color(0.2f, 0.5f, 0.55f), OpenAssemblyUI);
+            CreateButton(contentGo.transform, "📦 发放全部模块 + 打开装配", new Color(0.15f, 0.45f, 0.5f), GrantAllModules);
+            CreateButton(contentGo.transform, "📦📦 发放全部模块 x3 + 打开装配", new Color(0.2f, 0.5f, 0.55f), GrantAllModulesX3);
+            CreateButton(contentGo.transform, "⚡ 自动装配 Q 链", new Color(0.3f, 0.5f, 0.4f), AutoAssembleQChain);
+            CreateButton(contentGo.transform, "⚡ 自动装配全部 3 链", new Color(0.25f, 0.55f, 0.45f), AutoAssembleAllChains);
+            CreateButton(contentGo.transform, "🗑 清空模块背包+链", new Color(0.45f, 0.25f, 0.25f), ClearAllModules);
 
             // --- 系统 ---
             CreateSectionHeader(contentGo.transform, "【 系统 】");
@@ -886,7 +773,6 @@ namespace XianTu
                 status += "\n";
                 status += $"无敌：{BoolStr(_godMode)}  锁血：{BoolStr(_lockHp)}\n";
                 status += $"秒杀：{BoolStr(_oneHitKill)}  加速：{BoolStr(_speedBoost)}\n";
-                status += $"灵物爆率：{BoolStr(_maxItemDropRate)}  功法爆率：{BoolStr(_maxSkillDropRate)}\n";
                 status += $"时间缩放：{Time.timeScale}x";
             }
             else
@@ -1010,27 +896,5 @@ namespace XianTu
             _logPanelText.text = sb.ToString();
         }
 
-        /// <summary>在玩家身边生成"当前化身的专属技能"掉落，便于测试 16-20。</summary>
-        private void GrantAvatarSpecialSkill()
-        {
-            var pc = PlayerController.Instance;
-            var root = pc != null ? pc.GetComponent<SpiritRootController>() : null;
-            if (root == null) { AddLog("发专属失败：无玩家/化身"); return; }
-
-            var cur = root.CurrentRoot;
-            SkillData match = null;
-            foreach (var s in Resources.FindObjectsOfTypeAll<SkillData>())
-            {
-                if (s != null && s.skillType == SkillType.AvatarSpecial && s.RequiredRoot == cur)
-                {
-                    match = s;
-                    break;
-                }
-            }
-            if (match == null) { AddLog($"未找到 {cur} 的专属技能 SO"); return; }
-
-            SkillPickup.Spawn(match, pc.transform.position + pc.transform.forward * 1.5f);
-            AddLog($"已生成 {cur} 专属：{match.skillName}（走过去拾取）");
-        }
     }
 }

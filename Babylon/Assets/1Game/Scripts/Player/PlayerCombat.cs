@@ -37,13 +37,14 @@ namespace XianTu
 
         private PlayerController _player;
         private PlayerAnimator _playerAnim;
+        private ModuleSlotManager _moduleSlots;
 
         // 技能充能系统（每个槽位独立充能）
         private int[] _skillCharges = new int[3];       // 当前充能层数
         private int[] _skillMaxCharges = new int[3];    // 最大充能层数
         private float[] _skillRechargeTimer = new float[3]; // 充能恢复计时器
         private float[] _skillRechargeDuration = new float[3]; // 每层充能恢复时间
-        private int[] _chargeBonusFromItems = new int[3]; // 灵物提供的额外充能层数
+        private int[] _chargeBonusFromItems = new int[3]; // 额外充能层数
 
         // 蓄力系统
         private int _chargingSlot = -1;          // 当前正在蓄力的技能槽位（-1=未蓄力）
@@ -51,6 +52,15 @@ namespace XianTu
         private int _currentChargeLevel = 1;      // 当前蓄力等级
         private float _originalMoveSpeed;         // 蓄力前的移速（用于恢复）
         private bool _chargeMoveSpeedApplied;     // 是否已应用蓄力减速
+
+        // V.08 增强注入上下文：BeginEnhancement 在 cast 前设置，cast 中读取，EndEnhancement/Clear 后失效
+        private bool _enhActive;                  // 本次 cast 是否注入增强（仅 Enhancement 角色）
+        private float _enhDamageMul = 1f;         // 核心技能伤害倍率
+        private ElementTag _enhElement = ElementTag.None; // 核心技能元素覆盖（None=不覆盖）
+        private bool _chargeEnhPending;           // 蓄力技能：释放时是否消费 Proc
+        private readonly System.Collections.Generic.List<GameObject> _enhHitTargets = new(); // 本次核心技能命中的敌人（增强控制/状态用）
+        private ChainConfig _enhCfg;              // 本次增强的编译配置（投射物 payload 用）
+        private bool _enhDelegatedToProjectile;   // 控制/状态已交由投射物在命中时施加 → EndEnhancement 不再绕玩家回退
 
         // 攻击判定：每段攻击只判定一次
         private bool _hasHitThisSwing;
@@ -89,6 +99,15 @@ namespace XianTu
             _playerAnim = GetComponent<PlayerAnimator>();
         }
 
+        public ModuleSlotManager ModuleSlots => _moduleSlots;
+
+        private void EnsureModuleSlots()
+        {
+            if (_moduleSlots == null)
+                _moduleSlots = GetComponent<ModuleSlotManager>();
+            EnsureAutoSubscription();
+        }
+
         private void OnEnable()
         {
             GameEvents.Subscribe<GameEvents.SlashVFXRequested>(OnSlashVFXRequested);
@@ -99,16 +118,26 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.SlashVFXRequested>(OnSlashVFXRequested);
         }
 
+        /// <summary> EnsureModuleSlots 后订阅 Auto 自动消费事件（只订阅一次）</summary>
+        private bool _autoSubscribed;
+
+        private void EnsureAutoSubscription()
+        {
+            if (_autoSubscribed || _moduleSlots == null) return;
+            _moduleSlots.OnAutoConsume += HandleAutoConsume;
+            _autoSubscribed = true;
+        }
+
         private void Update()
         {
             if (!_player.Stats.IsAlive || _player.IsDashing)
             {
-                // 死亡或闪避时取消蓄力
                 if (_chargingSlot >= 0)
                     CancelCharging();
                 return;
             }
 
+            EnsureModuleSlots();
             HandleMeleeAttack();
             HandleSkills();
             UpdateCooldowns();
@@ -220,16 +249,6 @@ namespace XianTu
                         }
 
                         damageable.OnDamage(damage, hitPoint, gameObject);
-
-                        // 近战攻击也触发灼烧效果（火灵珠等灵物）
-                        float burnDPS = _player.Inventory.GetTotalBurnDPS();
-                        if (burnDPS > 0)
-                        {
-                            var burn = col.GetComponent<BurnEffect>();
-                            if (burn == null)
-                                burn = col.gameObject.AddComponent<BurnEffect>();
-                            burn.Apply(burnDPS, 3f); // 灼烧3秒
-                        }
 
                         // 播放打击特效
                         SpawnHitVFX(hitPoint);
@@ -355,11 +374,6 @@ namespace XianTu
             // 重置判定状态（新的一段攻击开始）
             _hasHitThisSwing = false;
 
-            // 通知质变效果运行器（焚天：每N次攻击释放火焰冲击波，不需要命中）
-            var runner = QualitativeEffectRunner.Instance;
-            if (runner != null)
-                runner.OnPlayerAttackHit();
-
             // 远程主角（法系）：挥击动画到点 → 发射一枚法术投射物
             if (_rangedBasic)
                 FireBasicProjectile();
@@ -446,7 +460,12 @@ namespace XianTu
 
         // ==================== 技能 ====================
 
-        /// <summary>技能释放（支持充能系统 + 蓄力系统）</summary>
+        /// <summary>
+        /// 技能释放——GDD V.07 模块链驱动：
+        /// · 被动模式：条件满足后自动释放
+        /// · 主动模式：条件满足后图标亮起，按 Q/E/R 手动释放
+        /// · 若槽位无模块链，回退到旧 SkillData（过渡兼容）
+        /// </summary>
         private void HandleSkills()
         {
             var kb = Keyboard.current;
@@ -455,7 +474,7 @@ namespace XianTu
             SkillData[] skills = { skillQ, skillE, skillR };
             var keys = new[] { kb.qKey, kb.eKey, kb.rKey };
 
-            // 如果正在蓄力中
+            // 蓄力中（旧 SkillData 兼容）
             if (_chargingSlot >= 0)
             {
                 var skill = skills[_chargingSlot];
@@ -463,27 +482,18 @@ namespace XianTu
 
                 if (skill == null || !key.isPressed)
                 {
-                    // 松开按键 → 释放蓄力技能
                     ReleaseChargedSkill();
                     return;
                 }
 
-                // 继续蓄力
-                float chargeSpeedBonus = 0f;
-                var spiritSlots = GetComponent<SpiritSlotSystem>();
-                if (spiritSlots != null)
-                    chargeSpeedBonus = spiritSlots.GetSkillChargeSpeedBonus(_chargingSlot);
-
-                _chargeTimer += Time.deltaTime * (1f + chargeSpeedBonus);
+                _chargeTimer += Time.deltaTime;
                 int newLevel = skill.GetChargeLevel(_chargeTimer);
-
                 if (newLevel != _currentChargeLevel)
                 {
                     _currentChargeLevel = newLevel;
                     Debug.Log($"<color=yellow>蓄力等级提升 → Lv{_currentChargeLevel}！</color>");
                 }
 
-                // 发布蓄力进度事件
                 GameEvents.Publish(new GameEvents.SkillChargeProgress
                 {
                     SlotIndex = _chargingSlot,
@@ -491,32 +501,202 @@ namespace XianTu
                     ChargeLevel = _currentChargeLevel,
                     IsCharging = true
                 });
-
-                return; // 蓄力中不处理其他技能
+                return;
             }
 
-            // 非蓄力状态：检测按键
+            // ===== V.08 统一：按键 → 释放核心技能 → 若链 Proc 则注入增强 + 消费 =====
             for (int i = 0; i < 3; i++)
             {
                 if (skills[i] == null || _skillCharges[i] <= 0) continue;
+                if (!keys[i].wasPressedThisFrame) continue;
 
-                if (keys[i].wasPressedThisFrame)
+                // 蓄力技能：进入蓄力状态，增强在 ReleaseChargedSkill 时注入
+                if (skills[i].canCharge)
                 {
-                    // 支持蓄力的技能 → 开始蓄力
-                    if (skills[i].canCharge)
+                    _chargeEnhPending = _moduleSlots != null && _moduleSlots.HasChain(i) && _moduleSlots.IsProc(i);
+                    StartCharging(i, skills[i]);
+                    return;
+                }
+
+                // 链 Proc → cast 前准备增强上下文
+                bool willEnhance = _moduleSlots != null && _moduleSlots.HasChain(i) && _moduleSlots.IsProc(i);
+                if (willEnhance) BeginEnhancement(i);
+
+                bool cast = UseSkill(skills[i], i, 1);
+                if (cast)
+                {
+                    ConsumeSkillCharge(i, skills[i]);
+
+                    if (willEnhance)
                     {
-                        StartCharging(i, skills[i]);
+                        EndEnhancement(i, skills[i]);
+                        _moduleSlots.ConsumeProc(i);
+                    }
+                }
+                else if (willEnhance)
+                {
+                    ClearEnhancement();
+                }
+                return; // 每帧只释放一个技能
+            }
+        }
+
+        /// <summary>Auto 模式 Proc 时由 ModuleSlotManager 回调：自动释放绑定核心技能 + 注入增强。</summary>
+        private void HandleAutoConsume(int slot)
+        {
+            if (slot < 0 || slot >= 3) return;
+            SkillData[] skills = { skillQ, skillE, skillR };
+            var skill = skills[slot];
+            if (skill == null || _skillCharges[slot] <= 0)
+            {
+                Debug.Log($"<color=yellow>[Auto] 槽 {slot} 无可用核心技能或充能，跳过自动释放</color>");
+                return;
+            }
+
+            // 不能在死亡/闪避中自动释放
+            var priority = _playerAnim.CurrentPriority;
+            if (priority == AnimationPriority.Die || priority == AnimationPriority.Evade) return;
+
+            BeginEnhancement(slot);
+            bool cast = UseSkill(skill, slot, 1);
+            if (cast)
+            {
+                ConsumeSkillCharge(slot, skill);
+                EndEnhancement(slot, skill);
+                // Auto 模式 tracker 已自动消费，无需 ConsumeProc
+                Debug.Log($"<color=#44ff88>[Auto] 自动释放 {skill.skillName} + 增强注入</color>");
+            }
+            else
+            {
+                ClearEnhancement();
+            }
+        }
+
+        /// <summary>
+        /// V.08 增强注入（cast 前）：仅 Enhancement 角色设置核心技能的伤害倍率 + 元素覆盖。
+        /// Addon 角色不改核心技能（在 EndEnhancement spawn 独立效果）。
+        /// </summary>
+        private void BeginEnhancement(int slot)
+        {
+            if (_moduleSlots == null) return;
+            var cfg = _moduleSlots.GetConfig(slot);
+            if (cfg.effectRole != EffectRole.Enhancement) return;
+
+            _enhActive = true;
+            _enhDamageMul = cfg.enhanceDamageMult > 0.01f ? cfg.enhanceDamageMult : 1f;
+            _enhElement = cfg.elementTag != ElementTag.None ? cfg.elementTag : ElementFromStatus(cfg);
+            _enhHitTargets.Clear();
+            _enhCfg = cfg;
+            _enhDelegatedToProjectile = false;
+        }
+
+        /// <summary>
+        /// V.08 增强注入（cast 后）：
+        /// · Enhancement → 即时自益（heal/shield/invincible）或对范围敌人施加控制/状态；伤害倍率/元素已在 cast 中生效。
+        /// · Addon → spawn 独立世界效果（ExecuteChainEffect）。
+        /// </summary>
+        private void EndEnhancement(int slot, SkillData coreSkill)
+        {
+            if (_moduleSlots == null) { ClearEnhancement(); return; }
+            var cfg = _moduleSlots.GetConfig(slot);
+            var chain = _moduleSlots.GetChain(slot);
+
+            string role = cfg.effectRole == EffectRole.Enhancement ? "增强" : "附加";
+            Debug.Log($"<color=#44ff88>[增强] 槽 {slot} · {coreSkill.skillName} · {role} · {cfg.consumeKind} · ×{cfg.enhanceDamageMult:F2}</color>");
+
+            if (cfg.effectRole == EffectRole.Enhancement)
+                ApplyEnhancementSelf(cfg, chain);
+            else
+                ExecuteChainEffect(slot);
+
+            ClearEnhancement();
+        }
+
+        /// <summary>Enhancement 角色：即时自益 / 范围控制 / 附加状态。伤害倍率与元素覆盖已在核心技能 cast 中生效。</summary>
+        private void ApplyEnhancementSelf(ChainConfig cfg, ModuleChain chain)
+        {
+            bool handledTargets = false;
+            switch (cfg.effectType)
+            {
+                case EffectType.Heal:
+                    ExecuteChainHeal(cfg);
+                    break;
+                case EffectType.Shield:
+                    ExecuteChainShield(cfg, chain);
+                    break;
+                case EffectType.Invincible:
+                    ExecuteChainInvincible(cfg, chain);
+                    break;
+                case EffectType.Cleanse:
+                    var status = _player.GetComponent<StatusEffectController>();
+                    if (status != null) status.ClearDebuffs();
+                    break;
+                case EffectType.Slow:
+                case EffectType.Stun:
+                case EffectType.Knockback:
+                case EffectType.MarkVulnerable:
+                    if (_enhDelegatedToProjectile)
+                    {
+                        // 控制随投射物命中施加，无需此处处理
+                    }
+                    else if (_enhHitTargets.Count > 0)
+                    {
+                        // 作用到核心技能实际命中的敌人（含 modifier 状态）
+                        foreach (var t in _enhHitTargets)
+                            ApplyControlToEnemy(cfg, t, transform.position);
                     }
                     else
                     {
-                        // 不支持蓄力 → 直接释放
-                        if (UseSkill(skills[i], i, 1))
-                            ConsumeSkillCharge(i, skills[i]);
+                        ExecuteChainControl(cfg); // 核心技能未命中（或非范围）→ 回退绕玩家
                     }
-                    return; // 每帧只处理一个技能
+                    handledTargets = true;
+                    break;
+            }
+
+            // 纯属性增强（无控制/自益效果）但带 modifier 状态 → 优先附加到命中敌人，否则绕玩家
+            if (!handledTargets && !_enhDelegatedToProjectile && (cfg.addBurn || cfg.addFreeze || cfg.addPoison))
+            {
+                if (_enhHitTargets.Count > 0)
+                {
+                    foreach (var t in _enhHitTargets)
+                        ApplyChainStatusEffects(cfg, t);
+                }
+                else
+                {
+                    ApplyEnhStatusAroundPlayer(cfg);
                 }
             }
         }
+
+        /// <summary>对玩家周围敌人施加 modifier 附加状态（灼烧/冰冻/毒），用于纯属性增强链。</summary>
+        private void ApplyEnhStatusAroundPlayer(ChainConfig cfg)
+        {
+            float radius = cfg.radius > 0f ? cfg.radius : 5f;
+            var hits = Physics.OverlapSphere(transform.position, radius, enemyLayer);
+            foreach (var hit in hits)
+                ApplyChainStatusEffects(cfg, hit.gameObject);
+        }
+
+        private void ClearEnhancement()
+        {
+            _enhActive = false;
+            _enhDamageMul = 1f;
+            _enhElement = ElementTag.None;
+        }
+
+        /// <summary>从 modifier 附加状态推断元素（用于元素覆盖）。</summary>
+        private static ElementTag ElementFromStatus(ChainConfig cfg)
+        {
+            if (cfg.addBurn) return ElementTag.Fire;
+            if (cfg.addFreeze) return ElementTag.Ice;
+            if (cfg.addLightning) return ElementTag.Thunder;
+            if (cfg.addPoison) return ElementTag.Earth;
+            return ElementTag.None;
+        }
+
+        /// <summary>核心技能元素：增强激活且有覆盖时用覆盖元素，否则用技能本身元素。</summary>
+        private ElementTag EnhElem(SkillData skill)
+            => _enhActive && _enhElement != ElementTag.None ? _enhElement : skill.elementTag;
 
         /// <summary>开始蓄力</summary>
         private void StartCharging(int slotIndex, SkillData skill)
@@ -572,12 +752,19 @@ namespace XianTu
                 IsCharging = false
             });
 
-            if (skill == null) return;
+            if (skill == null) { _chargeEnhPending = false; ClearEnhancement(); return; }
 
-            // 释放技能（带蓄力等级）
+            // 释放技能（带蓄力等级）+ V.08 增强注入
+            if (_chargeEnhPending) BeginEnhancement(slot);
             if (UseSkill(skill, slot, chargeLevel))
             {
                 ConsumeSkillCharge(slot, skill);
+
+                if (_chargeEnhPending && _moduleSlots != null)
+                {
+                    EndEnhancement(slot, skill);
+                    _moduleSlots.ConsumeProc(slot);
+                }
 
                 GameEvents.Publish(new GameEvents.SkillChargeReleased
                 {
@@ -589,6 +776,11 @@ namespace XianTu
                 if (chargeLevel > 1)
                     Debug.Log($"<color=cyan>蓄力释放 Lv{chargeLevel}：{skill.skillName}（伤害×{skill.GetChargeDamageMultiplier(chargeLevel):F1}）</color>");
             }
+            else if (_chargeEnhPending)
+            {
+                ClearEnhancement();
+            }
+            _chargeEnhPending = false;
         }
 
         /// <summary>恢复蓄力减速</summary>
@@ -609,18 +801,6 @@ namespace XianTu
             if (_skillCharges[slotIndex] < _skillMaxCharges[slotIndex] && _skillRechargeTimer[slotIndex] <= 0)
             {
                 float rechargeTime = skill.chargeTime > 0 ? skill.chargeTime : SkillTuning.EffectiveCooldown(skill);
-
-                // 应用灵物CD缩减
-                var spiritSlots = GetComponent<SpiritSlotSystem>();
-                if (spiritSlots != null)
-                {
-                    float cdReduction = spiritSlots.GetSkillCooldownReduction(slotIndex);
-                    rechargeTime *= (1f - cdReduction);
-                }
-
-                // v0.4 融合层：火化身狂火期间技能 CD ×0.7
-                var fire = GetComponent<SpiritRootFireController>();
-                if (fire != null) rechargeTime *= fire.SkillCdMultiplier;
 
                 _skillRechargeTimer[slotIndex] = rechargeTime;
                 _skillRechargeDuration[slotIndex] = rechargeTime;
@@ -663,9 +843,9 @@ namespace XianTu
             _skillRechargeDuration[slotIndex] = 0;
         }
 
-        // ==================== 充能加成（灵物系统调用） ====================
+        // ==================== 充能加成 ====================
 
-        /// <summary>增加技能槽位的充能上限（由灵物系统调用）</summary>
+        /// <summary>增加技能槽位的充能上限</summary>
         public void AddChargeBonus(int skillSlotIndex, int bonus)
         {
             if (skillSlotIndex < 0 || skillSlotIndex >= 3) return;
@@ -683,7 +863,7 @@ namespace XianTu
             }
         }
 
-        /// <summary>移除技能槽位的充能上限加成（由灵物系统调用）</summary>
+        /// <summary>移除技能槽位的充能上限加成</summary>
         public void RemoveChargeBonus(int skillSlotIndex, int bonus)
         {
             if (skillSlotIndex < 0 || skillSlotIndex >= 3) return;
@@ -698,7 +878,7 @@ namespace XianTu
             }
         }
 
-        /// <summary>获取技能槽位的实际充能上限（含灵物加成）</summary>
+        /// <summary>获取技能槽位的实际充能上限</summary>
         public int GetMaxCharges(int slotIndex)
         {
             if (slotIndex < 0 || slotIndex >= 3) return 1;
@@ -773,16 +953,8 @@ namespace XianTu
             float chargeDmgMul = skill.GetChargeDamageMultiplier(chargeLevel);
             float chargeRadiusMul = skill.GetChargeRadiusMultiplier(chargeLevel);
 
-            // 灵物蓄力伤害加成
-            if (chargeLevel > 1)
-            {
-                var spiritSlots = GetComponent<SpiritSlotSystem>();
-                if (spiritSlots != null)
-                {
-                    float bonusDmg = spiritSlots.GetSkillChargeDamageBonus(slotIndex);
-                    chargeDmgMul *= (1f + bonusDmg);
-                }
-            }
+            // V.08：Enhancement 增强注入伤害倍率
+            if (_enhActive) chargeDmgMul *= _enhDamageMul;
 
             string chargeSuffix = chargeLevel > 1 ? $" [蓄力Lv{chargeLevel}]" : "";
             Debug.Log($"<color=cyan>释放功法：{skill.skillName}{chargeSuffix}</color>");
@@ -804,9 +976,6 @@ namespace XianTu
                 case SkillType.Zone:
                     CastZoneSkill(skill, chargeDmgMul);
                     break;
-                case SkillType.AvatarSpecial:
-                    CastAvatarSpecial(skill);
-                    break;
                 case SkillType.Heal:
                     CastHealSkill(skill);
                     return true; // Heal不需要动画
@@ -818,7 +987,361 @@ namespace XianTu
             return true;
         }
 
-        /// <summary>范围伤害技能（如落石术），支持蓄力倍率 + GDD 6.5 灵物修饰</summary>
+        // ==================== 模块链效果执行 ====================
+
+        /// <summary>执行模块链效果——根据 ChainConfig.effectType 分发到对应效果实现。</summary>
+        private void ExecuteChainEffect(int slot)
+        {
+            var cfg = _moduleSlots.GetConfig(slot);
+            var chain = _moduleSlots.GetChain(slot);
+
+            var priority = _playerAnim.CurrentPriority;
+            if (priority == AnimationPriority.Die || priority == AnimationPriority.Evade)
+                return;
+
+            // 代价改造：消耗生命
+            if (cfg.costHPPercent > 0f)
+            {
+                float cost = _player.Stats.maxHp * cfg.costHPPercent;
+                _player.Stats.currentHp = Mathf.Max(1f, _player.Stats.currentHp - cost);
+                GameEvents.Publish(new GameEvents.HealthChanged
+                {
+                    CurrentHp = _player.Stats.currentHp, MaxHp = _player.Stats.maxHp
+                });
+            }
+
+            string modeTag = cfg.executionMode == ExecutionMode.Passive ? "被动" : "主动";
+            Debug.Log($"<color=#00ffcc>[{modeTag}] 模块链触发 [{SlotLabel(slot)}]：{chain.DisplayName}</color>");
+            ShowChainProcNotification(chain.DisplayName, cfg.elementTag);
+
+            switch (cfg.effectType)
+            {
+                // 伤害输出
+                case EffectType.AreaDamage:
+                    ExecuteChainArea(cfg);
+                    break;
+                case EffectType.Projectile:
+                case EffectType.SwordWave:
+                    ExecuteChainProjectile(cfg);
+                    break;
+                case EffectType.DoT:
+                    ExecuteChainDoT(cfg);
+                    break;
+
+                // 控制/状态
+                case EffectType.Slow:
+                case EffectType.Stun:
+                case EffectType.Knockback:
+                case EffectType.MarkVulnerable:
+                    ExecuteChainControl(cfg);
+                    break;
+
+                // 防御/回复
+                case EffectType.Heal:
+                    ExecuteChainHeal(cfg);
+                    break;
+                case EffectType.Shield:
+                    ExecuteChainShield(cfg, chain);
+                    break;
+                case EffectType.Invincible:
+                    ExecuteChainInvincible(cfg, chain);
+                    break;
+
+                // 位移
+                case EffectType.Dash:
+                    ExecuteChainDash(cfg);
+                    break;
+                case EffectType.Pull:
+                    ExecuteChainPull(cfg);
+                    break;
+            }
+        }
+
+        private void ShowChainProcNotification(string chainName, ElementTag element)
+        {
+            var canvas = FindObjectOfType<Canvas>();
+            if (canvas == null) return;
+
+            var go = new GameObject("ChainProc");
+            go.transform.SetParent(canvas.transform, false);
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchoredPosition = new Vector2(0, 120);
+            rt.sizeDelta = new Vector2(500, 60);
+
+            var text = go.AddComponent<UnityEngine.UI.Text>();
+            text.text = $"★ {chainName} ★";
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 28;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.raycastTarget = false;
+
+            Color c = element switch
+            {
+                ElementTag.Fire => new Color(1f, 0.4f, 0.1f),
+                ElementTag.Water => new Color(0.2f, 0.6f, 1f),
+                ElementTag.Earth => new Color(0.9f, 0.8f, 0.3f),
+                ElementTag.Wind => new Color(0.3f, 1f, 0.6f),
+                _ => new Color(0f, 1f, 0.8f)
+            };
+            text.color = c;
+
+            var outline = go.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = new Color(0, 0, 0, 0.9f);
+            outline.effectDistance = new Vector2(2, -2);
+
+            Destroy(go, 1.5f);
+        }
+
+        private void ExecuteChainArea(ChainConfig cfg)
+        {
+            var cam = Camera.main;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (cam == null || mouse == null) return;
+
+            Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+            var groundPlane = new Plane(Vector3.up, transform.position);
+            if (!groundPlane.Raycast(ray, out float dist)) return;
+
+            Vector3 targetPos = ray.GetPoint(dist);
+            float radius = cfg.radius;
+
+            if (cfg.vfxPrefab != null)
+            {
+                GameObject vfx = ObjectPool.Instance != null
+                    ? ObjectPool.Instance.Get(cfg.vfxPrefab, targetPos, Quaternion.identity)
+                    : Instantiate(cfg.vfxPrefab, targetPos, Quaternion.identity);
+                float dur = 1.5f;
+                if (ObjectPool.Instance != null) ObjectPool.Instance.Return(vfx, dur);
+                else Destroy(vfx, dur);
+            }
+            else if (showDebugVisuals)
+            {
+                FxFactory.SpawnElementBurst(targetPos + Vector3.up * 0.05f, cfg.elementTag, radius, 0.8f);
+            }
+
+            var hits = Physics.OverlapSphere(targetPos, radius, enemyLayer);
+            foreach (var hit in hits)
+            {
+                var dmgable = hit.GetComponent<IDamageable>();
+                if (dmgable == null) continue;
+
+                float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                float skillBase = cfg.damage + _player.Stats.attackDamage * cfg.damageScaling;
+                float sMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
+                var (dmg, _) = _player.Stats.CalcSkillDamage(tDef, sMul);
+                dmgable.OnDamage(dmg, hit.transform.position, gameObject);
+
+                ApplyChainStatusEffects(cfg, hit.gameObject);
+            }
+        }
+
+        private void ExecuteChainProjectile(ChainConfig cfg)
+        {
+            Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
+            Vector3 dir = _player.AimDirection;
+
+            float skillBase = cfg.damage + _player.Stats.attackDamage * cfg.damageScaling;
+            float sMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
+            var (damage, _) = _player.Stats.CalcSkillDamage(0f, sMul);
+
+            int count = Mathf.Max(1, cfg.projectileCount);
+            float halfSpread = cfg.spreadAngle * 0.5f;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 projDir = dir;
+                if (count > 1)
+                {
+                    float angle = Mathf.Lerp(-halfSpread, halfSpread, (float)i / (count - 1));
+                    projDir = Quaternion.Euler(0, angle, 0) * dir;
+                }
+
+                if (showDebugVisuals)
+                    CreateDebugProjectile(spawnPos, projDir, cfg.projectileSpeed, damage, 1.5f, cfg.elementTag);
+            }
+        }
+
+        private void ExecuteChainHeal(ChainConfig cfg)
+        {
+            float heal = cfg.healAmount + _player.Stats.attackDamage * cfg.healScaling;
+            float oldHp = _player.Stats.currentHp;
+            _player.Stats.currentHp = Mathf.Min(_player.Stats.currentHp + heal, _player.Stats.maxHp);
+            float actual = _player.Stats.currentHp - oldHp;
+
+            GameEvents.Publish(new GameEvents.HealthChanged
+            {
+                CurrentHp = _player.Stats.currentHp,
+                MaxHp = _player.Stats.maxHp
+            });
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2f,
+                Damage = actual,
+                SpecialTag = "治疗"
+            });
+
+            if (showDebugVisuals)
+                CreateDebugHealIndicator(1.5f);
+        }
+
+        private void ExecuteChainShield(ChainConfig cfg, ModuleChain chain)
+        {
+            float dur = cfg.buffDuration > 0f ? cfg.buffDuration : 5f;
+
+            var mods = new System.Collections.Generic.List<StatModifier>();
+            if (cfg.buffDamageReduction != 0f)
+                mods.Add(StatModifier.Flat(StatType.DamageReduction, cfg.buffDamageReduction));
+            if (mods.Count == 0)
+                mods.Add(StatModifier.Flat(StatType.DamageReduction, 0.3f));
+
+            var status = _player.GetComponent<StatusEffectController>();
+            if (status != null)
+            {
+                status.Apply(new StatusEffect
+                {
+                    id = $"module_buff_{chain.DisplayName}",
+                    isBuff = true,
+                    elementTag = cfg.elementTag,
+                    stacks = 1,
+                    maxStacks = 1,
+                    defaultDuration = dur,
+                    duration = dur,
+                    modifiers = mods,
+                    displayName = chain.DisplayName,
+                    description = "模块链增益",
+                    uiColor = SkillModifierApplier.ColorOf(cfg.elementTag)
+                });
+            }
+
+            if (showDebugVisuals)
+            {
+                Color c = cfg.elementTag != ElementTag.None
+                    ? SkillModifierApplier.ColorOf(cfg.elementTag)
+                    : new Color(0.3f, 0.8f, 1f, 0.3f);
+                c.a = 0.35f;
+                CreateDebugShieldIndicator(dur, c);
+            }
+        }
+
+        private void ExecuteChainDoT(ChainConfig cfg)
+        {
+            Vector3 targetPos = GetMouseWorldPos();
+            float radius = cfg.radius > 0f ? cfg.radius : 3f;
+
+            if (showDebugVisuals)
+                FxFactory.SpawnElementBurst(targetPos + Vector3.up * 0.05f, cfg.elementTag, radius, cfg.dotDuration);
+
+            var hits = Physics.OverlapSphere(targetPos, radius, enemyLayer);
+            foreach (var hit in hits)
+            {
+                if (cfg.dotDPS > 0f)
+                    SkillModifierApplier.ApplyBurn(hit.gameObject, cfg.dotDPS, cfg.dotDuration);
+                ApplyChainStatusEffects(cfg, hit.gameObject);
+            }
+        }
+
+        private void ExecuteChainControl(ChainConfig cfg)
+        {
+            Vector3 center = transform.position;
+            float radius = cfg.radius > 0f ? cfg.radius : 5f;
+            var hits = Physics.OverlapSphere(center, radius, enemyLayer);
+
+            if (showDebugVisuals)
+                FxFactory.SpawnElementBurst(center + Vector3.up * 0.05f, cfg.elementTag, radius, 0.6f);
+
+            foreach (var hit in hits)
+                ApplyControlToEnemy(cfg, hit.gameObject, center);
+        }
+
+        /// <summary>对单个敌人施加控制（减速/眩晕/击退/易伤）+ modifier 附加状态。center 用于计算击退方向。</summary>
+        private void ApplyControlToEnemy(ChainConfig cfg, GameObject target, Vector3 center)
+            => SkillModifierApplier.ApplyEnhancementToEnemy(cfg, target, center, _player);
+
+        private void ExecuteChainInvincible(ChainConfig cfg, ModuleChain chain)
+        {
+            float dur = cfg.invincibleDuration > 0f ? cfg.invincibleDuration : 1f;
+            var status = _player.GetComponent<StatusEffectController>();
+            if (status != null)
+            {
+                status.Apply(new StatusEffect
+                {
+                    id = $"module_invincible_{chain.DisplayName}",
+                    isBuff = true,
+                    elementTag = cfg.elementTag,
+                    stacks = 1, maxStacks = 1,
+                    defaultDuration = dur, duration = dur,
+                    modifiers = new() { StatModifier.Flat(StatType.DamageReduction, 1f) },
+                    displayName = "无敌",
+                    description = "短暂无敌",
+                    uiColor = Color.yellow
+                });
+            }
+            if (showDebugVisuals)
+                CreateDebugShieldIndicator(dur, new Color(1f, 1f, 0f, 0.4f));
+        }
+
+        private void ExecuteChainDash(ChainConfig cfg)
+        {
+            Vector3 dir = _player.AimDirection;
+            float dist = cfg.dashDistance > 0f ? cfg.dashDistance : 5f;
+            _player.transform.position += dir * dist;
+
+            float radius = 2f;
+            var hits = Physics.OverlapSphere(transform.position, radius, enemyLayer);
+            if (cfg.damage > 0f)
+            {
+                foreach (var hit in hits)
+                {
+                    var dmgable = hit.GetComponent<IDamageable>();
+                    if (dmgable == null) continue;
+                    float tDef = dmgable.Stats != null ? dmgable.Stats.defense : 0f;
+                    float skillBase = cfg.damage + _player.Stats.attackDamage * cfg.damageScaling;
+                    float sMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
+                    var (dmg, _) = _player.Stats.CalcSkillDamage(tDef, sMul);
+                    dmgable.OnDamage(dmg, hit.transform.position, gameObject);
+                    ApplyChainStatusEffects(cfg, hit.gameObject);
+                }
+            }
+        }
+
+        private void ExecuteChainPull(ChainConfig cfg)
+        {
+            float radius = cfg.pullRadius > 0f ? cfg.pullRadius : 6f;
+            var hits = Physics.OverlapSphere(transform.position, radius, enemyLayer);
+
+            if (showDebugVisuals)
+                FxFactory.SpawnElementBurst(transform.position + Vector3.up * 0.05f, cfg.elementTag, radius, 0.5f);
+
+            foreach (var hit in hits)
+            {
+                var dir = (transform.position - hit.transform.position).normalized;
+                var rb = hit.GetComponent<Rigidbody>();
+                if (rb != null) rb.AddForce(dir * cfg.knockbackForce, ForceMode.Impulse);
+                ApplyChainStatusEffects(cfg, hit.gameObject);
+            }
+        }
+
+        /// <summary>应用改造件附加的状态效果</summary>
+        private static void ApplyChainStatusEffects(ChainConfig cfg, GameObject target)
+            => SkillModifierApplier.ApplyEnhancementStatus(cfg, target);
+
+        private Vector3 GetMouseWorldPos()
+        {
+            var cam = Camera.main;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (cam == null || mouse == null) return transform.position;
+
+            Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+            var groundPlane = new Plane(Vector3.up, transform.position);
+            return groundPlane.Raycast(ray, out float dist)
+                ? ray.GetPoint(dist)
+                : transform.position;
+        }
+
+        private static string SlotLabel(int slot) => slot switch { 0 => "Q", 1 => "E", 2 => "R", _ => "?" };
+
+        /// <summary>范围伤害技能（如落石术），支持蓄力倍率</summary>
         private void CastAreaSkill(SkillData skill, float damageMul = 1f, float radiusMul = 1f, int slotIndex = -1)
         {
             var cam = Camera.main;
@@ -856,7 +1379,7 @@ namespace XianTu
                 else if (showDebugVisuals)
                 {
                     // v0.3.3 视觉差异化：按 ElementTag 出不同颜色 / 形状的元素爆发，而不是统一红 cube
-                    FxFactory.SpawnElementBurst(targetPos + Vector3.up * 0.05f, skill.elementTag, actualRadius, Mathf.Max(0.4f, skill.vfxDuration * 0.8f));
+                    FxFactory.SpawnElementBurst(targetPos + Vector3.up * 0.05f, EnhElem(skill), actualRadius, Mathf.Max(0.4f, skill.vfxDuration * 0.8f));
                 }
 
                 var hits = Physics.OverlapSphere(targetPos, actualRadius, enemyLayer);
@@ -879,6 +1402,7 @@ namespace XianTu
                         }
                         damageable.OnDamage(damage, hit.transform.position, gameObject);
                         if (firstSkillHit == null) firstSkillHit = hit.gameObject;
+                        if (_enhActive) _enhHitTargets.Add(hit.gameObject);
 
                         if (skill.freezeOnHitChance > 0f && Random.value < skill.freezeOnHitChance)
                             SkillModifierApplier.ApplyFreeze(hit.gameObject, skill.freezeOnHitDuration);
@@ -898,12 +1422,13 @@ namespace XianTu
                 }
 
                 // 技能自身元素命中表现（cube 颜色提示 + 灼烧 / 冻结 / 雷击）
-                if (skill.elementTag != ElementTag.None)
+                var castElem = EnhElem(skill);
+                if (castElem != ElementTag.None)
                 {
-                    SkillModifierApplier.ApplyElementImpact(skill.elementTag, targetPos, hitList, _player);
+                    SkillModifierApplier.ApplyElementImpact(castElem, targetPos, hitList, _player);
                 }
 
-                // GDD 6.5：槽位灵物修饰落地触发（cube 临时特效 / 灼烧 / 冻结 / 雷击 / 持续地带）
+                // GDD 6.5：槽位修饰落地触发（灼烧 / 冻结 / 雷击 / 持续地带）
                 if (slotIndex >= 0)
                 {
                     SkillModifierApplier.ApplyAreaSkill(
@@ -914,52 +1439,6 @@ namespace XianTu
                         hitList,
                         _player,
                         enemyLayer);
-                }
-            }
-        }
-
-        /// <summary>化身专属技能（16-20）：路由到对应化身控制器；非该化身则提示无法施展。</summary>
-        private void CastAvatarSpecial(SkillData skill)
-        {
-            var curRoot = _player != null ? _player.GetComponent<SpiritRootController>() : null;
-            Debug.Log($"<color=#b39ddb>[化身专属] 释放 {skill.skillName}（需 {skill.RequiredRoot} / 当前 {(curRoot != null ? curRoot.CurrentRoot.ToString() : "无")}）</color>");
-
-            switch (skill.avatarSpecial)
-            {
-                case AvatarSpecialKind.FireInferno:
-                {
-                    var c = _player.GetComponent<SpiritRootFireController>();
-                    if (c != null) c.IgniteInferno();
-                    else Debug.Log($"<color=grey>{skill.skillName} 仅限火化身（业火）施展</color>");
-                    break;
-                }
-                case AvatarSpecialKind.SwordOneThought:
-                {
-                    var c = _player.GetComponent<SpiritRootGoldController>();
-                    if (c != null) c.UnleashOneThought();
-                    else Debug.Log($"<color=grey>{skill.skillName} 仅限剑魄化身施展</color>");
-                    break;
-                }
-                case AvatarSpecialKind.WoodSeedBurst:
-                {
-                    var c = _player.GetComponent<SpiritRootWoodController>();
-                    if (c != null) c.DetonateSeeds();
-                    else Debug.Log($"<color=grey>{skill.skillName} 仅限青囊化身施展</color>");
-                    break;
-                }
-                case AvatarSpecialKind.ShadowStep:
-                {
-                    var c = _player.GetComponent<SpiritRootWaterController>();
-                    if (c != null) c.EnterShadowStep();
-                    else Debug.Log($"<color=grey>{skill.skillName} 仅限影刃化身施展</color>");
-                    break;
-                }
-                case AvatarSpecialKind.EarthPuppetArray:
-                {
-                    var c = _player.GetComponent<SpiritRootEarthController>();
-                    if (c != null) c.TogglePuppetArrayMode();
-                    else Debug.Log($"<color=grey>{skill.skillName} 仅限御物化身施展</color>");
-                    break;
                 }
             }
         }
@@ -1018,12 +1497,19 @@ namespace XianTu
 
                     var projectile = proj.GetComponent<Projectile>();
                     if (projectile != null)
-                        projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0, skill.elementTag, _player, _player.Stats.armorPenPercent);
+                    {
+                        projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0, EnhElem(skill), _player, _player.Stats.armorPenPercent);
+                        if (_enhActive)
+                        {
+                            projectile.SetEnhancement(_enhCfg);
+                            _enhDelegatedToProjectile = true; // 控制/状态随投射物命中施加，EndEnhancement 不再绕玩家回退
+                        }
+                    }
                 }
                 else if (showDebugVisuals)
                 {
                     // 没有Prefab时创建Debug投射物（带元素颜色提示）
-                    CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, skill.elementTag);
+                    CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, EnhElem(skill));
                 }
             }
         }
@@ -1081,7 +1567,7 @@ namespace XianTu
                 });
             }
 
-            // GDD 6.5：buff 类技能也支持槽位修饰。例如金钟罩 + 火灵珠 → 护火金钟（玩家周围 zone 烧敌人）
+            // GDD 6.5：buff 类技能也支持槽位修饰
             if (slotIndex >= 0 && skill.modifierDefs != null && skill.modifierDefs.Length > 0)
             {
                 SkillModifierApplier.ApplyAreaSkill(
@@ -1139,14 +1625,6 @@ namespace XianTu
                     if (_skillCharges[i] < _skillMaxCharges[i])
                     {
                         float rechargeTime = skills[i].chargeTime > 0 ? skills[i].chargeTime : SkillTuning.EffectiveCooldown(skills[i]);
-
-                        // 应用灵物CD缩减
-                        var spiritSlots = GetComponent<SpiritSlotSystem>();
-                        if (spiritSlots != null)
-                        {
-                            float cdReduction = spiritSlots.GetSkillCooldownReduction(i);
-                            rechargeTime *= (1f - cdReduction);
-                        }
 
                         _skillRechargeTimer[i] = rechargeTime;
                         _skillRechargeDuration[i] = rechargeTime;

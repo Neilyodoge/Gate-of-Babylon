@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec4abf4c21d75db4d9b84559347c77fe, type: 3}
+  m_Name: "E_\u7A81\u523A"
+  m_EditorClassIdentifier: 
+  moduleId: "E_\u7A81\u523A"
+  category: 1
+  displayName: "E_\u7A81\u523A"
+  description: "\u5411\u7784\u51C6\u65B9\u5411\u7A81\u523A"
+  uiDescription: "\u5411\u7784\u51C6\u65B9\u5411\u7A81\u523A"
+  icon: {fileID: 0}
+  rarity: 1
+  executionMode: 1
+  functionTags: 9
+  shapeTags: 4
+  styleTags: 0
+  triggerType: 0
+  triggerThreshold: 1
+  triggerCooldown: 2
+  triggerInterval: 5
+  consumeStacks: 1
+  moveDistanceThreshold: 10
+  healthThreshold: 0.3
+  consumeKind: 0
+  windowSeconds: 5
+  maxStacks: 3
+  effectType: 13
+  effectRole: 1
+  baseDamage: 15
+  damageScaling: 0.5
+  aoeRadius: 0
+  healAmount: 0
+  healScaling: 0
+  shieldAmount: 30
+  buffDuration: 0
+  buffDamageReduction: 0
+  projectileSpeed: 15
+  projectileCount: 1
+  spreadAngle: 0
+  slowPercent: 0.5
+  stunDuration: 1.5
+  knockbackForce: 0
+  dashDistance: 6
+  pullRadius: 6
+  dotDPS: 0
+  dotDuration: 0
+  invincibleDuration: 1
+  summonDuration: 10
+  summonDamage: 10
+  trapDuration: 8
+  vulnerableMultiplier: 1.5
+  vulnerableDuration: 3
+  vfxPrefab: {fileID: 0}
+  elementTag: 0
+  modifierType: 0
+  modifierValue: 1.5
+  burnDPS: 5
+  burnDuration: 3
+  freezeDuration: 2
+  lightningDamage: 15
+  poisonDPS: 4
+  poisonDuration: 5
+  extraCount: 1
+  costHPPercent: 0.1
+  costDamageBonus: 0.5
+  universalTriggerType: 0
+  universalTriggerThreshold: 1
+  universalTriggerCooldown: 2
+  universalEffectType: 0
+  universalEffectRole: 0
+  universalConsumeKind: 0
+  universalTriggerDesc: 
+  universalEffectDesc: 
+  compatibleShapes: -1
+  incompatibleFunctions: 0

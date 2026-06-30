@@ -161,7 +161,7 @@ namespace XianTu
             for (int i = 0; i < beasts.Count; i++)
             {
                 var b = beasts[i];
-                bool isUnlocked = save.unlockedItemIds.Contains(BeastIdPrefix + b.beastName);
+                bool isUnlocked = save.unlockedBeastIds.Contains(b.beastName);
                 bool isSelected = i == _selectedIdx;
 
                 var style = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, richText = true };
@@ -196,7 +196,7 @@ namespace XianTu
 
             var entry = beasts[_selectedIdx];
             var save = SaveSystem.Instance.Data;
-            bool unlocked = save.unlockedItemIds.Contains(BeastIdPrefix + entry.beastName);
+            bool unlocked = save.unlockedBeastIds.Contains(entry.beastName);
 
             var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, richText = true };
             nameStyle.normal.textColor = entry.displayColor;
@@ -259,8 +259,6 @@ namespace XianTu
 
         // ============================== 逻辑 ==============================
 
-        private const string BeastIdPrefix = "Beast:";  // 与炼器房的灵物 id 区分，复用 unlockedItemIds
-
         private void TryHatch(SpiritBeastEntry entry)
         {
             foreach (var cost in entry.costs)
@@ -275,9 +273,8 @@ namespace XianTu
                 SaveSystem.Instance.ConsumeCaveItem(cost.materialName, cost.amount);
 
             var save = SaveSystem.Instance.Data;
-            string id = BeastIdPrefix + entry.beastName;
-            if (!save.unlockedItemIds.Contains(id))
-                save.unlockedItemIds.Add(id);
+            if (!save.unlockedBeastIds.Contains(entry.beastName))
+                save.unlockedBeastIds.Add(entry.beastName);
             SaveSystem.Instance.Save();
 
             GameEvents.Publish(new GameEvents.SpiritBeastHatched
@@ -294,10 +291,7 @@ namespace XianTu
     {
         public static bool HasOwnUnlockedBeasts(this SaveDataV1 data)
         {
-            if (data == null || data.unlockedItemIds == null) return false;
-            foreach (var id in data.unlockedItemIds)
-                if (id != null && id.StartsWith("Beast:")) return true;
-            return false;
+            return data != null && data.unlockedBeastIds != null && data.unlockedBeastIds.Count > 0;
         }
     }
 

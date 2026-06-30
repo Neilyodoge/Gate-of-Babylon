@@ -94,13 +94,9 @@ namespace XianTu
             DestroyIfExists("MainMenu");
             DestroyIfExists("CodexUITK");
             DestroyIfExists("SettingsUI");
-            DestroyIfExists("SpiritRootSelectUITK");
-            DestroyIfExists("CharacterSelectUITK");
             DestroyIfExists("BuffBarUITK");
-            DestroyIfExists("SpiritRootMechanicHUD");
             DestroyIfExists("CaveEconomy");
 
-            SynergySystem.Clear();
         }
 
         private static void DestroyIfExists(string goName)
@@ -114,8 +110,7 @@ namespace XianTu
             var data = SaveSystem.Instance.Data;
             return data != null && (data.totalRunsCompleted > 0 || data.totalDeaths > 0 || data.caveQi > 0
                                     || data.unlockedTalentIds.Count > 0
-                                    || data.unlockedSkillIds.Count > 0
-                                    || data.unlockedItemIds.Count > 0);
+                                    || data.unlockedSkillIds.Count > 0);
         }
 
         // ========== UITK ==========

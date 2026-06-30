@@ -13,19 +13,7 @@ namespace XianTu
         Buff,           // 增益（金钟罩）
         Heal,           // 治疗（回春术）
         Summon,         // 召唤（傀儡术）
-        Zone,           // 主动持续区域（混沌吞噬/天罡北斗阵/九天玄火阵/冥河召唤）
-        AvatarSpecial   // 化身专属（16-20，路由到对应 SpiritRoot 控制器）
-    }
-
-    /// <summary>化身专属技能种类（路由到对应化身控制器；非该化身则不生效）。</summary>
-    public enum AvatarSpecialKind
-    {
-        None,
-        FireInferno,        // 20 焚天·业火燎原（火）
-        SwordOneThought,    // 16 一念刹那（剑魄/金）
-        WoodSeedBurst,      // 17 枯荣逆旅（青囊/木）
-        ShadowStep,         // 18 息影瞬步（影刃/水）
-        EarthPuppetArray    // 19 兵阵合一（御物/土）
+        Zone            // 主动持续区域（混沌吞噬/天罡北斗阵/九天玄火阵/冥河召唤）
     }
 
     /// <summary>
@@ -162,21 +150,6 @@ namespace XianTu
         [Header("乾坤倒转（Buff 子类 · 天地大挪移）")]
         /// <summary>进入天地大挪移：受伤反弹+免疫、普攻转治疗</summary>
         public bool heavenEarthShift = false;
-
-        [Header("化身专属（AvatarSpecial 类技能）")]
-        /// <summary>化身专属种类（skillType=AvatarSpecial 时生效，路由到对应化身控制器）</summary>
-        public AvatarSpecialKind avatarSpecial = AvatarSpecialKind.None;
-
-        /// <summary>该技能要求的化身灵根（仅化身专属有意义；None=不限）。用于掉落门控：只对对应化身掉落。</summary>
-        public SpiritRootType RequiredRoot => avatarSpecial switch
-        {
-            AvatarSpecialKind.FireInferno => SpiritRootType.Fire,
-            AvatarSpecialKind.SwordOneThought => SpiritRootType.Metal,
-            AvatarSpecialKind.WoodSeedBurst => SpiritRootType.Wood,
-            AvatarSpecialKind.ShadowStep => SpiritRootType.Water,
-            AvatarSpecialKind.EarthPuppetArray => SpiritRootType.Earth,
-            _ => SpiritRootType.None
-        };
 
         [Header("区域参数（Zone 类技能）")]
         /// <summary>区域持续时间（秒）；0 回退 vfxDuration</summary>

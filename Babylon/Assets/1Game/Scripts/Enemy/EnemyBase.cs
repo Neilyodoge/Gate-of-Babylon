@@ -34,10 +34,7 @@ namespace XianTu
         private AIState _aiState = AIState.Idle;
 
         [Header("掉落")]
-        [SerializeField] private ItemData[] possibleDrops;
         [SerializeField] private SkillData[] possibleSkillDrops;
-        [SerializeField] private float dropChance = 0.05f;
-        [SerializeField] private int _roomLevel; // 当前房间层数，用于掉率计算
 
         [Header("受击特效")]
         [SerializeField] private GameObject hitVFXPrefab;
@@ -474,9 +471,6 @@ namespace XianTu
 
             DestroyAttackWarning();
 
-            // 掉落灵物
-            TryDropItem();
-
             // 掉落功法
             TryDropSkill();
 
@@ -492,13 +486,7 @@ namespace XianTu
                 Position = transform.position
             });
 
-            // 击杀回复
-            if (PlayerController.Instance != null)
-            {
-                float healAmount = PlayerController.Instance.Inventory.GetHealOnKill();
-                if (healAmount > 0)
-                    PlayerController.Instance.Stats.Heal(healAmount);
-            }
+            // 击杀回复（模块系统处理）
 
             // 击杀顿帧
             if (HitStop.Instance != null)
@@ -506,78 +494,6 @@ namespace XianTu
 
             // 死亡表现（简单缩小消失）
             StartCoroutine(DeathAnimation());
-        }
-
-        private void TryDropItem()
-        {
-            if (possibleDrops == null || possibleDrops.Length == 0)
-            {
-                Debug.LogWarning($"<color=red>[Drop] {gameObject.name} possibleDrops为空（null={possibleDrops == null}），跳过灵物掉落！请检查灵物池是否正确传入。</color>");
-                return;
-            }
-
-            // 使用 GameConfig 的固定掉率（不随层数增加）
-            var config = GameConfig.Instance;
-            float chance = dropChance;
-            if (config != null)
-            {
-                chance = config.debugMaxItemDropRate ? 1f : config.敌人掉落概率;
-            }
-
-            float roll = Random.value;
-            Debug.Log($"<color=yellow>[Drop] {gameObject.name} 灵物掉落判定: chance={chance}, roll={roll}, debugMaxItemDropRate={config?.debugMaxItemDropRate}, possibleDrops={possibleDrops.Length}个</color>");
-            if (roll > chance)
-            {
-                if (config != null && config.debugMaxItemDropRate)
-                    Debug.LogWarning($"[Drop] 灵物爆率拉满但未掉落？chance={chance}, roll={roll}");
-                return;
-            }
-
-            // 先过滤掉 null 元素
-            var validDrops = new System.Collections.Generic.List<ItemData>();
-            foreach (var d in possibleDrops)
-                if (d != null) validDrops.Add(d);
-
-            if (validDrops.Count == 0)
-            {
-                Debug.LogWarning($"[Drop] {gameObject.name} possibleDrops 全部为 null，跳过掉落");
-                return;
-            }
-
-            // 按品阶权重选择灵物（层数越高高品质比重越大）
-            ItemData selectedItem = null;
-            if (config != null)
-            {
-                ItemRarity targetRarity = config.RollRarity(_roomLevel);
-
-                var candidates = new System.Collections.Generic.List<ItemData>();
-                foreach (var item in validDrops)
-                {
-                    if (item.rarity == targetRarity)
-                        candidates.Add(item);
-                }
-
-                selectedItem = candidates.Count > 0
-                    ? candidates[Random.Range(0, candidates.Count)]
-                    : validDrops[Random.Range(0, validDrops.Count)];
-            }
-            else
-            {
-                selectedItem = validDrops[Random.Range(0, validDrops.Count)];
-            }
-
-            if (selectedItem != null)
-            {
-                // 在敌人脚下掉落（当前位置），确保Y坐标在地面上
-                Vector3 dropPos = transform.position;
-                dropPos.y = Mathf.Max(dropPos.y, 0.1f); // 确保不在地面以下
-                var pickup = ItemPickup.Spawn(selectedItem, dropPos);
-                Debug.Log($"<color=green>[Drop] ✓ 灵物已生成：{selectedItem.itemName}，位置={dropPos}，pickup={pickup != null}</color>");
-            }
-            else
-            {
-                Debug.LogWarning($"[Drop] selectedItem 为 null！possibleDrops 中可能有空元素");
-            }
         }
 
         /// <summary>尝试掉落功法</summary>
@@ -624,8 +540,7 @@ namespace XianTu
         /// <summary>
         /// 工厂方法：生成一个基础敌人
         /// </summary>
-        public static EnemyBase Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f,
-            int roomLevel = 0, ItemData[] drops = null)
+        public static EnemyBase Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
             var prefabs = MonsterPrefabs.Instance;
             var prefab = prefabs != null ? prefabs.普通小怪Prefab : null;
@@ -669,11 +584,6 @@ namespace XianTu
                 enemy.stats.attackDamage *= dmgMultiplier;
             }
             enemy.stats.currentHp = enemy.stats.maxHp;
-
-            // 设置房间层数和掉落池
-            enemy._roomLevel = roomLevel;
-            if (drops != null)
-                enemy.possibleDrops = drops;
 
             return enemy;
         }

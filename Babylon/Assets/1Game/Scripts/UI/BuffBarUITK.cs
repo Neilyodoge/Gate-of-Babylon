@@ -76,18 +76,8 @@ namespace XianTu
             _overlay.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
             if (!show) return;
 
-            // 化身标签
-            var rootCtrl = player.GetComponent<SpiritRootController>();
-            if (_avatar != null)
-            {
-                if (rootCtrl != null && rootCtrl.CurrentDef != null)
-                {
-                    _avatar.text = $"化身 · {rootCtrl.CurrentDef.name}";
-                    _avatar.style.color = rootCtrl.CurrentDef.displayColor;
-                    _avatar.style.display = DisplayStyle.Flex;
-                }
-                else _avatar.style.display = DisplayStyle.None;
-            }
+            // 化身标签已移除（GDD V.07：御灵系统删除）
+            if (_avatar != null) _avatar.style.display = DisplayStyle.None;
 
             // 对账 chip
             _toRemove.Clear();

@@ -21,6 +21,17 @@ namespace XianTu
         private ElementTag _elementTag;
         private PlayerController _ownerPlayer;
 
+        // V.08 增强 payload：投射物携带链的控制/状态，命中时施加
+        private bool _hasEnh;
+        private ChainConfig _enh;
+
+        /// <summary>设置增强 payload（命中敌人时施加控制/附加状态）。在 Initialize 之后调用。</summary>
+        public void SetEnhancement(ChainConfig cfg)
+        {
+            _enh = cfg;
+            _hasEnh = true;
+        }
+
         /// <summary>
         /// 初始化投射物参数
         /// </summary>
@@ -45,6 +56,7 @@ namespace XianTu
             _elementTag = elementTag;
             _ownerPlayer = owner;
             _initialized = true;
+            _hasEnh = false; // 对象池复用：清除上一次的增强 payload，等待 SetEnhancement 重新设置
 
             transform.rotation = Quaternion.LookRotation(_direction);
         }
@@ -95,6 +107,13 @@ namespace XianTu
                 {
                     var list = new System.Collections.Generic.List<Collider> { other };
                     SkillModifierApplier.ApplyElementImpact(_elementTag, transform.position, list, _ownerPlayer);
+                }
+
+                // V.08 增强：投射物携带的控制/附加状态作用到命中敌人
+                if (_hasEnh)
+                {
+                    Vector3 center = _ownerPlayer != null ? _ownerPlayer.transform.position : transform.position - _direction;
+                    SkillModifierApplier.ApplyEnhancementToEnemy(_enh, other.gameObject, center, _ownerPlayer);
                 }
 
                 // v0.3.3 融合层：投射物命中也算技能命中（御剑术等）
