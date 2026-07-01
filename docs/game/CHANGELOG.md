@@ -26,6 +26,8 @@
   - 元素覆盖：链有元素（效果自带或灼烧→火/冰冻→冰/雷→雷/毒→土）时覆盖核心技能本次命中元素（`CastAreaSkill` / `CastProjectileSkill`）。
   - 即时自益：治疗 / 护盾 / 无敌 / 净化（复用 `ExecuteChainHeal/Shield/Invincible` + 新增 `StatusEffectController.ClearDebuffs`）。
   - 控制 + 附加状态作用到**核心技能实际命中的敌人**：范围技同步捕获命中目标（`_enhHitTargets`）；投射技通过 `Projectile.SetEnhancement(ChainConfig)` 在命中时施加（对象池复用时 `Initialize` 重置 payload）；未命中 / 非范围则回退绕玩家半径。
+  - 形态改造（部分）：`enhanceRadiusMult`（RadiusScale/M_扩散）放大核心范围技范围；`enhanceProjectileMult`（CountScale/M_连锁）+ `enhanceExtraProjectiles`（ExtraProjectile/M_额外飞弹）增加核心投射技发数，单发被增强为多发时自动散射；`enhanceChainCount`（TargetChain/M_链锁弹射）让核心投射技命中后自动寻敌反弹（`Projectile.SetChain`：搜索半径 9、伤害衰减 0.8/跳、不重复命中）；`enhanceSurround`（TargetSurround/M_环绕射击）让核心投射技 360° 均分环绕发射（至少 8 发）。Debug 投射物（无 prefab）现也携带增强 payload + 链锁（`CreateDebugProjectile` 返回 `Projectile`）。仅 TargetFarthest、Shape* 仍为 no-op（Sustained/DelayedBlast 见下文节奏改造）。
+  - 新增改造件 SO：`M_链锁弹射`（TargetChain，弹射 2 次）、`M_环绕射击`（TargetSurround）。
 - **附加型（Addon）**：维持 spawn 独立世界效果（`ExecuteChainEffect`）。
 - 抽出共享真源 `SkillModifierApplier.ApplyEnhancementToEnemy()` / `ApplyEnhancementStatus()`，PlayerCombat 与 Projectile 共用，消除重复。
 
@@ -33,6 +35,21 @@
 - **角色旁三竖条 Proc 指示器**（GDD §5.13）：新增 `ProcBarsHUD`，屏幕空间跟随角色，按 Q/E/R 显示充能进度 / 就绪（元素色 + 呼吸光）/ 层数 / 窗口倒计时 / 冷却 / Auto 脉动，由 `Demo1Setup.CreateHUD` 挂到 GameCanvas。
 - **装配 UI 重做**：`ModuleAssemblyUI` 从文字列表改为卡片网格背包 + Q/E/R 三列竖向链布局，含全息预览、人类可读链效果预览、安装 toast（链激活 / 还差 X 成链）、三态配色（已激活 / 待补 / 空）。
 - `Demo1Setup` 保证开局 Q/E/R 三个核心技能无空窗（未配置则从 `Data/Skills` 兜底挑选）。
+
+### 节奏改造·持续 / 延迟爆炸（Sustained / DelayedBlast）
+- 持续：增强让瞬发范围核心技在落点留下持续地带：`ActiveSkillZone.SpawnCustom(pos, player, mask, radius, life=4s, tick=0.5s, perTickMul, element)`，每 tick 造成技能倍率 35% 的 DoT + 附加状态。`ChainConfig.enhanceSustained` 由 `Sustained` 改造件折算。新增 SO `M_余烬地带`。
+- 延迟爆炸：增强让范围核心技在落点追加一次带预警的延迟重爆：新增 `DelayedAreaBlast` 组件（预警 0.8s → 范围伤害 ×1.5 + 元素表现 + 附加状态）。`ChainConfig.enhanceDelayedBlast` 由 `DelayedBlast` 改造件折算。新增 SO `M_延迟轰爆`。
+
+### 持续区域（Zone）增强
+- `ActiveSkillZone.SetEnhancement(cfg, elementOverride, radiusMult)`：增强注入区域元素覆盖 + 范围倍率 + 每 tick 附加状态（灼烧/冰冻/毒，复用 `SkillModifierApplier.ApplyEnhancementStatus`）；伤害倍率经 `damageMul` 生效。控制类不逐 tick 施加（避免持续弹飞）。
+- PlayerCombat 委托标记 `_enhDelegatedToProjectile` 泛化为 `_enhWorldDelegated`（投射物命中 / 区域 tick 共用），避免与 `EndEnhancement` 绕玩家回退重复施加。
+
+### 运行时验证（Play 模式，2026-07-01）
+- 增强链运行时装配正确：`role=Enhancement / consumeKind=Single / enhanceDamageMult=1.4 / enhanceSurround=true`。
+- 形态改造·环绕端到端：核心投射技 御剑术 基线 3 发 → 挂环绕增强链后 8 发（走无 prefab 的 Debug 投射物路径）。
+- 伤害倍率端到端：投射物伤害 24.0 → 33.6，比值 ×1.40（匹配 `M_伤害强化`），经 `UseSkill` 注入路径。
+- 形态改造·链锁端到端：核心投射技挂 `M_链锁弹射` 后，出生投射物 `_chainRemaining=2 / _hasEnh=true`（`Projectile.SetChain` 已注入）。
+- 节奏改造端到端（鼠标落点居中后）：`M_余烬地带` → 落点生成 1 个 `ActiveSkillZone_Sustained`；`M_延迟轰爆` → 落点生成 1 个 `DelayedAreaBlast`。四项形态/节奏改造（环绕/链锁/持续/延迟）均已运行时确认生成对应世界对象。
 
 ### 旧系统移除
 - 「灵物」「御灵 / 化身」系统及相关 UI 已从当前可玩路径移除（历史素材保留在 `_archive` / `设定_*`）。

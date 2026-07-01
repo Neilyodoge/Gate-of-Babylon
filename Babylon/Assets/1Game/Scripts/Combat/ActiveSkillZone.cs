@@ -26,6 +26,22 @@ namespace XianTu
         private float _tickTimer;
         private static readonly Collider[] _buf = new Collider[64];
 
+        // V.08 增强 payload：区域每 tick 附加链的 modifier 状态（灼烧/冰冻/毒）
+        private bool _hasEnh;
+        private ChainConfig _enh;
+
+        /// <summary>
+        /// V.08：给已召唤的区域注入增强——元素覆盖 + 范围倍率 + 每 tick 附加状态（灼烧/冰冻/毒）。
+        /// 在 Spawn 之后调用。控制类（击退/眩晕）不逐 tick 施加，避免持续弹飞。
+        /// </summary>
+        public void SetEnhancement(ChainConfig cfg, ElementTag elementOverride, float radiusMult)
+        {
+            _enh = cfg;
+            _hasEnh = true;
+            if (elementOverride != ElementTag.None) _element = elementOverride;
+            if (radiusMult > 0.01f) _radius *= radiusMult;
+        }
+
         /// <summary>从 SkillData 召唤一个区域；damageMul 为蓄力等额外伤害倍率。</summary>
         public static ActiveSkillZone Spawn(SkillData skill, Vector3 pos, PlayerController player, LayerMask enemyMask, float damageMul = 1f)
         {
@@ -51,6 +67,28 @@ namespace XianTu
 
             // 地面区域指示（褪色 cube）
             SkillModifierApplier.SpawnCubeVfx(pos + Vector3.up * 0.05f, SkillModifierApplier.ColorOf(skill.elementTag), Mathf.Max(1f, radius * 0.6f), life);
+            return zone;
+        }
+
+        /// <summary>
+        /// V.08 Sustained：用自定义参数召唤一个持续地带（增强把瞬发范围技变成留地 DoT）。
+        /// damagePerTickMul 为技能倍率（同 CalcSkillDamage 第二参），element 决定表现色。
+        /// </summary>
+        public static ActiveSkillZone SpawnCustom(Vector3 pos, PlayerController player, LayerMask enemyMask,
+            float radius, float life, float tickInterval, float damagePerTickMul, ElementTag element)
+        {
+            var go = new GameObject("ActiveSkillZone_Sustained");
+            go.transform.position = pos;
+            var zone = go.AddComponent<ActiveSkillZone>();
+            zone._player = player;
+            zone._enemyMask = enemyMask;
+            zone._element = element;
+            zone._radius = Mathf.Max(0.5f, radius);
+            zone._life = Mathf.Max(0.1f, life);
+            zone._tickInterval = Mathf.Max(0.05f, tickInterval);
+            zone._damagePerTick = Mathf.Max(0f, damagePerTickMul);
+
+            SkillModifierApplier.SpawnCubeVfx(pos + Vector3.up * 0.05f, SkillModifierApplier.ColorOf(element), Mathf.Max(1f, zone._radius * 0.6f), zone._life);
             return zone;
         }
 
@@ -111,6 +149,10 @@ namespace XianTu
 
                 if (_burnDPS > 0f)
                     SkillModifierApplier.ApplyBurn(c.gameObject, _burnDPS, _burnDuration);
+
+                // V.08 增强：每 tick 附加链的 modifier 状态（灼烧/冰冻/毒）
+                if (_hasEnh)
+                    SkillModifierApplier.ApplyEnhancementStatus(_enh, c.gameObject);
             }
         }
 

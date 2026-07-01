@@ -57,10 +57,17 @@ namespace XianTu
         private bool _enhActive;                  // 本次 cast 是否注入增强（仅 Enhancement 角色）
         private float _enhDamageMul = 1f;         // 核心技能伤害倍率
         private ElementTag _enhElement = ElementTag.None; // 核心技能元素覆盖（None=不覆盖）
+        private float _enhRadiusMult = 1f;        // 核心技能范围倍率（形态改造·扩散）
+        private float _enhProjectileMult = 1f;    // 核心技能投射物数量倍率（形态改造·连锁）
+        private int _enhExtraProjectiles;         // 核心技能额外投射物数（形态改造·额外飞弹）
+        private int _enhChainCount;               // 核心技能投射物链锁弹射次数（形态改造·链锁）
+        private bool _enhSurround;                 // 核心投射技 360° 环绕发射（形态改造·环绕）
+        private bool _enhSustained;                 // 核心范围技留下持续地带（节奏改造·持续）
+        private bool _enhDelayedBlast;              // 核心范围技追加延迟重爆（节奏改造·延迟爆炸）
         private bool _chargeEnhPending;           // 蓄力技能：释放时是否消费 Proc
         private readonly System.Collections.Generic.List<GameObject> _enhHitTargets = new(); // 本次核心技能命中的敌人（增强控制/状态用）
         private ChainConfig _enhCfg;              // 本次增强的编译配置（投射物 payload 用）
-        private bool _enhDelegatedToProjectile;   // 控制/状态已交由投射物在命中时施加 → EndEnhancement 不再绕玩家回退
+        private bool _enhWorldDelegated;          // 控制/状态已交由世界对象（投射物命中/区域 tick）施加 → EndEnhancement 不再绕玩家回退
 
         // 攻击判定：每段攻击只判定一次
         private bool _hasHitThisSwing;
@@ -585,9 +592,16 @@ namespace XianTu
             _enhActive = true;
             _enhDamageMul = cfg.enhanceDamageMult > 0.01f ? cfg.enhanceDamageMult : 1f;
             _enhElement = cfg.elementTag != ElementTag.None ? cfg.elementTag : ElementFromStatus(cfg);
+            _enhRadiusMult = cfg.enhanceRadiusMult > 0.01f ? cfg.enhanceRadiusMult : 1f;
+            _enhProjectileMult = cfg.enhanceProjectileMult > 0.01f ? cfg.enhanceProjectileMult : 1f;
+            _enhExtraProjectiles = Mathf.Max(0, cfg.enhanceExtraProjectiles);
+            _enhChainCount = Mathf.Max(0, cfg.enhanceChainCount);
+            _enhSurround = cfg.enhanceSurround;
+            _enhSustained = cfg.enhanceSustained;
+            _enhDelayedBlast = cfg.enhanceDelayedBlast;
             _enhHitTargets.Clear();
             _enhCfg = cfg;
-            _enhDelegatedToProjectile = false;
+            _enhWorldDelegated = false;
         }
 
         /// <summary>
@@ -635,9 +649,9 @@ namespace XianTu
                 case EffectType.Stun:
                 case EffectType.Knockback:
                 case EffectType.MarkVulnerable:
-                    if (_enhDelegatedToProjectile)
+                    if (_enhWorldDelegated)
                     {
-                        // 控制随投射物命中施加，无需此处处理
+                        // 控制随世界对象（投射物命中/区域 tick）施加，无需此处处理
                     }
                     else if (_enhHitTargets.Count > 0)
                     {
@@ -654,7 +668,7 @@ namespace XianTu
             }
 
             // 纯属性增强（无控制/自益效果）但带 modifier 状态 → 优先附加到命中敌人，否则绕玩家
-            if (!handledTargets && !_enhDelegatedToProjectile && (cfg.addBurn || cfg.addFreeze || cfg.addPoison))
+            if (!handledTargets && !_enhWorldDelegated && (cfg.addBurn || cfg.addFreeze || cfg.addPoison))
             {
                 if (_enhHitTargets.Count > 0)
                 {
@@ -682,6 +696,13 @@ namespace XianTu
             _enhActive = false;
             _enhDamageMul = 1f;
             _enhElement = ElementTag.None;
+            _enhRadiusMult = 1f;
+            _enhProjectileMult = 1f;
+            _enhExtraProjectiles = 0;
+            _enhChainCount = 0;
+            _enhSurround = false;
+            _enhSustained = false;
+            _enhDelayedBlast = false;
         }
 
         /// <summary>从 modifier 附加状态推断元素（用于元素覆盖）。</summary>
@@ -1357,6 +1378,7 @@ namespace XianTu
             {
                 Vector3 targetPos = ray.GetPoint(distance);
                 float actualRadius = skill.aoeRadius * radiusMul;
+                if (_enhActive) actualRadius *= _enhRadiusMult; // 形态改造·扩散
                 System.Collections.Generic.List<Collider> hitList = null;
 
                 if (skill.vfxPrefab != null)
@@ -1440,6 +1462,31 @@ namespace XianTu
                         _player,
                         enemyLayer);
                 }
+
+                // V.08 节奏改造·持续：增强让瞬发范围技在落点留下持续地带（DoT + 每 tick 附加状态）
+                if (_enhActive && _enhSustained)
+                {
+                    float skillBase = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
+                    float perTickMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage) * 0.35f * damageMul;
+                    var zone = ActiveSkillZone.SpawnCustom(targetPos, _player, enemyLayer,
+                        actualRadius, 4f, 0.5f, perTickMul, castElem);
+                    if (zone != null)
+                    {
+                        zone.SetEnhancement(_enhCfg, castElem, 1f);
+                        if (_enhCfg.addBurn || _enhCfg.addFreeze || _enhCfg.addPoison)
+                            _enhWorldDelegated = true; // 状态随地带 tick 施加
+                    }
+                }
+
+                // V.08 节奏改造·延迟爆炸：增强让范围技在落点追加一次带预警的延迟重爆
+                if (_enhActive && _enhDelayedBlast)
+                {
+                    float skillBase = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
+                    float blastMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage) * 1.5f * damageMul; // 延迟换爆发
+                    bool hasStatus = _enhCfg.addBurn || _enhCfg.addFreeze || _enhCfg.addPoison;
+                    DelayedAreaBlast.Spawn(targetPos, 0.8f, actualRadius * 1.15f, _player, enemyLayer, blastMul, castElem, _enhCfg, hasStatus);
+                    if (hasStatus) _enhWorldDelegated = true; // 状态随延迟爆炸施加
+                }
             }
         }
 
@@ -1460,7 +1507,14 @@ namespace XianTu
                 }
             }
 
-            ActiveSkillZone.Spawn(skill, spawnPos, _player, enemyLayer, damageMul);
+            var zone = ActiveSkillZone.Spawn(skill, spawnPos, _player, enemyLayer, damageMul);
+            if (_enhActive && zone != null)
+            {
+                // V.08：增强注入区域——元素覆盖 + 范围倍率 + 每 tick 附加状态
+                zone.SetEnhancement(_enhCfg, _enhElement, _enhRadiusMult);
+                if (_enhCfg.addBurn || _enhCfg.addFreeze || _enhCfg.addPoison)
+                    _enhWorldDelegated = true; // 状态随区域 tick 施加，EndEnhancement 不再绕玩家回退
+            }
             Debug.Log($"<color=cyan>{skill.skillName} 召唤持续区域（{(skill.zoneFollowPlayer ? "随身" : "落点")}）</color>");
         }
 
@@ -1475,13 +1529,27 @@ namespace XianTu
             damage *= damageMul;
 
             int count = Mathf.Max(1, skill.projectileCount);
-            float halfSpread = skill.spreadAngle * 0.5f;
+            float spreadAngle = skill.spreadAngle;
+            bool surround = _enhActive && _enhSurround;
+            if (_enhActive)
+            {
+                // 形态改造·连锁（数量倍率）+ 额外飞弹（加数）
+                count = Mathf.Max(1, Mathf.RoundToInt(count * _enhProjectileMult) + _enhExtraProjectiles);
+                if (surround) count = Mathf.Max(count, 8); // 环绕至少 8 发才成环
+                if (count > 1 && spreadAngle < 1f) spreadAngle = 20f; // 单发技被增强为多发时给个默认散射角
+            }
+            float halfSpread = spreadAngle * 0.5f;
 
             for (int i = 0; i < count; i++)
             {
                 // 计算每发投射物的方向
                 Vector3 projDir = dir;
-                if (count > 1)
+                if (surround)
+                {
+                    // 形态改造·环绕：360° 均分
+                    projDir = Quaternion.Euler(0, i * (360f / count), 0) * dir;
+                }
+                else if (count > 1)
                 {
                     float angle = Mathf.Lerp(-halfSpread, halfSpread, (float)i / (count - 1));
                     projDir = Quaternion.Euler(0, angle, 0) * dir;
@@ -1502,14 +1570,21 @@ namespace XianTu
                         if (_enhActive)
                         {
                             projectile.SetEnhancement(_enhCfg);
-                            _enhDelegatedToProjectile = true; // 控制/状态随投射物命中施加，EndEnhancement 不再绕玩家回退
+                            if (_enhChainCount > 0) projectile.SetChain(_enhChainCount, enemyLayer);
+                            _enhWorldDelegated = true; // 控制/状态随投射物命中施加，EndEnhancement 不再绕玩家回退
                         }
                     }
                 }
                 else if (showDebugVisuals)
                 {
                     // 没有Prefab时创建Debug投射物（带元素颜色提示）
-                    CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, EnhElem(skill));
+                    var dbgProj = CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, EnhElem(skill));
+                    if (_enhActive && dbgProj != null)
+                    {
+                        dbgProj.SetEnhancement(_enhCfg);
+                        if (_enhChainCount > 0) dbgProj.SetChain(_enhChainCount, enemyLayer);
+                        _enhWorldDelegated = true;
+                    }
                 }
             }
         }
@@ -2082,7 +2157,7 @@ namespace XianTu
         }
 
         /// <summary>创建Debug投射物（无Prefab时的可视化），按 elementTag 上色 + 选用差异化形状（v0.3.3）</summary>
-        private void CreateDebugProjectile(Vector3 spawnPos, Vector3 direction, float speed, float damage, float lifetime, ElementTag elementTag = ElementTag.None)
+        private Projectile CreateDebugProjectile(Vector3 spawnPos, Vector3 direction, float speed, float damage, float lifetime, ElementTag elementTag = ElementTag.None)
         {
             // v0.3.3：根据 elementTag 选择形状（火球 / 冰晶 / 雷柱 / 风刺 / 木球 / 水球 / 土块 / 穿透标枪）
             PrimitiveType shape = FxFactory.ElementShape(elementTag);
@@ -2136,6 +2211,8 @@ namespace XianTu
             var rb = proj.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
+
+            return projComp;
         }
 
         /// <summary>创建Debug位移轨迹</summary>

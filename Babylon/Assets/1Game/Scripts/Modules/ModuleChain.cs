@@ -16,6 +16,13 @@ namespace XianTu
         public int maxStacks;                 // Stacks 模式最大层数
         public EffectRole effectRole;         // V.08 效果器角色
         public float enhanceDamageMult;       // V.08 增强型对核心技能的伤害倍率（来自改造件，base 1.0）
+        public float enhanceRadiusMult;       // V.08 增强型对核心技能范围的倍率（RadiusScale 改造件，base 1.0）
+        public float enhanceProjectileMult;   // V.08 增强型对核心技能投射物数量的倍率（CountScale 改造件，base 1.0）
+        public int enhanceExtraProjectiles;   // V.08 增强型对核心技能额外投射物数（ExtraProjectile 改造件）
+        public int enhanceChainCount;         // V.08 增强型对核心技能投射物的链锁弹射次数（TargetChain 改造件）
+        public bool enhanceSurround;          // V.08 增强型让核心投射技 360° 环绕发射（TargetSurround 改造件）
+        public bool enhanceSustained;         // V.08 增强型让核心范围技留下持续地带（Sustained 改造件）
+        public bool enhanceDelayedBlast;      // V.08 增强型让核心范围技追加延迟重爆（DelayedBlast 改造件）
 
         // trigger
         public TriggerType triggerType;
@@ -138,6 +145,13 @@ namespace XianTu
                 maxStacks = trigger.maxStacks,
                 effectRole = effect.GetEffectRoleForSlot(),
                 enhanceDamageMult = 1f,
+                enhanceRadiusMult = 1f,
+                enhanceProjectileMult = 1f,
+                enhanceExtraProjectiles = 0,
+                enhanceChainCount = 0,
+                enhanceSurround = false,
+                enhanceSustained = false,
+                enhanceDelayedBlast = false,
 
                 triggerType = tType,
                 triggerThreshold = trigger.category == ModuleCategory.Universal
@@ -195,14 +209,37 @@ namespace XianTu
                     // 形态变换在效果执行时通过 modifierType 判断
                     break;
 
+                // 目标改造·链锁弹射（增强核心投射技命中后反弹）
+                case ModifierType.TargetChain:
+                    cfg.enhanceChainCount += mod.extraCount > 0 ? mod.extraCount : 2;
+                    break;
+
+                // 目标改造·环绕（增强核心投射技 360° 均分发射）
+                case ModifierType.TargetSurround:
+                    cfg.enhanceSurround = true;
+                    if (mod.extraCount > 0) cfg.enhanceExtraProjectiles += mod.extraCount;
+                    break;
+
+                // 节奏改造·持续（增强让核心范围技留下持续地带）
+                case ModifierType.Sustained:
+                    cfg.enhanceSustained = true;
+                    break;
+
+                // 节奏改造·延迟爆炸（增强让核心范围技追加延迟重爆）
+                case ModifierType.DelayedBlast:
+                    cfg.enhanceDelayedBlast = true;
+                    break;
+
                 // 数量改造
                 case ModifierType.RadiusScale:
                     cfg.radius *= mod.modifierValue;
+                    cfg.enhanceRadiusMult *= mod.modifierValue;
                     break;
                 case ModifierType.CountScale:
                     cfg.projectileCount = Mathf.Max(1, Mathf.RoundToInt(cfg.projectileCount * mod.modifierValue));
                     if (cfg.spreadAngle < 1f && cfg.projectileCount > 1)
                         cfg.spreadAngle = 15f;
+                    cfg.enhanceProjectileMult *= mod.modifierValue;
                     break;
                 case ModifierType.DurationScale:
                     cfg.buffDuration *= mod.modifierValue;
@@ -217,11 +254,13 @@ namespace XianTu
                     break;
                 case ModifierType.ExtraCount:
                     cfg.projectileCount += mod.extraCount;
+                    cfg.enhanceExtraProjectiles += mod.extraCount;
                     break;
                 case ModifierType.ExtraProjectile:
                     cfg.projectileCount += mod.extraCount;
                     if (cfg.spreadAngle < 1f && cfg.projectileCount > 1)
                         cfg.spreadAngle = 15f;
+                    cfg.enhanceExtraProjectiles += mod.extraCount;
                     break;
 
                 // 状态改造

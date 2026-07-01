@@ -25,11 +25,25 @@ namespace XianTu
         private bool _hasEnh;
         private ChainConfig _enh;
 
+        // V.08 形态改造·链锁弹射：命中后自动寻找附近下一个敌人反弹
+        private int _chainRemaining;
+        private LayerMask _chainMask;
+        private const float ChainSearchRadius = 9f;
+        private const float ChainDamageFalloff = 0.8f;
+        private readonly System.Collections.Generic.List<GameObject> _chainHistory = new();
+
         /// <summary>设置增强 payload（命中敌人时施加控制/附加状态）。在 Initialize 之后调用。</summary>
         public void SetEnhancement(ChainConfig cfg)
         {
             _enh = cfg;
             _hasEnh = true;
+        }
+
+        /// <summary>设置链锁弹射：命中后向附近未命中的敌人反弹 count 次。在 Initialize 之后调用。</summary>
+        public void SetChain(int count, LayerMask enemyMask)
+        {
+            _chainRemaining = Mathf.Max(0, count);
+            _chainMask = enemyMask;
         }
 
         /// <summary>
@@ -57,6 +71,8 @@ namespace XianTu
             _ownerPlayer = owner;
             _initialized = true;
             _hasEnh = false; // 对象池复用：清除上一次的增强 payload，等待 SetEnhancement 重新设置
+            _chainRemaining = 0; // 对象池复用：清除上一次的链锁状态
+            _chainHistory.Clear();
 
             transform.rotation = Quaternion.LookRotation(_direction);
         }
@@ -131,10 +147,48 @@ namespace XianTu
                     _pierceRemaining--;
                     return; // 继续飞行
                 }
+
+                // V.08 链锁弹射：寻找附近下一个未命中的敌人反弹
+                if (_chainRemaining > 0)
+                {
+                    _chainHistory.Add(other.gameObject);
+                    var next = FindChainTarget();
+                    if (next != null)
+                    {
+                        _chainRemaining--;
+                        _damage *= ChainDamageFalloff;
+                        Vector3 d = next.transform.position - transform.position;
+                        d.y = 0f;
+                        _direction = d.sqrMagnitude > 0.0001f ? d.normalized : _direction;
+                        transform.rotation = Quaternion.LookRotation(_direction);
+                        return; // 转向下一目标继续飞行
+                    }
+                }
             }
 
             // 碰到墙壁、障碍物等环境物体也回收
             Recycle();
+        }
+
+        /// <summary>寻找搜索半径内最近的、尚未被本次链锁命中的敌人。</summary>
+        private GameObject FindChainTarget()
+        {
+            var hits = Physics.OverlapSphere(transform.position, ChainSearchRadius, _chainMask);
+            GameObject best = null;
+            float bestSqr = float.MaxValue;
+            foreach (var h in hits)
+            {
+                var go = h.gameObject;
+                if (_chainHistory.Contains(go)) continue;
+                if (go.GetComponent<IDamageable>() == null) continue;
+                float sqr = (go.transform.position - transform.position).sqrMagnitude;
+                if (sqr < bestSqr)
+                {
+                    bestSqr = sqr;
+                    best = go;
+                }
+            }
+            return best;
         }
 
         private void Recycle()
