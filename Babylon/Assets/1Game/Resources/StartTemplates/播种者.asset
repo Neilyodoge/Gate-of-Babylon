@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78ab0ebe0c135794094760f509cc48ae, type: 3}
+  m_Name: "\u64AD\u79CD\u8005"
+  m_EditorClassIdentifier: 
+  templateId: seeder
+  displayName: "\u64AD\u79CD\u8005"
+  description: "\u64AD\u79CD\u8005\uFF1A\u6838\u5FC3\u6280\u547D\u4E2D\u79CD\u4E0B\u79CD\u5B50\uFF0C\u6512\u591F\u540E\u4E00\u6B21\u6027\u5F15\u7206\u6210\u8303\u56F4\u6740\u4F24\u3002"
+  themeColor: {r: 0.4, g: 0.85, b: 0.4, a: 1}
+  sortOrder: 3
+  skillQ: {fileID: 11400000, guid: fdf867bee9c61f340a3aa08b777d7efc, type: 2}
+  skillE: {fileID: 11400000, guid: 18c247c815d30e443a77a8c5eadf9ac5, type: 2}
+  skillR: {fileID: 11400000, guid: 20e4395b0fc9056449aedeb36c95ffe3, type: 2}
+  profile: {fileID: 11400000, guid: 10324244d0f6d984db9b33675e7c8bdb, type: 2}
+  startingModules:
+  - {fileID: 11400000, guid: c8f4d2bae5039b751c2d6f8a0b3e4f51, type: 2}
+  - {fileID: 11400000, guid: ad305ac5aa2a7444ea4c7ac8fcfec4b4, type: 2}
+  - {fileID: 11400000, guid: d9a1e3cb26f4082c7d5b9e1f0a4c6d72, type: 2}
+  - {fileID: 11400000, guid: 7ce7d7d4f1c5ebb4eb0fa17a38cabd6d, type: 2}
+  - {fileID: 11400000, guid: 7757d65138b65384f9c759d39f2c326b, type: 2}

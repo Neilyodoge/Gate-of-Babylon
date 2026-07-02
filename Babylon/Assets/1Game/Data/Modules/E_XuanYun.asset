@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec4abf4c21d75db4d9b84559347c77fe, type: 3}
+  m_Name: E_XuanYun
+  m_EditorClassIdentifier: 
+  moduleId: E_XuanYun
+  category: 1
+  displayName: "\u7729\u6655"
+  description: "\u5BF9\u547D\u4E2D\u654C\u4EBA\u65BD\u52A0\u77ED\u6682\u7729\u6655\uFF0C\u6253\u65AD\u5176\u52A8\u4F5C\u3002"
+  uiDescription: "\u7729\u6655"
+  icon: {fileID: 0}
+  rarity: 1
+  executionMode: 0
+  functionTags: 32
+  shapeTags: 0
+  styleTags: 8
+  triggerType: 0
+  triggerThreshold: 1
+  triggerCooldown: 2
+  triggerInterval: 5
+  consumeStacks: 1
+  moveDistanceThreshold: 10
+  healthThreshold: 0.3
+  consumeKind: 0
+  windowSeconds: 5
+  maxStacks: 3
+  effectType: 6
+  effectRole: 1
+  baseDamage: 25
+  damageScaling: 0.5
+  aoeRadius: 4
+  healAmount: 20
+  healScaling: 0.3
+  shieldAmount: 30
+  buffDuration: 5
+  buffDamageReduction: 0.3
+  projectileSpeed: 15
+  projectileCount: 1
+  spreadAngle: 0
+  slowPercent: 0.5
+  stunDuration: 1.5
+  knockbackForce: 8
+  dashDistance: 5
+  pullRadius: 6
+  dotDPS: 8
+  dotDuration: 4
+  invincibleDuration: 1
+  summonDuration: 10
+  summonDamage: 10
+  trapDuration: 8
+  vulnerableMultiplier: 1.5
+  vulnerableDuration: 3
+  vfxPrefab: {fileID: 0}
+  elementTag: 3
+  modifierType: 0
+  modifierValue: 1.5
+  burnDPS: 5
+  burnDuration: 3
+  freezeDuration: 2
+  lightningDamage: 15
+  poisonDPS: 4
+  poisonDuration: 5
+  extraCount: 1
+  costHPPercent: 0.1
+  costDamageBonus: 0.5
+  universalTriggerType: 0
+  universalTriggerThreshold: 1
+  universalTriggerCooldown: 2
+  universalEffectType: 0
+  universalEffectRole: 0
+  universalConsumeKind: 0
+  universalTriggerDesc: 
+  universalEffectDesc: 
+  compatibleShapes: -1
+  incompatibleFunctions: 0

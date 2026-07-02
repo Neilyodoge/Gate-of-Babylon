@@ -733,8 +733,8 @@ namespace XianTu.Editor
             var mage = LoadOrCreateProfile(CHAR_PROFILE_PATH + "法修.asset");
             mage.characterId = "mage";
             mage.displayName = "法修";
-            mage.roleTag = "远程 · 御灵";
-            mage.description = "御灵远击，左键凝灵弹轰敌。\n走位放风筝，技能为核心。";
+            mage.roleTag = "远程 · 法修";
+            mage.description = "远程轰击，左键凝灵弹轰敌。\n走位放风筝，技能为核心。";
             mage.themeColor = new Color(0.35f, 0.75f, 0.95f);
             mage.sortOrder = 1;
             mage.modelPrefab = moriFbx;

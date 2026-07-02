@@ -18,7 +18,7 @@ namespace XianTu
         {
             public string displayName;     // "散修商人"
             public string icon;            // "✦" / "📜"
-            public string roleSub;         // "化身选择" —— 显示为括号副标题
+            public string roleSub;         // 例："模块配置" —— 显示为括号副标题
             public string hintText;        // "按 [F] 交易"
             public Color themeColor;       // 主题色
             public float yOffset;          // 头顶高度（默认 2.4m）

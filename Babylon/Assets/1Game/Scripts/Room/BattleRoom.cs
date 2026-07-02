@@ -290,7 +290,8 @@ namespace XianTu
 
             for (int i = 0; i < dropCount; i++)
             {
-                var module = moduleRewardPool[Random.Range(0, moduleRewardPool.Length)];
+                // P1：软性动态权重（起始模板风格 + 半成型链补齐 + 构筑协同），不硬锁池子。
+                var module = ModuleDropWeighting.PickWeighted(moduleRewardPool);
                 if (module == null) continue;
                 Vector3 offset = new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f));
                 ModulePickup.Spawn(module, basePos + offset + Vector3.right * (i * 1.5f));

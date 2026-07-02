@@ -173,25 +173,6 @@ namespace XianTu.LevelDesign
     }
 
     // ------------------------------------------------------------
-    // §4.9 Avatar_Base_Config — 化身基础配置
-    // ------------------------------------------------------------
-    [Serializable]
-    public class AvatarBaseRow
-    {
-        public int ID;
-        public string Name_CN;
-        public string Desc_CN;
-        /// <summary>化身机制 Controller 类名（状态机）</summary>
-        public string ControllerScript;
-        /// <summary>开局随身自带的初始凡品灵物 ID</summary>
-        public int DefaultItem_ID;
-        /// <summary>黑名单：该化身局内禁止随机产出的词条 ID 列表（CSV 用 ; 分隔）</summary>
-        public int[] Restriction;
-        /// <summary>该化身专属技能：引用 Skill_Base_Config 的 ID 列表（仅该化身可获取；CSV 用 ; 分隔）</summary>
-        public int[] Exclusive;
-    }
-
-    // ------------------------------------------------------------
     // §6.9 Skill_Base_Config — 主动技能
     // ------------------------------------------------------------
     [Serializable]
@@ -237,7 +218,6 @@ namespace XianTu.LevelDesign
     [Serializable] public class BossPhaseTable { public BossPhaseRow[] Rows; }
     [Serializable] public class ItemInRunTable { public ItemInRunRow[] Rows; }
     [Serializable] public class MaterialCaveResTable { public MaterialCaveResRow[] Rows; }
-    [Serializable] public class AvatarBaseTable { public AvatarBaseRow[] Rows; }
     [Serializable] public class SkillBaseTable { public SkillBaseRow[] Rows; }
     [Serializable] public class SkillEffectTable { public SkillEffectRow[] Rows; }
 }

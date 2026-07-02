@@ -6,6 +6,65 @@
 
 ---
 
+## V0.1.17 · P2 模块池扩容（效果器 20 / 改造件 21）（2026-07-02）
+
+补齐首批模块池目标数量，只用 PlayerCombat 已实现的 EffectType/ModifierType，保证新模块开箱即用。生成器 `PoolExpansionGenerator`（编辑器菜单「修仙图/P2 — 扩容模块池」，幂等）。
+
+- **效果器 10 → 20**：新增 减速(Slow) / 眩晕(Stun) / 易伤(MarkVulnerable) / 无敌(Invincible·Enhancement) / 净化(Cleanse·Enhancement) / 火雨(AreaDamage·火) / 冰锥(Projectile·冰) / 剧毒(DoT·木) / 震荡波(Knockback) / 落石(AreaDamage·土)。
+- **改造件 18 → 21**：新增 附雷(AddLightning) / 破绽(AddVulnerable) / 延冷(CostCooldown)。
+- **验证**：编译 0 error；生成 13 个；池计数 触发器 13 / 效果器 20 / 改造件 21 / 万能 5；抽样链编译正确（减速链 Slow=0.5；火雨+附雷链 AreaDamage·Fire·addLightning=True）。
+- **未达标**：状态型触发器仍 3 个（目标 4-6）——`傀儡计数` 阻塞于召唤系统，其余需新增状态机制类型（新枚举+逻辑），非纯内容工作。
+
+---
+
+## V0.1.16c · P1 模块掉落软性动态权重（2026-07-02）
+
+收尾 P1 起始模板最后一项——掉落权重按「当前模板 + 本局成型链」动态偏置，但不硬锁池子。
+
+- **`ModuleDropWeighting`（新）**：`PickWeighted(pool)` 按权重抽取。权重 = 基础 1（恒 >0）+ 起始模板风格重叠 ×+1.5 + 半成型链缺件补齐（缺触发器/效果器 → 对应大类 +2）+ 已拥有构筑风格协同 +0.75。读 `StartTemplateRegistry.Selected` + 玩家 `ModuleInventory`/`ModuleSlotManager`。
+- **接入**：`BattleRoom.SpawnModuleReward` 由均匀随机改为 `ModuleDropWeighting.PickWeighted`。
+- **验证**：编译 0 error；6000 次采样（选中「播种者」，风格 Seed|Poison|Fire）——同风格件 T_种子/T_引爆/E_毒雾/M_毒蚀 ≈4.4–5.1%（均匀 2.2%），中性件 T_低血量/T_每3秒 ≈1.8–2.0%（未被锁池）。
+
+---
+
+## V0.1.16b · P1 起始模板扩容（4 款原型模板）（2026-07-02）
+
+利用刚落地的种子/背击触发器，把起始模板从 3 款扩到 7 款，覆盖更多开局流派。模板仅以 `startingModules` 区分（复用既有角色档案 + 核心技能），体现「起始模板只决定开局模块」的设计。选择 UI（`StartTemplateSelectUI`）动态收录 `StartTemplateRegistry.All`（`flexWrap` 网格），无需改 UI 即渲染全部 7 款。
+
+- **新增 4 款**（`Resources/StartTemplates/`）：
+  - **播种者**（法修档案）：`T_种子 + E_毒雾 + T_引爆 + E_范围爆炸 + M_扩散` —— 种下→引爆循环。
+  - **刺客**（剑修档案）：`T_背击 + E_突刺 + T_闪避后 + E_飞弹 + M_连锁` —— 背击强化 + 闪避追击。
+  - **守卫者**（剑修档案）：`T_受击时 + E_冲击波 + E_护盾 + M_击退` —— 稳守反打。
+  - **炼金师**（法修档案）：`T_每3秒 + E_治疗 + T_每5秒 + E_范围爆炸 + M_灼烧` —— 周期节律续航。
+- **验证**：4 款均 skills(Q/E/R)+profile 非空、模块引用全部解析成功；`Registry.All` 收录 7 款、排序正确。
+- **未做**：`指挥者`（依赖召唤系统，随 `傀儡计数` 延后）；`雷行者`（暂由「游侠·投射连锁」近似覆盖）；掉落权重按模板/成型链动态调整（需改 `BattleRoom.SpawnModuleReward`）。
+
+---
+
+## V0.1.16 · P1 状态型触发器（种子生成/引爆）（2026-07-02）
+
+延续 V0.1.15，落地状态型触发器里体量最大的**种子系统**——一个完整的「种下→引爆」循环。
+
+- **`SeedSystem`（新）**：世界种子状态载体。`Plant(pos, element)` 在命中处放置无伤害标记球（存续 8s / 上限 16 / 近距 1m 合并刷新 / 满则替换最旧）；`DetonateAll(cfg, owner, layer)` 在每颗种子位置 `OverlapSphere` 对敌施加接入效果器的伤害（`cfg.damage + damageScaling×攻击`）+ 元素爆闪/环 + 灼烧/冰冻/毒/DoT 状态，然后清空。按需创建（`Ensure`），随场景卸载自然销毁。
+- **`SeedPlant` 触发器**：订阅 `SkillHitConnected`+`MeleeHitConnected`，命中即 `Plant` 并累积本链 Proc（Stacks）。新增 `T_种子`（Trigger · Stacks · styleTag Seed）。
+- **`SeedDetonate` 触发器**：`Tick` 轮询 `SeedSystem.ActiveCount > 0` 即 Proc；消费在 `PlayerCombat.EndEnhancement` 前置钩子里调 `DetonateAll` 并 return（不走鼠标落点效果）。新增 `T_引爆`（Trigger · Single · Addon）。需搭配一个伤害效果器（如 `E_范围爆炸`）提供引爆数值。
+- **验证**：编译 0 error；两资产导入正确（`SeedPlant/Stacks`、`SeedDetonate/Single`）；`SeedSystem` 种植/合并/引爆/清空编辑器实测（种 4 颗含 1 颗合并→3 颗，引爆返回 3→清 0）；`T_引爆+E_范围爆炸` 编译为 `SeedDetonate/AreaDamage`（dmg 37.5 · r4）确认引爆钩子可达。
+- **`傀儡计数` 延后（阻塞）**：当前无持久召唤物可计数——技能召唤仅临时协程，模块链 `SummonPuppet/SummonTurret` 效果器未 spawn，无召唤物注册表。需先建召唤/随从系统再接 `PuppetCount`。
+
+---
+
+## V0.1.15 · P1 状态型触发器（背击标记）+ SkillHitCount 补线（2026-07-02）
+
+按开发待办顺序推进 P1 模块化技能系统的「状态型触发器」缺口。`TriggerType` 枚举早已声明 `SeedPlant/SeedDetonate/BackstabMark/PuppetCount`，但 `TriggerTracker` 从未接线（永不触发）。本次先落地最自洽、无需新世界对象基础设施的 **背击标记**。
+
+- **背击标记（BackstabMark）**：`TriggerTracker` 订阅 `SkillHitConnected` + `MeleeHitConnected`，命中时用 `IsBackstab()` 判定——比较目标前向与「目标→玩家」方向，`dot < 0`（玩家处于目标背弧）即 Proc。新增 `T_背击` 模块（`Trigger` · `ConsumeKind.Single` · cd 4s · styleTag Backstab）。
+- **设计注记**：敌人 AI 每帧转身面向玩家，故纯背击窗口主要出现在敌人「攻击前摇（不转身）/ 锁定其他目标」时——定位为高技巧向触发器。
+- **附带修复**：`SkillHitCount`（技能命中 N 次）此前声明未接线，补上 `SkillHitConnected` 订阅。
+- **验证**：编译 0 error；`T_背击` 资产导入正确（`triggerType=BackstabMark, consumeKind=Single`）；背弧点积符号经编辑器几何测试确认（敌人背向玩家→True，面向玩家→False）。
+- **仍待实现**：`种子生成/种子引爆`（需世界种子状态载体 + 可视化 + 引爆效果接线）、`傀儡计数`（需召唤物注册表）。
+
+---
+
 ## V0.1.14 · 去修仙重构（移除叙事系统 + 进度线中性化）（2026-07-02）
 
 代码层系统性清除「修仙」残留：局外洞府/局外系统整体移除，事件/惩罚系统删除，纵向进度线中性化为通用等级/经验词汇。分四阶推进，每阶均编译通过；R4 经 Play 模式冒烟测试（0 error / 0 warning）。归档见 [GDD §10.3](design/GDD_秘境探索.md)。
@@ -26,6 +85,12 @@
 
 ### R4 · 验证
 - 编译 0 error；Play 模式冒烟：`RealmNames=一阶…六阶`、`QualityNames=粗糙/普通/精良/完美`、`RunInsight`/`RunTempering` 正常累积、`GameManager.CurrentRealmName=第一层`、活动场景 0 missing script、控制台 0 error / 0 warning。
+
+### R5 · 配置层清理（P0 待办）
+- **死代码 Avatar 配置链删除**：`AvatarBaseRow/Table`、`ConfigDatabase.Avatars`/`GetAvatar`/加载调用、导表 `ParseAvatarBaseRow`、`Avatar_Base_Config.json`+`.csv`（含 .meta）。`Avatar` 配表仅被加载从未被消费，`StartTemplate` SO 已完全取代化身开局。
+- **玩家可见 UI 去已删系统词**：`CharacterSelectUITK` 副标题「法修御灵远击」→「法修远程轰击」；`法修` 角色档案 `roleTag`「远程·御灵」→「远程·法修」、`description` 御灵→远程（含编辑器 `Demo1DataCreator` 同步）。
+- **保留**：`ItemInRun`(灵物，事件奖励在用) / `SkillBase`(功法，SkillTuning 在用) 配表及 `灵物/功法` 世界观词、`修仙/秘境` 品牌词——均属活系统或已确认保留，未动；对应字段迁移列为待定（见 [开发待办 P0](design/开发待办.md#p0--文档与配置对齐)）。
+- 验证：编译 0 error。
 
 ---
 

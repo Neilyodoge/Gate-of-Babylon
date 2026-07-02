@@ -1,6 +1,0 @@
-ID,Name_CN,Desc_CN,ControllerScript,DefaultItem_ID,Restriction,Exclusive
-1,剑魄,完美收刀·剑修,SpiritRootGoldController,0,,16
-2,青囊,播种收割·蛊毒大师,SpiritRootWoodController,0,,17
-3,影刃,凌波微步·闪避杀手,SpiritRootWaterController,0,,18
-4,业火,狂战之火·爆发,SpiritRootFireController,0,,20
-5,御物,万物执心·群战指挥,SpiritRootEarthController,0,,19

@@ -660,6 +660,16 @@ namespace XianTu
             var cfg = _moduleSlots.GetConfig(slot);
             var chain = _moduleSlots.GetChain(slot);
 
+            // 种子引爆（状态型触发器）：消费时在每颗世界种子位置触发接入效果器的伤害/元素/状态。
+            if (cfg.triggerType == TriggerType.SeedDetonate)
+            {
+                int detonated = SeedSystem.HasInstance ? SeedSystem.Instance.DetonateAll(cfg, _player, enemyLayer) : 0;
+                Debug.Log($"<color=#66ff66>[种子引爆] 引爆 {detonated} 颗种子</color>");
+                ShowChainProcNotification(chain.DisplayName, cfg.elementTag);
+                ClearEnhancement();
+                return;
+            }
+
             string role = cfg.effectRole == EffectRole.Enhancement ? "增强" : "附加";
             Debug.Log($"<color=#44ff88>[增强] 槽 {slot} · {coreSkill.skillName} · {role} · {cfg.consumeKind} · ×{cfg.enhanceDamageMult:F2}</color>");
 

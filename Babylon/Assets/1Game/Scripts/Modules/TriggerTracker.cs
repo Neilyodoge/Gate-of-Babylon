@@ -101,6 +101,20 @@ namespace XianTu
                 case TriggerType.RoomEnter:
                     GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomEvent);
                     break;
+                case TriggerType.SkillHitCount:
+                    GameEvents.Subscribe<GameEvents.SkillHitConnected>(OnSkillHit);
+                    break;
+                case TriggerType.BackstabMark:
+                    // 背击标记（状态型）：核心技能 / 普攻从敌人背后命中时 Proc。
+                    GameEvents.Subscribe<GameEvents.SkillHitConnected>(OnBackstabSkillHit);
+                    GameEvents.Subscribe<GameEvents.MeleeHitConnected>(OnBackstabMeleeHit);
+                    break;
+                case TriggerType.SeedPlant:
+                    // 种子生成（状态型）：核心技能 / 普攻命中处种下一颗种子（无伤害），同时累积本链 Proc。
+                    GameEvents.Subscribe<GameEvents.SkillHitConnected>(OnSeedPlantSkillHit);
+                    GameEvents.Subscribe<GameEvents.MeleeHitConnected>(OnSeedPlantMeleeHit);
+                    break;
+                // SeedDetonate 在 Tick 内轮询世界种子数，无需订阅事件。
             }
         }
 
@@ -129,6 +143,17 @@ namespace XianTu
                     break;
                 case TriggerType.RoomEnter:
                     GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomEvent);
+                    break;
+                case TriggerType.SkillHitCount:
+                    GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSkillHit);
+                    break;
+                case TriggerType.BackstabMark:
+                    GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnBackstabSkillHit);
+                    GameEvents.Unsubscribe<GameEvents.MeleeHitConnected>(OnBackstabMeleeHit);
+                    break;
+                case TriggerType.SeedPlant:
+                    GameEvents.Unsubscribe<GameEvents.SkillHitConnected>(OnSeedPlantSkillHit);
+                    GameEvents.Unsubscribe<GameEvents.MeleeHitConnected>(OnSeedPlantMeleeHit);
                     break;
             }
         }
@@ -192,6 +217,12 @@ namespace XianTu
                         if (ratio <= _cfg.healthThreshold)
                             TriggerConditionMet();
                     }
+                    break;
+
+                case TriggerType.SeedDetonate:
+                    // 场上存在种子即可 Proc（消费时引爆全部）。
+                    if (SeedSystem.HasInstance && SeedSystem.Instance.ActiveCount > 0)
+                        TriggerConditionMet();
                     break;
             }
         }
@@ -293,5 +324,54 @@ namespace XianTu
         private void OnDamaged(GameEvents.PlayerDamaged evt) => TriggerConditionMet();
         private void OnEnemyKill(GameEvents.EnemyKilled evt) => TriggerConditionMet();
         private void OnRoomEvent(GameEvents.RoomCleared evt) => TriggerConditionMet();
+        private void OnSkillHit(GameEvents.SkillHitConnected evt) => TriggerConditionMet();
+
+        // ==================== 背击标记（状态型触发器）====================
+
+        private void OnBackstabSkillHit(GameEvents.SkillHitConnected evt)
+        {
+            if (IsBackstab(evt.Target)) TriggerConditionMet();
+        }
+
+        private void OnBackstabMeleeHit(GameEvents.MeleeHitConnected evt)
+        {
+            if (IsBackstab(evt.Target)) TriggerConditionMet();
+        }
+
+        // ==================== 种子生成（状态型触发器）====================
+
+        private void OnSeedPlantSkillHit(GameEvents.SkillHitConnected evt)
+        {
+            SeedSystem.Ensure().Plant(evt.HitPoint, _cfg.elementTag);
+            TriggerConditionMet();
+        }
+
+        private void OnSeedPlantMeleeHit(GameEvents.MeleeHitConnected evt)
+        {
+            SeedSystem.Ensure().Plant(evt.HitPoint, _cfg.elementTag);
+            TriggerConditionMet();
+        }
+
+        /// <summary>
+        /// 判定是否为「背击」：玩家位于目标背后半弧（目标前向与「目标→玩家」方向夹角 &gt; 90°）。
+        /// 目标为空或无玩家时返回 false。
+        /// </summary>
+        private static bool IsBackstab(UnityEngine.GameObject target)
+        {
+            if (target == null) return false;
+            var player = PlayerController.Instance;
+            if (player == null) return false;
+
+            Vector3 fwd = target.transform.forward;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 0.0001f) return false;
+
+            Vector3 toPlayer = player.transform.position - target.transform.position;
+            toPlayer.y = 0f;
+            if (toPlayer.sqrMagnitude < 0.0001f) return false;
+
+            // 玩家在目标背后：目标前向 与 指向玩家的方向 反向（dot < 0）
+            return Vector3.Dot(fwd.normalized, toPlayer.normalized) < 0f;
+        }
     }
 }

@@ -90,7 +90,7 @@ namespace XianTu
             title.style.marginBottom = 6;
             _overlay.Add(title);
 
-            var sub = new Label("剑修近身搏杀，法修御灵远击 —— 道途不同，可随时于问道使处重择");
+            var sub = new Label("剑修近身搏杀，法修远程轰击 —— 道途不同，可随时于问道使处重择");
             sub.style.fontSize = 16;
             sub.style.color = new Color(0.75f, 0.75f, 0.85f);
             sub.style.marginBottom = 24;

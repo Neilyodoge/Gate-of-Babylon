@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterId: mage
   displayName: "\u6CD5\u4FEE"
-  roleTag: "\u8FDC\u7A0B \xB7 \u5FA1\u7075"
-  description: "\u5FA1\u7075\u8FDC\u51FB\uFF0C\u5DE6\u952E\u51DD\u7075\u5F39\u8F70\u654C\u3002\n\u8D70\u4F4D\u653E\u98CE\u7B5D\uFF0C\u6280\u80FD\u4E3A\u6838\u5FC3\u3002"
+  roleTag: "远程 · 法修"
+  description: "远程轰击，左键凝灵弹轰敌。\n走位放风筝，技能为核心。"
   themeColor: {r: 0.35, g: 0.75, b: 0.95, a: 1}
   sortOrder: 1
   modelPrefab: {fileID: 919132149155446097, guid: 0f58132f45c4bf244a27a62caa4eb0ee, type: 3}

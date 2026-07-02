@@ -28,7 +28,6 @@ namespace XianTu.LevelDesign.Editor
             count += ImportFlat<BossPhaseRow>("Boss_Phase_Config", ParseBossPhaseRow);
             count += ImportFlat<ItemInRunRow>("Item_InRun_Config", ParseItemInRunRow);
             count += ImportFlat<MaterialCaveResRow>("Material_CaveRes_Config", ParseMaterialCaveResRow);
-            count += ImportFlat<AvatarBaseRow>("Avatar_Base_Config", ParseAvatarBaseRow);
             count += ImportFlat<SkillBaseRow>("Skill_Base_Config", ParseSkillBaseRow);
             count += ImportFlat<SkillEffectRow>("Skill_Effect_Config", ParseSkillEffectRow);
             count += ImportEventStory();
@@ -229,20 +228,6 @@ namespace XianTu.LevelDesign.Editor
                 Type = ParseInt(GetCol(h, c, "Type")),
                 Icon = GetCol(h, c, "Icon"),
                 MaxStack = ParseInt(GetCol(h, c, "MaxStack"), 99)
-            };
-        }
-
-        private static AvatarBaseRow ParseAvatarBaseRow(string[] h, string[] c)
-        {
-            return new AvatarBaseRow
-            {
-                ID = ParseInt(GetCol(h, c, "ID")),
-                Name_CN = GetCol(h, c, "Name_CN"),
-                Desc_CN = GetCol(h, c, "Desc_CN"),
-                ControllerScript = GetCol(h, c, "ControllerScript"),
-                DefaultItem_ID = ParseInt(GetCol(h, c, "DefaultItem_ID")),
-                Restriction = ParseIntArray(GetCol(h, c, "Restriction")),
-                Exclusive = ParseIntArray(GetCol(h, c, "Exclusive"))
             };
         }
 
