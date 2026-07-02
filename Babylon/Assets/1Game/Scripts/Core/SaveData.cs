@@ -32,7 +32,7 @@ namespace XianTu
         /// <summary>已孵化的灵兽 id 列表</summary>
         public List<string> unlockedBeastIds = new();
 
-        /// <summary>累积悟性（消耗以解锁天赋节点）</summary>
+        /// <summary>累积经验（消耗以解锁天赋节点）</summary>
         public int accumulatedInsight = 0;
 
         /// <summary>最后存档时间戳（Unix seconds），用于 UI 显示</summary>
@@ -60,21 +60,21 @@ namespace XianTu
         /// <summary>下一次入秘境时希望起手装备的功法 id（来自藏经阁解锁库）。入秘境时装入 0 号槽位。</summary>
         public string pendingStartSkillId = "";
 
-        // ========== v0.5.4：本体境界（历练值 → 修为 → 境界 · 身死道消转世归零） ==========
+        // ========== 角色等级（历练 → 进阶经验 → 等级 · 终身保留） ==========
 
-        /// <summary>本体境界阶：0=炼气 1=筑基 2=金丹 3=元婴 4=化神 5=渡劫。陨落转世归零。</summary>
+        /// <summary>角色等级阶：0~5（对应一阶~六阶）。</summary>
         public int cultivationRealm = 0;
 
-        /// <summary>当前累积修为（朝下一次突破累积）。陨落转世归零。</summary>
+        /// <summary>当前累积进阶经验（朝下一次晋级累积）。</summary>
         public int cultivationExp = 0;
 
-        /// <summary>各阶境界成色：index = 境界阶，值 0=瑕品 1=凡品 2=上品 3=完美。陨落转世归零。</summary>
+        /// <summary>各阶等级品质：index = 等级阶，值 0=粗糙 1=普通 2=精良 3=完美。</summary>
         public List<int> realmQualities = new();
 
-        /// <summary>转世次数（轮回流 · 宿慧加成用）。跨转世累加，不归零。</summary>
+        /// <summary>转世次数（统计用）。跨转世累加，不归零。</summary>
         public int reincarnationCount = 0;
 
-        /// <summary>未分配的历练值存量（撤离带回，在洞府分配给修为 or 灵脉）。陨落转世归零（属"你的道"）。</summary>
+        /// <summary>未分配的历练存量（撤离带回，分配给进阶经验）。</summary>
         public int temperingPool = 0;
 
         /// <summary>灵脉经验（决定灵脉等级）。属洞府家业，**陨落转世保留**。</summary>
@@ -91,17 +91,17 @@ namespace XianTu
         /// <summary>待回访的链式机缘：到达 dueAtReturn 次回府时优先触发其回访事件。</summary>
         public List<OpportunityChainEntry> pendingOpportunities = new();
 
-        // ========== v0.6 阶段C：系精通 + 境界突破发点 ==========
-        // 说明（§7）：本体境界改由「累积悟性」(accumulatedInsight) 驱动、累积只增；
-        // 故境界里程碑发放的点数 + 已点系精通 + 已解锁天赋 = 终身成长（洞府家业，转世保留）。
+        // ========== 系精通 + 等级晋升发点 ==========
+        // 说明：角色等级由累积经验驱动、累积只增；
+        // 故等级里程碑发放的点数 + 已点系精通 + 已解锁天赋 = 终身成长。
 
-        /// <summary>已发放的境界里程碑数（防止转世重修时对同一里程碑重复发点）。</summary>
+        /// <summary>已发放的等级里程碑数（防止重复发点）。</summary>
         public int realmMilestonesGranted = 0;
 
-        /// <summary>未花费的「精通点」余额（境界里程碑发放，用于点系精通节点）。终身保留。</summary>
+        /// <summary>未花费的「精通点」余额（等级里程碑发放，用于点系精通节点）。终身保留。</summary>
         public int masteryPoints = 0;
 
-        /// <summary>未花费的「天赋点」余额（境界里程碑发放，用于解锁天赋树节点）。终身保留。</summary>
+        /// <summary>未花费的「天赋点」余额（等级里程碑发放，用于解锁天赋树节点）。终身保留。</summary>
         public int talentPoints = 0;
 
         /// <summary>已点亮的系精通节点 id 列表（化身×系节点，二值解锁）。洞府家业，终身保留。</summary>

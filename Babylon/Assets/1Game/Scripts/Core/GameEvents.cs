@@ -73,7 +73,7 @@ namespace XianTu
         public struct PlayerDied { }
 
 
-        /// <summary>境界突破</summary>
+        /// <summary>进入新层</summary>
         public struct RealmBreakthrough
         {
             public int NewRealmLevel;
@@ -264,7 +264,7 @@ namespace XianTu
         public struct ExtractSuccess
         {
             public int CaveMaterialsCommitted;  // 上交的洞府素材总件数（用于 UI 显示）
-            public int RealmReachedIndex;       // 撤离时所在境界 0~5
+            public int RealmReachedIndex;       // 撤离时所在层 0~5
         }
 
         /// <summary>撤离被中断（蓄力期间被敌人攻击等）</summary>
@@ -281,24 +281,7 @@ namespace XianTu
             public int CurrentBufferTotal;
         }
 
-        /// <summary>灵脉经验获得（秘境掉落 / 机缘 / 历练注入），供 HUD 提示。</summary>
-        public struct SpiritVeinGained
-        {
-            public int Amount;
-            public string SourceName;
-            public int NewLevel;
-            public string LevelName;
-        }
-
-        /// <summary>秘境异象公示（入秘境基础异象 / 深入叠加），供 HUD 飘字。</summary>
-        public struct RealmAnomalyAnnounced
-        {
-            public string Title;
-            public string Desc;
-            public bool IsAddition;   // true = 深入叠加；false = 开局基础
-        }
-
-        /// <summary>悟性变化（HUD 监听显示）</summary>
+        /// <summary>经验变化（HUD 监听显示）</summary>
         public struct InsightChanged
         {
             public int NewRunInsight;
@@ -306,9 +289,9 @@ namespace XianTu
             public string Reason;
         }
 
-        // ========== 本体境界（v0.5.4）==========
+        // ========== 角色等级 ==========
 
-        /// <summary>历练值变化（本局累积，撤离转永久修为）</summary>
+        /// <summary>历练变化（本局累积，撤离转进阶经验）</summary>
         public struct TemperingChanged
         {
             public int NewRunTempering;
@@ -316,30 +299,13 @@ namespace XianTu
             public string Reason;
         }
 
-        /// <summary>本体境界突破（渡劫战成功后）</summary>
+        /// <summary>角色等级晋升（晋级成功后）</summary>
         public struct CultivationBreakthrough
         {
             public int NewRealm;
             public string RealmName;
-            public int Quality;   // 0=瑕品 1=凡品 2=上品 3=完美
+            public int Quality;   // 0=粗糙 1=普通 2=精良 3=完美
         }
-
-        // ========== 天劫渡劫（修仙独有战斗机制 #3）==========
-
-        public struct TribulationStarted { public int BoltCount; }
-        public struct TribulationBoltTelegraph { public int BoltIndex; }
-        public struct TribulationFinished
-        {
-            public TribulationOutcome Outcome;
-            public int HitCount;
-        }
-
-        // ========== 心魔劫（修仙独有战斗机制 #4，Week 4）==========
-
-        /// <summary>心魔劫开战 —— RunHUD 用于显示横幅 / 全屏遮罩</summary>
-        public struct InnerDemonStarted { public int RealmLevel; }
-        /// <summary>心魔劫结束 —— 镜像被斩 or 玩家被反杀</summary>
-        public struct InnerDemonFinished { public bool Defeated; }
 
         // ========== 洞府模块（Week 4）==========
 
@@ -350,9 +316,6 @@ namespace XianTu
             public string SkillName;
             public int TotalUnlocked;
         }
-
-        /// <summary>灵兽园成功孕育一只灵兽</summary>
-        public struct SpiritBeastHatched { public string BeastName; }
 
         /// <summary>阵法台预置一种阵法（等待下次入梦时激活）</summary>
         public struct FormationDeployed { public string FormationId; }
@@ -382,13 +345,5 @@ namespace XianTu
         {
             public ModuleDef Module;
         }
-    }
-
-    /// <summary>渡劫结果（原定义于已删除的 HeavenTribulation.cs，v0.5.4 迁移至此）。</summary>
-    public enum TribulationOutcome
-    {
-        Success,        // 渡劫成功
-        PartialFail,    // 渡劫失利（半残，仅余撤离）
-        Catastrophic    // 渡劫中止 / 陨落
     }
 }

@@ -226,7 +226,7 @@ namespace XianTu
             float chance = config.debugMaxSkillDropRate ? 1f : config.通关功法掉落概率;
             if (Random.value > chance) return;
 
-            // 从池中选一个当前化身可用的功法（跳过其他化身专属，避免空奖励）
+            // 从池中随机选一个功法（化身门控已随化身系统移除，任何角色都能拾取）
             var skill = SkillPickup.PickValid(skillRewardPool);
             if (skill != null)
             {

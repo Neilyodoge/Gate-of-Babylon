@@ -64,6 +64,8 @@ namespace XianTu
         private bool _enhSurround;                 // 核心投射技 360° 环绕发射（形态改造·环绕）
         private bool _enhSustained;                 // 核心范围技留下持续地带（节奏改造·持续）
         private bool _enhDelayedBlast;              // 核心范围技追加延迟重爆（节奏改造·延迟爆炸）
+        private bool _enhTargetFarthest;            // 核心投射技自动锁定范围内最远敌（目标改造·最远）
+        private ShapeMode _enhShape = ShapeMode.None; // 核心投射技发射形态（形态改造：Wall/Ring/Zone）
         private bool _chargeEnhPending;           // 蓄力技能：释放时是否消费 Proc
         private readonly System.Collections.Generic.List<GameObject> _enhHitTargets = new(); // 本次核心技能命中的敌人（增强控制/状态用）
         private ChainConfig _enhCfg;              // 本次增强的编译配置（投射物 payload 用）
@@ -580,6 +582,43 @@ namespace XianTu
         }
 
         /// <summary>
+        /// V0.1.13 消费爆发层：Proc 被消费瞬间的表现反馈——角色处爆闪光 + 元素色特效环 + 镜头震屏。
+        /// 强度随 consumeKind 分级（Single/Window 强，Stacks/Auto 弱），程序化零美术资源。
+        /// </summary>
+        private void PlayConsumeBurst(ChainConfig cfg)
+        {
+            if (_player == null) return;
+            Vector3 p = _player.transform.position + Vector3.up * 1f;
+            ElementTag e = cfg.elementTag != ElementTag.None ? cfg.elementTag : ElementFromStatus(cfg);
+            Color col = SkillModifierApplier.ColorOf(e);
+
+            // 角色特效：元素色爆闪环（快速放大消失）
+            SkillModifierApplier.SpawnCubeVfx(p, col, 2.4f, 0.22f);
+
+            // 爆闪：瞬时明亮点光源
+            var lightGo = new GameObject("ConsumeBurstFlash");
+            lightGo.transform.position = p;
+            var lt = lightGo.AddComponent<Light>();
+            lt.type = LightType.Point;
+            lt.color = col;
+            lt.range = 8f;
+            lt.intensity = 6f;
+            Destroy(lightGo, 0.14f);
+
+            // 震屏：按 consumeKind 分级
+            switch (cfg.consumeKind)
+            {
+                case ConsumeKind.Auto:
+                case ConsumeKind.Stacks:
+                    CameraShake.TriggerLight();
+                    break;
+                default:
+                    CameraShake.TriggerMedium();
+                    break;
+            }
+        }
+
+        /// <summary>
         /// V.08 增强注入（cast 前）：仅 Enhancement 角色设置核心技能的伤害倍率 + 元素覆盖。
         /// Addon 角色不改核心技能（在 EndEnhancement spawn 独立效果）。
         /// </summary>
@@ -587,6 +626,10 @@ namespace XianTu
         {
             if (_moduleSlots == null) return;
             var cfg = _moduleSlots.GetConfig(slot);
+
+            // V0.1.13 消费爆发层：任意 Proc 被消费瞬间的爆闪 + 角色特效 + 震屏（Enhancement/Addon 皆触发）
+            PlayConsumeBurst(cfg);
+
             if (cfg.effectRole != EffectRole.Enhancement) return;
 
             _enhActive = true;
@@ -599,6 +642,8 @@ namespace XianTu
             _enhSurround = cfg.enhanceSurround;
             _enhSustained = cfg.enhanceSustained;
             _enhDelayedBlast = cfg.enhanceDelayedBlast;
+            _enhTargetFarthest = cfg.enhanceTargetFarthest;
+            _enhShape = cfg.enhanceShape;
             _enhHitTargets.Clear();
             _enhCfg = cfg;
             _enhWorldDelegated = false;
@@ -703,6 +748,8 @@ namespace XianTu
             _enhSurround = false;
             _enhSustained = false;
             _enhDelayedBlast = false;
+            _enhTargetFarthest = false;
+            _enhShape = ShapeMode.None;
         }
 
         /// <summary>从 modifier 附加状态推断元素（用于元素覆盖）。</summary>
@@ -1518,11 +1565,37 @@ namespace XianTu
             Debug.Log($"<color=cyan>{skill.skillName} 召唤持续区域（{(skill.zoneFollowPlayer ? "随身" : "落点")}）</color>");
         }
 
+        /// <summary>查找范围内最远的存活敌人方向（目标改造·最远用）。无敌人返回 false。</summary>
+        private bool TryFindFarthestEnemyDir(Vector3 origin, float maxRange, out Vector3 dir)
+        {
+            dir = Vector3.zero;
+            var hits = Physics.OverlapSphere(origin, maxRange, enemyLayer);
+            float best = -1f;
+            Vector3 bestPos = Vector3.zero;
+            foreach (var h in hits)
+            {
+                var dmg = h.GetComponentInParent<IDamageable>();
+                if (dmg != null && dmg.Stats != null && !dmg.Stats.IsAlive) continue;
+                Vector3 p = h.transform.position;
+                float d = (p - origin).sqrMagnitude;
+                if (d > best) { best = d; bestPos = p; }
+            }
+            if (best < 0f) return false;
+            Vector3 flat = bestPos - origin; flat.y = 0f;
+            if (flat.sqrMagnitude < 0.01f) return false;
+            dir = flat.normalized;
+            return true;
+        }
+
         /// <summary>投射物技能（支持多发散射），支持蓄力倍率</summary>
         private void CastProjectileSkill(SkillData skill, float damageMul = 1f)
         {
             Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
             Vector3 dir = _player.AimDirection;
+            // 目标改造·最远：增强让核心投射技自动改朝范围内最远敌（覆盖鼠标瞄准；环绕时不适用）
+            if (_enhActive && _enhTargetFarthest && !_enhSurround
+                && TryFindFarthestEnemyDir(spawnPos, 22f, out Vector3 farDir))
+                dir = farDir;
             float skillBase = SkillTuning.EffectiveBaseDamage(skill) + _player.Stats.attackDamage * skill.damageScaling;
             float skillMul = skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
             var (damage, _) = _player.Stats.CalcSkillDamage(0f, skillMul);
@@ -1530,24 +1603,38 @@ namespace XianTu
 
             int count = Mathf.Max(1, skill.projectileCount);
             float spreadAngle = skill.spreadAngle;
-            bool surround = _enhActive && _enhSurround;
+            // 形态改造：环绕 / 火环（Ring）均为 360° 均分；火墙（Wall）平行排列；火域（Zone）飞弹落点附带持续区域
+            bool ring = _enhActive && _enhShape == ShapeMode.Ring;
+            bool wall = _enhActive && _enhShape == ShapeMode.Wall;
+            bool zone = _enhActive && _enhShape == ShapeMode.Zone;
+            bool surround = (_enhActive && _enhSurround) || ring;
             if (_enhActive)
             {
                 // 形态改造·连锁（数量倍率）+ 额外飞弹（加数）
                 count = Mathf.Max(1, Mathf.RoundToInt(count * _enhProjectileMult) + _enhExtraProjectiles);
-                if (surround) count = Mathf.Max(count, 8); // 环绕至少 8 发才成环
-                if (count > 1 && spreadAngle < 1f) spreadAngle = 20f; // 单发技被增强为多发时给个默认散射角
+                if (surround) count = Mathf.Max(count, 8); // 环绕/火环至少 8 发才成环
+                if (wall) count = Mathf.Max(count, 5);     // 火墙至少 5 发才成墙
+                if (count > 1 && spreadAngle < 1f && !wall) spreadAngle = 20f; // 火墙走平行不散射
             }
             float halfSpread = spreadAngle * 0.5f;
+            Vector3 perp = Vector3.Cross(Vector3.up, dir).normalized; // 火墙横向偏移基向量
+            const float WallSpacing = 1.1f;
 
             for (int i = 0; i < count; i++)
             {
-                // 计算每发投射物的方向
+                // 计算每发投射物的方向与起点
                 Vector3 projDir = dir;
+                Vector3 pos = spawnPos;
                 if (surround)
                 {
-                    // 形态改造·环绕：360° 均分
+                    // 形态改造·环绕/火环：360° 均分
                     projDir = Quaternion.Euler(0, i * (360f / count), 0) * dir;
+                }
+                else if (wall)
+                {
+                    // 形态改造·火墙：平行同向，起点横向铺开成墙
+                    float off = (i - (count - 1) * 0.5f) * WallSpacing;
+                    pos = spawnPos + perp * off;
                 }
                 else if (count > 1)
                 {
@@ -1559,9 +1646,9 @@ namespace XianTu
                 {
                     GameObject proj;
                     if (ObjectPool.Instance != null)
-                        proj = ObjectPool.Instance.Get(skill.projectilePrefab, spawnPos, Quaternion.LookRotation(projDir));
+                        proj = ObjectPool.Instance.Get(skill.projectilePrefab, pos, Quaternion.LookRotation(projDir));
                     else
-                        proj = Instantiate(skill.projectilePrefab, spawnPos, Quaternion.LookRotation(projDir));
+                        proj = Instantiate(skill.projectilePrefab, pos, Quaternion.LookRotation(projDir));
 
                     var projectile = proj.GetComponent<Projectile>();
                     if (projectile != null)
@@ -1571,6 +1658,7 @@ namespace XianTu
                         {
                             projectile.SetEnhancement(_enhCfg);
                             if (_enhChainCount > 0) projectile.SetChain(_enhChainCount, enemyLayer);
+                            if (zone) ApplyImpactZone(projectile, damage, EnhElem(skill));
                             _enhWorldDelegated = true; // 控制/状态随投射物命中施加，EndEnhancement 不再绕玩家回退
                         }
                     }
@@ -1578,15 +1666,24 @@ namespace XianTu
                 else if (showDebugVisuals)
                 {
                     // 没有Prefab时创建Debug投射物（带元素颜色提示）
-                    var dbgProj = CreateDebugProjectile(spawnPos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, EnhElem(skill));
+                    var dbgProj = CreateDebugProjectile(pos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, EnhElem(skill));
                     if (_enhActive && dbgProj != null)
                     {
                         dbgProj.SetEnhancement(_enhCfg);
                         if (_enhChainCount > 0) dbgProj.SetChain(_enhChainCount, enemyLayer);
+                        if (zone) ApplyImpactZone(dbgProj, damage, EnhElem(skill));
                         _enhWorldDelegated = true;
                     }
                 }
             }
+        }
+
+        /// <summary>形态改造·火域：为投射物挂上命中落点小型持续区域（程序化，复用 ActiveSkillZone）。</summary>
+        private void ApplyImpactZone(Projectile projectile, float damage, ElementTag element)
+        {
+            if (projectile == null) return;
+            float dps = Mathf.Max(1f, damage * 0.3f); // 每 tick 约本发飞弹 30% 伤害
+            projectile.SetImpactZone(2.5f, 3f, 0.5f, dps, element, enemyLayer);
         }
 
         /// <summary>增益技能（如金钟罩）</summary>

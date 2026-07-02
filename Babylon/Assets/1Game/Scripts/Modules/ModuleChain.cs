@@ -23,6 +23,8 @@ namespace XianTu
         public bool enhanceSurround;          // V.08 增强型让核心投射技 360° 环绕发射（TargetSurround 改造件）
         public bool enhanceSustained;         // V.08 增强型让核心范围技留下持续地带（Sustained 改造件）
         public bool enhanceDelayedBlast;      // V.08 增强型让核心范围技追加延迟重爆（DelayedBlast 改造件）
+        public bool enhanceTargetFarthest;    // V0.1.13 增强型让核心投射技自动锁定范围内最远敌（TargetFarthest 改造件）
+        public ShapeMode enhanceShape;        // V0.1.13 增强型改造核心投射技发射形态（Shape* 改造件：Wall/Ring/Zone）
 
         // trigger
         public TriggerType triggerType;
@@ -152,6 +154,8 @@ namespace XianTu
                 enhanceSurround = false,
                 enhanceSustained = false,
                 enhanceDelayedBlast = false,
+                enhanceTargetFarthest = false,
+                enhanceShape = ShapeMode.None,
 
                 triggerType = tType,
                 triggerThreshold = trigger.category == ModuleCategory.Universal
@@ -193,7 +197,53 @@ namespace XianTu
 
             ApplyModifier(ref cfg, modifier0);
             ApplyModifier(ref cfg, modifier1);
+            ApplyConsumeKindIdentity(ref cfg);
             return cfg;
+        }
+
+        // ==================== V0.1.13 consumeKind 联动 ====================
+        // 四种消费模型各有身份加成，形成取舍三角（数值集中在此，便于平衡）：
+        //   Single（单发）：用完重充，奖励单次爆发 → 增伤 ×1.25
+        //   Window（窗口）：择时消费，奖励范围 + 小增伤 → 范围 ×1.20、增伤 ×1.10
+        //   Stacks（叠层）：多次消费，收益在层数本身 → 单次中性（×1.0）
+        //   Auto（自动）：放弃择时换 hands-free，代价降伤 → 增伤 ×0.80
+        // 同时作用于增强字段（enhance*，Enhancement 角色用）与附加字段（damage/radius，Addon 角色用），
+        // 每角色只读其一，互不干扰。
+        private const float SingleDamageMul = 1.25f;
+        private const float WindowDamageMul = 1.10f;
+        private const float WindowRadiusMul = 1.20f;
+        private const float AutoDamageMul = 0.80f;
+
+        /// <summary>获取当前 consumeKind 的增伤系数（供 UI 预览复用）。</summary>
+        public static float ConsumeKindDamageMul(ConsumeKind k) => k switch
+        {
+            ConsumeKind.Single => SingleDamageMul,
+            ConsumeKind.Window => WindowDamageMul,
+            ConsumeKind.Auto   => AutoDamageMul,
+            _ => 1f,
+        };
+
+        /// <summary>获取当前 consumeKind 的范围系数（供 UI 预览复用）。</summary>
+        public static float ConsumeKindRadiusMul(ConsumeKind k) => k switch
+        {
+            ConsumeKind.Window => WindowRadiusMul,
+            _ => 1f,
+        };
+
+        private static void ApplyConsumeKindIdentity(ref ChainConfig cfg)
+        {
+            float dmg = ConsumeKindDamageMul(cfg.consumeKind);
+            float rad = ConsumeKindRadiusMul(cfg.consumeKind);
+            if (dmg != 1f)
+            {
+                cfg.enhanceDamageMult *= dmg; // Enhancement 角色
+                cfg.damage *= dmg;            // Addon 角色
+            }
+            if (rad != 1f)
+            {
+                cfg.enhanceRadiusMult *= rad; // Enhancement 角色
+                cfg.radius *= rad;            // Addon 角色
+            }
         }
 
         private static void ApplyModifier(ref ChainConfig cfg, ModuleDef mod)
@@ -202,16 +252,25 @@ namespace XianTu
 
             switch (mod.modifierType)
             {
-                // 形态改造
+                // 形态改造（核心投射技发射几何）——V0.1.13 落地
                 case ModifierType.ShapeWall:
+                    cfg.enhanceShape = ShapeMode.Wall;
+                    break;
                 case ModifierType.ShapeRing:
+                    cfg.enhanceShape = ShapeMode.Ring;
+                    break;
                 case ModifierType.ShapeZone:
-                    // 形态变换在效果执行时通过 modifierType 判断
+                    cfg.enhanceShape = ShapeMode.Zone;
                     break;
 
                 // 目标改造·链锁弹射（增强核心投射技命中后反弹）
                 case ModifierType.TargetChain:
                     cfg.enhanceChainCount += mod.extraCount > 0 ? mod.extraCount : 2;
+                    break;
+
+                // 目标改造·最远（增强核心投射技自动锁定范围内最远敌）
+                case ModifierType.TargetFarthest:
+                    cfg.enhanceTargetFarthest = true;
                     break;
 
                 // 目标改造·环绕（增强核心投射技 360° 均分发射）

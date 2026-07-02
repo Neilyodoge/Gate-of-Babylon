@@ -21,8 +21,7 @@ namespace XianTu
     ///       业障 10~24 → 业障缠身：受到伤害 +10%
     ///       重业 ≥25   → 业火焚身：受到伤害 +20%
     ///
-    /// 与心魔系统分工：心魔值由抉择「累积」并触发乱入（<see cref="InnerDemonMeter"/>）；
-    /// 本组件负责道心/因果的「持续状态增减益」。两者都源于抉择，互补不重复。
+    /// 本组件负责道心/因果的「持续状态增减益」，源于抉择。
     ///
     /// 属局内战斗效果，常驻挂载（不受洞府 meta 开关影响）。
     /// </summary>
@@ -104,18 +103,10 @@ namespace XianTu
         /// <summary>道心 → (造成伤害乘区, 受伤减伤Flat, 标签, 描述, 颜色, 是否增益)。</summary>
         private static (float, float, string, string, Color, bool) ResolveDaoHeart(int daoxin)
         {
-            // 道心试炼异象额外修正
-            float trialAtk = 0f, trialDmgRed = 0f;
-            if (RealmAnomalySystem.HasInstance)
-            {
-                trialAtk = RealmAnomalySystem.Instance.DaoTrialAtkBonus;
-                trialDmgRed = RealmAnomalySystem.Instance.DaoTrialDmgRedPenalty;
-            }
-
-            if (daoxin >= 80) return (0.10f + trialAtk, 0f, "入定 · 剑意通明", "道心入定，气机通畅，攻势更利。", new Color(0.6f, 0.85f, 1f), true);
+            if (daoxin >= 80) return (0.10f, 0f, "入定 · 剑意通明", "道心入定，气机通畅，攻势更利。", new Color(0.6f, 0.85f, 1f), true);
             if (daoxin >= 50) return (0f, 0f, "清明", "", Color.white, true);
             if (daoxin >= 20) return (0f, -0.10f, "心摇 · 心神不宁", "道心动摇，破绽渐生，受创更重。", new Color(1f, 0.75f, 0.4f), false);
-            return (0.25f, -0.30f + trialDmgRed, "入魔 · 走火入魔", "道心崩坏，杀念暴涨——攻势凌厉却失了守御。", new Color(1f, 0.3f, 0.35f), false);
+            return (0.25f, -0.30f, "入魔 · 走火入魔", "道心崩坏，杀念暴涨——攻势凌厉却失了守御。", new Color(1f, 0.3f, 0.35f), false);
         }
 
         // ==================== 因果 ====================

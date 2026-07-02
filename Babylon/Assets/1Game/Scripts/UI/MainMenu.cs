@@ -135,13 +135,23 @@ namespace XianTu
             _continueBtn = root.Q<Button>("continue");
             _saveInfo = root.Q<Label>("saveinfo");
 
-            Wire(root, "start", Hide);
+            Wire(root, "start", StartWithTemplate);
             Wire(root, "continue", Hide);
             Wire(root, "codex", () => CodexUITK.Show());
             Wire(root, "settings", () => SettingsUI.Show());
             Wire(root, "quit", QuitGame);
 
             if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+        }
+
+        /// <summary>V0.1.13：开始前先弹起始模板选择，选中后应用模板并进入游戏。</summary>
+        private static void StartWithTemplate()
+        {
+            StartTemplateSelectUI.Show(tpl =>
+            {
+                if (tpl != null) tpl.ApplyToPlayer();
+                Hide();
+            });
         }
 
         private static void Wire(VisualElement root, string name, System.Action action)
@@ -163,7 +173,7 @@ namespace XianTu
                 if (hasSave)
                 {
                     var data = SaveSystem.Instance.Data;
-                    _saveInfo.text = $"灵气 {data.caveQi}　·　通关 {data.totalRunsCompleted}　·　入魔 {data.totalDeaths}　·　天赋 {data.unlockedTalentIds.Count}";
+                    _saveInfo.text = $"灵气 {data.caveQi}　·　通关 {data.totalRunsCompleted}　·　陨落 {data.totalDeaths}　·　天赋 {data.unlockedTalentIds.Count}";
                 }
                 else _saveInfo.text = "";
             }

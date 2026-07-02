@@ -6,6 +6,66 @@
 
 ---
 
+## V0.1.14 · 去修仙重构（移除叙事系统 + 进度线中性化）（2026-07-02）
+
+代码层系统性清除「修仙」残留：局外洞府/局外系统整体移除，事件/惩罚系统删除，纵向进度线中性化为通用等级/经验词汇。分四阶推进，每阶均编译通过；R4 经 Play 模式冒烟测试（0 error / 0 warning）。归档见 [GDD §10.3](design/GDD_秘境探索.md)。
+
+### R1 · 移除洞府/局外系统
+- 删除：`SpiritVeinSystem` / `SpiritVeinModule` / `SpiritVeinPickup` / `MeditationChamber` / `SpiritBeastCompanion` / `SpiritBeastGarden` / `CaveOpportunitySystem` / `CaveOpportunityUI`(uxml/uss) / `LingTian` / `ForgeRoom`（含 .meta）。
+- 引用清理：`GameManager`（灵兽 spawn / 机缘回洞）、`EnemyBase/Elite/Boss` 与 `TreasureRoom` / `CultivationSystem` 的灵脉掉落、`RunHUD` 灵脉事件、`PauseMenu` 洞府 UI 判定、`GameEvents` 灵脉/灵兽事件结构。
+
+### R2 · 移除事件/惩罚系统
+- 删除：`InnerDemonTribulation`（心魔台 + 镜像）/ `InnerDemonMeter`（心魔条）/ `RealmAnomaly`（秘境异象）/ `TribulationTrial`（渡劫战）/ `CultivationSuppression`（境界压制）（含 .meta）。
+- 引用清理：`GameEvents` 删 `RealmAnomalyAnnounced`/`Tribulation*`/`InnerDemon*` 事件与 `TribulationOutcome` 枚举；`GameManager` 去心魔重置/异象数值倍率/心魔台生成/渡劫回调/击杀倍率；`RunHUD` 去异象条/渡劫遮罩/心魔条；`EnemyBase/Elite` 去异象掉率与「万灵复苏」复活；`PlayerStateHooks`/`InsightSystem`/`MoralEffects` 去异象修正。
+- 保留：`MoralEffects`（道心/因果/寿元，仅切断对已删异象的依赖）。
+
+### R3 · 进度线中性化（保留系统骨架）
+- 词汇：境界→**等级/阶**（`一阶`…`六阶`）、秘境层名→**第一层…第六层**、修为→**进阶经验**、悟性/灵力(Insight)→**经验**、成色→**品质**（粗糙/普通/精良/完美）、渡劫/凝实→**晋级/精炼**、渡劫成功→**通关成功**。
+- 落点：`CultivationSystem` / `InsightSystem`（文档+日志+数组）、`RunHUD`（等级/历练/经验条）、`GameManager`（层名+胜利文案+日志）、`GameHUD`/`Demo1Setup`（胜利标题）、`GameEvents`/`SaveData`（字段注释）、`ExtractResultPanel`（结算行）、`MainMenu`（入魔→陨落）。系统类名/字段名保留（存档兼容），仅改词汇。
+- 未改（留待「主题重命名」独立决策）：主菜单标题「仙途秘境」及 `修仙/洞府/仙物` 等世界观品牌词、`灵气`(shard) 货币名。
+
+### R4 · 验证
+- 编译 0 error；Play 模式冒烟：`RealmNames=一阶…六阶`、`QualityNames=粗糙/普通/精良/完美`、`RunInsight`/`RunTempering` 正常累积、`GameManager.CurrentRealmName=第一层`、活动场景 0 missing script、控制台 0 error / 0 warning。
+
+---
+
+## V0.1.13 · 增强系统补全（consumeKind 联动 / 目标·形态改造 / 消费爆发 / 起始模板）（2026-07-02）
+
+补齐 V.08（V0.1.12）遗留的增强改造件与开局差异化，全部经 Play 模式运行时验证。
+
+### 模块占位图标（ModuleAssemblyUI）
+- 无 `Sprite icon` 时按**子类单字字形 + 元素/类别配色**生成占位图标（`SubtypeGlyph` / `SubtypeColor`），39 个模块（35 种 `类别:字形` 组合）在装配 UI 均有辨识度，零新美术资源。
+
+### consumeKind 联动（ModuleChain / ModuleAssemblyUI）
+- 四种消费模型各带**身份加成**，构成取舍三角（数值集中在 `ModuleChain.ApplyConsumeKindIdentity`）：
+  - Single 增伤 ×1.25（单发爆发）｜ Window 增伤 ×1.10 + 范围 ×1.20（择时换范围）｜ Stacks 中性（收益在层数）｜ Auto 增伤 ×0.80（挂机代价）。
+  - 同源系数同时作用于增强字段（`enhance*`，Enhancement 角色）与附加字段（`damage`/`radius`，Addon 角色），每角色只读其一。
+- 装配 UI 链预览新增「◇ XX 联动：增伤 +X% / 范围 +X%」提示（`ConsumeKindBonusText`，与数值同源）。
+- 验证：`M_伤害强化`(×1.4) 下 Single=1.75 / Window=1.54(范围 1.20) / Stacks=1.40 / Auto=1.12。
+
+### TargetFarthest 目标改造（新增 `M_远锁`）
+- `ChainConfig.enhanceTargetFarthest` + `PlayerCombat.TryFindFarthestEnemyDir`：挂 TargetFarthest 且非环绕时，核心投射技初始方向从鼠标改为**范围内（22m）最远敌**；否则保持鼠标瞄准（解决瞄准语义冲突）。
+- 验证：近敌(+x4)/远敌(+z14) → 锁定远者 dir=(0,0,1)。
+
+### Shape* 形态改造（新增 `ShapeMode` 枚举 + `M_火墙`/`M_火环`/`M_火域`）
+- `ChainConfig.enhanceShape`（Wall/Ring/Zone），`CastProjectileSkill` 据此改造核心投射技发射几何：
+  - **火墙**：≥5 发平行同向，起点沿垂直方向铺开成墙。
+  - **火环**：≥8 发 360° 均分外散（与环绕共用）。
+  - **火域（hybrid）**：飞弹照常飞行，命中/寿命结束落点由 `Projectile.SetImpactZone` 生成小型持续区域（`ActiveSkillZone`，每 tick≈本发 30% 伤害）。
+- 验证（御剑术基线 3 发）：Wall=5 发/方向数 1、Ring=8 发/8 方向、Zone 3 发均 `_impactZone=true`。
+
+### 消费爆发层（PlayerCombat.PlayConsumeBurst）
+- 任意 Proc 被消费瞬间（Enhancement/Addon 皆触发）：角色处**元素色爆闪点光**（intensity 6/range 8，0.14s）+ **元素色特效环** + **按 consumeKind 分级震屏**（Single/Window 中震，Stacks/Auto 轻震），程序化零美术。
+- 验证：调用后爆闪光源 + 特效环 + `CameraShakeDriver` 激活。
+
+### 起始模板系统（取代旧「化身开局差异化」）
+- 新增 `StartTemplate` SO（3 核心技能 Q/E/R + 角色档案 + 起手模块）+ `StartTemplateRegistry`（`Resources/StartTemplates/`，静态选择跨场景存活）。
+- `StartTemplateSelectUI`（UITK 程序化面板，主题色卡片网格）由 `MainMenu`「开始」弹出；选中后 `StartTemplate.ApplyToPlayer()` 重装 3 技能 + 应用档案 + 向 `ModuleInventory` 发起手模块。无模板资产时直接回退默认分配。
+- 3 个默认模板：剑修·近战爆发 / 法修·元素范围 / 游侠·投射连锁（各带一条可立即成链的起手模块集）。
+- 验证：注册表加载 3 模板；应用「游侠·投射连锁」→ Q/E/R=御剑术/烈焰掌/缩地成寸、背包 4 模块（触发+效果+2 改造）、法修档案（远程普攻）；选择面板截图确认渲染。
+
+---
+
 ## V.08 · 模块增强系统落地（核心动作循环 + 增强注入）（2026-06-30）
 
 把 GDD §5（V.08）的「核心技能 × 增强链 · Proc → Consume」从设计落到代码。模块链不再自走，改为挂在核心技能上做**增强器**：触发器决定何时上膛（Proc），玩家按 Q/E/R 释放核心技能时消费增强。

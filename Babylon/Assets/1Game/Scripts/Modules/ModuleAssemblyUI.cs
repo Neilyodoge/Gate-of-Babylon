@@ -1051,10 +1051,151 @@ namespace XianTu
             }
             else
             {
+                // 无真图 → 按子类单字字形 + 元素/类别色兜底（每模块视觉可辨，占位图标）
                 if (img != null) img.enabled = false;
-                if (glyph != null) { glyph.text = CategoryGlyph(m.category); glyph.color = CategoryColor(m.category); }
+                if (glyph != null) { glyph.text = SubtypeGlyph(m); glyph.color = SubtypeColor(m); }
             }
         }
+
+        /// <summary>按模块子类返回单字占位字形（每模块视觉可辨；真图 m.icon 优先）。</summary>
+        private static string SubtypeGlyph(ModuleDef m)
+        {
+            switch (m.category)
+            {
+                case ModuleCategory.Trigger:
+                    return TriggerGlyph(m.triggerType);
+                case ModuleCategory.Effect:
+                    return EffectGlyph(m.effectType);
+                case ModuleCategory.Modifier:
+                    return ModifierGlyph(m.modifierType);
+                case ModuleCategory.Universal:
+                    // 万能件：优先用其效果面字形，无则触发面
+                    if (m.universalEffectType != EffectType.None) return EffectGlyph(m.universalEffectType);
+                    if (m.universalTriggerType != TriggerType.None) return TriggerGlyph(m.universalTriggerType);
+                    return "万";
+                default:
+                    return "?";
+            }
+        }
+
+        /// <summary>占位字形颜色：优先元素色，其次改造件状态色，最后类别色。</summary>
+        private static Color SubtypeColor(ModuleDef m)
+        {
+            if (m.elementTag != ElementTag.None) return ElementColorLocal(m.elementTag);
+            // 改造件按状态类型着色
+            if (m.category == ModuleCategory.Modifier)
+            {
+                switch (m.modifierType)
+                {
+                    case ModifierType.AddBurn: case ModifierType.ShapeWall:
+                        return ElementColorLocal(ElementTag.Fire);
+                    case ModifierType.AddFreeze:
+                        return ElementColorLocal(ElementTag.Ice);
+                    case ModifierType.AddLightning: case ModifierType.ShapeZone:
+                        return ElementColorLocal(ElementTag.Thunder);
+                    case ModifierType.AddPoison: case ModifierType.ShapeRing:
+                        return ElementColorLocal(ElementTag.Wood);
+                }
+            }
+            // 风格标签兜底
+            if ((m.styleTags & StyleTag.Fire) != 0) return ElementColorLocal(ElementTag.Fire);
+            if ((m.styleTags & StyleTag.Ice) != 0) return ElementColorLocal(ElementTag.Ice);
+            if ((m.styleTags & StyleTag.Lightning) != 0) return ElementColorLocal(ElementTag.Thunder);
+            if ((m.styleTags & StyleTag.Poison) != 0) return ElementColorLocal(ElementTag.Wood);
+            return CategoryColor(m.category);
+        }
+
+        private static Color ElementColorLocal(ElementTag e) => e switch
+        {
+            ElementTag.Fire    => new Color(1f, 0.45f, 0.2f),
+            ElementTag.Ice     => new Color(0.5f, 0.85f, 1f),
+            ElementTag.Thunder => new Color(0.7f, 0.6f, 1f),
+            ElementTag.Wind    => new Color(0.6f, 1f, 0.7f),
+            ElementTag.Wood    => new Color(0.5f, 0.85f, 0.4f),
+            ElementTag.Water   => new Color(0.35f, 0.65f, 1f),
+            ElementTag.Earth   => new Color(0.85f, 0.7f, 0.4f),
+            ElementTag.Pierce  => new Color(0.85f, 0.9f, 1f),
+            ElementTag.Life    => new Color(0.5f, 1f, 0.6f),
+            _ => Color.white
+        };
+
+        private static string TriggerGlyph(TriggerType t) => t switch
+        {
+            TriggerType.MeleeHitCount => "拳",
+            TriggerType.SkillHitCount => "术",
+            TriggerType.CriticalHit => "暴",
+            TriggerType.ComboFinisher => "连",
+            TriggerType.DodgeFinish => "闪",
+            TriggerType.MoveDistance => "步",
+            TriggerType.OnDamaged => "伤",
+            TriggerType.ShieldBreak => "破",
+            TriggerType.LowHealth => "危",
+            TriggerType.TimeInterval => "时",
+            TriggerType.ChargeComplete => "蓄",
+            TriggerType.RoomEnter => "门",
+            TriggerType.EnemyKill => "杀",
+            TriggerType.EliteKill => "精",
+            TriggerType.SeedPlant => "种",
+            TriggerType.SeedDetonate => "引",
+            TriggerType.BackstabMark => "刺",
+            TriggerType.PuppetCount => "傀",
+            _ => "触"
+        };
+
+        private static string EffectGlyph(EffectType e) => e switch
+        {
+            EffectType.AreaDamage => "爆",
+            EffectType.Projectile => "弹",
+            EffectType.SwordWave => "剑",
+            EffectType.DoT => "蚀",
+            EffectType.Slow => "缓",
+            EffectType.Stun => "晕",
+            EffectType.Knockback => "击",
+            EffectType.MarkVulnerable => "弱",
+            EffectType.Heal => "疗",
+            EffectType.Shield => "盾",
+            EffectType.Cleanse => "净",
+            EffectType.Invincible => "无",
+            EffectType.Dash => "突",
+            EffectType.Pull => "拉",
+            EffectType.Teleport => "瞬",
+            EffectType.SummonPuppet => "傀",
+            EffectType.SummonTurret => "炮",
+            EffectType.PoisonPool => "毒",
+            EffectType.Trap => "陷",
+            EffectType.DetonateSeed => "引",
+            EffectType.RefreshStacks => "刷",
+            EffectType.GainCharge => "充",
+            _ => "效"
+        };
+
+        private static string ModifierGlyph(ModifierType m) => m switch
+        {
+            ModifierType.ShapeWall => "墙",
+            ModifierType.ShapeRing => "环",
+            ModifierType.ShapeZone => "域",
+            ModifierType.TargetFarthest => "远",
+            ModifierType.TargetChain => "锁",
+            ModifierType.TargetSurround => "绕",
+            ModifierType.ExtraCount => "数",
+            ModifierType.ExtraProjectile => "增",
+            ModifierType.ExtraSummon => "召",
+            ModifierType.DelayedBlast => "延",
+            ModifierType.Sustained => "续",
+            ModifierType.AddBurn => "灼",
+            ModifierType.AddFreeze => "冻",
+            ModifierType.AddLightning => "雷",
+            ModifierType.AddPoison => "毒",
+            ModifierType.AddKnockback => "击",
+            ModifierType.AddVulnerable => "弱",
+            ModifierType.RadiusScale => "阔",
+            ModifierType.CountScale => "倍",
+            ModifierType.DurationScale => "久",
+            ModifierType.DamageScale => "伤",
+            ModifierType.CostHP => "血",
+            ModifierType.CostCooldown => "却",
+            _ => "改"
+        };
 
         // ==================== 悬停 ====================
 
@@ -1170,7 +1311,37 @@ namespace XianTu
             string consume = ConsumeText(ck, SlotKeyNames[slot]);
             string effect = EffectSummary(chain.effect, er);
             string mods = BuildModifierSuffix(chain.modifier0, chain.modifier1);
-            return $"<color=#9fe6c0>✓ {proc}{consume}</color>{effect}{mods}";
+            string ckBonus = ConsumeKindBonusText(ck);
+            return $"<color=#9fe6c0>✓ {proc}{consume}</color>{effect}{mods}{ckBonus}";
+        }
+
+        /// <summary>consumeKind 身份加成说明（V0.1.13 联动，与 ModuleChain 数值同源）。</summary>
+        private static string ConsumeKindBonusText(ConsumeKind ck)
+        {
+            float dmg = ModuleChain.ConsumeKindDamageMul(ck);
+            float rad = ModuleChain.ConsumeKindRadiusMul(ck);
+            string parts = "";
+            if (!Mathf.Approximately(dmg, 1f))
+            {
+                int pct = Mathf.RoundToInt((dmg - 1f) * 100f);
+                string sign = pct >= 0 ? "+" : "";
+                string col = pct >= 0 ? "#7eff8a" : "#ff9a6b";
+                parts += $"<color={col}>增伤 {sign}{pct}%</color>";
+            }
+            if (!Mathf.Approximately(rad, 1f))
+            {
+                int pct = Mathf.RoundToInt((rad - 1f) * 100f);
+                if (parts.Length > 0) parts += " ";
+                parts += $"<color=#7ec8ff>范围 +{pct}%</color>";
+            }
+            if (parts.Length == 0)
+            {
+                // Stacks/中性：说明收益在层数
+                if (ck == ConsumeKind.Stacks)
+                    return $"\n<color=#8a8f9c>◇ {KindBadge(ck)}：收益来自多次消费（每层各附加一次）</color>";
+                return "";
+            }
+            return $"\n<color=#8a8f9c>◇ {KindBadge(ck)} 联动：</color>{parts}";
         }
 
         private static string TriggerProcText(ModuleDef t)

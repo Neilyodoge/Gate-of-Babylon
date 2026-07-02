@@ -825,10 +825,6 @@ namespace XianTu
                 ItemPickup.Spawn(yaodan, transform.position + new Vector3(0, 0, 1.8f));
             }
 
-            // v0.5.5：灵脉道具（秘境专属掉落 → 灵脉经验）。Boss 50% 掉"聚灵珠"（灵潮汹涌异象 → 必掉）
-            if (Random.value < 0.5f * RealmAnomalySystem.Instance.SpiritVeinDropMul)
-                SpiritVeinPickup.Spawn("聚灵珠", 150, transform.position + new Vector3(0, 0, -1.8f));
-
             GameEvents.Publish(new GameEvents.EnemyKilled
             {
                 Enemy = gameObject, Position = transform.position

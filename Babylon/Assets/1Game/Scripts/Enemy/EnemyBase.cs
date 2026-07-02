@@ -474,9 +474,8 @@ namespace XianTu
             // 掉落功法
             TryDropSkill();
 
-            // v0.5 搜打撤：普通怪 8% 概率掉一件【洞府素材】（贯穿"搜"的随机喜悦）
-            // v0.5.4：洞府灵脉等级提供额外掉率（灵脉 → 秘境收益品质）
-            float caveChance = 0.08f + SpiritVeinSystem.Instance.DropBonus + RealmAnomalySystem.Instance.CaveDropBonus;
+            // 搜打撤：普通怪 8% 概率掉一件【洞府素材】（贯穿"搜"的随机喜悦）
+            float caveChance = 0.08f;
             CaveMaterialPool.SpawnRandom(transform.position + new Vector3(Random.Range(-0.8f, 0.8f), 0, Random.Range(-0.8f, 0.8f)), caveChance);
 
             // 发布事件

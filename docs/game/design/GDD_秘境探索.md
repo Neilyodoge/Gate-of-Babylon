@@ -36,8 +36,8 @@
 |------|--------------|
 | Build 多样性有限，几局后见过所有东西 | 万能件 + 自由拼装 + 局外解锁，理论 Build 数近乎无限 |
 | 宝石系统偏数值，缺乏机制深度 | 不做独立宝石系统；将其降级为"模块改造件 / 符文"，作为触发器和效果器的第三层修饰 |
-| 叙事/世界观薄弱 | 冒险世界观 + 意志/威胁度 + 多结局抉择，碎片化剧情 + 终极悬念 |
-| 缺乏长期目标（Meta Progression） | 完整的局外成长系统：模块解锁 + 前哨蓝图 / 寿命强化 |
+| 叙事/世界观薄弱 | 冒险世界观 + 自适应怪物生态（反制系统）+ 多结局抉择，碎片化剧情 + 终极悬念 |
+| 缺乏长期目标（Meta Progression） | 完整的局外成长系统：模块解锁 + 前哨蓝图 / 容错强化 |
 | 重玩价值低 | 解锁初始配置 × 随机模块 × 万能件自由拼装 = 每局体验差异化 |
 
 ### 1.3 文档制作规范
@@ -85,7 +85,7 @@
 **局外成长**：
 - 经验值是唯一通用局外资源。
 - 来源标签只影响经验转化方向，例如战斗、模块、流派、探索、情报、Boss。
-- 成长出口包括模块解锁、前哨蓝图、寿命强化和剧情推进。
+- 成长出口包括模块解锁、前哨蓝图、容错强化和剧情推进。
 
 ### 3.1 基础数值系统
 
@@ -127,7 +127,7 @@
 | **带入配置** | 玩家在配置 NPC 处手动挑选已解锁模块组成初始装配，每局带入数量有限 |
 | **解锁来源** | 经验值、Boss、剧情、情报等（具体解锁条件后续补充） |
 
-> 局外成长不包含数值升级（模块熟练度已移除）和固定流派模板（起始模板已移除），长期目标聚焦在"解锁更多模块、丰富带入组合、前哨与寿命强化"上。
+> 局外成长不包含数值升级（模块熟练度已移除）和固定流派模板（起始模板已移除），长期目标聚焦在"解锁更多模块、丰富带入组合、前哨与容错强化"上。
 
 
 ## 5. 模块化技能系统（核心技能 × 增强链 · Proc → Consume）
@@ -268,6 +268,8 @@
 - 如果一个改造件只能写成 `伤害 +10%`，它就不该成为改造件；至少要改变形态、目标、节奏或策略。
 - 改造件分为**依附型**和**环境型**。依附型只读取被连接模块；环境型可以读取相邻模块或槽位布局，但必须在 UI 上高亮影响范围。
 
+> **V0.1.12 实现状态**：已落地改造件 SO 清单（8 个）——`M_伤害强化`(DamageScale, 数量改造, 伤害×1.4) / `M_扩散`(RadiusScale, 形态改造, 范围×N) / `M_连锁`(CountScale, 数量改造, 投射发数×N) / `M_额外飞弹`(ExtraProjectile, 数量改造, +N 发) / `M_链锁弹射`(TargetChain, 目标改造, 命中后寻敌反弹 2 次，搜索半径 9、伤害衰减 0.8/跳、不重复命中) / `M_环绕射击`(TargetSurround, 目标改造, 360° 均分环绕发射，至少 8 发) / `M_余烬地带`(Sustained, 节奏改造, 落点持续地带 4s/0.5s tick/每 tick 35% 技能倍率 DoT + 附加状态) / `M_延迟轰爆`(DelayedBlast, 节奏改造, 落点 0.8s 预警延迟重爆 ×1.5 + 元素 + 附加状态)。**V0.1.13 补齐**：`TargetFarthest`（`M_远锁`：挂载且非环绕时核心投射技锁定 22m 内最远敌，否则保持鼠标瞄准，化解语义冲突）与 `ShapeWall/Ring/Zone`（`M_火墙`平行成墙 / `M_火环` 360° 外散 / `M_火域` 飞弹落点生成持续区域，程序化表现）已全部落地，形态/目标改造件不再有 no-op。
+
 ### 5.6 消费模型 (consumeKind)
 
 V0.1.12 用 `consumeKind` 取代 V0.1.11 的"被动 / 主动执行模式"。**所有增强都由玩家按键消费**，区别只在"就绪后能消费几次、持续多久"。这是模块链属性，由触发器声明，装配 UI 直接标注。
@@ -286,6 +288,8 @@ V0.1.12 用 `consumeKind` 取代 V0.1.11 的"被动 / 主动执行模式"。**�
 - 装配 UI 必须在链卡片上明确标注 `[单发]` / `[窗口 5s]` / `[叠层 ×3]` / `[自动]`，零猜测。
 
 > 历史：V0.1.11 的"被动模式（条件满足自动释放）"在 V0.1.12 中保留为 `Auto` consumeKind，作为可选的挂机 build 原型；其余三种 consumeKind 把消费权交还玩家按键，解决"装配即战斗"的方向性问题。
+
+> **V0.1.12 实现状态**：四种 consumeKind 状态机全部落地——Single / Window / Stacks 由 `TriggerTracker` 实现累计→就绪→消费循环；Auto 由 `ModuleSlotManager` 自动触发回调 → `PlayerCombat` 自动释放绑定技能 + 增强注入。`windowSeconds` / `maxStacks` 字段已支持。`TriggerTracker` 暴露 `ThresholdProgress` 供 HUD 读取充能进度。**V0.1.13 补齐**：consumeKind 身份加成三角已接线——Single 增伤 ×1.25 / Window 增伤 ×1.10 + 范围 ×1.20 / Stacks 中性（收益在层数）/ Auto 增伤 ×0.80，同源系数作用于增强+附加字段，装配 UI 链预览显示「◇ XX 联动」提示。
 
 ### 5.7 模块配置字段规范
 
@@ -327,6 +331,8 @@ V0.1.12 用 `consumeKind` 取代 V0.1.11 的"被动 / 主动执行模式"。**�
 
 普通增强链只产生模块描述中的基础加成。
 
+> **V0.1.12 实现状态**：`ModuleSlotManager.EquipChain` 接受部分链（仅触发器 / 仅效果器）并持久化，但 `_hasChain[slot]` 与 `_trackers[slot]` 仅在链 `IsValid` 时才置真。允许装配 UI 显示「待补」状态，避免测试中误丢模块。
+
 ### 5.9 局内重组（自由拼装）
 
 增强链上的每个模块都可在**非战斗状态下随时重组**，无需任何代价：
@@ -340,6 +346,8 @@ V0.1.12 用 `consumeKind` 取代 V0.1.11 的"被动 / 主动执行模式"。**�
 | **槽位约束** | 替换仍需满足槽位职责：触发器槽只接受触发器或万能件，效果器槽只接受效果器或万能件 |
 
 > 设计意图：拼错零惩罚。玩家可大胆尝试任意增强组合，不满意的随时换、随时扔、随时捡回，鼓励自由探索而非保守取舍。
+
+> **V0.1.12 实现状态**：`ModuleAssemblyUI` 已重做——卡片网格背包 + Q/E/R 三列竖向链布局；含全息预览、人类可读链效果预览、安装 toast（链激活 / 还差 X 成链）、三态配色（已激活 / 待补 / 空）、拖拽安装/卸载、明确「安装/卸载」提示；`GetBoundCoreSkillName` 显示链当前绑定的核心技能。`Demo1Setup` 保证开局 Q/E/R 三个核心技能无空窗（未配置则从 `Data/Skills` 兜底挑选）。**V0.1.13 补齐**：模块占位图标改为按子类单字字形 + 元素/类别配色兜底（仍非真图美术，但已有辨识度）；起始模板系统已实现——`StartTemplate` SO + `StartTemplateSelectUI`（UITK，主菜单「开始」弹出）+ 3 默认模板（近战爆发/元素范围/投射连锁），选中重装 3 技能 + 应用档案 + 发起手模块，取代旧化身开局差异化。
 
 ### 5.10 万能件 (Universal Module)
 
@@ -421,6 +429,23 @@ V0.1.12 用 `consumeKind` 取代 V0.1.11 的"被动 / 主动执行模式"。**�
 - 增强链决定"这次按键比平时多出了什么"（增伤倍率、附加效果、形态扩展）。
 - 核心技能不依赖增强链存在；增强链离开核心技能无意义。
 
+> **V0.1.12 实现状态（核心技能实现字段）**：
+> - **增益类（`SkillType.Buff`）**：`CastBuffSkill` 泛化，由 `SkillData` 的 `buffDuration` / `buffAttackSpeedPct` / `buffMoveSpeedPct` / `buffAttackPct` / `buffDamageReduction` 字段组装 `StatusEffect` 经 `StatusEffectController` 应用；字段全空时兜底减伤 +50%（保旧金钟罩行为）。含特殊分支：`armLethalGuard`（受致命伤拦截）/ `heavenEarthShift`（乾坤倒转·伤害反弹 + 攻击转治疗）。
+> - **区域类（`SkillType.Zone`）**：`ActiveSkillZone` 通用组件支持 周期伤害 / 减速 / 黑洞吸引 / 灼烧 / 随玩家移动；`SkillData` 区域字段 `zoneDuration` / `zoneRadius` / `zoneTickInterval` / `zoneDamagePerTick` / `zoneSlowPct` / `zonePullSpeed` / `zoneFollowPlayer` / `zoneBurnDPS`；`CastZoneSkill` 调度接入（落点 / 随身二选一）。
+> - **其他已支持 `SkillType`**：`Melee` / `AreaDamage` / `Projectile` / `Dash` / `Summon` / `Charge`。
+> - **配表基础设施**：`Skill_Base_Config.csv` + `ConfigDatabase.GetSkillBase` + `SkillTuning.EffectiveCooldown` / `EffectiveBaseDamage`，按 `SkillData.configId` 查表覆盖 CD / 伤害；规则 = 对 SO 基础伤害的百分比乘区，与 UpgradeRoom 升级共存、不写回 SO。
+> - **已实现核心技能 SO 清单**（东方奇幻命名风格保留，非修仙概念残留）：御剑术 / 落石术 / 九天玄火阵 / 傀儡术 / 影步 / 烈焰掌 / 寒冰诀 / 天雷引 / 回春术 / 雷锁链 / 镜花水月 / 混沌吞噬 / 天罡北斗阵 / 冥河召唤 / 轮回一击 / 水镜术 / 土遁术 / 寒冰封印 / 金钟罩 / 等约 20+ 个。当前 Q/E/R 起始固定为 落石术 / 九天玄火阵 / 傀儡术（详见 §5.9 装配 UI 的 `Demo1Setup` 兜底逻辑）。
+> - **核心技能掉落**：`SkillPickup.Spawn` 单一出口（覆盖杀怪 / 宝箱 / 商店 / 战斗奖励所有来源），无化身门控（化身系统已退出，任何角色都能拾取任何核心技能）；可拾取后替换某槽位现有技能，旧技能丢弃到地上可捡回。
+
+> **V0.1.12 实现状态（增强注入实现路径）**：核心入口 `PlayerCombat.HandleSkills` 统一为核心技能按键 → Proc 则 `BeginEnhancement(slot)` → `UseSkill()` → `EndEnhancement()`，普通 / 蓄力 / Auto 三路径接入。
+> - `BeginEnhancement` 从 `ChainConfig` 读 `effectRole`/`enhanceDamageMult`/`enhanceRadiusMult`/`enhanceProjectileMult`/`enhanceExtraProjectiles`/`enhanceChainCount`/`enhanceSurround`/`enhanceSustained`/`enhanceDelayedBlast` 填入玩家瞬态字段。
+> - `EndEnhancement`：增强型走自益（治疗/护盾/无敌/净化，复用 `ExecuteChainHeal/Shield/Invincible` + `StatusEffectController.ClearDebuffs`）+ 控制/状态作用到 `_enhHitTargets`；附加型走 `ExecuteChainEffect` spawn 独立世界效果。`_enhWorldDelegated` 标记避免与投射物命中/区域 tick 重复施加。
+> - 投射物 payload：`Projectile.SetEnhancement(cfg)` + `SetChain(count, mask)`；对象池复用时 `Initialize` 重置 payload；命中时施加控制/状态 + 链锁寻敌反弹。
+> - 持续区域 payload：`ActiveSkillZone.SetEnhancement(cfg, elementOverride, radiusMult)`；每 tick `SkillModifierApplier.ApplyEnhancementStatus`；`SpawnCustom(...)` 重载供 Sustained 改造使用。
+> - 延迟重爆 payload：新增 `DelayedAreaBlast` 组件（预警 0.8s → 范围伤害 ×1.5 + 元素表现 + 附加状态）。
+> - 共享真源：`SkillModifierApplier.ApplyEnhancementToEnemy()` / `ApplyEnhancementStatus()` 被 PlayerCombat / Projectile / ActiveSkillZone / DelayedAreaBlast 共用，消除重复。
+> - 元素覆盖：链有元素（效果自带或 灼烧→火/冰冻→冰/雷→雷/毒→土）时覆盖核心技能本次命中元素（`EnhElem(skill)` helper）。
+
 ### 5.13 增强就绪视觉标识 (Proc VFX)
 
 Proc → Consume 模型要求玩家**清晰感知"现在哪个技能可以爆了"**。视觉标识是这个模型的必要锚点，不是装饰。
@@ -452,63 +477,7 @@ Proc → Consume 模型要求玩家**清晰感知"现在哪个技能可以爆了
 
 **装配 UI 联动**：装配台预览链时，应静态展示该链 Proc 就绪后的三竖条样式（变色 + 填充），让玩家"装配时就知道战斗里会看到什么"。
 
-### 5.14 V0.1.12 实现状态（设计 → 实现映射）
-> 本节是 §5.1 ~ §5.13 设计规格的「实现状态表」，标注哪些规格已落地、以什么组件落地、已知缺口。运行时验证见 §11.2.2 Q-002；剩余待办见 §11.2.2 Q-003。
-
-#### 5.14.1 已落地改造件 SO 清单
-| 改造件 SO | ModifierType | 对应 §5.5 子类 | 行为 |
-|---|---|---|---|
-| `M_伤害强化` | DamageScale | 数量改造 | 核心技能伤害倍率 ×1.4（乘到 `enhanceDamageMult`） |
-| `M_扩散` | RadiusScale | 形态改造 | 核心范围技范围 ×N |
-| `M_连锁` | CountScale | 数量改造 | 核心投射技发数 ×N |
-| `M_额外飞弹` | ExtraProjectile | 数量改造 | 核心投射技 +N 发 |
-| `M_链锁弹射` | TargetChain | 目标改造 | 核心投射技命中后寻敌反弹 2 次（搜索半径 9、伤害衰减 0.8/跳、不重复命中） |
-| `M_环绕射击` | TargetSurround | 目标改造 | 核心投射技 360° 均分环绕发射（至少 8 发） |
-| `M_余烬地带` | Sustained | 节奏改造 | 核心范围技在落点留下持续地带（4s 寿命、0.5s tick、每 tick 35% 技能倍率 DoT + 附加状态） |
-| `M_延迟轰爆` | DelayedBlast | 节奏改造 | 核心范围技在落点追加 0.8s 预警延迟重爆（×1.5 + 元素表现 + 附加状态） |
-
-> 已知缺口：`TargetFarthest`（最近→最远）、`ShapeWall/Ring/Zone`（火球→火墙等形状变换）暂无对应 SO 且为 no-op，因 TargetFarthest 与鼠标瞄准的核心技能语义冲突、Shape* 需专门表现资源。
-
-#### 5.14.2 consumeKind 状态机实现
-| consumeKind | 实现组件 | 状态 |
-|---|---|---|
-| Single | `TriggerTracker`（累计 → 就绪 → 消费后重新累计） | ✅ 落地 |
-| Window | `TriggerTracker`（就绪后开窗口倒计时，过期或消费后重新累计） | ✅ 落地，`windowSeconds` 字段 |
-| Stacks | `TriggerTracker`（持续累计层数至上限 M，每按一次技能消费 1 层） | ✅ 落地，`maxStacks` 字段 |
-| Auto | `ModuleSlotManager` 自动触发回调 → `PlayerCombat` 自动释放绑定技能 + 增强注入 | ✅ 落地 |
-
-`TriggerTracker` 暴露 `ThresholdProgress` 供 HUD 读取充能进度。
-
-#### 5.14.3 增强注入实现路径
-- **核心入口**：`PlayerCombat.HandleSkills` 统一为核心技能按键 → Proc 则 `BeginEnhancement(slot)` → `UseSkill()` → `EndEnhancement()`；普通 / 蓄力 / Auto 三路径接入。
-- **`BeginEnhancement`**：从 `ChainConfig` 读 `effectRole`/`enhanceDamageMult`/`enhanceRadiusMult`/`enhanceProjectileMult`/`enhanceExtraProjectiles`/`enhanceChainCount`/`enhanceSurround`/`enhanceSustained`/`enhanceDelayedBlast` 填入玩家瞬态字段。
-- **`EndEnhancement`**：增强型走自益（治疗/护盾/无敌/净化，复用 `ExecuteChainHeal/Shield/Invincible` + `StatusEffectController.ClearDebuffs`）+ 控制/状态作用到 `_enhHitTargets`；附加型走 `ExecuteChainEffect` spawn 独立世界效果。`_enhWorldDelegated` 标记避免与投射物命中/区域 tick 重复施加。
-- **投射物 payload**：`Projectile.SetEnhancement(cfg)` + `SetChain(count, mask)`；对象池复用时 `Initialize` 重置 payload；命中时 `SkillModifierApplier.ApplyEnhancementToEnemy` 施加控制/状态 + 链锁寻敌反弹。
-- **持续区域 payload**：`ActiveSkillZone.SetEnhancement(cfg, elementOverride, radiusMult)`；每 tick `SkillModifierApplier.ApplyEnhancementStatus`；`SpawnCustom(...)` 重载供 Sustained 改造使用。
-- **延迟重爆 payload**：新增 `DelayedAreaBlast` 组件（预警 0.8s → 范围伤害 ×1.5 + 元素表现 + 附加状态）。
-- **共享真源**：`SkillModifierApplier.ApplyEnhancementToEnemy()` / `ApplyEnhancementStatus()` 被 PlayerCombat / Projectile / ActiveSkillZone / DelayedAreaBlast 共用，消除重复。
-- **元素覆盖**：链有元素（效果自带或 灼烧→火/冰冻→冰/雷→雷/毒→土）时覆盖核心技能本次命中元素（`EnhElem(skill)` helper）。
-
-#### 5.14.4 装配 UI 实现
-- **`ModuleAssemblyUI`** 重做为卡片网格背包 + Q/E/R 三列竖向链布局；含全息预览、人类可读链效果预览、安装 toast（链激活 / 还差 X 成链）、三态配色（已激活 / 待补 / 空）、拖拽安装/卸载、明确「安装/卸载」提示。
-- **`GetBoundCoreSkillName`** 显示链当前绑定的核心技能。
-- **`Demo1Setup`** 保证开局 Q/E/R 三个核心技能无空窗（未配置则从 `Data/Skills` 兜底挑选）。
-
-#### 5.14.5 ProcBarsHUD 实现
-- 屏幕空间 overlay 跟随角色，按 Q/E/R 显示三竖条；状态映射：无链/未 Proc（暗灰）、Single 就绪（元素色 + 呼吸光）、Window 就绪（填充随窗口倒计时下沉）、Stacks（按层数比例分段填充）、Auto 触发（闪亮一次后熄灭）、消费后（回暗灰）。
-- 元素配色：火=橙红 / 雷=蓝白 / 冰=青 / 范围=黄 / 控制=紫。
-- 由 `Demo1Setup.CreateHUD` 挂到 GameCanvas。
-- **消费爆发层**（GDD §5.13 标注的爆闪 + 角色特效 + 震屏）未做，留后续版本。
-
-#### 5.14.6 部分链持久化
-`ModuleSlotManager.EquipChain` 接受部分链（仅触发器 / 仅效果器）并持久化，但 `_hasChain[slot]` 与 `_trackers[slot]` 仅在链 `IsValid` 时才置真。允许装配 UI 显示「待补」状态，避免测试中误丢模块。
-
-#### 5.14.7 已知缺口（汇总）
-- 形态改造：`TargetFarthest`、`ShapeWall/Ring/Zone` 未实现（无 SO、需新行为/表现资源）。
-- `consumeKind` 联动：效果器 / 改造件读取 `consumeKind` 做差异（如「仅 Single 模式 +50%」）未接线。
-- 模块图标：35 个模块 SO 无 `icon`，装配卡片 / 三竖条用类别字形兜底。
-- 起始模板系统：开局固定 3 核心技能，无模板选择（取代旧化身系统）。
-- 消费爆发层表现：未做。
+> **V0.1.12 实现状态**：`ProcBarsHUD` 已落地——屏幕空间 overlay 跟随角色，按 Q/E/R 显示三竖条；状态映射实现无链/未 Proc（暗灰）、Single 就绪（元素色 + 呼吸光）、Window 就绪（填充随窗口倒计时下沉）、Stacks（按层数比例分段填充）、Auto 触发（闪亮一次后熄灭）、消费后（回暗灰）；元素配色 火=橙红 / 雷=蓝白 / 冰=青 / 范围=黄 / 控制=紫；由 `Demo1Setup.CreateHUD` 挂到 GameCanvas。**V0.1.13 补齐**：消费爆发层已实现——`PlayConsumeBurst` 在任意 Proc 被消费瞬间（Enhancement/Addon 皆触发）产生元素色爆闪点光 + 特效环 + 按 consumeKind 分级震屏（Single/Window 中震、Stacks/Auto 轻震），程序化零美术。
 
 ## 6. 局内协同（预留）
 
@@ -615,7 +584,7 @@ Proc → Consume 模型要求玩家**清晰感知"现在哪个技能可以爆了
 | **万能件** | 无固定大类的模块，放入触发器槽即当触发器、放入效果器槽即当效果器，槽位决定其职责 |
 | **局内重组** | 非战斗状态下随时取出 / 替换 / 丢弃链上模块的自由拼装机制 |
 | **前哨** | 局外配置、局内消耗的临时支援点，用于补给、休息或调整模块 |
-| **寿命强化** | 提高单局容错的局外成长项，例如复活次数、死亡后保留部分结算倍率 |
+| **容错强化** | 提高单局容错的局外成长项，例如复活次数、死亡后保留部分结算倍率 |
 | **情报** | 来源标签之一，来自事件、Boss 线索、隐藏房和剧情节点 |
 | **阶段返回** | 关卡中途主动结束本局并按 1.0x 结算 |
 
@@ -660,7 +629,14 @@ Proc → Consume 模型要求玩家**清晰感知"现在哪个技能可以爆了
 | 业火 / 御物 / 剑魄 v0.6 阶段 B 化身重构（魔焰献祭 / 自律土傀 / 飞剑环绕 / 塑金 / 磁牵） | V0.1.7 → V0.1.10 | 2026-06-09 ~ 2026-06-24 | 全部移除，化身系统整体退出 | 机制可作为后续模块效果灵感 |
 | 砍系叠层（设计收敛：砍系叠层 + 局外一棵树 + 货币统一「灵力」） | V0.1.7 | 2026-06-09 | 局外成长系统 V0.1 待重做 | 设计决策留档 |
 | 系精通 + 境界重定位（`SystemMasterySystem` / `CultivationSystem` 里程碑发点） | V0.1.7 | 2026-06-09 | 模块熟练度 / 解锁节点（V0.1 待做） | 设计文件 `设定_御灵五系.md` 已删除 |
+| 秘境异象（道心 / 因果 / 机缘 / 寿元 联动异象） | V0.1.4 → V0.1.10 | 2026-06-01 ~ 2026-06-24 | §7.4 自适应怪物生态（反制系统） | 修仙概念退出；异象联动机制可作为后续模块触发器灵感 |
+| 境界压制 + 身死道消转世（练气→渡劫 6 层境界 / `CultivationSystem` / `ReincarnateOnDeath`） | V0.1.4 → V0.1.10 | 2026-06-01 ~ 2026-06-24 | §3 核心循环（死亡/阶段返回/通关结算倍率） | 修仙概念退出；6 层结构作为关卡深度参考留档（见 §7.2） |
+| 道伤（`soulHurtRemainingSec` 持久化 / 山门静默吞 F / 道伤 debuff 横幅 / Debug 一键清除道伤 / 打包 bug 修复） | V0.1.6 → V0.1.10 | 2026-06-05 ~ 2026-06-24 | 死亡惩罚统一走 §3 结算倍率，不再用持久化道伤阻塞入局 | 修仙概念退出；Debug 一键清除道伤按钮已在代码层清理 |
+| 技能掉落门控（`SkillData.RequiredRoot` + `SkillPickup.Spawn` 单一出口 + 化身专属技能映射） | V0.1.6 → V0.1.10 | 2026-06-05 ~ 2026-06-24 | 核心技能掉落无门控（任何角色都能拾取任何核心技能） | 基于已退出的化身系统；门控逻辑退出，`SkillPickup.Spawn` 单一出口保留作为工程基础设施 |
 | 旧「梦境」框架 + 旧术语（入梦 / 魂伤 / 残魂 / 梦境） | V0.1.3 | 2026-05-28 | 改名《仙途秘境》，术语替换为 入秘境 / 道伤 / 残念 / 秘境 | 世界观叙事收敛留档 |
+| **【代码层移除·R1】洞府/局外系统**（灵脉 `SpiritVeinSystem/Module/Pickup` / 闭关石室 `MeditationChamber` / 御灵花园 `SpiritBeastGarden`+`SpiritBeastCompanion` / 机缘 `CaveOpportunitySystem`+UI / 灵田 `LingTian` / 炼器房 `ForgeRoom`） | V0.1.14 | 2026-07-02 | 无（局外 meta 整体退出可玩路径） | 上表 V0.1.10 已作设计级归档；本次**物理删除脚本+资产+.meta**并清理全部引用，编译通过 |
+| **【代码层移除·R2】事件/惩罚系统**（心魔 `InnerDemonTribulation`+`InnerDemonMeter` / 渡劫战 `TribulationTrial` / 秘境异象 `RealmAnomaly` / 境界压制 `CultivationSuppression`） | V0.1.14 | 2026-07-02 | 无（纯叙事惩罚，无法中性化） | 纯叙事事件层，**物理删除**并清理 `GameEvents`/`GameManager`/`RunHUD`/敌人 引用；`MoralEffects`（道心/因果/寿元）暂留仅切断异象依赖 |
+| **【代码层中性化·R3】纵向进度线词汇**（境界→等级/阶、修为→进阶经验、悟性/灵力(Insight)→经验、成色→品质、渡劫/凝实→晋级/精炼） | V0.1.14 | 2026-07-02 | 通用「等级/经验」词汇（保留 `CultivationSystem`/`InsightSystem` 系统骨架与字段名，仅改显示/日志/注释） | 系统框架保留可复用；类名/存档字段名不变以兼容旧档 |
 | Demo1 历史功能清单 | V0.1.0 → V0.1.10 | 历史 ~ 2026-06-24 | 战斗部分已被模块增强系统全面重构；其余作为基线参考 | 历史归档，详见下方明细 |
 
 #### 10.3.1 Demo1 历史功能明细（V0.1.0 基线）
@@ -701,15 +677,16 @@ Demo1 阶段核心战斗 / 化身 / 灵物 / 协同 / 6 层境界推进已完成
 | V0.1.1 | v0.5 | 2026-05-16 | 修仙搜打撤循环 + 洞府种田 meta | 已并入 |
 | V0.1.2 | v0.5.1 ~ v0.5.3 | 2026-05 | 设计调整若干 | 已并入 |
 | V0.1.3 | v0.5.4 | 2026-05-28 | 去「梦境」框架 + 改名《仙途秘境》 | 已并入 |
-| V0.1.4 | v0.5.5 | 2026-06-01 ~ 06-02 | 修仙原生系统 + 秘境异象 | 已并入 |
-| V0.1.5 | v0.5.6 | 2026-06-05 | 技能配表重做 | 已并入 |
-| V0.1.6 | v0.5.7 | 2026-06-05 | 技能机制（增益类起步）+ 技能掉落门控 | 已并入 |
+| V0.1.4 | v0.5.5 | 2026-06-01 ~ 06-02 | 修仙原生系统 + 秘境异象 | **修仙部分已废弃**（见 §10.3），异象被 §7.4 反制系统替代 |
+| V0.1.5 | v0.5.6 | 2026-06-05 | 技能配表重做 | 已并入（配表基础设施留 CHANGELOG） |
+| V0.1.6 | v0.5.7 | 2026-06-05 | 技能机制（增益类起步）+ 技能掉落门控 + 道伤可视化 | 增益类已并入 §5.12；**技能掉落门控 + 道伤已废弃**（见 §10.3）；Debug 工具留 CHANGELOG |
 | V0.1.7 | v0.6 各批 | 2026-06-09 | 御灵五系 / UITK 基础设施 / 成长树 / 重站点 | **大部分已废弃**（见 §10.3），UITK 工程记录留 CHANGELOG |
 | V0.1.8 | v0.6.1 ~ v0.6.3 | 2026-06-09 ~ 06-12 | 旧技能 SO 重映射 / 八条反馈 / GDD 逻辑迭代 | **灵物/化身/天赋树部分已废弃**（见 §10.3） |
 | V0.1.9 | V.05 | 2026-06-12 | §3.1 数值公式重写 + 接入；§5 灵物系统重构 | 数值公式已并入；灵物部分已废弃（见 §10.3） |
 | V0.1.10 | V.06 | 2026-06-24 | 文档与设计主轴重构（§5 模块化雏形） | 已并入 |
 | V0.1.11 | V.07 | — | 模块化技能系统初版（Trigger/Effect/Modifier） | 已并入 |
-| V0.1.12 | V.08 | 2026-06-30 | 模块增强系统落地（核心动作循环 + 增强注入 + 节奏改造） | **当前最新**，运行时验证见 §11.2.2 Q-002 |
+| V0.1.12 | V.08 | 2026-06-30 | 模块增强系统落地（核心动作循环 + 增强注入 + 节奏改造） | 运行时验证见 §11.2.2 Q-002 |
+| V0.1.13 | — | 2026-07-02 | 增强系统补全（consumeKind 联动 / TargetFarthest / Shape* / 消费爆发层 / 起始模板系统） | **当前最新**，运行时验证见 §11.2.2 Q-003 |
 
 > 后续在 V0.1 框架内继续推进时，按 `V0.1.13 / V0.1.14 …` 顺延；进入 V0.2 时另起 `V0.2.x` 子阶段。
 
@@ -733,7 +710,7 @@ Demo1 阶段核心战斗 / 化身 / 灵物 / 协同 / 6 层境界推进已完成
 |---|---|---|---|---|---|---|---|---|---|
 | Q-001 | 2026.07.01 |  | §11.1 | P1 重要 | 已确认 | 模块增强系统的进展与 V0.1 版本计划是否对齐 | 需要对齐进 V0.1 版本 | 暗咕 | 2026.07.01 |
 | Q-002 | 2026.07.01 | 程序 | §5 / §11.1.1 | P2 一般 | 已确认 | V0.1.12（原 V.08）模块增强系统运行时验证是否通过 | 通过：环绕 3→8 发、链锁 `_chainRemaining=2`、余烬地带生成 `ActiveSkillZone_Sustained`、延迟轰爆生成 `DelayedAreaBlast`、伤害 ×1.40，五项端到端全部通过 | 暗咕 | 2026.07.01 |
-| Q-003 | 2026.07.01 | 程序 | §5 / §11.1.1 | P1 重要 | 待确认 | V0.1 剩余战斗设计待办是否纳入 V0.1.13+：`TargetFarthest` / `Shape*` 形态改造、`consumeKind` 联动、模块占位图标、消费爆发表现层、起始模板系统 | 待确认 |  |  |
+| Q-003 | 2026.07.01 | 程序 | §5 / §11.1.1 | P1 重要 | 已确认 | V0.1 剩余战斗设计待办是否纳入 V0.1.13+：`TargetFarthest` / `Shape*` 形态改造、`consumeKind` 联动、模块占位图标、消费爆发表现层、起始模板系统 | 全部纳入 V0.1.13 并已实现+运行时验证（见 CHANGELOG · V0.1.13） | 2026.07.02 |  |
 
 补充说明：
 - 已经确认V0.1为专门的战斗内容制作，只要与当前战斗设计相关内容都就交由当前版本完成；

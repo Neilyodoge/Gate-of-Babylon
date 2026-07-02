@@ -424,9 +424,9 @@ namespace XianTu
             {
                 winPanel.SetActive(true);
                 if (winTitleText != null)
-                    winTitleText.text = "✨ 渡劫成功 ✨";
+                    winTitleText.text = "✨ 通关成功 ✨";
                 if (winSubText != null)
-                    winSubText.text = "飞升成仙，梦境圆满";
+                    winSubText.text = "秘境圆满";
             }
         }
 

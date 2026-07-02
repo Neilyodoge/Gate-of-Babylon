@@ -68,8 +68,8 @@ namespace XianTu
             var rows = root.Q<VisualElement>("rows");
             rows.Clear();
 
-            AddRow(rows, "灵力（悟性 50%）", $"{insightRaw} → {insightFinal}");
-            AddRow(rows, "历练值", $"{temperingRaw} → {temperingFinal}");
+            AddRow(rows, "经验（50%）", $"{insightRaw} → {insightFinal}");
+            AddRow(rows, "历练", $"{temperingRaw} → {temperingFinal}");
             if (materialsCount > 0)
                 AddRow(rows, "洞府素材", $"{materialsCount} 件");
 

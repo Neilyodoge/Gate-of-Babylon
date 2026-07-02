@@ -909,7 +909,7 @@ namespace XianTu
                 new Color(0.05f, 0.03f, 0, 0.75f));
 
             // 标题
-            var title = CreateUIText(panel.transform, "WinTitle", "✨ 渡劫成功 ✨", 48,
+            var title = CreateUIText(panel.transform, "WinTitle", "✨ 通关成功 ✨", 48,
                 new Vector2(0.5f, 0.6f), new Vector2(0.5f, 0.6f),
                 new Vector2(-250, -30), new Vector2(250, 30));
             var titleTxt = title.GetComponent<Text>();

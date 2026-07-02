@@ -25,6 +25,12 @@ namespace XianTu
         private bool _hasEnh;
         private ChainConfig _enh;
 
+        // V0.1.13 形态改造·火域：命中/末端落点生成小型持续区域
+        private bool _impactZone;
+        private float _izRadius, _izLife, _izTick, _izDps;
+        private ElementTag _izElement;
+        private LayerMask _izMask;
+
         // V.08 形态改造·链锁弹射：命中后自动寻找附近下一个敌人反弹
         private int _chainRemaining;
         private LayerMask _chainMask;
@@ -44,6 +50,14 @@ namespace XianTu
         {
             _chainRemaining = Mathf.Max(0, count);
             _chainMask = enemyMask;
+        }
+
+        /// <summary>形态改造·火域：投射物命中/寿命结束时在落点生成小型持续区域。在 Initialize 之后调用。</summary>
+        public void SetImpactZone(float radius, float life, float tick, float dps, ElementTag element, LayerMask enemyMask)
+        {
+            _impactZone = true;
+            _izRadius = radius; _izLife = life; _izTick = tick; _izDps = dps;
+            _izElement = element; _izMask = enemyMask;
         }
 
         /// <summary>
@@ -72,6 +86,7 @@ namespace XianTu
             _initialized = true;
             _hasEnh = false; // 对象池复用：清除上一次的增强 payload，等待 SetEnhancement 重新设置
             _chainRemaining = 0; // 对象池复用：清除上一次的链锁状态
+            _impactZone = false; // 对象池复用：清除上一次的火域状态
             _chainHistory.Clear();
 
             transform.rotation = Quaternion.LookRotation(_direction);
@@ -193,6 +208,13 @@ namespace XianTu
 
         private void Recycle()
         {
+            // 形态改造·火域：在落点生成小型持续区域（命中或寿命结束都触发一次）
+            if (_impactZone && _ownerPlayer != null)
+            {
+                ActiveSkillZone.SpawnCustom(transform.position, _ownerPlayer, _izMask,
+                    _izRadius, _izLife, _izTick, _izDps, _izElement);
+                _impactZone = false;
+            }
             _initialized = false;
             if (ObjectPool.Instance != null)
                 ObjectPool.Instance.Return(gameObject);

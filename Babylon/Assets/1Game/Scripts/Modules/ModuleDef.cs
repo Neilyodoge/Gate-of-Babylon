@@ -104,6 +104,15 @@ namespace XianTu
     }
 
     // ==================== 改造件子类 ====================
+    /// <summary>V0.1.13 形态改造模式：核心投射技的发射几何变换。</summary>
+    public enum ShapeMode
+    {
+        None,   // 不改造（默认前向发射）
+        Wall,   // 火墙：一排并列飞弹形成横墙推进
+        Ring,   // 火环：360° 均分飞弹向外扩散
+        Zone,   // 火域：飞弹命中末端附带小型持续区域
+    }
+
     public enum ModifierType
     {
         None,

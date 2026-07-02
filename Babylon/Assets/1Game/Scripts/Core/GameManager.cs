@@ -5,15 +5,15 @@ namespace XianTu
 {
     /// <summary>
     /// 游戏管理器 —— 控制整局游戏流程
-    /// 线性推进 6 层（练气→筑基→金丹→元婴→化神→渡劫）
+    /// 线性推进 6 层（第一层→第六层）
     /// 每层包含多个房间（2~3个），通关所有房间后进入下一层
     /// </summary>
     public class GameManager : MonoBehaviour
     {
         public static GameManager Instance { get; private set; }
 
-        [Header("境界配置")]
-        private readonly string[] _realmNames = { "练气期", "筑基期", "金丹期", "元婴期", "化神期", "渡劫期" };
+        [Header("层数配置")]
+        private readonly string[] _realmNames = { "第一层", "第二层", "第三层", "第四层", "第五层", "第六层" };
 
         [Header("难度曲线")]
         [SerializeField] private int baseEnemyCount = 3;
@@ -91,7 +91,7 @@ namespace XianTu
         public int CurrentLevel => _currentLevel;
         public int CurrentRoomInLevel => _currentRoomInLevel;
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
-        public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "飞升";
+        public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
 
         private void InitModuleSystem()
         {
@@ -152,7 +152,6 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Subscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
 
             // 启动 → 进入村庄 Hub。玩家在村里走配置使配模块，走山门出发。
             EnterVillageHub();
@@ -171,13 +170,11 @@ namespace XianTu
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
 
-            // 清理上局残留的 root-level 对象（ExtractPoint / 传送门 / 心魔触媒 / 散落拾取物）
+            // 清理上局残留的 root-level 对象（ExtractPoint / 传送门 / 散落拾取物）
             if (LevelTransition.Instance != null)
                 LevelTransition.Instance.DestroyPortal();
             foreach (var ep in FindObjectsOfType<ExtractPoint>())
                 Destroy(ep.gameObject);
-            foreach (var ic in FindObjectsOfType<InnerDemonCatalyst>())
-                Destroy(ic.gameObject);
             CleanupLeftoverPickups();
 
             // 防御：上一局如果 timeScale 被改过，进村恢复到 1，否则玩家会卡在 0 速度。
@@ -203,25 +200,18 @@ namespace XianTu
             _flatRoomIndex = 0;
             _gameOver = false;
 
-            // v0.5.4：每局重置心魔值（乱入累积条是局内资源）
-            InnerDemonMeter.Instance.ResetMeter();
-
             // v0.5.7：清零本局累计伤害（轮回一击按此结算）
             RunCombatStats.Reset();
-
-            // v0.5.5：随机本局秘境异象（替代隐藏命格的"每局变量"，挂在地图上）
-            RealmAnomalySystem.Instance.RollForNewRun();
 
             Debug.Log("<color=magenta>═══════════════════════════</color>");
             Debug.Log("<color=magenta>  入秘境... 仙途秘境开始</color>");
             Debug.Log("<color=magenta>═══════════════════════════</color>");
 
-            // v0.5 Week 4：起手功法 / 阵法台增益 / 灵兽伙伴 —— 三个一次性 / 持久效果
+            // 起手功法 / 阵法台增益 —— 一次性 / 持久效果
             if (PlayerController.Instance != null)
             {
                 StartSkillLoader.Apply(PlayerController.Instance);
                 FormationBuffApplier.Apply(PlayerController.Instance);
-                SpiritBeastLoader.Apply(PlayerController.Instance);
             }
 
             // GDD V.07：初始化模块系统（确保 ModuleInventory + ModuleSlotManager 存在）
@@ -246,17 +236,17 @@ namespace XianTu
         /// </summary>
         private static readonly Minimap.RoomType[][] _fixedLayout =
         {
-            // 0 练气期：战 → 商店（早期见到商店）
+            // 0 第一层：战 → 商店（早期见到商店）
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Shop },
-            // 1 筑基期：战 → 战 → 宝箱
+            // 1 第二层：战 → 战 → 宝箱
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Treasure },
-            // 2 金丹期：战 → 升级 → 休息
+            // 2 第三层：战 → 升级 → 休息
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Upgrade, Minimap.RoomType.Rest },
-            // 3 元婴期：战 → 商店 → 战
+            // 3 第四层：战 → 商店 → 战
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle },
-            // 4 化神期：战 → 宝箱 → 升级
+            // 4 第五层：战 → 宝箱 → 升级
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Treasure, Minimap.RoomType.Upgrade },
-            // 5 渡劫期：战 → Boss
+            // 5 第六层：战 → Boss
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Boss }
         };
 
@@ -310,7 +300,7 @@ namespace XianTu
             if (_minimap != null)
                 _minimap.UpdateCurrentRoom(_flatRoomIndex);
 
-            // 发布境界信息
+            // 发布层级信息
             GameEvents.Publish(new GameEvents.RealmBreakthrough
             {
                 NewRealmLevel = _currentLevel,
@@ -351,11 +341,9 @@ namespace XianTu
             _currentRoomGo.transform.position = spawnPos;
             var room = _currentRoomGo.AddComponent<BattleRoom>();
 
-            // v0.5.5：秘境异象修正（灵潮汹涌 → 敌人更多；血月 → 敌人更猛）
-            var anomaly = RealmAnomalySystem.Instance;
-            int enemyCount = Mathf.RoundToInt((baseEnemyCount + _currentLevel * enemyCountPerLevel) * anomaly.EnemyCountMul);
+            int enemyCount = baseEnemyCount + _currentLevel * enemyCountPerLevel;
             float hpMul = 1f + _currentLevel * hpScalePerLevel;
-            float dmgMul = (1f + _currentLevel * dmgScalePerLevel) * anomaly.EnemyDamageMul;
+            float dmgMul = 1f + _currentLevel * dmgScalePerLevel;
             room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, roomSize, roomSize);
             room.SetSkillPool(skillPool);
             room.SetModulePool(modulePool);
@@ -451,7 +439,7 @@ namespace XianTu
             // ── TreeMap 动态扩展 ──
             // 固定布局 _fixedLayout 每层只有 2~3 个房间，但 TreeMap 一个 Act 可能有 5~6 个节点。
             // 如果 TreeMap 当前节点还有后续子节点（没走到 Boss），就动态往 _levelRooms 里追加槽位，
-            // 防止 _currentRoomInLevel >= layer.Count 被误判为"本境界通关"。
+            // 防止 _currentRoomInLevel >= layer.Count 被误判为"本层通关"。
             if (useTreeMapFlow)
             {
                 var dir = LevelDesign.LevelDesignDirector.Instance;
@@ -610,7 +598,7 @@ namespace XianTu
         /// <summary>构建 3 张候选卡片：包括"默认"那张 + 2 张异类</summary>
         private LevelDesign.RoomChoiceUI.Candidate[] BuildRoomCandidates(Minimap.RoomType defaultType)
         {
-            // 在浓灵气 / 高境界后，候选池可以增加"宝箱 / 升级 / 休息"权重
+            // 在深层后，候选池可以增加"宝箱 / 升级 / 休息"权重
             var pool = new System.Collections.Generic.List<Minimap.RoomType>
             {
                 Minimap.RoomType.Battle,
@@ -664,13 +652,13 @@ namespace XianTu
             Minimap.RoomType.Shop => "用本局货币购买灵物 / 丹药",
             Minimap.RoomType.Rest => "灵泉静修，回复生命",
             Minimap.RoomType.Treasure => "开启宝箱，获得稀有奖励",
-            Minimap.RoomType.Boss => "境界 Boss，挑战极限",
+            Minimap.RoomType.Boss => "层 Boss，挑战极限",
             Minimap.RoomType.Upgrade => "拜访功法宗师，强化已有功法",
             _ => ""
         };
 
         /// <summary>
-        /// v0.5 搜打撤：每境界结束时同时生成【出梦点】（撤离）和【下一境界传送门】（继续），让玩家做决策。
+        /// v0.5 搜打撤：每层结束时同时生成【出梦点】（撤离）和【下一层传送门】（继续），让玩家做决策。
         /// </summary>
         private void SpawnExtractPointAndPortal()
         {
@@ -680,19 +668,8 @@ namespace XianTu
             // 检查是否已通关最后一层
             bool isLastRealm = _currentLevel >= _realmNames.Length - 1;
 
-            // v0.5.4：移除逐层"渡劫台"——渡劫已改为本体境界突破专属（洞府闭关石室触发 TribulationTrial）。
-            // 秘境层推进只剩"撤离 vs 继续"+ 境界压制作为难度门槛。
-
-            // v0.5 Week 4 心魔劫：化神期（idx=4）/ 渡劫期（idx=5）每境界结束后必出心魔台，
-            // 与渡劫台 + 出梦点 + 下一境界传送门 共存，让玩家在四选一中决定。
-            // 放在 NE 角，与渡劫台（正北）的 2.5m 交互触发器留足距离，避免互抢路由。
-            if (_currentLevel >= 4)
-            {
-                var demonGo = new GameObject($"InnerDemonCatalyst_Level{_currentLevel}");
-                demonGo.transform.position = roomCenter + new Vector3(6f, 0, 8f);
-                var demon = demonGo.AddComponent<InnerDemonCatalyst>();
-                demon.Build();
-            }
+            // 逐层挑战台已移除。
+            // 秘境层推进只剩"撤离 vs 继续"+ 等级差压制作为难度门槛。
 
             // 出梦点：放在房间西侧（左边）
             var extractGo = new GameObject($"ExtractPoint_Level{_currentLevel}");
@@ -702,16 +679,14 @@ namespace XianTu
             ep.Build(() =>
             {
                 float mul = ExtractResultPanel.LayerMultiplier(capturedLevel);
-                string realmName = capturedLevel < _realmNames.Length ? _realmNames[capturedLevel] : "飞升";
+                string realmName = capturedLevel < _realmNames.Length ? _realmNames[capturedLevel] : "巅峰";
 
-                RealmAnomalySystem.Instance.EndRun();
                 int matCount = CaveInventory.Instance.TotalPendingCount;
                 CaveInventory.Instance.CommitCurrentRun();
                 int insightRaw = InsightSystem.Instance.CommitOnExtract(mul);
                 int temperingRaw = 0;
                 if (FeatureFlags.EnableCaveMeta)
                     temperingRaw = CultivationSystem.Instance.CommitOnExtract(mul);
-                SpiritBeastLoader.Despawn();
 
                 ExtractResultPanel.Show(capturedLevel, realmName,
                     insightRaw, temperingRaw, matCount, () =>
@@ -720,8 +695,6 @@ namespace XianTu
                     _transitioning = false;
                     _gameOver = false;
                     Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府（层深倍率 ×{mul:F2}）</color>");
-                    if (FeatureFlags.EnableCaveMeta)
-                        CaveOpportunitySystem.Instance.OnReturnToCave();
                 });
             });
 
@@ -730,13 +703,13 @@ namespace XianTu
                 // 最后一层：直接通关
                 _currentLevel++;
                 _currentRoomInLevel = 0;
-                Debug.Log("<color=yellow>✨✨✨ 渡劫成功！飞升成仙！✨✨✨</color>");
+                Debug.Log("<color=yellow>✨✨✨ 通关成功！✨✨✨</color>");
                 _gameOver = true;
                 GameEvents.Publish(new GameEvents.GameWon());
                 return;
             }
 
-            // 下一境界传送门：放在房间东侧（右边）
+            // 下一层传送门：放在房间东侧（右边）
             if (LevelTransition.Instance != null)
             {
                 Vector3 portalPos = roomCenter + new Vector3(6f, 0, 0);
@@ -776,15 +749,13 @@ namespace XianTu
         private void OnPlayerDied(GameEvents.PlayerDied evt)
         {
             _gameOver = true;
-            RealmAnomalySystem.Instance.EndRun();   // v0.5.5：陨落 → 结束本局秘境异象
 
-            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；悟性也消失；灵兽伙伴一并销毁
+            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；经验也消失
             int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
             InsightSystem.Instance.AbandonOnDeath();
-            // V.03（Q7）：局外 meta 暂缓时不走转世传承（本体境界系统未启用）
+            // V.03（Q7）：局外 meta 暂缓时不走转世传承（角色等级系统未启用）
             if (FeatureFlags.EnableCaveMeta)
-                CultivationSystem.Instance.ReincarnateOnDeath();   // v0.6 §7：只丢本局未撤离历练；境界/精通终身保留
-            SpiritBeastLoader.Despawn();
+                CultivationSystem.Instance.ReincarnateOnDeath();   // 只丢本局未撤离历练；等级/精通终身保留
 
             // 增加死亡统计
             SaveSystem.Instance.Data.totalDeaths++;
@@ -793,20 +764,6 @@ namespace XianTu
             SaveSystem.Instance.Save();
 
             Debug.Log($"<color=red>梦境破碎... 惊醒回到现实（残魂转化 {qiCompensation} 灵气）</color>");
-        }
-
-        /// <summary>敌人被击杀时奖励灵力碎片</summary>
-        /// <summary>渡劫结束：PartialFail（中 2~3 雷）强制撤离 —— 移除下一境界传送门，只剩出梦点可走。</summary>
-        private void OnTribulationFinished(GameEvents.TribulationFinished evt)
-        {
-            if (evt.Outcome == TribulationOutcome.PartialFail)
-            {
-                if (LevelTransition.Instance != null)
-                {
-                    LevelTransition.Instance.RemovePortal();
-                    Debug.Log("<color=#ffaa66>[GameManager] 渡劫失利 · 强制撤离（下一境界传送门已撤除）</color>");
-                }
-            }
         }
 
         private void OnEnemyKilled(GameEvents.EnemyKilled evt)
@@ -819,12 +776,10 @@ namespace XianTu
             int baseShards = Random.Range(1, 3);          // 1-2
             int levelBonus = _currentLevel / 2;           // 0..2
             int totalShards = baseShards + levelBonus;     // 1..4
-            // v0.5.5：血月异象 → 击杀收益翻倍
-            totalShards = Mathf.RoundToInt(totalShards * RealmAnomalySystem.Instance.KillRewardMul);
 
             PlayerResources.Instance.AddShards(totalShards);
 
-            // v0.5 顿悟系统：按怪物类型加悟性
+            // 经验系统：按怪物类型加经验
             int insightAmount = 1;
             if (evt.Enemy != null)
             {
@@ -833,12 +788,10 @@ namespace XianTu
                 else if (n.Contains("Elite")) insightAmount = 3;
             }
             InsightSystem.Instance.AddRunInsight(insightAmount, "击杀");
-            // v0.5.4：击杀同时累积历练值（普通 +1 / 精英 +5 / Boss +20）（V.03 Q7：meta 暂缓时不累积）
+            // 击杀同时累积历练（普通 +1 / 精英 +5 / Boss +20）（V.03 Q7：meta 暂缓时不累积）
             if (FeatureFlags.EnableCaveMeta)
             {
                 int temperingAmount = insightAmount == 10 ? 20 : (insightAmount == 3 ? 5 : 1);
-                // v0.5.5：心魔滋生异象 → 历练获取提升
-                temperingAmount = Mathf.RoundToInt(temperingAmount * RealmAnomalySystem.Instance.TemperingMul);
                 CultivationSystem.Instance.AddRunTempering(temperingAmount, "击杀");
             }
         }
@@ -866,7 +819,6 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
-            GameEvents.Unsubscribe<GameEvents.TribulationFinished>(OnTribulationFinished);
         }
 
         /// <summary>设置小地图引用</summary>

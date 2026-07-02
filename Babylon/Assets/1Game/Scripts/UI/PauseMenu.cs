@@ -166,7 +166,6 @@ namespace XianTu
         private static bool IsBlockedByOtherUI()
         {
             if (ModuleAssemblyUI.IsVisible) return true;
-            if (CaveOpportunityUI.IsVisible) return true;
             if (CodexUITK.IsVisible) return true;
             if (SettingsUI.IsVisible) return true;
             return false;
