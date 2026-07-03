@@ -130,7 +130,7 @@ Shader "Particles/BaseVFX"
     }
     SubShader
     {
-        Tags { "RenderType" = "Transparent"  "RenderPipeline" = "UniversalRenderPipeline" "IgnoreProjector" = "True" "Queue" = "Transparent" "PreviewType"="Plane"}
+        Tags { "RenderType" = "Transparent"  "RenderPipeline" = "UniversalPipeline" "IgnoreProjector" = "True" "Queue" = "Transparent" "PreviewType"="Plane"}
         
         Pass
         {
