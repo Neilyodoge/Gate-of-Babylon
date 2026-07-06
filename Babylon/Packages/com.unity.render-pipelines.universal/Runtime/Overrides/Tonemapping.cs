@@ -45,6 +45,14 @@ namespace UnityEngine.Rendering.Universal
         /// 参考: Unreal Engine 4/5 PostProcessTonemap.usf
         /// </summary>
         UE4, // Unreal Engine 4 Film Tonemapper
+
+        /// <summary>
+        /// 使用Khronos PBR Neutral Tonemapping（glTF PBR Neutral）。
+        /// 等比缩放高光以保持色相，仅对高光做受控去饱和，暗部下压可调；
+        /// 在保色相方面优于Neutral，适合需要忠实还原材质颜色的PBR/写实风格。
+        /// 参考: https://github.com/KhronosGroup/ToneMapping
+        /// </summary>
+        PBRNeutral, // Khronos PBR Neutral Tonemapper
     }
 
     /// <summary>
@@ -93,6 +101,12 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         [Tooltip("Select a tonemapping algorithm to use for the color grading process.")]
         public TonemappingModeParameter mode = new TonemappingModeParameter(TonemappingMode.None);
+
+        /// <summary>
+        /// Khronos PBR Neutral 色调映射的暗部下压幅度（0 = 关闭黑点偏移，1 = 标准 Khronos PBR Neutral）。仅在 PBRNeutral 模式下生效。
+        /// </summary>
+        [Tooltip("PBR Neutral 暗部下压幅度：0 关闭黑点偏移，1 为标准 Khronos PBR Neutral。仅 PBRNeutral 模式生效。")]
+        public ClampedFloatParameter pbrNeutralDarken = new ClampedFloatParameter(1.0f, 0.0f, 1.0f);
 
         // -- HDR Output options --
 

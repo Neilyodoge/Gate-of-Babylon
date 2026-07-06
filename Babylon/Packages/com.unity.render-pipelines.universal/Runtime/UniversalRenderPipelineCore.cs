@@ -1232,6 +1232,9 @@ namespace UnityEngine.Rendering.Universal
         /// <summary> Keyword used for UE4 Film Tonemapping. </summary>
         public const string TonemapUE4 = "_TONEMAP_UE4";
 
+        /// <summary> Keyword used for Khronos PBR Neutral Tonemapping. </summary>
+        public const string TonemapPBRNeutral = "_TONEMAP_PBRNEUTRAL";
+
         /// <summary> Keyword used for Film Grain. </summary>
         public const string FilmGrain = "_FILM_GRAIN";
 

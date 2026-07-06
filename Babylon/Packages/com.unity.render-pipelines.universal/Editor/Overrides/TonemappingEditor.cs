@@ -6,6 +6,7 @@ namespace UnityEditor.Rendering.Universal
     sealed class TonemappingEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Mode;
+        SerializedDataParameter m_PBRNeutralDarken;
 
         // HDR Mode.
         SerializedDataParameter m_NeutralHDRRangeReductionMode;
@@ -24,6 +25,7 @@ namespace UnityEditor.Rendering.Universal
             var o = new PropertyFetcher<Tonemapping>(serializedObject);
 
             m_Mode = Unpack(o.Find(x => x.mode));
+            m_PBRNeutralDarken = Unpack(o.Find(x => x.pbrNeutralDarken));
             m_NeutralHDRRangeReductionMode = Unpack(o.Find(x => x.neutralHDRRangeReductionMode));
             m_HueShiftAmount = Unpack(o.Find(x => x.hueShiftAmount));
             m_HDRDetectPaperWhite = Unpack(o.Find(x => x.detectPaperWhite));
@@ -37,6 +39,10 @@ namespace UnityEditor.Rendering.Universal
         public override void OnInspectorGUI()
         {
             PropertyField(m_Mode);
+
+            // PBR Neutral 专属参数：暗部下压幅度
+            if (m_Mode.value.intValue == (int)TonemappingMode.PBRNeutral)
+                PropertyField(m_PBRNeutralDarken);
 
             // Display a warning if the user is trying to use a tonemap while rendering in LDR
             var asset = UniversalRenderPipeline.asset;

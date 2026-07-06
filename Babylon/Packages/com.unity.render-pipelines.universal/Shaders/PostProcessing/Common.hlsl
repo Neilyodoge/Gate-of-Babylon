@@ -70,6 +70,9 @@ half3 ApplyVignette(half3 input, float2 uv, float2 center, float intensity, floa
     return input * lerp(color, (1.0).xxx, vfactor);
 }
 
+// PBR Neutral 暗部下压幅度（由 C# 每帧写入；HDR 走 LutBuilderHdr，LDR 走 UberPost，二者均 include 本文件）
+float _PBRNeutralDarken;
+
 half3 ApplyTonemap(half3 input)
 {
 #if _TONEMAP_ACES
@@ -83,6 +86,8 @@ half3 ApplyTonemap(half3 input)
     input = ACESSimpleTonemap(input);
 #elif _TONEMAP_UE4
     input = UE4FilmTonemap(input);
+#elif _TONEMAP_PBRNEUTRAL
+    input = PBRNeutralTonemap(input, _PBRNeutralDarken);
 #endif
 
     return saturate(input);

@@ -587,6 +587,32 @@ real GTToneSegment(real x, real P, real a, real m, real l, real c, real b)
     return T * w0 + L * w1 + S * w2;
 }
 
+// Khronos PBR Neutral Tonemap（自 topheroes 移植；带 darken 黑点下压幅度参数）
+// 等比缩放高光保色相，仅高光受控去饱和，暗部可选下压。darken=1 即标准 Khronos PBR Neutral。
+// 输入/输出: sRGB 线性色彩空间
+real3 PBRNeutralTonemap(real3 color, real darken)
+{
+    color = max((0.0).xxx, color);
+
+    const real startCompression = 0.8 - 0.04; // 补正 offset 中的 .04,所以只处理亮部
+    const real desaturation     = 0.15;
+
+    real x = min(color.r, min(color.g, color.b));
+    // offset 为黑点偏移：整体缩放以控制暗部下压强度（保持原曲线形状，仅调幅度）
+    real offset = (x < 0.08 ? x - 6.25 * x * x : 0.04) * darken;    // 这里相当于整体压暗
+    color -= offset;
+
+    real peak = max(color.r, max(color.g, color.b));
+    if (peak < startCompression) return color;
+
+    const real d = 1.0 - startCompression;
+    real newPeak = 1.0 - d * d / (peak + d - startCompression);
+    color *= newPeak / peak;                       // 等比缩放 → 保色相
+
+    real g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
+    return lerp(color, newPeak.xxx, g);            // 仅高光受控去饱和
+}
+
 real3 GTTonemap(real3 x)
 {
     // 确保输入非负

@@ -229,8 +229,12 @@ namespace UnityEngine.Rendering.Universal.Internal
                         case TonemappingMode.GT: material.EnableKeyword(ShaderKeywordStrings.TonemapGT); break;
                         case TonemappingMode.ACESSimple: material.EnableKeyword(ShaderKeywordStrings.TonemapACESSimple); break;
                         case TonemappingMode.UE4: material.EnableKeyword(ShaderKeywordStrings.TonemapUE4); break;
+                        case TonemappingMode.PBRNeutral: material.EnableKeyword(ShaderKeywordStrings.TonemapPBRNeutral); break;
                         default: break; // None
                     }
+
+                    // PBR Neutral 暗部下压幅度（HDR 路径下 tonemap 烘入 LUT）
+                    material.SetFloat(ShaderConstants._PBRNeutralDarken, tonemapping.pbrNeutralDarken.value);
 
                     // HDR output is active
                     if (cameraData.isHDROutputActive)
@@ -322,6 +326,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             public static readonly int _CurveHueVsSat = Shader.PropertyToID("_CurveHueVsSat");
             public static readonly int _CurveLumVsSat = Shader.PropertyToID("_CurveLumVsSat");
             public static readonly int _CurveSatVsSat = Shader.PropertyToID("_CurveSatVsSat");
+            public static readonly int _PBRNeutralDarken = Shader.PropertyToID("_PBRNeutralDarken");
         }
     }
 }

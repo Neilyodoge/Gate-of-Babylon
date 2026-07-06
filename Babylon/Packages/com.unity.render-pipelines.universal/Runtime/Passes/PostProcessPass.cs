@@ -1422,8 +1422,12 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
                     case TonemappingMode.GT: material.EnableKeyword(ShaderKeywordStrings.TonemapGT); break;
                     case TonemappingMode.ACESSimple: material.EnableKeyword(ShaderKeywordStrings.TonemapACESSimple); break;
                     case TonemappingMode.UE4: material.EnableKeyword(ShaderKeywordStrings.TonemapUE4); break;
+                    case TonemappingMode.PBRNeutral: material.EnableKeyword(ShaderKeywordStrings.TonemapPBRNeutral); break;
                     default: break; // None
                 }
+
+                // PBR Neutral 暗部下压幅度（LDR 路径下 tonemap 在 UberPost 直算）
+                material.SetFloat(ShaderConstants._PBRNeutralDarken, m_Tonemapping.pbrNeutralDarken.value);
             }
         }
 
@@ -1802,6 +1806,7 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
             public static readonly int _Vignette_ParamsXR = Shader.PropertyToID("_Vignette_ParamsXR");
             public static readonly int _Lut_Params = Shader.PropertyToID("_Lut_Params");
             public static readonly int _UserLut_Params = Shader.PropertyToID("_UserLut_Params");
+            public static readonly int _PBRNeutralDarken = Shader.PropertyToID("_PBRNeutralDarken");
             public static readonly int _InternalLut = Shader.PropertyToID("_InternalLut");
             public static readonly int _UserLut = Shader.PropertyToID("_UserLut");
             public static readonly int _DownSampleScaleFactor = Shader.PropertyToID("_DownSampleScaleFactor");

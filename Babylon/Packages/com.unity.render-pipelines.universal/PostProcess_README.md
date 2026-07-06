@@ -214,7 +214,7 @@ return sum * 0.25;
 
 # Tonemapping 模块
 
-在 URP 原始 Tonemapping 基础上扩展了三种额外的 Tonemapping 算法：**GT**（Gran Turismo Tonemapping）、**ACESSimple**（简化版 ACES）和 **UE4**（Unreal Engine 4 Film Tonemapper），加上 URP 内置的 **Neutral** 和 **ACES**，共提供五种可选的色调映射模式。
+在 URP 原始 Tonemapping 基础上扩展了四种额外的 Tonemapping 算法：**GT**（Gran Turismo Tonemapping）、**ACESSimple**（简化版 ACES）、**UE4**（Unreal Engine 4 Film Tonemapper）和 **PBRNeutral**（Khronos PBR Neutral），加上 URP 内置的 **Neutral** 和 **ACES**，共提供六种可选的色调映射模式。
 
 ## 模式总览
 
@@ -226,6 +226,7 @@ return sum * 0.25;
 | **GT** | Hajime Uchimura (GDC 2017) | sRGB | ⭐⭐⭐ 低 | 写实风格，暗部细节保留好，高光压缩自然 |
 | **ACESSimple** | Krzysztof Narkowicz (2016) | sRGB | ⭐⭐⭐⭐ 极低 | 移动端/性能敏感场景，视觉接近 ACES 但仅需一个有理函数 |
 | **UE4** | Unreal Engine 4/5 | ACEScg/ACES | ⭐⭐ 中 | 完整的 UE 原生 Film Tonemapper，包含 Glow/Red Modifier/Pre-Post Desaturation |
+| **PBRNeutral** | Khronos (glTF) | sRGB | ⭐⭐⭐ 低 | 等比缩放高光保色相、仅高光受控去饱和，暗部可下压；忠实还原材质颜色，适合 PBR/写实 |
 
 ## 各算法详细说明
 
@@ -376,6 +377,41 @@ return exp2(f) - FilmBlackClip;  // 从 log2 域回到线性
 | 色度适应 | D60→D65（仅输出时） | D65→D60→D65（往返） |
 | 视觉风格 | 更高对比度，更强烈的电影感 | 更接近 UE4/UE5 的默认渲染效果 |
 
+### PBRNeutral（Khronos PBR Neutral）
+
+> **参考来源**：Khronos Group glTF PBR Neutral Tonemapper（https://github.com/KhronosGroup/ToneMapping）
+> 本工程移植自 topheroes 版本，额外带一个 `darken` 黑点下压幅度参数，**已在 Tonemapping Volume 上暴露为可调滑条**（`Pbr Neutral Darken`，范围 0~1，默认 1.0 = 标准 Khronos PBR Neutral）。
+> 该值由 C# 每帧写入 uniform `_PBRNeutralDarken`：HDR 路径经 `ColorGradingLutPass` 设到 LutBuilderHdr 材质并烘入 LUT，LDR 路径经 `PostProcessPass` 设到 UberPost 材质。
+
+该算法专为「忠实还原材质基础色」设计，核心思路：
+
+1. **黑点偏移（暗部下压）**：对最小通道做二次偏移 `offset`，`darken` 控制幅度（0 关闭，1 标准）。
+2. **等比缩放保色相**：当峰值超过压缩起点（`0.8 - 0.04`）时，对 RGB 三通道**等比例**缩放到新峰值，因此不改变色相。
+3. **仅高光去饱和**：只在高光区做受控去饱和（`desaturation = 0.15`），中低亮度颜色几乎不动。
+
+#### 核心公式
+
+```hlsl
+const float startCompression = 0.8 - 0.04;
+const float desaturation     = 0.15;
+float x = min3(color.rgb);
+float offset = (x < 0.08 ? x - 6.25 * x * x : 0.04) * darken;
+color -= offset;
+float peak = max3(color.rgb);
+if (peak < startCompression) return color;      // 中低亮度直接返回
+float d = 1.0 - startCompression;
+float newPeak = 1.0 - d * d / (peak + d - startCompression);
+color *= newPeak / peak;                        // 等比缩放 → 保色相
+float g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
+color = lerp(color, newPeak.xxx, g);            // 仅高光受控去饱和
+```
+
+#### 特点
+
+- **保色相最好**：等比缩放使得高光不偏色（相比 Neutral 的 soft-knee 更稳），是它相对 URP Neutral 的主要优势。
+- **暗部干净**：黑点偏移把接近 0 的噪声压下去，暗部更沉。
+- **性能低**：纯 sRGB 逐通道运算，无色彩空间转换，开销与 Neutral / GT 相当。
+
 ---
 
 ## 色温白点（White Point）参考
@@ -389,6 +425,7 @@ return exp2(f) - FilmBlackClip;  // 从 log2 域回到线性
 | **Neutral** | D65 | D65 | 无 | 直接在 sRGB (D65) 线性空间中逐通道操作 |
 | **GT** | D65 | D65 | 无 | 直接在 sRGB (D65) 线性空间中逐通道操作 |
 | **ACESSimple** | D65 | D65 | 无 | 尽管名为"ACES Simple"，但不做任何色彩空间转换，直接在 sRGB 中操作 |
+| **PBRNeutral** | D65 | D65 | 无 | 直接在 sRGB (D65) 线性空间中逐通道操作（等比缩放 + 高光去饱和） |
 
 **核心区别**：ACES 和 UE4 在 Tonemap 前会把颜色从 sRGB (D65) 转到 ACES 域 (D60)，在高饱和度区域的色彩处理更准确（因 D60 和 D65 对 R/G/B 通道的增益不同）。而 Neutral/GT/ACESSimple 始终在 D65 sRGB 色彩空间中直接操作。
 
@@ -410,7 +447,7 @@ Volume (Tonemapping.cs)
   ▼
 C# Pass (ColorGradingLutPass / PostProcessPass)
   │  根据 mode 启用对应 Shader 关键字
-  │  _TONEMAP_NEUTRAL / _TONEMAP_ACES / _TONEMAP_GT / _TONEMAP_ACES_SIMPLE / _TONEMAP_UE4
+  │  _TONEMAP_NEUTRAL / _TONEMAP_ACES / _TONEMAP_GT / _TONEMAP_ACES_SIMPLE / _TONEMAP_UE4 / _TONEMAP_PBRNEUTRAL
   ▼
 Shader (LutBuilderHdr / UberPost)
   │  multi_compile 分支选择
@@ -422,7 +459,7 @@ ApplyTonemap 函数 (Common.hlsl)
   │  LDR 路径：在 UberPost 中直接应用
   ▼
 色调映射算法实现 (Color.hlsl)
-  NeutralTonemap() / AcesTonemap() / GTTonemap() / ACESSimpleTonemap() / UE4FilmTonemap()
+  NeutralTonemap() / AcesTonemap() / GTTonemap() / ACESSimpleTonemap() / UE4FilmTonemap() / PBRNeutralTonemap()
 ```
 
 ### HDR vs LDR 两条路径
@@ -435,7 +472,7 @@ ApplyTonemap 函数 (Common.hlsl)
 每种 Tonemapping 模式对应一个 shader 关键字，通过 `multi_compile_local` 声明：
 
 ```hlsl
-#pragma multi_compile_local _ _TONEMAP_ACES _TONEMAP_NEUTRAL _TONEMAP_GT _TONEMAP_ACES_SIMPLE _TONEMAP_UE4
+#pragma multi_compile_local _ _TONEMAP_ACES _TONEMAP_NEUTRAL _TONEMAP_GT _TONEMAP_ACES_SIMPLE _TONEMAP_UE4 _TONEMAP_PBRNEUTRAL
 ```
 
 `ShaderScriptableStripper.cs` 会在构建时剥离未使用的 Tonemapping variant，减小包体。
@@ -451,6 +488,8 @@ ApplyTonemap 函数 (Common.hlsl)
    - `ACES`：完整 ACES 近似，电影感色调
    - `GT`：Gran Turismo Tonemapping，写实风格
    - `ACESSimple`：简化 ACES，性能优先
+   - `UE4`：Unreal Engine 4 Film Tonemapper
+   - `PBRNeutral`：Khronos PBR Neutral，保色相最好、忠实还原材质色
 3. 选择 **ACES** 或 **Neutral** 时，若启用 HDR Output 还可配置额外参数（Range Reduction Mode、Paper White 等）
 
 > **注意**：GT、ACESSimple 和 UE4 不使用 ACES 色彩空间进行 Color Grading，走标准 sRGB/LogC 路径（与 Neutral 一致）。UE4 模式在 Tonemap 阶段自行进行 sRGB↔ACES 的色彩空间往返转换。在 HDR Output 场景下，它们会走通用的 Rec2020 转换路径。
@@ -461,13 +500,14 @@ ApplyTonemap 函数 (Common.hlsl)
 
 | 文件 | 说明 |
 |------|------|
-| `Runtime/Overrides/Tonemapping.cs` | Tonemapping Volume 组件定义，包含 `TonemappingMode` 枚举 |
-| `Runtime/UniversalRenderPipelineCore.cs` | Shader 关键字字符串定义（`_TONEMAP_GT`、`_TONEMAP_ACES_SIMPLE`、`_TONEMAP_UE4`） |
+| `Runtime/Overrides/Tonemapping.cs` | Tonemapping Volume 组件定义，包含 `TonemappingMode` 枚举、`pbrNeutralDarken` 可调参数 |
+| `Editor/Overrides/TonemappingEditor.cs` | Tonemapping Inspector：PBRNeutral 模式下显示 `Pbr Neutral Darken` 滑条 |
+| `Runtime/UniversalRenderPipelineCore.cs` | Shader 关键字字符串定义（`_TONEMAP_GT`、`_TONEMAP_ACES_SIMPLE`、`_TONEMAP_UE4`、`_TONEMAP_PBRNEUTRAL`） |
 | `Runtime/Passes/ColorGradingLutPass.cs` | HDR LUT 构建 Pass，根据 mode 启用对应关键字 |
 | `Runtime/Passes/PostProcessPass.cs` | 后处理渲染 Pass，LDR 路径中根据 mode 启用对应关键字 |
 | `Shaders/PostProcessing/LutBuilderHdr.shader` | HDR LUT 构建 Shader，包含 `Tonemap()` 函数的所有分支 |
 | `Shaders/PostProcessing/UberPost.shader` | UberPost Shader，声明 tonemapping multi_compile |
 | `Shaders/PostProcessing/Common.hlsl` | 后处理公共函数，包含 `ApplyTonemap()` 的所有分支 |
-| `com.unity.render-pipelines.core/../Color.hlsl` | 核心色彩库，包含 `GTTonemap()`、`ACESSimpleTonemap()` 和 `UE4FilmTonemap()` 的算法实现 |
+| `com.unity.render-pipelines.core/../Color.hlsl` | 核心色彩库，包含 `GTTonemap()`、`ACESSimpleTonemap()`、`UE4FilmTonemap()` 和 `PBRNeutralTonemap()` 的算法实现 |
 | `com.unity.render-pipelines.core/../ACES.hlsl` | ACES 色彩科学库，包含色彩空间矩阵和转换函数（D60↔D65 CAT、AP0/AP1/sRGB 转换等） |
 | `Editor/ShaderScriptableStripper.cs` | Shader variant stripping，构建时剥离未使用的 tonemapping variant |
