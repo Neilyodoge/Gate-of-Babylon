@@ -210,6 +210,95 @@ namespace XianTu.LevelDesign
     }
 
     // ------------------------------------------------------------
+    // §5.7 Module_Base_Config — 模块配置主表（V0.1.14）
+    // 与 ModuleDef SO 字段一一对应，供策划以 CSV 批量查看/编辑。
+    // 枚举列均以 int 存储（数值对照见 Combat_Table_Index.csv 图例）：
+    //   Category:   0=Trigger 1=Effect 2=Modifier 3=Universal
+    //   SubType:    按 Category 取 TriggerType/EffectType/ModifierType 的枚举序号；Universal 取 UniversalTriggerType
+    //   Rarity:     0=凡 1=灵 2=玄 3=地 4=天
+    //   ConsumeKind:0=Single 1=Window 2=Stacks 3=Auto
+    //   EffectRole: 0=Enhancement(增强型) 1=Addon(附加型)
+    //   FuncTags/ShapeTags/StyleTags: 位标志（Flags）整数值
+    //   Element:    ElementTag 枚举序号
+    // 说明：本表为 §5.7 单一真源快照，运行时模块系统当前仍以 SO 为准（GDD §11.3 wire 深度）。
+    // ------------------------------------------------------------
+    [Serializable]
+    public class ModuleBaseRow
+    {
+        public string ModuleId;
+        public string Name_CN;
+        public int Category;
+        public int SubType;
+        public int Rarity;
+        public int FuncTags;
+        public int ShapeTags;
+        public int StyleTags;
+        public int ConsumeKind;
+        public float WindowSeconds;
+        public int MaxStacks;
+        public int EffectRole;
+        public int Threshold;
+        public float Cooldown;
+        public float Interval;
+        public float BaseDamage;
+        public float DamageScaling;
+        public float AoeRadius;
+        public int Element;
+        public float ModifierValue;
+        /// <summary>万能件作触发器时的 TriggerType；非万能件为 -1</summary>
+        public int UniTrigType;
+        /// <summary>万能件作效果器时的 EffectType；非万能件为 -1</summary>
+        public int UniEffType;
+        /// <summary>掉落来源（§5.7 新增策划字段，SO 未含）</summary>
+        public string DropSource;
+        /// <summary>解锁条件（§5.7 新增策划字段，SO 未含）</summary>
+        public string UnlockCond;
+        public string Desc_CN;
+    }
+
+    // ------------------------------------------------------------
+    // §7.3 Enemy_Base_Config — 敌人分类基础表（V0.1.14）
+    // 记录各敌人类型相对 GameConfig「敌人基础血量/攻击力/防御力」的倍率与 AI 参数。
+    // 现值抽取自 Enemy* 脚本硬编码；本表为设计参考/未来读表来源，运行时当前仍走脚本+GameConfig。
+    //   实际属性 = GameConfig.敌人基础值 × 本行 *Mul；精英/Boss 倍率精英取自 GameConfig 精英怪倍率。
+    // ------------------------------------------------------------
+    [Serializable]
+    public class EnemyBaseRow
+    {
+        public int ID;
+        /// <summary>类型键：Normal/Mage/Ranged/Charger/Elite/Boss</summary>
+        public string TypeKey;
+        public string Name_CN;
+        public float HpMul;
+        public float DmgMul;
+        public float DefMul;
+        public float MoveSpeed;
+        public float DetectRange;
+        public float AttackRange;
+        public float AttackInterval;
+        /// <summary>类型专属参数（投射/冲锋速度、AOE 半径等，自由文本）</summary>
+        public string SpecialParam;
+        public string Behavior_CN;
+        public string Desc_CN;
+    }
+
+    // ------------------------------------------------------------
+    // §5.6 ConsumeKind_Bonus_Config — 消费模型身份加成三角（V0.1.14）
+    // 现值抽取自 ModuleChain 常量；运行时当前仍用常量，本表为设计真源/未来读表来源。
+    // ------------------------------------------------------------
+    [Serializable]
+    public class ConsumeKindBonusRow
+    {
+        public int ID;
+        /// <summary>Single/Window/Stacks/Auto（与 ConsumeKind 枚举同名）</summary>
+        public string ConsumeKind;
+        public string Name_CN;
+        public float DamageMul;
+        public float RadiusMul;
+        public string Note_CN;
+    }
+
+    // ------------------------------------------------------------
     // JSON 顶层包装器（Unity JsonUtility 不支持顶级数组）
     // ------------------------------------------------------------
     [Serializable] public class MapStructureTable { public MapStructureRow[] Rows; }
@@ -220,4 +309,7 @@ namespace XianTu.LevelDesign
     [Serializable] public class MaterialCaveResTable { public MaterialCaveResRow[] Rows; }
     [Serializable] public class SkillBaseTable { public SkillBaseRow[] Rows; }
     [Serializable] public class SkillEffectTable { public SkillEffectRow[] Rows; }
+    [Serializable] public class ModuleBaseTable { public ModuleBaseRow[] Rows; }
+    [Serializable] public class EnemyBaseTable { public EnemyBaseRow[] Rows; }
+    [Serializable] public class ConsumeKindBonusTable { public ConsumeKindBonusRow[] Rows; }
 }

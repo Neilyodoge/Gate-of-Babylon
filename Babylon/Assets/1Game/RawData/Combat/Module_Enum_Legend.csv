@@ -1,0 +1,115 @@
+EnumName,IntValue,MemberName,UsedByColumn
+ModuleCategory,0,Trigger,Category
+ModuleCategory,1,Effect,Category
+ModuleCategory,2,Modifier,Category
+ModuleCategory,3,Universal,Category
+ItemRarity,0,Fan,Rarity
+ItemRarity,1,Ling,Rarity
+ItemRarity,2,Xuan,Rarity
+ItemRarity,3,Di,Rarity
+ItemRarity,4,Tian,Rarity
+ConsumeKind,0,Single,ConsumeKind
+ConsumeKind,1,Window,ConsumeKind
+ConsumeKind,2,Stacks,ConsumeKind
+ConsumeKind,3,Auto,ConsumeKind
+EffectRole,0,Enhancement,EffectRole
+EffectRole,1,Addon,EffectRole
+TriggerType,0,None,SubType(Category=0) / UniTrigType
+TriggerType,1,MeleeHitCount,SubType(Category=0) / UniTrigType
+TriggerType,2,SkillHitCount,SubType(Category=0) / UniTrigType
+TriggerType,3,CriticalHit,SubType(Category=0) / UniTrigType
+TriggerType,4,ComboFinisher,SubType(Category=0) / UniTrigType
+TriggerType,5,DodgeFinish,SubType(Category=0) / UniTrigType
+TriggerType,6,MoveDistance,SubType(Category=0) / UniTrigType
+TriggerType,7,OnDamaged,SubType(Category=0) / UniTrigType
+TriggerType,8,ShieldBreak,SubType(Category=0) / UniTrigType
+TriggerType,9,LowHealth,SubType(Category=0) / UniTrigType
+TriggerType,10,TimeInterval,SubType(Category=0) / UniTrigType
+TriggerType,11,ChargeComplete,SubType(Category=0) / UniTrigType
+TriggerType,12,RoomEnter,SubType(Category=0) / UniTrigType
+TriggerType,13,EnemyKill,SubType(Category=0) / UniTrigType
+TriggerType,14,EliteKill,SubType(Category=0) / UniTrigType
+TriggerType,15,SeedPlant,SubType(Category=0) / UniTrigType
+TriggerType,16,SeedDetonate,SubType(Category=0) / UniTrigType
+TriggerType,17,BackstabMark,SubType(Category=0) / UniTrigType
+TriggerType,18,PuppetCount,SubType(Category=0) / UniTrigType
+EffectType,0,None,SubType(Category=1) / UniEffType
+EffectType,1,AreaDamage,SubType(Category=1) / UniEffType
+EffectType,2,Projectile,SubType(Category=1) / UniEffType
+EffectType,3,SwordWave,SubType(Category=1) / UniEffType
+EffectType,4,DoT,SubType(Category=1) / UniEffType
+EffectType,5,Slow,SubType(Category=1) / UniEffType
+EffectType,6,Stun,SubType(Category=1) / UniEffType
+EffectType,7,Knockback,SubType(Category=1) / UniEffType
+EffectType,8,MarkVulnerable,SubType(Category=1) / UniEffType
+EffectType,9,Heal,SubType(Category=1) / UniEffType
+EffectType,10,Shield,SubType(Category=1) / UniEffType
+EffectType,11,Cleanse,SubType(Category=1) / UniEffType
+EffectType,12,Invincible,SubType(Category=1) / UniEffType
+EffectType,13,Dash,SubType(Category=1) / UniEffType
+EffectType,14,Pull,SubType(Category=1) / UniEffType
+EffectType,15,Teleport,SubType(Category=1) / UniEffType
+EffectType,16,SummonPuppet,SubType(Category=1) / UniEffType
+EffectType,17,SummonTurret,SubType(Category=1) / UniEffType
+EffectType,18,PoisonPool,SubType(Category=1) / UniEffType
+EffectType,19,Trap,SubType(Category=1) / UniEffType
+EffectType,20,DetonateSeed,SubType(Category=1) / UniEffType
+EffectType,21,RefreshStacks,SubType(Category=1) / UniEffType
+EffectType,22,GainCharge,SubType(Category=1) / UniEffType
+ModifierType,0,None,SubType(Category=2)
+ModifierType,1,ShapeWall,SubType(Category=2)
+ModifierType,2,ShapeRing,SubType(Category=2)
+ModifierType,3,ShapeZone,SubType(Category=2)
+ModifierType,4,TargetFarthest,SubType(Category=2)
+ModifierType,5,TargetChain,SubType(Category=2)
+ModifierType,6,TargetSurround,SubType(Category=2)
+ModifierType,7,ExtraCount,SubType(Category=2)
+ModifierType,8,ExtraProjectile,SubType(Category=2)
+ModifierType,9,ExtraSummon,SubType(Category=2)
+ModifierType,10,DelayedBlast,SubType(Category=2)
+ModifierType,11,Sustained,SubType(Category=2)
+ModifierType,12,AddBurn,SubType(Category=2)
+ModifierType,13,AddFreeze,SubType(Category=2)
+ModifierType,14,AddLightning,SubType(Category=2)
+ModifierType,15,AddPoison,SubType(Category=2)
+ModifierType,16,AddKnockback,SubType(Category=2)
+ModifierType,17,AddVulnerable,SubType(Category=2)
+ModifierType,18,RadiusScale,SubType(Category=2)
+ModifierType,19,CountScale,SubType(Category=2)
+ModifierType,20,DurationScale,SubType(Category=2)
+ModifierType,21,DamageScale,SubType(Category=2)
+ModifierType,22,CostHP,SubType(Category=2)
+ModifierType,23,CostCooldown,SubType(Category=2)
+ElementTag,0,None,Element
+ElementTag,1,Fire,Element
+ElementTag,2,Ice,Element
+ElementTag,3,Thunder,Element
+ElementTag,4,Wind,Element
+ElementTag,5,Wood,Element
+ElementTag,6,Water,Element
+ElementTag,7,Earth,Element
+ElementTag,8,Pierce,Element
+ElementTag,9,Life,Element
+FunctionTag,0,None,FuncTags(位标志求和)
+FunctionTag,1,Damage,FuncTags(位标志求和)
+FunctionTag,2,Defense,FuncTags(位标志求和)
+FunctionTag,4,Heal,FuncTags(位标志求和)
+FunctionTag,8,Mobility,FuncTags(位标志求和)
+FunctionTag,16,Summon,FuncTags(位标志求和)
+FunctionTag,32,Control,FuncTags(位标志求和)
+FunctionTag,64,State,FuncTags(位标志求和)
+ShapeTag,0,None,ShapeTags(位标志求和)
+ShapeTag,1,Projectile,ShapeTags(位标志求和)
+ShapeTag,2,Area,ShapeTags(位标志求和)
+ShapeTag,4,Melee,ShapeTags(位标志求和)
+ShapeTag,8,Aura,ShapeTags(位标志求和)
+ShapeTag,16,Chain,ShapeTags(位标志求和)
+ShapeTag,32,Object,ShapeTags(位标志求和)
+StyleTag,0,None,StyleTags(位标志求和)
+StyleTag,1,Seed,StyleTags(位标志求和)
+StyleTag,2,Backstab,StyleTags(位标志求和)
+StyleTag,4,Puppet,StyleTags(位标志求和)
+StyleTag,8,Lightning,StyleTags(位标志求和)
+StyleTag,16,Poison,StyleTags(位标志求和)
+StyleTag,32,Fire,StyleTags(位标志求和)
+StyleTag,64,Ice,StyleTags(位标志求和)

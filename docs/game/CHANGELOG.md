@@ -6,6 +6,22 @@
 
 ---
 
+## V0.1.18 · 战斗配表基础设施（模块 / 敌人 / 消费系数）（GDD §11.3 V0.1.14 计划落地）（2026-07-07）
+
+按 GDD §11.3「添加所有战斗相关表格 + 落实 §5.7 模块配置字段」推进：把只能在 Unity 里逐个改 SO、或散落在脚本/常量里的战斗数据，导出成策划可用 CSV，并接入既有导表管线（CSV → JSON → `ConfigDatabase`）。
+
+- **模块配置主表 `Module_Base_Config.csv`（新）**：从 59 个 `ModuleDef` 资产真实导出（非手写），覆盖 §5.7 字段——ID/名称/大类/子类/稀有度/功能·形态·流派标签/consumeKind/windowSeconds/maxStacks/effectRole/触发阈值·冷却·interval/基础伤害·倍率·范围/元素/改造值/万能双面类型 + 新增策划字段 `DropSource`（掉落来源）/`UnlockCond`（解锁条件）/UI 描述。
+- **`Combat_Table_Index.csv`（新）**：战斗相关全部配表的索引表（表名/分类/主键/状态/关联表/用途），登记现有 8 张 + 模块主表 + 枚举图例 + 4 张计划中的模块参数仓库表，后续新增策划表在此登记。
+- **`Module_Enum_Legend.csv`（新）**：模块表所有枚举列（Category/Rarity/ConsumeKind/EffectRole/SubType=TriggerType·EffectType·ModifierType/Element/各 Tag）的 int↔名称对照，自枚举自动生成，供策划看懂 CSV 里的数字。
+- **`Enemy_Base_Config.csv`（新，GDD §7.3）**：6 个敌人类型（普通/法师/远程/冲锋/精英/Boss）相对 `GameConfig` 敌人基础值的 HP/伤害/防御倍率 + 移速/侦测/攻击距离/攻击间隔 + 类型专属参数；现值**抽取自 `Enemy*` 脚本硬编码**（如 Boss ×8/×3/×3、法师 ×0.8/×1.5/×0.6、冲锋 ×1.5/×2/×1.5），供策划集中查看，运行时暂仍走脚本。
+- **`ConsumeKind_Bonus_Config.csv`（新，GDD §5.6）**：消费模型身份三角（Single 增伤 1.25 / Window 1.10+范围 1.20 / Stacks 中性 / Auto 0.80）；现值抽取自 `ModuleChain` 常量。
+- **导表管线接入**：`ModuleBaseRow`/`EnemyBaseRow`/`ConsumeKindBonusRow` + 对应 `CsvToJsonImporter` 解析（并入「修仙图/导表」）+ `ConfigDatabase.Modules`（`ModuleId` 字符串键，新增 `LoadTableStr`）/`Enemies`/`ConsumeKindBonuses` + `GetModule/GetEnemy/GetConsumeKindBonus`。
+- **深度**：本版为「作表 + 可导 JSON + 可加载」（与 `Skill_Base_Config` 同档），**运行时仍以 SO/脚本/常量为准**，未改运行逻辑，零回归风险。
+- **验证**：编译 0 error；导表生成 3 张 JSON；`ConfigDatabase.Reload()` 后 `Modules=59 / Enemies=6 / ConsumeKindBonuses=4`，抽样 `E_HuoYu_Rain`(Effect/AreaDamage/Addon/Fire)、Boss(×8/×3/×3)、法师(×0.8/间隔3.5)、Single(1.25)/Auto(0.80) 字段全部正确。
+- **未做（计划）**：4 张模块参数仓库表（触发/效果/改造/万能全参数）已在索引表登记为「计划」；玩家基础数值/难度曲线已由 `GameConfig` SO 承载（Inspector 可编辑，未再镜像 CSV 避免分叉）；运行时改为读表（CSV 覆盖/生成 SO）为后续迁移，本版不动。
+
+---
+
 ## V0.1.17 · P2 模块池扩容（效果器 20 / 改造件 21）（2026-07-02）
 
 补齐首批模块池目标数量，只用 PlayerCombat 已实现的 EffectType/ModifierType，保证新模块开箱即用。生成器 `PoolExpansionGenerator`（编辑器菜单「修仙图/P2 — 扩容模块池」，幂等）。

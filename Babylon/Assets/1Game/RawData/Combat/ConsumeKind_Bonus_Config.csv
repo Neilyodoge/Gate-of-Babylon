@@ -1,0 +1,5 @@
+ID,ConsumeKind,Name_CN,DamageMul,RadiusMul,Note_CN
+0,Single,单发,1.25,1,下次按下生效1次；增伤最高（等一个时机的博弈）
+1,Window,窗口,1.1,1.2,就绪后N秒内按下都生效；中增伤+范围加成
+2,Stacks,叠层,1,1,中性（收益体现在层数，无额外同源系数）
+3,Auto,自动,0.8,1,Proc即自动释放绑定核心技能；换 hands-free 代价为增伤降到0.80

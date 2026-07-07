@@ -1,0 +1,8 @@
+﻿{
+  "Rows": [
+    {"ID":0,"ConsumeKind":"Single","Name_CN":"单发","DamageMul":1.25,"RadiusMul":1.0,"Note_CN":"下次按下生效1次；增伤最高（等一个时机的博弈）"},
+    {"ID":1,"ConsumeKind":"Window","Name_CN":"窗口","DamageMul":1.100000023841858,"RadiusMul":1.2000000476837159,"Note_CN":"就绪后N秒内按下都生效；中增伤+范围加成"},
+    {"ID":2,"ConsumeKind":"Stacks","Name_CN":"叠层","DamageMul":1.0,"RadiusMul":1.0,"Note_CN":"中性（收益体现在层数，无额外同源系数）"},
+    {"ID":3,"ConsumeKind":"Auto","Name_CN":"自动","DamageMul":0.800000011920929,"RadiusMul":1.0,"Note_CN":"Proc即自动释放绑定核心技能；换 hands-free 代价为增伤降到0.80"}
+  ]
+}

@@ -86,5 +86,5 @@ Assets/1Game/Scripts/
 ---
 
 ## 🔗 相关资源
-- 数据资产 `Assets/1Game/Data/`｜配表源 `Assets/1Game/RawData/LevelDesign/`｜导出 JSON `Assets/1Game/Resources/LevelDesign/`
+- 数据资产 `Assets/1Game/Data/`｜关卡表源 `Assets/1Game/RawData/LevelDesign/`｜战斗/模块表源 `Assets/1Game/RawData/Combat/`｜导出 JSON `Assets/1Game/Resources/{LevelDesign,Combat}/`
 - 项目根 README：[../../README.md](../../README.md)（渲染管线 / 后处理 / Editor 工具）

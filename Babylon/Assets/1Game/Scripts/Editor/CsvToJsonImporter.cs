@@ -18,6 +18,9 @@ namespace XianTu.LevelDesign.Editor
     {
         private const string CsvRoot = "Assets/1Game/RawData/LevelDesign";
         private const string JsonRoot = "Assets/1Game/Resources/LevelDesign";
+        // V0.1.18：战斗/模块表独立目录（与关卡类表区分）
+        private const string CombatCsvRoot = "Assets/1Game/RawData/Combat";
+        private const string CombatJsonRoot = "Assets/1Game/Resources/Combat";
 
         [MenuItem("修仙图/导表 — CSV → JSON %#t")]
         public static void ImportAll()
@@ -30,16 +33,20 @@ namespace XianTu.LevelDesign.Editor
             count += ImportFlat<MaterialCaveResRow>("Material_CaveRes_Config", ParseMaterialCaveResRow);
             count += ImportFlat<SkillBaseRow>("Skill_Base_Config", ParseSkillBaseRow);
             count += ImportFlat<SkillEffectRow>("Skill_Effect_Config", ParseSkillEffectRow);
+            count += ImportFlat<ModuleBaseRow>("Module_Base_Config", ParseModuleBaseRow, CombatCsvRoot, CombatJsonRoot);
+            count += ImportFlat<EnemyBaseRow>("Enemy_Base_Config", ParseEnemyBaseRow, CombatCsvRoot, CombatJsonRoot);
+            count += ImportFlat<ConsumeKindBonusRow>("ConsumeKind_Bonus_Config", ParseConsumeKindBonusRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportEventStory();
 
             AssetDatabase.Refresh();
-            Debug.Log($"[导表] 完成 — 共 {count} 张表已更新到 {JsonRoot}/");
+            Debug.Log($"[导表] 完成 — 共 {count} 张表已更新（关卡表 {JsonRoot}/ · 战斗表 {CombatJsonRoot}/）");
         }
 
         // ── flat table generic pipeline ──────────────────────────────
-        private static int ImportFlat<TRow>(string tableName, Func<string[], string[], TRow> parser)
+        private static int ImportFlat<TRow>(string tableName, Func<string[], string[], TRow> parser,
+            string csvRoot = CsvRoot, string jsonRoot = JsonRoot)
         {
-            string csvPath = Path.Combine(CsvRoot, tableName + ".csv");
+            string csvPath = Path.Combine(csvRoot, tableName + ".csv");
             string fullCsv = Path.GetFullPath(csvPath);
             if (!File.Exists(fullCsv))
             {
@@ -60,7 +67,7 @@ namespace XianTu.LevelDesign.Editor
                 catch (Exception ex) { Debug.LogError($"[导表] {tableName} 第{i + 1}行解析失败：{ex.Message}"); }
             }
 
-            WriteJson(tableName, rows.ToArray());
+            WriteJson(tableName, rows.ToArray(), jsonRoot);
             Debug.Log($"[导表] {tableName} → {rows.Count} 行");
             return 1;
         }
@@ -261,10 +268,75 @@ namespace XianTu.LevelDesign.Editor
             };
         }
 
-        // ── JSON writer ──────────────────────────────────────────────
-        private static void WriteJson<TRow>(string tableName, TRow[] rows)
+        private static ModuleBaseRow ParseModuleBaseRow(string[] h, string[] c)
         {
-            string dir = Path.GetFullPath(JsonRoot);
+            return new ModuleBaseRow
+            {
+                ModuleId = GetCol(h, c, "ModuleId"),
+                Name_CN = GetCol(h, c, "Name_CN"),
+                Category = ParseInt(GetCol(h, c, "Category")),
+                SubType = ParseInt(GetCol(h, c, "SubType")),
+                Rarity = ParseInt(GetCol(h, c, "Rarity")),
+                FuncTags = ParseInt(GetCol(h, c, "FuncTags")),
+                ShapeTags = ParseInt(GetCol(h, c, "ShapeTags")),
+                StyleTags = ParseInt(GetCol(h, c, "StyleTags")),
+                ConsumeKind = ParseInt(GetCol(h, c, "ConsumeKind")),
+                WindowSeconds = ParseFloat(GetCol(h, c, "WindowSeconds")),
+                MaxStacks = ParseInt(GetCol(h, c, "MaxStacks")),
+                EffectRole = ParseInt(GetCol(h, c, "EffectRole")),
+                Threshold = ParseInt(GetCol(h, c, "Threshold")),
+                Cooldown = ParseFloat(GetCol(h, c, "Cooldown")),
+                Interval = ParseFloat(GetCol(h, c, "Interval")),
+                BaseDamage = ParseFloat(GetCol(h, c, "BaseDamage")),
+                DamageScaling = ParseFloat(GetCol(h, c, "DamageScaling")),
+                AoeRadius = ParseFloat(GetCol(h, c, "AoeRadius")),
+                Element = ParseInt(GetCol(h, c, "Element")),
+                ModifierValue = ParseFloat(GetCol(h, c, "ModifierValue")),
+                UniTrigType = ParseInt(GetCol(h, c, "UniTrigType"), -1),
+                UniEffType = ParseInt(GetCol(h, c, "UniEffType"), -1),
+                DropSource = GetCol(h, c, "DropSource"),
+                UnlockCond = GetCol(h, c, "UnlockCond"),
+                Desc_CN = GetCol(h, c, "Desc_CN")
+            };
+        }
+
+        private static EnemyBaseRow ParseEnemyBaseRow(string[] h, string[] c)
+        {
+            return new EnemyBaseRow
+            {
+                ID = ParseInt(GetCol(h, c, "ID")),
+                TypeKey = GetCol(h, c, "TypeKey"),
+                Name_CN = GetCol(h, c, "Name_CN"),
+                HpMul = ParseFloat(GetCol(h, c, "HpMul"), 1f),
+                DmgMul = ParseFloat(GetCol(h, c, "DmgMul"), 1f),
+                DefMul = ParseFloat(GetCol(h, c, "DefMul"), 1f),
+                MoveSpeed = ParseFloat(GetCol(h, c, "MoveSpeed")),
+                DetectRange = ParseFloat(GetCol(h, c, "DetectRange")),
+                AttackRange = ParseFloat(GetCol(h, c, "AttackRange")),
+                AttackInterval = ParseFloat(GetCol(h, c, "AttackInterval")),
+                SpecialParam = GetCol(h, c, "SpecialParam"),
+                Behavior_CN = GetCol(h, c, "Behavior_CN"),
+                Desc_CN = GetCol(h, c, "Desc_CN")
+            };
+        }
+
+        private static ConsumeKindBonusRow ParseConsumeKindBonusRow(string[] h, string[] c)
+        {
+            return new ConsumeKindBonusRow
+            {
+                ID = ParseInt(GetCol(h, c, "ID")),
+                ConsumeKind = GetCol(h, c, "ConsumeKind"),
+                Name_CN = GetCol(h, c, "Name_CN"),
+                DamageMul = ParseFloat(GetCol(h, c, "DamageMul"), 1f),
+                RadiusMul = ParseFloat(GetCol(h, c, "RadiusMul"), 1f),
+                Note_CN = GetCol(h, c, "Note_CN")
+            };
+        }
+
+        // ── JSON writer ──────────────────────────────────────────────
+        private static void WriteJson<TRow>(string tableName, TRow[] rows, string jsonRoot = JsonRoot)
+        {
+            string dir = Path.GetFullPath(jsonRoot);
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
             string json = BuildJson(rows);

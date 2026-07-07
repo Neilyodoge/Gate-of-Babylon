@@ -1,0 +1,10 @@
+﻿{
+  "Rows": [
+    {"ID":1,"TypeKey":"Normal","Name_CN":"普通近战","HpMul":1.0,"DmgMul":1.0,"DefMul":1.0,"MoveSpeed":3.0,"DetectRange":12.0,"AttackRange":1.5,"AttackInterval":1.5,"SpecialParam":"-","Behavior_CN":"追踪→近战→攻击CD绕行→受击概率闪避(30%/低血50%)","Desc_CN":"基础小怪；HP/ATK/DEF/移速走 GameConfig 敌人基础值×本行倍率"},
+    {"ID":2,"TypeKey":"Mage","Name_CN":"法师","HpMul":0.800000011920929,"DmgMul":1.5,"DefMul":0.6000000238418579,"MoveSpeed":2.0,"DetectRange":13.0,"AttackRange":9.0,"AttackInterval":3.5,"SpecialParam":"AOE半径2.5、预警1.0s、瞬移CD5s","Behavior_CN":"远程AOE施法+保持 preferredRange 9+瞬移闪避","Desc_CN":"施法型远程；血少伤高、脆"},
+    {"ID":3,"TypeKey":"Ranged","Name_CN":"远程","HpMul":0.699999988079071,"DmgMul":1.2000000476837159,"DefMul":0.5,"MoveSpeed":2.5,"DetectRange":18.0,"AttackRange":12.0,"AttackInterval":2.5,"SpecialParam":"投射速度10","Behavior_CN":"远程投射+风筝走位","Desc_CN":"脆皮投射手"},
+    {"ID":4,"TypeKey":"Charger","Name_CN":"冲锋","HpMul":1.5,"DmgMul":2.0,"DefMul":1.5,"MoveSpeed":2.0,"DetectRange":14.0,"AttackRange":10.0,"AttackInterval":4.0,"SpecialParam":"冲锋速度18、蓄力1.0s、冲锋持续0.5s、近战判定1.8","Behavior_CN":"蓄力冲锋突进+近战","Desc_CN":"高血高伤突进兵"},
+    {"ID":5,"TypeKey":"Elite","Name_CN":"精英","HpMul":3.0,"DmgMul":1.5,"DefMul":2.0,"MoveSpeed":3.5,"DetectRange":15.0,"AttackRange":2.0,"AttackInterval":1.2000000476837159,"SpecialParam":"-","Behavior_CN":"强化近战；HpMul=GameConfig 精英怪血量倍率、DmgMul=精英怪伤害倍率","Desc_CN":"精英强敌（属性走精英倍率）"},
+    {"ID":6,"TypeKey":"Boss","Name_CN":"首领","HpMul":8.0,"DmgMul":3.0,"DefMul":3.0,"MoveSpeed":3.5,"DetectRange":20.0,"AttackRange":0.0,"AttackInterval":0.0,"SpecialParam":"冲锋速度15、多阶段技能(AOE/跳跃/剑气)","Behavior_CN":"多阶段Boss：追击+冲锋+多段技能","Desc_CN":"关卡首领；攻击范围/间隔按各阶段技能决定"}
+  ]
+}
