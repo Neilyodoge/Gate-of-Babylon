@@ -691,7 +691,10 @@ Demo1 阶段核心战斗 / 化身 / 灵物 / 协同 / 6 层境界推进已完成
 | V0.1.15 | — | 2026-07-02 | P1 状态型触发器（背击标记）+ SkillHitCount 补线 | 已并入（§5.3 状态型触发） |
 | V0.1.16 | — | 2026-07-02 | P1 状态型触发器（种子生成/引爆）+ 起始模板扩容 + 掉落软性权重 | 已并入（含 16b/16c，§5.3 / §4.1 / §8.2） |
 | V0.1.17 | — | 2026-07-02 | P2 模块池扩容（效果器 20 / 改造件 21） | 已并入（§5.4 / §5.5） |
-| V0.1.18 | — | 2026-07-07 | 战斗配表基础设施（§5.7 模块配置主表 + 索引 + 枚举图例，接入导表管线） | **当前最新**，落地 §11.3 V0.1.14 计划第一步 |
+| V0.1.18 | — | 2026-07-07 | 战斗配表基础设施（§5.7 模块配置主表 + 索引 + 枚举图例 + 敌人表 + 消费系数表，接入导表管线） | 已并入，落地 §11.3 V0.1.14 计划第一步 |
+| V0.1.18b | — | 2026-07-08 | 模块参数仓库表（触发/效果/改造/万能全参数，自 `ModuleDef` 导出并接入） | 已并入，§5.7 主表/仓库表拆分落地 |
+| V0.1.18c | — | 2026-07-08 | 运行时改读表（ConsumeKind 系数 / 敌人倍率 / 模块数值，均带回退） | 已并入，配表从「可加载」升级为「运行时生效」 |
+| V0.1.18d | — | 2026-07-08 | 核心技能表补全（`Skill_Param_Config` 技能参数仓库表，24 行 54 列） | **当前最新**，战斗配表体系收官 |
 
 > 后续在 V0.1 框架内继续推进时，按 `V0.1.13 / V0.1.14 …` 顺延；进入 V0.2 时另起 `V0.2.x` 子阶段。
 
@@ -737,4 +740,18 @@ Demo1 阶段核心战斗 / 化身 / 灵物 / 协同 / 6 层境界推进已完成
 > - **`ConsumeKind_Bonus_Config.csv`（§5.6）**：消费模型身份三角（Single 1.25 / Window 1.10+范围 1.20 / Stacks 中性 / Auto 0.80），现值抽取自 `ModuleChain` 常量。
 > - **导表管线接入**：`ModuleBaseRow`/`EnemyBaseRow`/`ConsumeKindBonusRow` + `CsvToJsonImporter`（并入「修仙图/导表」）+ `ConfigDatabase.GetModule/GetEnemy/GetConsumeKindBonus`。深度=「作表 + 可导 JSON + 可加载」，**运行时仍以 SO/脚本/常量为准**（与 `Skill_Base_Config` 同档，零回归）；验证 `Modules=59 / Enemies=6 / ConsumeKindBonuses=4`。
 > - **玩家基础数值/难度曲线**：已由 `GameConfig` SO（Inspector 中文字段可编辑）承载，未再镜像 CSV 以免分叉。
-> - **待做**：4 张模块参数仓库表（触发/效果/改造/万能全参数）已在索引表登记为「计划」；「关联/仓库表」拆分与「运行时改读表」为后续迁移。
+>
+> **V0.1.18b 续（2026-07-08）**：主表/仓库表拆分落地——按四大类各拆一张参数仓库表，以 `ModuleId` 关联主表，承载完整数值参数（主表只留身份/标签/关键参数）。全部自 59 个 `ModuleDef` 真实导出：
+> - **`Module_Trigger_Param_Config.csv`（13 行）**：触发器全参数（阈值/冷却/interval/consumeStacks/moveDist/healthThreshold/consumeKind/window/maxStacks）。
+> - **`Module_Effect_Param_Config.csv`（20 行）**：效果器全参数（伤害·缩放·AoE·元素/治疗·护盾/buff/投射/减速·眩晕·击退·冲刺·牵引/DoT/无敌·召唤·陷阱/易伤）。
+> - **`Module_Modifier_Param_Config.csv`（21 行）**：改造件全参数（burn/freeze/lightning/poison/extraCount/cost）。
+> - **`Module_Universal_Param_Config.csv`（5 行）**：万能件双面参数 + 描述。
+> - 接入 `ConfigTables`/`CsvToJsonImporter`/`ConfigDatabase.GetModule*Param`；索引表 4 表状态改「启用」；深度同上（可导可加载，运行时仍以 SO 为准）；验证 `Trig=13 / Eff=20 / Mod=21 / Uni=5`（合计 59）。
+>
+> **V0.1.18c 续（2026-07-08）· 运行时改读表**：把「可加载」升级为「运行时生效」，三处均带安全回退（缺表/缺行回退原值），当前 1:1 零回归，价值在后续 CSV 迭代：
+> - **ConsumeKind 系数**：`ModuleChain` 读 `ConsumeKind_Bonus_Config`（回退常量）。
+> - **敌人倍率**：`Enemy{Base/Mage/Ranged/Charger/Boss}.Spawn` HP/伤害/防御倍率读 `Enemy_Base_Config`（回退字面量）；精英沿用 `GameConfig` 精英倍率不覆盖。
+> - **模块数值**：`ModuleTableApplier` 在 `GameManager.SetupModules`（真实 `modulePool` 解析后）用 `Module_*_Param_Config` 覆盖 `ModuleDef` 全字段，**仅 Play 模式**（避免 Edit 模式弄脏源资产），缺行保留 SO 原值。
+> - **验证已通过**（2026-07-08）：编译 0 error；三处读表数值正确；Play 中对真实 59 池篡改后覆盖器还原为表值。
+>
+> **V0.1.18d 续（2026-07-08）· 核心技能表补全**：`Skill_Param_Config`（24 行 54 列，主键 `ConfigId`=`Skill_Base_Config.ID`），从 `SkillData` 资产真实导出全字段（充能/蓄力/投射/位移/治疗/召唤/Buff/Zone/表现），资产引用类字段不入表；`金钟罩`(configId=0) 与特殊型 IDs 16-20（无 SO）不含。接入 `ConfigTables`/`Importer`/`ConfigDatabase.GetSkillParam`；深度=作表+可导+可加载（运行时仍以 SO 为准）；验证 `SkillParams=24`。**至此战斗配表体系（§5.7 模块 + §6.9 技能 + §7.3 敌人 + §5.6 系数）全部落表。**

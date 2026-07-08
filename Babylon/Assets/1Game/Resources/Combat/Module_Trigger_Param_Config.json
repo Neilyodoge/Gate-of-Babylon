@@ -1,0 +1,17 @@
+﻿{
+  "Rows": [
+    {"ModuleId":"T_低血量","TriggerType":9,"Threshold":1,"Cooldown":5.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":0,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_击杀后","TriggerType":13,"Threshold":1,"Cooldown":1.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":0,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_受击时","TriggerType":7,"Threshold":1,"Cooldown":4.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":0,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_引爆","TriggerType":16,"Threshold":1,"Cooldown":3.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":0,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_暴击后","TriggerType":3,"Threshold":1,"Cooldown":3.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":2,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_每3秒","TriggerType":10,"Threshold":1,"Cooldown":0.0,"Interval":3.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":0,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_每5秒","TriggerType":10,"Threshold":1,"Cooldown":0.0,"Interval":5.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":0,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_种子","TriggerType":15,"Threshold":1,"Cooldown":2.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":2,"WindowSeconds":5.0,"MaxStacks":5},
+    {"ModuleId":"T_移动10米","TriggerType":6,"Threshold":1,"Cooldown":1.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":1,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_背击","TriggerType":17,"Threshold":1,"Cooldown":4.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":0,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_连击3次","TriggerType":1,"Threshold":3,"Cooldown":2.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":2,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_连击5次","TriggerType":1,"Threshold":5,"Cooldown":1.5,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":2,"WindowSeconds":5.0,"MaxStacks":3},
+    {"ModuleId":"T_闪避后","TriggerType":5,"Threshold":1,"Cooldown":3.0,"Interval":0.0,"ConsumeStacks":1,"MoveDistanceThreshold":10.0,"HealthThreshold":0.30000001192092898,"ConsumeKind":1,"WindowSeconds":5.0,"MaxStacks":3}
+  ]
+}

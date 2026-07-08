@@ -6,6 +6,47 @@
 
 ---
 
+## V0.1.18d · 核心技能表补全（技能参数仓库表）（2026-07-08）
+
+补齐战斗配表最后一环——`Skill_Base_Config` 主表只有 8 列（ID/名称/描述/品阶/类型/CD/伤害/图标），而 `SkillData` SO 有 50+ 字段（充能/蓄力/投射/位移/治疗/召唤/Buff/Zone 等）散落未进表。沿用模块「主表 + 参数仓库表」模式补全。
+
+- **`Skill_Param_Config.csv`（新，24 行，54 列）**：从 25 个 `SkillData` 资产中 configId>0 的 24 个真实导出，主键 `ConfigId`=`Skill_Base_Config.ID`（=`SkillData.configId`）。覆盖 SO 全部数值/开关字段：伤害·缩放·CD·施速/充能(层数·恢复)/蓄力(Lv2·3 时间·伤害·范围·移速)/AoE/投射(速度·数量·散射)/位移(距离·留痕·无敌)/治疗(量·缩放)/召唤(时长·伤害·嘲讽)/Buff(时长·攻速·移速·攻击·减伤)/命中冻结/轮回结算/保命/天地大挪移/Zone(时长·半径·跳率·每跳伤害·减速·吸引·跟随·灼烧)/表现(动作·特效时长)。资产引用类字段（icon/prefab/vfx/audio/modifierDefs）不入表。
+- **孤儿说明**：`金钟罩`（configId=0）未进 `Skill_Base_Config`，本表也不含（跳过），后续如需入表再补 ID。表 IDs 16-20（一念刹那/枯荣逆旅等 §特殊型）无对应 SO，同样不在本表。
+- **导表管线接入**：`SkillParamRow`（54 字段）+ `SkillParamTable` + `CsvToJsonImporter.ParseSkillParamRow`（Combat 根）+ `ConfigDatabase.SkillParams`（按 `ConfigId`）/`GetSkillParam`。
+- **`Combat_Table_Index.csv`**：登记 `Skill_Param_Config`（启用），`Skill_Base_Config` 关联列补 `Skill_Param_Config`。
+- **深度**：作表 + 可导 JSON + 可加载（与其余仓库表同档），**运行时仍以 SO 为准**，零回归。
+- **验证（已通过）**：编译 0 error；导表生成 JSON；`Reload()` 后 `SkillParams=24`，抽样 `混沌吞噬`(Zone 时长5/吸引3)、`土遁术`(Dash 无敌1/3s)、`御风诀`(Buff 6s/攻速+0.3) 字段正确。
+
+---
+
+## V0.1.18c · 运行时改为读表（ConsumeKind 系数 / 敌人倍率 / 模块数值）（2026-07-08）
+
+把前两版「作表」升级为「运行时真正读表」——运行时数值从 CSV→JSON 表读取，策划改表即可影响游戏；三处均带**安全回退**（缺表/缺行 → 用原硬编码/SO 值），且当前表值由源码/SO 真实导出，本版为 1:1（零行为变化），价值在后续 CSV 迭代。
+
+- **ConsumeKind 系数读表**：`ModuleChain.ConsumeKindDamageMul/RadiusMul` 改由 `ConsumeKind_Bonus_Config`（ID=`(int)ConsumeKind`）提供，查不到回退常量（Single 1.25 / Window 1.10+范围 1.20 / Auto 0.80）。
+- **敌人倍率读表**：`EnemyBase/Mage/Ranged/Charger/Boss` 的 `Spawn` 中 HP/伤害/防御倍率改读 `Enemy_Base_Config`（ID 1/2/3/4/6），缺行回退各自原字面量。**精英**沿用 `GameConfig` 精英倍率（Inspector 可编辑单一真源），不改表覆盖以免分叉。
+- **模块数值读表**：新增 `ModuleTableApplier`，在 `GameManager.SetupModules` 解析出真实 `modulePool`（Demo1Setup 注入的 `Data/Modules` 59 资产）后、`GrantSeedLoadout` 之前，用 `Module_*_Param_Config` 覆盖每个 `ModuleDef` 全字段。**仅 Play 模式执行**（Edit 模式 SO 是真实资产，覆盖会脏盘——已用 `Application.isPlaying` 拦截；Play 内存改动不落盘，下次域重载还原），缺行保留 SO 原值。
+  - 注：初版误挂在 `ModulePoolLoader.LoadAll()`（仅兜底路径，且当前 Resources 无模块→返回 0，会空耗 `_applied` 守卫），已改挂 `GameManager`。
+- **回归风险**：ConsumeKind/敌人为纯字面量 1:1 替换，零回归；模块覆盖为 Play 模式内存操作，值与 SO 一致。
+- **验证（已通过）**：编译 0 error；表加载 `Modules=59 Trig=13 Eff=20 Mod=21 Uni=5 Enemies=6 CK=4`；ConsumeKind 读表 `Single=1.25 / Window范围=1.2 / Auto=0.8`；敌人行 `Boss=8/3/3 Mage=0.8/1.5/0.6`；Play 中对真实 59 池篡改字段后 `ModuleTableApplier.ApplyAll` 还原为表值（`E_BingZhui`→25/4、`T_低血量`→阈值1/冷却5）。
+
+---
+
+## V0.1.18b · 模块参数仓库表（触发 / 效果 / 改造 / 万能）（2026-07-08）
+
+延续 V0.1.18，把 `Module_Base_Config` 只放身份/标签/关键参数的定位落实到底——按四大类各拆一张「参数仓库表」，承载 `ModuleDef` 里的**完整数值参数**，全部从 59 个真实资产导出（非手写），以 `ModuleId` 与主表关联。
+
+- **`Module_Trigger_Param_Config.csv`（新，13 行）**：触发器全参数——`TriggerType`/阈值/冷却/interval/consumeStacks/moveDistanceThreshold/healthThreshold/consumeKind/windowSeconds/maxStacks。
+- **`Module_Effect_Param_Config.csv`（新，20 行）**：效果器全参数——`EffectType`/`EffectRole`/伤害·缩放·AoE·元素/治疗·护盾/buff 时长·减伤/投射速度·数量·散射/减速·眩晕·击退·冲刺·牵引/DoT DPS·时长/无敌·召唤·陷阱/易伤倍率·时长。
+- **`Module_Modifier_Param_Config.csv`（新，21 行）**：改造件全参数——`ModifierType`/value/burn(DPS·时长)/freeze/lightning/poison(DPS·时长)/extraCount/costHP·costDamageBonus。
+- **`Module_Universal_Param_Config.csv`（新，5 行）**：万能件双面全参数——触发面(type/阈值/冷却) + 效果面(type/role/consumeKind) + 双面 UI 描述。
+- **导表管线接入**：`ConfigTables` 4 行结构 + 4 张 `*Table` 包装 + `CsvToJsonImporter` 4 解析（走 `Combat` 根）+ `ConfigDatabase` 4 张 `Dictionary<string,…>`（`ModuleId` 键）+ `GetModuleTriggerParam/EffectParam/ModifierParam/UniversalParam`。
+- **`Combat_Table_Index.csv`**：4 表状态由「计划」改「启用」，补齐行数与字段说明。
+- **深度**：同 V0.1.18——作表 + 可导 JSON + 可加载，**运行时仍以 SO 为准**，零回归。
+- **验证**：编译 0 error；导表生成 4 张 JSON；`Reload()` 后 `Trig=13 / Eff=20 / Mod=21 / Uni=5`（合计 59 = 模块总数），各类计数与主表一致。
+
+---
+
 ## V0.1.18 · 战斗配表基础设施（模块 / 敌人 / 消费系数）（GDD §11.3 V0.1.14 计划落地）（2026-07-07）
 
 按 GDD §11.3「添加所有战斗相关表格 + 落实 §5.7 模块配置字段」推进：把只能在 Unity 里逐个改 SO、或散落在脚本/常量里的战斗数据，导出成策划可用 CSV，并接入既有导表管线（CSV → JSON → `ConfigDatabase`）。

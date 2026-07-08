@@ -1,18 +1,19 @@
 TableName,Category,KeyField,Status,RelatedTables,Purpose
 Combat_Table_Index,索引,TableName,启用,-,本表：战斗相关全部配表的索引与说明（新增策划用表请在此登记并标注用途）
-Module_Base_Config,模块,ModuleId,启用,Module_Enum_Legend;Module_*_Param_Config(计划),模块配置主表（GDD §5.7 单一真源）：ID/名称/大类/子类/稀有度/标签/consumeKind/effectRole/关键参数/掉落来源/解锁条件/UI描述
+Module_Base_Config,模块,ModuleId,启用,Module_Enum_Legend;Module_*_Param_Config,模块配置主表（GDD §5.7 单一真源）：ID/名称/大类/子类/稀有度/标签/consumeKind/effectRole/关键参数/掉落来源/解锁条件/UI描述
 Module_Enum_Legend,模块,EnumName+IntValue,启用,Module_Base_Config,模块表枚举图例：各枚举列（Category/Rarity/ConsumeKind/EffectRole/SubType/Element/各Tag）的 int 数值对照（自枚举自动生成）
 Enemy_Base_Config,敌人,ID,启用,-,敌人分类基础表（GDD §7.3）：各类型相对 GameConfig 敌人基础值的 HP/伤害/防御倍率 + 移速/侦测/攻击距离/攻击间隔 + 类型专属参数；现值抽取自 Enemy* 脚本，运行时暂仍走脚本
 ConsumeKind_Bonus_Config,模块,ID,启用,-,消费模型身份加成三角（GDD §5.6）：Single/Window/Stacks/Auto 的增伤/范围系数；现值抽取自 ModuleChain 常量，运行时暂仍用常量
-Skill_Base_Config,技能,ID,启用,Skill_Effect_Config,核心技能基础表：品阶/类型/冷却/基础伤害/图标；运行时经 ConfigDatabase.GetSkillBase 覆盖 SO 的 CD 与伤害
+Skill_Base_Config,技能,ID,启用,Skill_Effect_Config;Skill_Param_Config,核心技能基础表：品阶/类型/冷却/基础伤害/图标；运行时经 ConfigDatabase.GetSkillBase 覆盖 SO 的 CD 与伤害
 Skill_Effect_Config,技能,ID,启用,Skill_Base_Config,技能效果/被动/BUFF/DEBUFF 库：类型/冷却/伤害倍率/可叠层数
+Skill_Param_Config,技能,ConfigId,启用,Skill_Base_Config,技能参数仓库表（24 行）：SkillData SO 全字段（充能/蓄力/投射/位移/治疗/召唤/Buff/Zone/易伤/表现）；主键 ConfigId=Skill_Base_Config.ID；自 SkillData 导出，运行时暂仍走 SO
 Map_Structure_Config,关卡,ID,启用,Room_Socket_Group_Config,区域路线结构：层数/节点数/房间权重/房间池引用
 Room_Socket_Group_Config,关卡,ID,启用,Map_Structure_Config;Event_Story_Config,房间内容配置：房型/敌人小队/掉落/事件/权重
 Event_Story_Config,叙事,EventID,启用,-,事件配置：多选/单选/条件事件与选项（嵌套 Options）
 Boss_Phase_Config,Boss,ID,启用,-,Boss 形态配置：阶段/前置旗标/对白/技能组/属性修正
 Item_InRun_Config,历史,ID,待评估,-,旧局内灵物属性表；灵物系统已退出，评估能否复用为模块掉落数值来源
 Material_CaveRes_Config,历史,ID,已归档,-,旧洞府素材表；局外洞府系统已在 V0.1.14 移除，仅留档
-Module_Trigger_Param_Config,模块,ModuleId,计划,Module_Base_Config,触发器参数仓库表（阈值/冷却/interval/moveDist/healthThreshold 等）——后续拆分
-Module_Effect_Param_Config,模块,ModuleId,计划,Module_Base_Config,效果器参数仓库表（治疗/护盾/减速/眩晕/DoT/召唤/位移/易伤等全参数）——后续拆分
-Module_Modifier_Param_Config,模块,ModuleId,计划,Module_Base_Config,改造件参数仓库表（burn/freeze/lightning/poison/extraCount/cost 等）——后续拆分
-Module_Universal_Param_Config,模块,ModuleId,计划,Module_Base_Config,万能件双面参数仓库表（触发面/效果面各自参数与描述）——后续拆分
+Module_Trigger_Param_Config,模块,ModuleId,启用,Module_Base_Config;Module_Enum_Legend,触发器参数仓库表（13 行）：TriggerType/阈值/冷却/interval/consumeStacks/moveDist/healthThreshold/consumeKind/window/maxStacks；自 ModuleDef 导出，运行时暂仍走 SO
+Module_Effect_Param_Config,模块,ModuleId,启用,Module_Base_Config;Module_Enum_Legend,效果器参数仓库表（20 行）：EffectType/Role/伤害/缩放/AoE/元素/治疗/护盾/buff/投射/减速/眩晕/击退/位移/牵引/DoT/无敌/召唤/陷阱/易伤全参数；自 ModuleDef 导出
+Module_Modifier_Param_Config,模块,ModuleId,启用,Module_Base_Config;Module_Enum_Legend,改造件参数仓库表（21 行）：ModifierType/value/burn/freeze/lightning/poison/extraCount/costHP/costDmg；自 ModuleDef 导出
+Module_Universal_Param_Config,模块,ModuleId,启用,Module_Base_Config;Module_Enum_Legend,万能件双面参数仓库表（5 行）：触发面(type/阈值/冷却)+效果面(type/role/consumeKind)+双面描述；自 ModuleDef 导出

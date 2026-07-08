@@ -34,6 +34,11 @@ namespace XianTu.LevelDesign.Editor
             count += ImportFlat<SkillBaseRow>("Skill_Base_Config", ParseSkillBaseRow);
             count += ImportFlat<SkillEffectRow>("Skill_Effect_Config", ParseSkillEffectRow);
             count += ImportFlat<ModuleBaseRow>("Module_Base_Config", ParseModuleBaseRow, CombatCsvRoot, CombatJsonRoot);
+            count += ImportFlat<ModuleTriggerParamRow>("Module_Trigger_Param_Config", ParseModuleTriggerParamRow, CombatCsvRoot, CombatJsonRoot);
+            count += ImportFlat<ModuleEffectParamRow>("Module_Effect_Param_Config", ParseModuleEffectParamRow, CombatCsvRoot, CombatJsonRoot);
+            count += ImportFlat<ModuleModifierParamRow>("Module_Modifier_Param_Config", ParseModuleModifierParamRow, CombatCsvRoot, CombatJsonRoot);
+            count += ImportFlat<ModuleUniversalParamRow>("Module_Universal_Param_Config", ParseModuleUniversalParamRow, CombatCsvRoot, CombatJsonRoot);
+            count += ImportFlat<SkillParamRow>("Skill_Param_Config", ParseSkillParamRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportFlat<EnemyBaseRow>("Enemy_Base_Config", ParseEnemyBaseRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportFlat<ConsumeKindBonusRow>("ConsumeKind_Bonus_Config", ParseConsumeKindBonusRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportEventStory();
@@ -297,6 +302,155 @@ namespace XianTu.LevelDesign.Editor
                 DropSource = GetCol(h, c, "DropSource"),
                 UnlockCond = GetCol(h, c, "UnlockCond"),
                 Desc_CN = GetCol(h, c, "Desc_CN")
+            };
+        }
+
+        private static ModuleTriggerParamRow ParseModuleTriggerParamRow(string[] h, string[] c)
+        {
+            return new ModuleTriggerParamRow
+            {
+                ModuleId = GetCol(h, c, "ModuleId"),
+                TriggerType = ParseInt(GetCol(h, c, "TriggerType")),
+                Threshold = ParseInt(GetCol(h, c, "Threshold")),
+                Cooldown = ParseFloat(GetCol(h, c, "Cooldown")),
+                Interval = ParseFloat(GetCol(h, c, "Interval")),
+                ConsumeStacks = ParseInt(GetCol(h, c, "ConsumeStacks")),
+                MoveDistanceThreshold = ParseFloat(GetCol(h, c, "MoveDistanceThreshold")),
+                HealthThreshold = ParseFloat(GetCol(h, c, "HealthThreshold")),
+                ConsumeKind = ParseInt(GetCol(h, c, "ConsumeKind")),
+                WindowSeconds = ParseFloat(GetCol(h, c, "WindowSeconds")),
+                MaxStacks = ParseInt(GetCol(h, c, "MaxStacks"))
+            };
+        }
+
+        private static ModuleEffectParamRow ParseModuleEffectParamRow(string[] h, string[] c)
+        {
+            return new ModuleEffectParamRow
+            {
+                ModuleId = GetCol(h, c, "ModuleId"),
+                EffectType = ParseInt(GetCol(h, c, "EffectType")),
+                EffectRole = ParseInt(GetCol(h, c, "EffectRole")),
+                BaseDamage = ParseFloat(GetCol(h, c, "BaseDamage")),
+                DamageScaling = ParseFloat(GetCol(h, c, "DamageScaling")),
+                AoeRadius = ParseFloat(GetCol(h, c, "AoeRadius")),
+                Element = ParseInt(GetCol(h, c, "Element")),
+                HealAmount = ParseFloat(GetCol(h, c, "HealAmount")),
+                HealScaling = ParseFloat(GetCol(h, c, "HealScaling")),
+                ShieldAmount = ParseFloat(GetCol(h, c, "ShieldAmount")),
+                BuffDuration = ParseFloat(GetCol(h, c, "BuffDuration")),
+                BuffDamageReduction = ParseFloat(GetCol(h, c, "BuffDamageReduction")),
+                ProjectileSpeed = ParseFloat(GetCol(h, c, "ProjectileSpeed")),
+                ProjectileCount = ParseInt(GetCol(h, c, "ProjectileCount")),
+                SpreadAngle = ParseFloat(GetCol(h, c, "SpreadAngle")),
+                SlowPercent = ParseFloat(GetCol(h, c, "SlowPercent")),
+                StunDuration = ParseFloat(GetCol(h, c, "StunDuration")),
+                KnockbackForce = ParseFloat(GetCol(h, c, "KnockbackForce")),
+                DashDistance = ParseFloat(GetCol(h, c, "DashDistance")),
+                PullRadius = ParseFloat(GetCol(h, c, "PullRadius")),
+                DotDPS = ParseFloat(GetCol(h, c, "DotDPS")),
+                DotDuration = ParseFloat(GetCol(h, c, "DotDuration")),
+                InvincibleDuration = ParseFloat(GetCol(h, c, "InvincibleDuration")),
+                SummonDuration = ParseFloat(GetCol(h, c, "SummonDuration")),
+                SummonDamage = ParseFloat(GetCol(h, c, "SummonDamage")),
+                TrapDuration = ParseFloat(GetCol(h, c, "TrapDuration")),
+                VulnerableMultiplier = ParseFloat(GetCol(h, c, "VulnerableMultiplier")),
+                VulnerableDuration = ParseFloat(GetCol(h, c, "VulnerableDuration"))
+            };
+        }
+
+        private static ModuleModifierParamRow ParseModuleModifierParamRow(string[] h, string[] c)
+        {
+            return new ModuleModifierParamRow
+            {
+                ModuleId = GetCol(h, c, "ModuleId"),
+                ModifierType = ParseInt(GetCol(h, c, "ModifierType")),
+                ModifierValue = ParseFloat(GetCol(h, c, "ModifierValue")),
+                BurnDPS = ParseFloat(GetCol(h, c, "BurnDPS")),
+                BurnDuration = ParseFloat(GetCol(h, c, "BurnDuration")),
+                FreezeDuration = ParseFloat(GetCol(h, c, "FreezeDuration")),
+                LightningDamage = ParseFloat(GetCol(h, c, "LightningDamage")),
+                PoisonDPS = ParseFloat(GetCol(h, c, "PoisonDPS")),
+                PoisonDuration = ParseFloat(GetCol(h, c, "PoisonDuration")),
+                ExtraCount = ParseInt(GetCol(h, c, "ExtraCount")),
+                CostHPPercent = ParseFloat(GetCol(h, c, "CostHPPercent")),
+                CostDamageBonus = ParseFloat(GetCol(h, c, "CostDamageBonus"))
+            };
+        }
+
+        private static ModuleUniversalParamRow ParseModuleUniversalParamRow(string[] h, string[] c)
+        {
+            return new ModuleUniversalParamRow
+            {
+                ModuleId = GetCol(h, c, "ModuleId"),
+                UniTriggerType = ParseInt(GetCol(h, c, "UniTriggerType")),
+                UniTriggerThreshold = ParseInt(GetCol(h, c, "UniTriggerThreshold")),
+                UniTriggerCooldown = ParseFloat(GetCol(h, c, "UniTriggerCooldown")),
+                UniEffectType = ParseInt(GetCol(h, c, "UniEffectType")),
+                UniEffectRole = ParseInt(GetCol(h, c, "UniEffectRole")),
+                UniConsumeKind = ParseInt(GetCol(h, c, "UniConsumeKind")),
+                TriggerDesc = GetCol(h, c, "TriggerDesc"),
+                EffectDesc = GetCol(h, c, "EffectDesc")
+            };
+        }
+
+        private static SkillParamRow ParseSkillParamRow(string[] h, string[] c)
+        {
+            return new SkillParamRow
+            {
+                ConfigId = ParseInt(GetCol(h, c, "ConfigId")),
+                Name_CN = GetCol(h, c, "Name_CN"),
+                SkillType = ParseInt(GetCol(h, c, "SkillType")),
+                Element = ParseInt(GetCol(h, c, "Element")),
+                Rarity = ParseInt(GetCol(h, c, "Rarity")),
+                BaseDamage = ParseFloat(GetCol(h, c, "BaseDamage")),
+                DamageScaling = ParseFloat(GetCol(h, c, "DamageScaling")),
+                Cooldown = ParseFloat(GetCol(h, c, "Cooldown")),
+                CastSpeed = ParseFloat(GetCol(h, c, "CastSpeed")),
+                MaxCharges = ParseInt(GetCol(h, c, "MaxCharges")),
+                ChargeTime = ParseFloat(GetCol(h, c, "ChargeTime")),
+                CanCharge = ParseInt(GetCol(h, c, "CanCharge")),
+                ChargeLv2Time = ParseFloat(GetCol(h, c, "ChargeLv2Time")),
+                ChargeLv3Time = ParseFloat(GetCol(h, c, "ChargeLv3Time")),
+                ChargeLv2DmgMul = ParseFloat(GetCol(h, c, "ChargeLv2DmgMul")),
+                ChargeLv3DmgMul = ParseFloat(GetCol(h, c, "ChargeLv3DmgMul")),
+                ChargeLv2RadMul = ParseFloat(GetCol(h, c, "ChargeLv2RadMul")),
+                ChargeLv3RadMul = ParseFloat(GetCol(h, c, "ChargeLv3RadMul")),
+                ChargeMoveMul = ParseFloat(GetCol(h, c, "ChargeMoveMul")),
+                AoeRadius = ParseFloat(GetCol(h, c, "AoeRadius")),
+                ProjectileSpeed = ParseFloat(GetCol(h, c, "ProjectileSpeed")),
+                ProjectileCount = ParseInt(GetCol(h, c, "ProjectileCount")),
+                SpreadAngle = ParseFloat(GetCol(h, c, "SpreadAngle")),
+                DashDistance = ParseFloat(GetCol(h, c, "DashDistance")),
+                LeaveTrail = ParseInt(GetCol(h, c, "LeaveTrail")),
+                HealAmount = ParseFloat(GetCol(h, c, "HealAmount")),
+                HealScaling = ParseFloat(GetCol(h, c, "HealScaling")),
+                SummonDuration = ParseFloat(GetCol(h, c, "SummonDuration")),
+                SummonDamage = ParseFloat(GetCol(h, c, "SummonDamage")),
+                SummonIsDecoy = ParseInt(GetCol(h, c, "SummonIsDecoy")),
+                BuffDuration = ParseFloat(GetCol(h, c, "BuffDuration")),
+                BuffAtkSpeedPct = ParseFloat(GetCol(h, c, "BuffAtkSpeedPct")),
+                BuffMoveSpeedPct = ParseFloat(GetCol(h, c, "BuffMoveSpeedPct")),
+                BuffAtkPct = ParseFloat(GetCol(h, c, "BuffAtkPct")),
+                BuffDamageReduction = ParseFloat(GetCol(h, c, "BuffDamageReduction")),
+                FreezeOnHitChance = ParseFloat(GetCol(h, c, "FreezeOnHitChance")),
+                FreezeOnHitDuration = ParseFloat(GetCol(h, c, "FreezeOnHitDuration")),
+                DamageFromRunTotal = ParseInt(GetCol(h, c, "DamageFromRunTotal")),
+                RunTotalDamageRatio = ParseFloat(GetCol(h, c, "RunTotalDamageRatio")),
+                DashInvulnerable = ParseInt(GetCol(h, c, "DashInvulnerable")),
+                DashInvulnDuration = ParseFloat(GetCol(h, c, "DashInvulnDuration")),
+                ArmLethalGuard = ParseInt(GetCol(h, c, "ArmLethalGuard")),
+                LethalGuardDuration = ParseFloat(GetCol(h, c, "LethalGuardDuration")),
+                HeavenEarthShift = ParseInt(GetCol(h, c, "HeavenEarthShift")),
+                ZoneDuration = ParseFloat(GetCol(h, c, "ZoneDuration")),
+                ZoneRadius = ParseFloat(GetCol(h, c, "ZoneRadius")),
+                ZoneTickInterval = ParseFloat(GetCol(h, c, "ZoneTickInterval")),
+                ZoneDamagePerTick = ParseFloat(GetCol(h, c, "ZoneDamagePerTick")),
+                ZoneSlowPct = ParseFloat(GetCol(h, c, "ZoneSlowPct")),
+                ZonePullSpeed = ParseFloat(GetCol(h, c, "ZonePullSpeed")),
+                ZoneFollowPlayer = ParseInt(GetCol(h, c, "ZoneFollowPlayer")),
+                ZoneBurnDPS = ParseFloat(GetCol(h, c, "ZoneBurnDPS")),
+                PlayAnimation = ParseInt(GetCol(h, c, "PlayAnimation")),
+                VfxDuration = ParseFloat(GetCol(h, c, "VfxDuration"))
             };
         }
 

@@ -43,8 +43,15 @@ namespace XianTu.LevelDesign
         // v0.5.5 战斗配表（GDD §6.9 / §6.9-2）
         public Dictionary<int, SkillBaseRow> SkillBases { get; private set; } = new();
         public Dictionary<int, SkillEffectRow> SkillEffects { get; private set; } = new();
+        // V0.1.18d 技能参数仓库表（GDD §6.9-3；按 ConfigId=Skill_Base_Config.ID）
+        public Dictionary<int, SkillParamRow> SkillParams { get; private set; } = new();
         // V0.1.14 模块配置主表（GDD §5.7；按 ModuleId 字符串键）
         public Dictionary<string, ModuleBaseRow> Modules { get; private set; } = new();
+        // V0.1.18 模块参数仓库表（GDD §5.7；按 ModuleId 字符串键）
+        public Dictionary<string, ModuleTriggerParamRow> ModuleTriggerParams { get; private set; } = new();
+        public Dictionary<string, ModuleEffectParamRow> ModuleEffectParams { get; private set; } = new();
+        public Dictionary<string, ModuleModifierParamRow> ModuleModifierParams { get; private set; } = new();
+        public Dictionary<string, ModuleUniversalParamRow> ModuleUniversalParams { get; private set; } = new();
         // V0.1.14 敌人分类基础表（GDD §7.3；按 ID）与消费模型系数表（GDD §5.6；按 ID）
         public Dictionary<int, EnemyBaseRow> Enemies { get; private set; } = new();
         public Dictionary<int, ConsumeKindBonusRow> ConsumeKindBonuses { get; private set; } = new();
@@ -54,9 +61,18 @@ namespace XianTu.LevelDesign
         // ── 战斗配表查询（按 ID，O(1)；查不到返回 null）──
         public SkillBaseRow GetSkillBase(int id) => SkillBases.TryGetValue(id, out var r) ? r : null;
         public SkillEffectRow GetSkillEffect(int id) => SkillEffects.TryGetValue(id, out var r) ? r : null;
+        public SkillParamRow GetSkillParam(int id) => SkillParams.TryGetValue(id, out var r) ? r : null;
         public ItemInRunRow GetItem(int id) => ItemsInRun.TryGetValue(id, out var r) ? r : null;
         public ModuleBaseRow GetModule(string moduleId) =>
             !string.IsNullOrEmpty(moduleId) && Modules.TryGetValue(moduleId, out var r) ? r : null;
+        public ModuleTriggerParamRow GetModuleTriggerParam(string moduleId) =>
+            !string.IsNullOrEmpty(moduleId) && ModuleTriggerParams.TryGetValue(moduleId, out var r) ? r : null;
+        public ModuleEffectParamRow GetModuleEffectParam(string moduleId) =>
+            !string.IsNullOrEmpty(moduleId) && ModuleEffectParams.TryGetValue(moduleId, out var r) ? r : null;
+        public ModuleModifierParamRow GetModuleModifierParam(string moduleId) =>
+            !string.IsNullOrEmpty(moduleId) && ModuleModifierParams.TryGetValue(moduleId, out var r) ? r : null;
+        public ModuleUniversalParamRow GetModuleUniversalParam(string moduleId) =>
+            !string.IsNullOrEmpty(moduleId) && ModuleUniversalParams.TryGetValue(moduleId, out var r) ? r : null;
         public EnemyBaseRow GetEnemy(int id) => Enemies.TryGetValue(id, out var r) ? r : null;
         public ConsumeKindBonusRow GetConsumeKindBonus(int id) => ConsumeKindBonuses.TryGetValue(id, out var r) ? r : null;
 
@@ -78,8 +94,18 @@ namespace XianTu.LevelDesign
                 "LevelDesign/Skill_Base_Config", t => t.Rows, r => r.ID);
             SkillEffects = LoadTable<SkillEffectTable, SkillEffectRow>(
                 "LevelDesign/Skill_Effect_Config", t => t.Rows, r => r.ID);
+            SkillParams = LoadTable<SkillParamTable, SkillParamRow>(
+                "Combat/Skill_Param_Config", t => t.Rows, r => r.ConfigId);
             Modules = LoadTableStr<ModuleBaseTable, ModuleBaseRow>(
                 "Combat/Module_Base_Config", t => t.Rows, r => r.ModuleId);
+            ModuleTriggerParams = LoadTableStr<ModuleTriggerParamTable, ModuleTriggerParamRow>(
+                "Combat/Module_Trigger_Param_Config", t => t.Rows, r => r.ModuleId);
+            ModuleEffectParams = LoadTableStr<ModuleEffectParamTable, ModuleEffectParamRow>(
+                "Combat/Module_Effect_Param_Config", t => t.Rows, r => r.ModuleId);
+            ModuleModifierParams = LoadTableStr<ModuleModifierParamTable, ModuleModifierParamRow>(
+                "Combat/Module_Modifier_Param_Config", t => t.Rows, r => r.ModuleId);
+            ModuleUniversalParams = LoadTableStr<ModuleUniversalParamTable, ModuleUniversalParamRow>(
+                "Combat/Module_Universal_Param_Config", t => t.Rows, r => r.ModuleId);
             Enemies = LoadTable<EnemyBaseTable, EnemyBaseRow>(
                 "Combat/Enemy_Base_Config", t => t.Rows, r => r.ID);
             ConsumeKindBonuses = LoadTable<ConsumeKindBonusTable, ConsumeKindBonusRow>(
@@ -89,7 +115,9 @@ namespace XianTu.LevelDesign
             Debug.Log($"[ConfigDatabase] 已加载 — Maps:{MapStructures.Count} Rooms:{RoomSockets.Count} " +
                       $"Events:{StoryEvents.Count} BossPhases:{BossPhases.Count} " +
                       $"Items:{ItemsInRun.Count} Materials:{CaveMaterials.Count} " +
-                      $"Skills:{SkillBases.Count} Effects:{SkillEffects.Count} Modules:{Modules.Count} " +
+                      $"Skills:{SkillBases.Count} Effects:{SkillEffects.Count} SkillParams:{SkillParams.Count} Modules:{Modules.Count} " +
+                      $"ModTrig:{ModuleTriggerParams.Count} ModEff:{ModuleEffectParams.Count} " +
+                      $"ModMod:{ModuleModifierParams.Count} ModUni:{ModuleUniversalParams.Count} " +
                       $"Enemies:{Enemies.Count} ConsumeKindBonuses:{ConsumeKindBonuses.Count}");
         }
 

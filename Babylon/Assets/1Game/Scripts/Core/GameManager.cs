@@ -110,6 +110,10 @@ namespace XianTu
             if (modulePool == null || modulePool.Length == 0)
                 modulePool = ModulePoolLoader.LoadAll();
 
+            // V0.1.18c 运行时读表：用参数仓库表覆盖模块 SO 数值（仅 Play 模式，缺行回退）。
+            // 在 GrantSeedLoadout 之前执行，保证种子 loadout 也用覆盖后的数值。
+            ModuleTableApplier.ApplyAll(modulePool);
+
             // Grant seed loadout (first T+E+M → auto-assemble on Q)
             if (modulePool != null && modulePool.Length > 0)
                 ModulePoolLoader.GrantSeedLoadout(player, modulePool);

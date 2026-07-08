@@ -1,0 +1,9 @@
+﻿{
+  "Rows": [
+    {"ModuleId":"U_冲刺/突刺","UniTriggerType":6,"UniTriggerThreshold":1,"UniTriggerCooldown":2.0,"UniEffectType":13,"UniEffectRole":1,"UniConsumeKind":1,"TriggerDesc":"触发：MoveDistance","EffectDesc":"效果：Dash"},
+    {"ModuleId":"U_护盾/治疗","UniTriggerType":7,"UniTriggerThreshold":1,"UniTriggerCooldown":4.0,"UniEffectType":9,"UniEffectRole":0,"UniConsumeKind":0,"TriggerDesc":"触发：OnDamaged","EffectDesc":"效果：Heal"},
+    {"ModuleId":"U_种子/引爆","UniTriggerType":1,"UniTriggerThreshold":3,"UniTriggerCooldown":2.0,"UniEffectType":1,"UniEffectRole":1,"UniConsumeKind":2,"TriggerDesc":"触发：MeleeHitCount","EffectDesc":"效果：AreaDamage"},
+    {"ModuleId":"U_连击/剑气","UniTriggerType":1,"UniTriggerThreshold":5,"UniTriggerCooldown":1.5,"UniEffectType":3,"UniEffectRole":1,"UniConsumeKind":2,"TriggerDesc":"触发：MeleeHitCount","EffectDesc":"效果：SwordWave"},
+    {"ModuleId":"U_闪电/落雷","UniTriggerType":5,"UniTriggerThreshold":1,"UniTriggerCooldown":3.0,"UniEffectType":1,"UniEffectRole":1,"UniConsumeKind":1,"TriggerDesc":"触发：DodgeFinish","EffectDesc":"效果：AreaDamage"}
+  ]
+}

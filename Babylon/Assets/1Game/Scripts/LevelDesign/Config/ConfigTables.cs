@@ -210,6 +210,71 @@ namespace XianTu.LevelDesign
     }
 
     // ------------------------------------------------------------
+    // §6.9-3 Skill_Param_Config — 技能参数仓库表（V0.1.18d）
+    // 主键 ConfigId = Skill_Base_Config.ID（= SkillData.configId）。承载 SkillData SO 的
+    // 完整数值/开关字段（充能/蓄力/投射/位移/治疗/召唤/Buff/Zone 等），主表只放身份/CD/伤害。
+    // 均自 SkillData 资产真实导出；资产引用类字段（icon/prefab/vfx/audio/modifierDefs）不入表。
+    // ------------------------------------------------------------
+    [Serializable]
+    public class SkillParamRow
+    {
+        public int ConfigId;
+        public string Name_CN;
+        public int SkillType;
+        public int Element;
+        public int Rarity;
+        public float BaseDamage;
+        public float DamageScaling;
+        public float Cooldown;
+        public float CastSpeed;
+        public int MaxCharges;
+        public float ChargeTime;
+        public int CanCharge;
+        public float ChargeLv2Time;
+        public float ChargeLv3Time;
+        public float ChargeLv2DmgMul;
+        public float ChargeLv3DmgMul;
+        public float ChargeLv2RadMul;
+        public float ChargeLv3RadMul;
+        public float ChargeMoveMul;
+        public float AoeRadius;
+        public float ProjectileSpeed;
+        public int ProjectileCount;
+        public float SpreadAngle;
+        public float DashDistance;
+        public int LeaveTrail;
+        public float HealAmount;
+        public float HealScaling;
+        public float SummonDuration;
+        public float SummonDamage;
+        public int SummonIsDecoy;
+        public float BuffDuration;
+        public float BuffAtkSpeedPct;
+        public float BuffMoveSpeedPct;
+        public float BuffAtkPct;
+        public float BuffDamageReduction;
+        public float FreezeOnHitChance;
+        public float FreezeOnHitDuration;
+        public int DamageFromRunTotal;
+        public float RunTotalDamageRatio;
+        public int DashInvulnerable;
+        public float DashInvulnDuration;
+        public int ArmLethalGuard;
+        public float LethalGuardDuration;
+        public int HeavenEarthShift;
+        public float ZoneDuration;
+        public float ZoneRadius;
+        public float ZoneTickInterval;
+        public float ZoneDamagePerTick;
+        public float ZoneSlowPct;
+        public float ZonePullSpeed;
+        public int ZoneFollowPlayer;
+        public float ZoneBurnDPS;
+        public int PlayAnimation;
+        public float VfxDuration;
+    }
+
+    // ------------------------------------------------------------
     // §5.7 Module_Base_Config — 模块配置主表（V0.1.14）
     // 与 ModuleDef SO 字段一一对应，供策划以 CSV 批量查看/编辑。
     // 枚举列均以 int 存储（数值对照见 Combat_Table_Index.csv 图例）：
@@ -254,6 +319,91 @@ namespace XianTu.LevelDesign
         /// <summary>解锁条件（§5.7 新增策划字段，SO 未含）</summary>
         public string UnlockCond;
         public string Desc_CN;
+    }
+
+    // ------------------------------------------------------------
+    // §5.7 模块参数仓库表（V0.1.18b）—— 按 ModuleId 关联 Module_Base_Config，
+    // 拆出各大类的完整数值参数（主表只放身份/标签/关键参数）。均从 ModuleDef 真实导出。
+    // ------------------------------------------------------------
+    [Serializable]
+    public class ModuleTriggerParamRow
+    {
+        public string ModuleId;
+        public int TriggerType;
+        public int Threshold;
+        public float Cooldown;
+        public float Interval;
+        /// <summary>是否消耗层数（1=true/0=false）</summary>
+        public int ConsumeStacks;
+        public float MoveDistanceThreshold;
+        public float HealthThreshold;
+        public int ConsumeKind;
+        public float WindowSeconds;
+        public int MaxStacks;
+    }
+
+    [Serializable]
+    public class ModuleEffectParamRow
+    {
+        public string ModuleId;
+        public int EffectType;
+        public int EffectRole;
+        public float BaseDamage;
+        public float DamageScaling;
+        public float AoeRadius;
+        public int Element;
+        public float HealAmount;
+        public float HealScaling;
+        public float ShieldAmount;
+        public float BuffDuration;
+        public float BuffDamageReduction;
+        public float ProjectileSpeed;
+        public int ProjectileCount;
+        public float SpreadAngle;
+        public float SlowPercent;
+        public float StunDuration;
+        public float KnockbackForce;
+        public float DashDistance;
+        public float PullRadius;
+        public float DotDPS;
+        public float DotDuration;
+        public float InvincibleDuration;
+        public float SummonDuration;
+        public float SummonDamage;
+        public float TrapDuration;
+        public float VulnerableMultiplier;
+        public float VulnerableDuration;
+    }
+
+    [Serializable]
+    public class ModuleModifierParamRow
+    {
+        public string ModuleId;
+        public int ModifierType;
+        public float ModifierValue;
+        public float BurnDPS;
+        public float BurnDuration;
+        public float FreezeDuration;
+        public float LightningDamage;
+        public float PoisonDPS;
+        public float PoisonDuration;
+        public int ExtraCount;
+        public float CostHPPercent;
+        public float CostDamageBonus;
+    }
+
+    [Serializable]
+    public class ModuleUniversalParamRow
+    {
+        public string ModuleId;
+        public int UniTriggerType;
+        public int UniTriggerThreshold;
+        public float UniTriggerCooldown;
+        public int UniEffectType;
+        public int UniEffectRole;
+        public int UniConsumeKind;
+        public string TriggerDesc;
+        public string EffectDesc;
     }
 
     // ------------------------------------------------------------
@@ -309,7 +459,12 @@ namespace XianTu.LevelDesign
     [Serializable] public class MaterialCaveResTable { public MaterialCaveResRow[] Rows; }
     [Serializable] public class SkillBaseTable { public SkillBaseRow[] Rows; }
     [Serializable] public class SkillEffectTable { public SkillEffectRow[] Rows; }
+    [Serializable] public class SkillParamTable { public SkillParamRow[] Rows; }
     [Serializable] public class ModuleBaseTable { public ModuleBaseRow[] Rows; }
+    [Serializable] public class ModuleTriggerParamTable { public ModuleTriggerParamRow[] Rows; }
+    [Serializable] public class ModuleEffectParamTable { public ModuleEffectParamRow[] Rows; }
+    [Serializable] public class ModuleModifierParamTable { public ModuleModifierParamRow[] Rows; }
+    [Serializable] public class ModuleUniversalParamTable { public ModuleUniversalParamRow[] Rows; }
     [Serializable] public class EnemyBaseTable { public EnemyBaseRow[] Rows; }
     [Serializable] public class ConsumeKindBonusTable { public ConsumeKindBonusRow[] Rows; }
 }

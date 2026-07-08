@@ -439,9 +439,10 @@ namespace XianTu
             var config = GameConfig.Instance;
             if (config != null)
             {
-                enemy.stats.maxHp = config.敌人基础血量 * 0.8f * hpMultiplier;
-                enemy.stats.attackDamage = config.敌人基础攻击力 * 1.5f * dmgMultiplier;
-                enemy.stats.defense = config.敌人基础防御力 * 0.6f;
+                var er = LevelDesign.ConfigDatabase.Instance?.GetEnemy(2); // Mage
+                enemy.stats.maxHp = config.敌人基础血量 * (er?.HpMul ?? 0.8f) * hpMultiplier;
+                enemy.stats.attackDamage = config.敌人基础攻击力 * (er?.DmgMul ?? 1.5f) * dmgMultiplier;
+                enemy.stats.defense = config.敌人基础防御力 * (er?.DefMul ?? 0.6f);
             }
             else
             {

@@ -1,0 +1,6 @@
+ModuleId,UniTriggerType,UniTriggerThreshold,UniTriggerCooldown,UniEffectType,UniEffectRole,UniConsumeKind,TriggerDesc,EffectDesc
+U_冲刺/突刺,6,1,2,13,1,1,触发：MoveDistance,效果：Dash
+U_护盾/治疗,7,1,4,9,0,0,触发：OnDamaged,效果：Heal
+U_种子/引爆,1,3,2,1,1,2,触发：MeleeHitCount,效果：AreaDamage
+U_连击/剑气,1,5,1.5,3,1,2,触发：MeleeHitCount,效果：SwordWave
+U_闪电/落雷,5,1,3,1,1,1,触发：DodgeFinish,效果：AreaDamage

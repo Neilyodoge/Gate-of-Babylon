@@ -209,13 +209,14 @@ namespace XianTu
         //   Auto（自动）：放弃择时换 hands-free，代价降伤 → 增伤 ×0.80
         // 同时作用于增强字段（enhance*，Enhancement 角色用）与附加字段（damage/radius，Addon 角色用），
         // 每角色只读其一，互不干扰。
+        // V0.1.18b 运行时读表：系数改由 ConsumeKind_Bonus_Config（ID=(int)ConsumeKind）提供，
+        // 查不到表（未导表 / Resources 缺失）时回退到下列常量，行为与旧版一致（零回归）。
         private const float SingleDamageMul = 1.25f;
         private const float WindowDamageMul = 1.10f;
         private const float WindowRadiusMul = 1.20f;
         private const float AutoDamageMul = 0.80f;
 
-        /// <summary>获取当前 consumeKind 的增伤系数（供 UI 预览复用）。</summary>
-        public static float ConsumeKindDamageMul(ConsumeKind k) => k switch
+        private static float FallbackDamageMul(ConsumeKind k) => k switch
         {
             ConsumeKind.Single => SingleDamageMul,
             ConsumeKind.Window => WindowDamageMul,
@@ -223,12 +224,25 @@ namespace XianTu
             _ => 1f,
         };
 
-        /// <summary>获取当前 consumeKind 的范围系数（供 UI 预览复用）。</summary>
-        public static float ConsumeKindRadiusMul(ConsumeKind k) => k switch
+        private static float FallbackRadiusMul(ConsumeKind k) => k switch
         {
             ConsumeKind.Window => WindowRadiusMul,
             _ => 1f,
         };
+
+        /// <summary>获取当前 consumeKind 的增伤系数（供 UI 预览复用）。优先读表，回退常量。</summary>
+        public static float ConsumeKindDamageMul(ConsumeKind k)
+        {
+            var row = LevelDesign.ConfigDatabase.Instance?.GetConsumeKindBonus((int)k);
+            return row != null ? row.DamageMul : FallbackDamageMul(k);
+        }
+
+        /// <summary>获取当前 consumeKind 的范围系数（供 UI 预览复用）。优先读表，回退常量。</summary>
+        public static float ConsumeKindRadiusMul(ConsumeKind k)
+        {
+            var row = LevelDesign.ConfigDatabase.Instance?.GetConsumeKindBonus((int)k);
+            return row != null ? row.RadiusMul : FallbackRadiusMul(k);
+        }
 
         private static void ApplyConsumeKindIdentity(ref ChainConfig cfg)
         {
