@@ -10,6 +10,7 @@ namespace XianTu
     /// 1. 起始模板风格（当前 <see cref="StartTemplateRegistry.Selected"/> 起手模块的 styleTags）。
     /// 2. 半成型链补齐（某槽位有件但缺触发器/效果器 → 抬升对应大类）。
     /// 3. 本局构筑协同（与已拥有模块 styleTags 重叠）。
+    /// 4. V0.2.1 层级稀有度偏移（rarityBias 提升高品阶模块被选中概率）。
     /// </summary>
     public static class ModuleDropWeighting
     {
@@ -19,7 +20,7 @@ namespace XianTu
         public const float StyleSynergyBonus = 0.75f;
 
         /// <summary>按动态权重从池中随机抽取一个模块（软偏好，不硬锁）。</summary>
-        public static ModuleDef PickWeighted(IReadOnlyList<ModuleDef> pool)
+        public static ModuleDef PickWeighted(IReadOnlyList<ModuleDef> pool, int rarityBias = 0)
         {
             if (pool == null || pool.Count == 0) return null;
 
@@ -29,7 +30,7 @@ namespace XianTu
             var weights = new float[pool.Count];
             for (int i = 0; i < pool.Count; i++)
             {
-                weights[i] = WeightOf(pool[i], ctx);
+                weights[i] = WeightOf(pool[i], ctx, rarityBias);
                 total += weights[i];
             }
             if (total <= 0f) return pool[Random.Range(0, pool.Count)];
@@ -85,7 +86,7 @@ namespace XianTu
             return ctx;
         }
 
-        private static float WeightOf(ModuleDef m, Ctx ctx)
+        private static float WeightOf(ModuleDef m, Ctx ctx, int rarityBias)
         {
             if (m == null) return 0f;
             float w = BaseWeight;
@@ -100,6 +101,13 @@ namespace XianTu
 
             if (ctx.ownedStyle != StyleTag.None && (m.styleTags & ctx.ownedStyle) != 0)
                 w += StyleSynergyBonus;
+
+            // V0.2.1：稀有度偏移 — rarityBias > 0 时，高品阶模块权重提升
+            if (rarityBias > 0)
+            {
+                int rarityOrd = (int)m.rarity;
+                w += rarityOrd * rarityBias * 0.01f;
+            }
 
             return w;
         }

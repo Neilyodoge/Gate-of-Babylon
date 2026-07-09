@@ -60,6 +60,14 @@ namespace XianTu
         /// <summary>下一次入秘境时希望起手装备的功法 id（来自藏经阁解锁库）。入秘境时装入 0 号槽位。</summary>
         public string pendingStartSkillId = "";
 
+        // ========== V0.2.2 遗产系统 ==========
+
+        /// <summary>
+        /// 上局选定的遗产模块名称（moduleName）。下一局首战斗房自动掉落此模块作为起手补偿。
+        /// 撤离/死亡时由玩家从背包中选择 1 个模块留存。空串=无遗产。
+        /// </summary>
+        public string lastRunLegacyModuleId = "";
+
         // ========== 角色等级（历练 → 进阶经验 → 等级 · 终身保留） ==========
 
         /// <summary>角色等级阶：0~5（对应一阶~六阶）。</summary>

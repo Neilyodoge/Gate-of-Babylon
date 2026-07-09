@@ -162,7 +162,10 @@ namespace XianTu.LevelDesign.Editor
                 EliteMaxCount = ParseInt(GetCol(h, c, "EliteMaxCount")),
                 EventMinCount = ParseInt(GetCol(h, c, "EventMinCount")),
                 ShopMinCount = ParseInt(GetCol(h, c, "ShopMinCount")),
-                RoomPoolID = ParseIntArray(GetCol(h, c, "RoomPoolID"))
+                RoomPoolID = ParseIntArray(GetCol(h, c, "RoomPoolID")),
+                EnemyScaleMul = ParseFloatArray(GetCol(h, c, "EnemyScaleMul")),
+                ModuleRarityBias = ParseIntArray(GetCol(h, c, "ModuleRarityBias")),
+                HasStageReturn = ParseIntArray(GetCol(h, c, "HasStageReturn"))
             };
         }
 
@@ -600,6 +603,16 @@ namespace XianTu.LevelDesign.Editor
             return s.Split(';')
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => int.TryParse(x.Trim(), out int v) ? v : 0)
+                .ToArray();
+        }
+
+        private static float[] ParseFloatArray(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return Array.Empty<float>();
+            return s.Split(';')
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => float.TryParse(x.Trim(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : 0f)
                 .ToArray();
         }
 

@@ -68,12 +68,26 @@ namespace XianTu
             return raw;
         }
 
-        /// <summary>死亡：全部丢失</summary>
+        /// <summary>死亡：保留 50% 经验（GDD V0.2 统一结算：死亡 0.5x）</summary>
+        public int CommitOnDeath(float multiplier = 0.5f)
+        {
+            if (RunInsight == 0) return 0;
+            int transferred = Mathf.RoundToInt(RunInsight * multiplier);
+            if (transferred > 0)
+            {
+                SaveSystem.Instance.Data.accumulatedInsight += transferred;
+                SaveSystem.Instance.Save();
+            }
+            Debug.Log($"<color=#ff8866>[InsightSystem] 秘境中身亡 · {RunInsight} 经验 ×{multiplier:F1} → {transferred} 转入永久（当前永久 {PermanentInsight}）</color>");
+            int raw = RunInsight;
+            RunInsight = 0;
+            return raw;
+        }
+
+        /// <summary>[已废弃] 旧接口保留兼容，内部调用 CommitOnDeath</summary>
         public void AbandonOnDeath()
         {
-            if (RunInsight > 0)
-                Debug.Log($"<color=#ff8866>[InsightSystem] 秘境中身亡 · {RunInsight} 经验散尽</color>");
-            RunInsight = 0;
+            CommitOnDeath(0.5f);
         }
 
         // ========== 永久经验消耗 ==========

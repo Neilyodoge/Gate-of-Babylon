@@ -6,6 +6,135 @@
 
 ---
 
+## V0.2.2 · 统一结算 + 遗产系统（2026-07-09）
+
+**V0.2.2 落地**。统一了所有局终出口（死亡/撤离/通关）的经验结算模型，并实现了「遗产模块」系统——每次局终，玩家从背包中选择 1 个模块带入下一局首战。
+
+### 统一结算模型
+
+- **死亡不再全丢**：`InsightSystem.CommitOnDeath(0.5f)` 保留 50% 经验转入永久（GDD P1 "死亡 0.5x"）。
+- **结算倍率体系**：`EndType.Death=0.5x` / `Extract=1.0x` / `Victory=2.0x`，叠加层深倍率（每层 +15%）。
+- **死亡弹出结算面板**：不再直接消失，改为暂停游戏 → 展示经验明细 + 遗产选择 → 确认后返回洞府。
+
+### 遗产系统
+
+- **`SaveDataV1.lastRunLegacyModuleId`**：新增跨局字段，存储上局选定的遗产模块 ID。
+- **结算面板遗产选择**：`ExtractResultPanel.BuildLegacySection()` 展示玩家背包中所有模块为可点击卡片，选中 1 件高亮为金色边框。
+- **遗产注入**：`GameManager.TryInjectLegacyModule()` 在 `StartNewRun()` 末尾检查存档，若有遗产模块则在玩家脚下生成 `ModulePickup`，一次性使用后清空。
+- **心理缓解**：死后不再"一无所获"，有遗产带入下局 + 50% 经验保底，减轻 GDD Q2 提到的"重开抵触"。
+
+### ExtractResultPanel 重构
+
+- 新增 `EndType` 枚举（`Death`/`Extract`/`Victory`）。
+- 新增 8 参数 `Show` 重载（保留旧 6 参数兼容）。
+- 面板标题根据 `EndType` 显示"梦境破碎"/"安全撤离"/"秘境通关"。
+- 确认按钮文案动态：有遗产可选时显示"确认遗产 · 返回洞府"。
+
+### 验证要点
+
+- [x] 编译 0 error（排除预存 GameObjectToPng 无关错误）
+- [ ] 死亡后弹出结算面板（标题"梦境破碎"，经验显示 ×0.5）
+- [ ] 结算面板显示模块卡片网格，可选中 1 件
+- [ ] 选中遗产后确认 → `lastRunLegacyModuleId` 写入存档
+- [ ] 下一局 StartNewRun → 遗产模块自动掉落在玩家脚下
+- [ ] 撤离时面板同样显示遗产选择（EndType=Extract）
+
+---
+
+## V0.2.1 · 房间类型全闭环 + 稀有度联动 + 阶段返回（2026-07-09）
+
+**V0.2.1 落地**。让 TreeMap 生成的 6 种房间类型（Battle/Elite/Event/Shop/Rest/Boss）全部可运行，不再把 Elite 退化为普通战斗、Event 退化为宝箱。同时把 `ModuleRarityBias` 接入掉落权重，让深层楼层产出更多高品阶模块。
+
+### 房间类型扩展
+
+- **`Minimap.RoomType` 枚举**：新增 `Elite`、`Event` 两个值，小地图/UI/调试接口全线支持。
+- **`MapLevelRoomToMinimap` 映射更新**：`LevelRoomType.Elite → Minimap.Elite`（不再退化为 Battle），`LevelRoomType.Event → Minimap.Event`（不再退化为 Treasure）。
+- **Minimap UI**：Elite 显示 ⚡ 橙色，Event 显示 ? 淡蓝色。
+
+### 精英房（SpawnEliteRoom）
+
+- 敌人数量少于普通战斗（`baseEnemyCount - 1`，最少 2）。
+- HP/DMG 乘以 `GameConfig.精英怪血量倍率` × `精英怪伤害倍率` × 层缩放。
+- 通关掉落 3 个模块（普通房 1-2 个），且稀有度偏移 +20。
+- `BattleRoom.SetEliteRoom(true)` 标记后走独立掉落逻辑。
+
+### 事件房（SpawnEventRoom）
+
+- 构建基础房间视觉（`RoomBuilder.Build`）。
+- 自动触发 `LevelDesignDirector.TryTriggerRoomEvent()`，接入 `StoryEventService` 叙事事件系统。
+- 事件完成后自动发布 `RoomCleared` 推进主循环。
+
+### 模块稀有度联动
+
+- **`ModuleDropWeighting.PickWeighted(pool, rarityBias)`**：新增 `int rarityBias` 参数。
+- `rarityBias > 0` 时，高品阶模块（Ling/Xuan/Di/Tian）权重按 `rarityOrd × rarityBias × 0.01` 递增。
+- `BattleRoom.SpawnModuleReward` 现从 `Map_Structure_Config.ModuleRarityBias[floor]` 读取偏移；精英房额外 +20。
+
+### 阶段返回点条件化
+
+- **`GameManager.ShouldShowStageReturn()`**：读取 `HasStageReturn[currentLevel]`。
+- 若当前层无阶段返回（配表 = 0），层末不生成出梦点，直接传送门进入下一层。
+- 兜底：配表不可用时 → 总是允许撤离（向后兼容旧行为）。
+
+### 验证要点（待 Unity Play 后执行）
+
+- [x] 编译 0 error
+- [ ] TreeMap 中 Elite 节点→SpawnEliteRoom 被调用（日志 `★ 精英房 ★`）
+- [ ] 精英房掉落 3 件模块，稀有度明显高于普通房
+- [ ] Event 节点→SpawnEventRoom 弹出叙事事件
+- [ ] 小地图正确显示 ⚡ 和 ? 图标
+- [ ] HasStageReturn=0 的层末直接进入下一层（无出梦点）
+- [ ] HasStageReturn=1 的层末同时出现出梦点 + 传送门
+
+---
+
+## V0.2.0 · 关卡生成配表 + 程序化地图接入主循环（2026-07-09）
+
+**V0.2 正式启动**。V0.1 战斗配表体系已收官，进入关卡设计版本。本版核心：把已有的 `LevelDesignDirector`/`TreeMapGenerator` 系统从旁路接入 `GameManager` 主循环，让每局不再走硬编码固定布局，而是读 `Map_Structure_Config` 程序化生成树状地图。
+
+### 设计决策（GDD §11.2.2 Q-004/Q-005）
+
+- **Q1 反制系统**：设计合理但时机不对→移至 V0.3。V0.2 难度递增沿用：数量/倍率/新类型/Boss 阶段。
+- **Q2 重开抵触**：V0.2 同步控制节奏（25-40min 目标）+ 阶段返回激励 + 遗产系统。
+
+### 配表扩展
+
+- **`Map_Structure_Config.csv` 新增 3 列**：
+  - `EnemyScaleMul`：每层敌人数值缩放倍率（分号分隔浮点数组）。Act1 = 1.0/1.3/1.6/2.0/2.5/3.0。
+  - `ModuleRarityBias`：每层模块掉落稀有度偏移（百分比）。越深层越偏向高稀有度。
+  - `HasStageReturn`：每层结束后是否有阶段返回点（0/1 数组）。Act1 第 2/4 层有返回点。
+- **`ConfigTables.MapStructureRow`** 新增字段 + `GetEnemyScale(floor)`/`GetRarityBias(floor)`/`GetHasStageReturn(floor)` 便捷访问器。
+- **`CsvToJsonImporter`** 新增 `ParseFloatArray` 方法 + `ParseMapStructureRow` 扩展解析。
+
+### 主循环接入
+
+- **`GameManager.StartNewRun()`**：不再调用 `GenerateLevelLayout()`（固定布局），改为：
+  1. `LevelDesignDirector.Instance.StartNewRun()` → 生成 Act1 TreeMap
+  2. `GenerateLevelLayoutFromTreeMap(map)` → 把 TreeMap 节点映射为兼容旧 `_levelRooms` 结构的房间序列
+  3. 保留旧固定布局作为兜底（TreeMap 生成失败时）
+- **`GameManager.SpawnBattleRoom()`**：从旧公式 `1 + level × scale` 改为乘以 `GetCurrentFloorEnemyScale()` 从配表读取的每层缩放倍率。
+- **`GameManager.OnRoomCleared()`**：新增 `LevelDesignDirector.MarkCurrentNodeCleared()` 调用，同步标记 TreeMap 节点完成状态。
+- **`LevelDesignBootstrap.OnRealmBreakthrough(0)`**：检测 Director 已有地图时跳过重复生成（防止 GameManager 直接调用后 Bootstrap 再次覆盖）。
+
+### 现有系统复用
+
+- `TreeMapGenerator.Generate(actID)` → 从 `Map_Structure_Config` 读参数，按 层→节点→路径 三级程序化生成
+- `TreeMapUI` → Slay the Spire 式路径选择界面（已有 UITK 实现）
+- `RoomChoiceUI` → 3 选 1 卡片退化方案（TreeMap 无候选节点时）
+- `useTreeMapFlow = true`（默认开启，F12 可切换）
+- `RoomBuilder` → 程序化房间视觉（墙壁/柱子/陷阱/配色随层变化）
+
+### 验证要点（待 Unity 重开后执行）
+
+- [ ] 编译 0 error
+- [ ] 导表生成新 JSON（含 EnemyScaleMul/ModuleRarityBias/HasStageReturn）
+- [ ] StartNewRun 后 TreeMap 非空（`LevelDesignDirector.CurrentMap != null`）
+- [ ] 房间序列来自 TreeMap（日志显示 `[V0.2] TreeMap 布局：...`）
+- [ ] 战斗房敌人缩放倍率正确（第 1 层 ×1.0，第 3 层 ×1.6）
+- [ ] 房间清场后弹出 TreeMap UI 路径选择
+
+---
+
 ## V0.1.18d · 核心技能表补全（技能参数仓库表）（2026-07-08）
 
 补齐战斗配表最后一环——`Skill_Base_Config` 主表只有 8 列（ID/名称/描述/品阶/类型/CD/伤害/图标），而 `SkillData` SO 有 50+ 字段（充能/蓄力/投射/位移/治疗/召唤/Buff/Zone 等）散落未进表。沿用模块「主表 + 参数仓库表」模式补全。

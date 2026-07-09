@@ -221,14 +221,107 @@ namespace XianTu
             // GDD V.07：初始化模块系统（确保 ModuleInventory + ModuleSlotManager 存在）
             InitModuleSystem();
 
-            // 生成整局的房间布局
-            GenerateLevelLayout();
+            // V0.2：通过 LevelDesignDirector 生成程序化树状地图
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            dir.StartNewRun();
+
+            // 从 TreeMap 生成兼容的房间布局（兼容小地图 + 现有 SpawnCurrentRoom）
+            GenerateLevelLayoutFromTreeMap(dir.CurrentMap);
 
             // 初始化小地图
             if (_minimap != null)
                 _minimap.Initialize(_levelLayout);
 
             SpawnCurrentRoom();
+
+            // V0.2.2：遗产模块注入 — 上局选定的模块在首战掉落
+            TryInjectLegacyModule();
+        }
+
+        /// <summary>
+        /// V0.2.2：遗产系统 — 上一局结束时玩家选择的 1 件遗产模块，
+        /// 在本局首战斗房地面自动生成 ModulePickup，作为"前世记忆"。
+        /// 注入后清空存档字段（一次性使用）。
+        /// </summary>
+        private void TryInjectLegacyModule()
+        {
+            var save = SaveSystem.Instance.Data;
+            if (string.IsNullOrEmpty(save.lastRunLegacyModuleId)) return;
+
+            // 从 modulePool 查找对应模块
+            ModuleDef legacyMod = null;
+            if (modulePool != null)
+            {
+                foreach (var m in modulePool)
+                {
+                    if (m != null && m.moduleId == save.lastRunLegacyModuleId)
+                    {
+                        legacyMod = m;
+                        break;
+                    }
+                }
+            }
+
+            if (legacyMod == null)
+            {
+                Debug.LogWarning($"[遗产] 找不到模块 '{save.lastRunLegacyModuleId}'，跳过注入");
+                save.lastRunLegacyModuleId = "";
+                SaveSystem.Instance.Save();
+                return;
+            }
+
+            // 在玩家附近生成遗产拾取物
+            Vector3 pos = PlayerController.Instance != null
+                ? PlayerController.Instance.transform.position + Vector3.right * 2f
+                : Vector3.right * 2f;
+            ModulePickup.Spawn(legacyMod, pos);
+
+            Debug.Log($"<color=#ffcc33>[遗产] 前世记忆：{legacyMod.displayName}（{legacyMod.category}）已在脚下显现</color>");
+
+            // 清空存档（一次性使用）
+            save.lastRunLegacyModuleId = "";
+            SaveSystem.Instance.Save();
+        }
+
+        /// <summary>
+        /// V0.2：从 TreeMap 生成兼容旧 _levelRooms 结构的房间布局。
+        /// 把树状图的每一层映射为 _levelRooms 的一个 layer，保持向后兼容。
+        /// </summary>
+        private void GenerateLevelLayoutFromTreeMap(LevelDesign.TreeMap map)
+        {
+            _levelRooms = new List<List<Minimap.RoomType>>();
+            _levelLayout = new List<Minimap.RoomType>();
+
+            if (map == null || map.Floors.Count == 0)
+            {
+                Debug.LogWarning("[GameManager] TreeMap 为空，回退固定布局");
+                GenerateLevelLayout();
+                return;
+            }
+
+            for (int f = 0; f < map.Floors.Count; f++)
+            {
+                var floor = map.Floors[f];
+                var rooms = new List<Minimap.RoomType>();
+                foreach (var node in floor)
+                {
+                    rooms.Add(MapLevelRoomToMinimap(node.RoomType));
+                }
+                if (rooms.Count == 0) rooms.Add(Minimap.RoomType.Battle);
+                _levelRooms.Add(rooms);
+                _levelLayout.AddRange(rooms);
+            }
+
+            string layoutStr = "";
+            for (int i = 0; i < _levelRooms.Count; i++)
+            {
+                string name = i < _realmNames.Length ? _realmNames[i] : $"层{i + 1}";
+                layoutStr += $"[{name}:";
+                foreach (var rt in _levelRooms[i])
+                    layoutStr += $" {rt}";
+                layoutStr += "] → ";
+            }
+            Debug.Log($"<color=cyan>[V0.2] TreeMap 布局：{layoutStr}</color>");
         }
 
         /// <summary>
@@ -318,6 +411,12 @@ namespace XianTu
                 case Minimap.RoomType.Battle:
                     SpawnBattleRoom(spawnPos);
                     break;
+                case Minimap.RoomType.Elite:
+                    SpawnEliteRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Event:
+                    SpawnEventRoom(spawnPos);
+                    break;
                 case Minimap.RoomType.Shop:
                     SpawnShopRoom(spawnPos);
                     break;
@@ -345,9 +444,11 @@ namespace XianTu
             _currentRoomGo.transform.position = spawnPos;
             var room = _currentRoomGo.AddComponent<BattleRoom>();
 
+            // V0.2：从 TreeMap 配表读取每层缩放倍率（缺省回退旧公式）
+            float floorScale = GetCurrentFloorEnemyScale();
             int enemyCount = baseEnemyCount + _currentLevel * enemyCountPerLevel;
-            float hpMul = 1f + _currentLevel * hpScalePerLevel;
-            float dmgMul = 1f + _currentLevel * dmgScalePerLevel;
+            float hpMul = (1f + _currentLevel * hpScalePerLevel) * floorScale;
+            float dmgMul = (1f + _currentLevel * dmgScalePerLevel) * floorScale;
             room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, roomSize, roomSize);
             room.SetSkillPool(skillPool);
             room.SetModulePool(modulePool);
@@ -355,7 +456,7 @@ namespace XianTu
             if (enemyHitVFXPrefab != null)
                 room.SetEnemyHitVFX(enemyHitVFXPrefab);
 
-            Debug.Log($"<color=yellow>【{CurrentRealmName}】战斗房间 | 敌人 x{enemyCount} | 血量 x{hpMul:F1} | 伤害 x{dmgMul:F1}</color>");
+            Debug.Log($"<color=yellow>【{CurrentRealmName}】战斗房间 | 敌人 x{enemyCount} | 血量 x{hpMul:F1} | 伤害 x{dmgMul:F1} | 层缩放 x{floorScale:F2}</color>");
             room.StartBattle();
         }
 
@@ -391,6 +492,51 @@ namespace XianTu
             Debug.Log($"<color=yellow>【{CurrentRealmName}】商店房间 — 按F离开</color>");
         }
 
+        /// <summary>V0.2.1：精英战斗房 — 更少但更强的敌人 + 保底高稀有度模块掉落</summary>
+        private void SpawnEliteRoom(Vector3 spawnPos)
+        {
+            _currentRoomGo = new GameObject($"EliteRoom_Lv{_currentLevel}_{CurrentRealmName}");
+            _currentRoomGo.transform.position = spawnPos;
+            var room = _currentRoomGo.AddComponent<BattleRoom>();
+
+            var config = GameConfig.Instance;
+            float eliteHpMul = config != null ? config.精英怪血量倍率 : 3f;
+            float eliteDmgMul = config != null ? config.精英怪伤害倍率 : 1.5f;
+            float floorScale = GetCurrentFloorEnemyScale();
+
+            int enemyCount = Mathf.Max(2, baseEnemyCount - 1);
+            float hpMul = (1f + _currentLevel * hpScalePerLevel) * floorScale * eliteHpMul;
+            float dmgMul = (1f + _currentLevel * dmgScalePerLevel) * floorScale * eliteDmgMul;
+
+            room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, roomSize, roomSize);
+            room.SetSkillPool(skillPool);
+            room.SetModulePool(modulePool);
+            room.SetEliteRoom(true);
+
+            if (enemyHitVFXPrefab != null)
+                room.SetEnemyHitVFX(enemyHitVFXPrefab);
+
+            Debug.Log($"<color=#ff8800>【{CurrentRealmName}】★ 精英房 ★ | 敌人 x{enemyCount} | 血量 x{hpMul:F1} | 伤害 x{dmgMul:F1}</color>");
+            room.StartBattle();
+        }
+
+        /// <summary>V0.2.1：事件房 — 触发叙事事件（StoryEventService），完成后自动 RoomCleared</summary>
+        private void SpawnEventRoom(Vector3 spawnPos)
+        {
+            _currentRoomGo = new GameObject($"EventRoom_Lv{_currentLevel}_{CurrentRealmName}");
+            _currentRoomGo.transform.position = spawnPos;
+
+            RoomBuilder.Build(_currentRoomGo.transform, roomSize, roomSize, _currentLevel);
+
+            Debug.Log($"<color=#6677ff>【{CurrentRealmName}】事件房 — 触发叙事事件</color>");
+
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            dir.TryTriggerRoomEvent(() =>
+            {
+                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _currentRoomInLevel });
+            });
+        }
+
         private void SpawnRestRoom(Vector3 spawnPos)
         {
             _currentRoomGo = new GameObject($"RestRoom_Lv{_currentLevel}_{CurrentRealmName}");
@@ -418,6 +564,36 @@ namespace XianTu
             Debug.Log($"<color=green>【{CurrentRealmName}】升级房间 — 靠近功法宗师按F修炼 — 按F离开</color>");
         }
 
+        /// <summary>V0.2：从 LevelDesignDirector.CurrentMap 获取当前层的敌人缩放倍率</summary>
+        private float GetCurrentFloorEnemyScale()
+        {
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            if (dir?.CurrentMap == null) return 1f;
+            var db = LevelDesign.ConfigDatabase.Instance;
+            if (db == null) return 1f;
+            foreach (var kv in db.MapStructures)
+            {
+                if (kv.Value.ActID == dir.CurrentMap.ActID)
+                    return kv.Value.GetEnemyScale(_currentLevel);
+            }
+            return 1f;
+        }
+
+        /// <summary>V0.2.1：从配表检查当前层是否有阶段返回点</summary>
+        private bool ShouldShowStageReturn()
+        {
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            if (dir?.CurrentMap == null) return true;
+            var db = LevelDesign.ConfigDatabase.Instance;
+            if (db == null) return true;
+            foreach (var kv in db.MapStructures)
+            {
+                if (kv.Value.ActID == dir.CurrentMap.ActID)
+                    return kv.Value.GetHasStageReturn(_currentLevel);
+            }
+            return true;
+        }
+
         private void TeleportPlayer(Vector3 pos)
         {
             if (PlayerController.Instance != null)
@@ -436,6 +612,9 @@ namespace XianTu
         {
             if (_gameOver || _transitioning) return;
             _transitioning = true;
+
+            // V0.2：标记 TreeMap 当前节点已完成
+            LevelDesign.LevelDesignDirector.Instance?.MarkCurrentNodeCleared();
 
             _currentRoomInLevel++;
             _flatRoomIndex++;
@@ -552,9 +731,9 @@ namespace XianTu
             return t switch
             {
                 LevelDesign.LevelRoomType.Battle => Minimap.RoomType.Battle,
-                LevelDesign.LevelRoomType.Elite => Minimap.RoomType.Battle,
+                LevelDesign.LevelRoomType.Elite => Minimap.RoomType.Elite,
                 LevelDesign.LevelRoomType.Shop => Minimap.RoomType.Shop,
-                LevelDesign.LevelRoomType.Event => Minimap.RoomType.Treasure,
+                LevelDesign.LevelRoomType.Event => Minimap.RoomType.Event,
                 LevelDesign.LevelRoomType.Boss => Minimap.RoomType.Boss,
                 _ => Minimap.RoomType.Battle
             };
@@ -642,6 +821,8 @@ namespace XianTu
         private static string TypeTitle(Minimap.RoomType t) => t switch
         {
             Minimap.RoomType.Battle => "战斗",
+            Minimap.RoomType.Elite => "精英",
+            Minimap.RoomType.Event => "事件",
             Minimap.RoomType.Shop => "商店",
             Minimap.RoomType.Rest => "休息",
             Minimap.RoomType.Treasure => "宝藏",
@@ -653,6 +834,8 @@ namespace XianTu
         private static string TypeTooltip(Minimap.RoomType t) => t switch
         {
             Minimap.RoomType.Battle => "刷怪 + 拾取局内灵物 / 洞府素材",
+            Minimap.RoomType.Elite => "精英怪 — 强化敌人 + 保底稀有模块掉落",
+            Minimap.RoomType.Event => "叙事事件 — 选择驱动的随机奖励/代价",
             Minimap.RoomType.Shop => "用本局货币购买灵物 / 丹药",
             Minimap.RoomType.Rest => "灵泉静修，回复生命",
             Minimap.RoomType.Treasure => "开启宝箱，获得稀有奖励",
@@ -663,14 +846,40 @@ namespace XianTu
 
         /// <summary>
         /// v0.5 搜打撤：每层结束时同时生成【出梦点】（撤离）和【下一层传送门】（继续），让玩家做决策。
+        /// V0.2.1：仅当 HasStageReturn[currentLevel]=1 时显示出梦点，否则直接进入下一层。
         /// </summary>
         private void SpawnExtractPointAndPortal()
         {
             Vector3 roomCenter = _currentRoomGo != null ? _currentRoomGo.transform.position : Vector3.zero;
             float roomHalfDepth = GetCurrentRoomHalfDepth();
 
-            // 检查是否已通关最后一层
             bool isLastRealm = _currentLevel >= _realmNames.Length - 1;
+
+            // V0.2.1：检查配表是否允许本层阶段返回
+            bool hasStageReturn = ShouldShowStageReturn();
+
+            if (!isLastRealm && !hasStageReturn)
+            {
+                // 无阶段返回点 → 直接传送到下一层
+                if (LevelTransition.Instance != null)
+                {
+                    Vector3 portalPos = roomCenter + new Vector3(0f, 0, roomHalfDepth * 0.5f);
+                    LevelTransition.Instance.SpawnPortal(portalPos, () =>
+                    {
+                        _currentLevel++;
+                        _currentRoomInLevel = 0;
+                        Debug.Log($"<color=magenta>═══ 闯入下一层：{CurrentRealmName} ═══</color>");
+                        SpawnCurrentRoom();
+                    });
+                }
+                else
+                {
+                    _currentLevel++;
+                    _currentRoomInLevel = 0;
+                    SpawnCurrentRoom();
+                }
+                return;
+            }
 
             // 逐层挑战台已移除。
             // 秘境层推进只剩"撤离 vs 继续"+ 等级差压制作为难度门槛。
@@ -692,14 +901,25 @@ namespace XianTu
                 if (FeatureFlags.EnableCaveMeta)
                     temperingRaw = CultivationSystem.Instance.CommitOnExtract(mul);
 
-                ExtractResultPanel.Show(capturedLevel, realmName,
-                    insightRaw, temperingRaw, matCount, () =>
+                // V0.2.2：收集模块背包用于遗产选择
+                IReadOnlyList<ModuleDef> legacyModules = null;
+                if (PlayerController.Instance != null)
                 {
-                    EnterVillageHub();
-                    _transitioning = false;
-                    _gameOver = false;
-                    Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府（层深倍率 ×{mul:F2}）</color>");
-                });
+                    var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
+                    if (inv != null && inv.Modules.Count > 0)
+                        legacyModules = inv.Modules;
+                }
+
+                ExtractResultPanel.Show(capturedLevel, realmName,
+                    insightRaw, temperingRaw, matCount,
+                    ExtractResultPanel.EndType.Extract, legacyModules,
+                    () =>
+                    {
+                        EnterVillageHub();
+                        _transitioning = false;
+                        _gameOver = false;
+                        Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府（层深倍率 ×{mul:F2}）</color>");
+                    });
             });
 
             if (isLastRealm)
@@ -754,20 +974,42 @@ namespace XianTu
         {
             _gameOver = true;
 
-            // v0.5 搜打撤：失去本局所有洞府素材，按 10% 折算为灵气补偿；经验也消失
-            int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
-            InsightSystem.Instance.AbandonOnDeath();
-            // V.03（Q7）：局外 meta 暂缓时不走转世传承（角色等级系统未启用）
+            // V0.2.2：死亡 0.5x 经验转入永久（不再全丢）
+            int insightRaw = InsightSystem.Instance.RunInsight;
+            int temperingRaw = 0;
             if (FeatureFlags.EnableCaveMeta)
-                CultivationSystem.Instance.ReincarnateOnDeath();   // 只丢本局未撤离历练；等级/精通终身保留
+                temperingRaw = CultivationSystem.Instance.RunTempering;
 
-            // 增加死亡统计
+            InsightSystem.Instance.CommitOnDeath(0.5f);
+            if (FeatureFlags.EnableCaveMeta)
+                CultivationSystem.Instance.ReincarnateOnDeath();
+
+            int matCount = CaveInventory.Instance.TotalPendingCount;
+            int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
+
             SaveSystem.Instance.Data.totalDeaths++;
-
-            // v0.6：道伤已移除——死亡丢失本局收益已是足够惩罚
             SaveSystem.Instance.Save();
 
-            Debug.Log($"<color=red>梦境破碎... 惊醒回到现实（残魂转化 {qiCompensation} 灵气）</color>");
+            // 收集玩家当前模块背包用于遗产选择
+            IReadOnlyList<ModuleDef> legacyModules = null;
+            if (PlayerController.Instance != null)
+            {
+                var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
+                if (inv != null && inv.Modules.Count > 0)
+                    legacyModules = inv.Modules;
+            }
+
+            // V0.2.2：弹出结算面板（死亡模式 + 遗产选择）
+            ExtractResultPanel.Show(_currentLevel, CurrentRealmName,
+                insightRaw, temperingRaw, matCount,
+                ExtractResultPanel.EndType.Death, legacyModules,
+                () =>
+                {
+                    EnterVillageHub();
+                    _transitioning = false;
+                    _gameOver = false;
+                    Debug.Log($"<color=#ff8866>[GameManager] 死亡结算完成 · 回到洞府（残魂 {qiCompensation} 灵气）</color>");
+                });
         }
 
         private void OnEnemyKilled(GameEvents.EnemyKilled evt)
@@ -884,6 +1126,12 @@ namespace XianTu
             {
                 case Minimap.RoomType.Battle:
                     SpawnBattleRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Elite:
+                    SpawnEliteRoom(spawnPos);
+                    break;
+                case Minimap.RoomType.Event:
+                    SpawnEventRoom(spawnPos);
                     break;
                 case Minimap.RoomType.Shop:
                     SpawnShopRoom(spawnPos);

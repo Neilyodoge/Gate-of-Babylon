@@ -132,10 +132,14 @@ namespace XianTu.LevelDesign
             // RealmBreakthrough 导致 TreeMap 被覆盖（地图重置 Bug）
             if (_actAlreadyStarted.Contains(evt.NewRealmLevel)) return;
 
+            // V0.2：GameManager.StartNewRun() 已直接调用 Director.StartNewRun()，
+            // 此处仅对 realm=0 标记"已处理"，不再重复生成地图。
             if (evt.NewRealmLevel == 0)
             {
-                _actAlreadyStarted.Clear(); // 新一局：清除所有记录
+                _actAlreadyStarted.Clear();
                 _actAlreadyStarted.Add(0);
+                // 如果 Director 已有地图（GameManager 已生成），跳过
+                if (LevelDesignDirector.Instance.CurrentMap != null) return;
                 LevelDesignDirector.Instance.StartNewRun();
             }
             else if (evt.NewRealmLevel == 2)

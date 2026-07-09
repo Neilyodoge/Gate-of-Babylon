@@ -47,6 +47,28 @@ namespace XianTu.LevelDesign
         public int ShopMinCount;
         /// <summary>引用 Room_Socket_Group_Config 的 ID 列表</summary>
         public int[] RoomPoolID;
+        /// <summary>每层敌人数值缩放倍率（长度=MaxFloor，缺省层=1.0）</summary>
+        public float[] EnemyScaleMul;
+        /// <summary>每层模块掉落稀有度偏移（Rare/Epic 权重百分比提升，缺省=0）</summary>
+        public int[] ModuleRarityBias;
+        /// <summary>每层结束后是否有阶段返回点（0=无，1=有）</summary>
+        public int[] HasStageReturn;
+
+        public float GetEnemyScale(int floor)
+        {
+            if (EnemyScaleMul == null || floor < 0 || floor >= EnemyScaleMul.Length) return 1f;
+            return EnemyScaleMul[floor];
+        }
+        public int GetRarityBias(int floor)
+        {
+            if (ModuleRarityBias == null || floor < 0 || floor >= ModuleRarityBias.Length) return 0;
+            return ModuleRarityBias[floor];
+        }
+        public bool GetHasStageReturn(int floor)
+        {
+            if (HasStageReturn == null || floor < 0 || floor >= HasStageReturn.Length) return false;
+            return HasStageReturn[floor] != 0;
+        }
     }
 
     // ------------------------------------------------------------

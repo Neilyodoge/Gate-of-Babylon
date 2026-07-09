@@ -26,11 +26,12 @@ namespace XianTu
         [SerializeField] private float dmgMultiplier = 1f;
 
         private List<EnemyBase> _enemies = new();
-        private int _totalEnemyCount; // 包含所有类型敌人的总数
+        private int _totalEnemyCount;
         private bool _cleared;
         private int _roomIndex;
         private GameObject _enemyHitVFXPrefab;
         private GameObject _roomVisuals;
+        private bool _isEliteRoom;
 
         public bool IsCleared => _cleared;
         public float RoomWidth => roomWidth;
@@ -280,22 +281,44 @@ namespace XianTu
             moduleRewardPool = modules;
         }
 
+        /// <summary>V0.2.1：标记此房间为精英房（掉落数量 +1，且稀有度偏移 +20）</summary>
+        public void SetEliteRoom(bool isElite)
+        {
+            _isEliteRoom = isElite;
+        }
+
         private void SpawnModuleReward()
         {
             if (moduleRewardPool == null || moduleRewardPool.Length == 0) return;
 
-            int dropCount = Random.value < 0.5f ? 2 : 1;
+            int dropCount = _isEliteRoom ? 3 : (Random.value < 0.5f ? 2 : 1);
+            int rarityBias = GetFloorRarityBias() + (_isEliteRoom ? 20 : 0);
+
             var player = PlayerController.Instance;
             Vector3 basePos = player != null ? player.transform.position : transform.position;
 
             for (int i = 0; i < dropCount; i++)
             {
-                // P1：软性动态权重（起始模板风格 + 半成型链补齐 + 构筑协同），不硬锁池子。
-                var module = ModuleDropWeighting.PickWeighted(moduleRewardPool);
+                var module = ModuleDropWeighting.PickWeighted(moduleRewardPool, rarityBias);
                 if (module == null) continue;
                 Vector3 offset = new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f));
                 ModulePickup.Spawn(module, basePos + offset + Vector3.right * (i * 1.5f));
             }
+        }
+
+        private static int GetFloorRarityBias()
+        {
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            if (dir?.CurrentMap == null) return 0;
+            var db = LevelDesign.ConfigDatabase.Instance;
+            if (db == null) return 0;
+            int currentLevel = GameManager.Instance != null ? GameManager.Instance.CurrentLevel : 0;
+            foreach (var kv in db.MapStructures)
+            {
+                if (kv.Value.ActID == dir.CurrentMap.ActID)
+                    return kv.Value.GetRarityBias(currentLevel);
+            }
+            return 0;
         }
 
         /// <summary>设置敌人受击特效</summary>
