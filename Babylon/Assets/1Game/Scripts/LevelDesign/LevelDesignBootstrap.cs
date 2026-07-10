@@ -27,9 +27,12 @@ namespace XianTu.LevelDesign
         /// </summary>
         private static readonly System.Collections.Generic.Dictionary<(int realm, int room), int> _linearEventSchedule = new()
         {
-            { (0, 1), 1001 }, // 练气期第 2 间房间 → 叶修之死
-            { (1, 1), 1003 }, // 筑基期第 2 间房间 → 古修遗宝
-            { (2, 0), 1002 }, // 金丹期第 1 间房间 → 灵药宝库（条件事件 saved_yeXiu）
+            { (0, 1), 1001 }, // Act1 第 2 间房间 → 叶修之死
+            { (1, 1), 1003 }, // Act1 后段 → 古修遗宝
+            { (2, 1), 2001 }, // Act2 开头 → 幽魂哀歌
+            { (3, 0), 2002 }, // Act2 后段 → 冥河渡口
+            { (4, 1), 3001 }, // Act3 开头 → 龙骨祭坛
+            { (5, 0), 3004 }, // Act3 后段 → 劫雷降世
         };
 
         /// <summary>累计已清场房间索引（用于线性事件触发）</summary>
@@ -78,6 +81,8 @@ namespace XianTu.LevelDesign
             LevelDesignDirector.Instance.EnsureConfigLoaded();
             GameEvents.Subscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Subscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
+            GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
             Debug.Log("[LevelDesign] Bootstrap 已启动（调试入口：Tab 打开 DebugConsole）");
         }
 
@@ -85,6 +90,8 @@ namespace XianTu.LevelDesign
         {
             GameEvents.Unsubscribe<GameEvents.RoomCleared>(OnRoomCleared);
             GameEvents.Unsubscribe<GameEvents.RealmBreakthrough>(OnRealmBreakthrough);
+            GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            GameEvents.Unsubscribe<GameEvents.PlayerDied>(OnPlayerDied);
         }
 
         // ------------------------------------------------------------
@@ -138,20 +145,32 @@ namespace XianTu.LevelDesign
             {
                 _actAlreadyStarted.Clear();
                 _actAlreadyStarted.Add(0);
-                // 如果 Director 已有地图（GameManager 已生成），跳过
                 if (LevelDesignDirector.Instance.CurrentMap != null) return;
                 LevelDesignDirector.Instance.StartNewRun();
             }
             else if (evt.NewRealmLevel == 2)
             {
+                // Act1 通关 → 标记
+                PlayerStateHooks.Instance.MarkActCleared(1);
                 _actAlreadyStarted.Add(2);
                 LevelDesignDirector.Instance.BeginAct(2);
             }
             else if (evt.NewRealmLevel == 4)
             {
+                PlayerStateHooks.Instance.MarkActCleared(2);
                 _actAlreadyStarted.Add(4);
                 LevelDesignDirector.Instance.BeginAct(3);
             }
+        }
+
+        private void OnEnemyKilled(GameEvents.EnemyKilled evt)
+        {
+            PlayerStateHooks.Instance.IncrementKillCount();
+        }
+
+        private void OnPlayerDied(GameEvents.PlayerDied evt)
+        {
+            PlayerStateHooks.Instance.MarkDeath();
         }
 
     }

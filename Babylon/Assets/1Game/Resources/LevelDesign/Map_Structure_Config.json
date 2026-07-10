@@ -1,7 +1,7 @@
 ﻿{
   "Rows": [
-    {"ID":1,"ActID":1,"MaxFloor":6,"MinNodes":2,"MaxNodes":3,"NormalWeight":75,"SpecialWeight":25,"EliteMinCount":1,"EliteMaxCount":2,"EventMinCount":1,"ShopMinCount":1,"RoomPoolID":[1,2,3,4,5,6]},
-    {"ID":2,"ActID":2,"MaxFloor":8,"MinNodes":2,"MaxNodes":4,"NormalWeight":70,"SpecialWeight":30,"EliteMinCount":2,"EliteMaxCount":3,"EventMinCount":2,"ShopMinCount":1,"RoomPoolID":[1,2,3,4,5,6]},
-    {"ID":3,"ActID":3,"MaxFloor":10,"MinNodes":3,"MaxNodes":4,"NormalWeight":65,"SpecialWeight":35,"EliteMinCount":3,"EliteMaxCount":4,"EventMinCount":3,"ShopMinCount":2,"RoomPoolID":[1,2,3,4,5,6]}
+    {"ID":1,"ActID":1,"MaxFloor":3,"MinNodes":2,"MaxNodes":3,"NormalWeight":75,"SpecialWeight":25,"EliteMinCount":1,"EliteMaxCount":1,"EventMinCount":1,"ShopMinCount":1,"RoomPoolID":[1,2,3,4,5,6],"EnemyScaleMul":[1.0,1.4,2.0],"ModuleRarityBias":[0,10,25],"HasStageReturn":[0,1,0]},
+    {"ID":2,"ActID":2,"MaxFloor":4,"MinNodes":2,"MaxNodes":3,"NormalWeight":70,"SpecialWeight":30,"EliteMinCount":1,"EliteMaxCount":2,"EventMinCount":1,"ShopMinCount":1,"RoomPoolID":[7,8,9,10,11,12,13],"EnemyScaleMul":[1.0,1.3,1.7,2.2],"ModuleRarityBias":[0,10,20,35],"HasStageReturn":[0,1,0,0]},
+    {"ID":3,"ActID":3,"MaxFloor":5,"MinNodes":2,"MaxNodes":4,"NormalWeight":65,"SpecialWeight":35,"EliteMinCount":2,"EliteMaxCount":3,"EventMinCount":2,"ShopMinCount":1,"RoomPoolID":[14,15,16,17,18,19,20],"EnemyScaleMul":[1.0,1.2,1.5,1.8,2.4],"ModuleRarityBias":[0,10,15,25,40],"HasStageReturn":[0,1,0,1,0]}
   ]
 }

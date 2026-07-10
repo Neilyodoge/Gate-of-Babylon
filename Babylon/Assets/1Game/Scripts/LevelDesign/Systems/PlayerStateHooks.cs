@@ -115,6 +115,30 @@ namespace XianTu.LevelDesign
         }
 
         // ------------------------------------------------------------
+        // 击杀计数（用于 Boss 形态条件如 "kill_count>=30"）
+        // ------------------------------------------------------------
+        public int KillCount { get; private set; }
+
+        public void IncrementKillCount()
+        {
+            KillCount++;
+            BossFlagSet.Instance.Set("kill_count", KillCount);
+        }
+
+        // ------------------------------------------------------------
+        // 跨 Act 追踪（如 "cleared_act2_no_death=1"）
+        // ------------------------------------------------------------
+        public bool HasDiedThisRun { get; private set; }
+
+        public void MarkDeath() => HasDiedThisRun = true;
+
+        public void MarkActCleared(int actID)
+        {
+            if (!HasDiedThisRun)
+                BossFlagSet.Instance.Set($"cleared_act{actID}_no_death", 1);
+        }
+
+        // ------------------------------------------------------------
         // 整局重置（VillageHub.StartNewRun 时调用）
         // ------------------------------------------------------------
         public void ResetForNewRun()
@@ -122,6 +146,8 @@ namespace XianTu.LevelDesign
             KarmaDebt = 0;
             Daoxin = 60;
             Lifespan = 100;
+            KillCount = 0;
+            HasDiedThisRun = false;
             RollFate();
         }
     }

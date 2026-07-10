@@ -6,6 +6,89 @@
 
 ---
 
+## V0.2.5 · 单局节奏压缩 + Event 叙事全覆盖（2026-07-10）
+
+**V0.2.5 落地**。将三 Act 总楼层从 24 层压缩到 12 层（3+4+5），使单局通关时长落入 25-40 分钟目标区间。同时为 Act2（幽冥谷）和 Act3（炼狱峰）各填充 2-4 个叙事事件（含条件分支），Event 房不再空转。
+
+### 单局时长调优
+
+- **Map_Structure_Config 压缩**：Act1 6→3层、Act2 8→4层、Act3 10→5层，总计 12 层 × 2-4 节点 = ~30 房间。
+- **EnemyScaleMul / ModuleRarityBias / HasStageReturn** 数组同步裁剪至新楼层数。
+- **运行时计时器**：`GameManager.RunElapsedSeconds` 属性，`StartNewRun` 开始计时，死亡/撤离/通关截止。
+- **结算面板显示探索时长**：`ExtractResultPanel` 新增"探索时长 MM:SS"行。
+- **Debug 日志**：死亡/通关时打印 `[RunTimer] X.X 分钟（目标 25-40min）`，便于快速验证。
+
+### Event 房叙事填充
+
+| Act | EventID | 名称 | 类型 | 核心抉择 |
+|-----|---------|------|------|----------|
+| 1 | 1001 | 叶修之死 | 无前置 | 取走风灵珠 / 埋葬 / 搜刮 |
+| 1 | 1002 | 灵药宝库 | 条件(saved_yeXiu) | 接受赐药 |
+| 1 | 1003 | 古修遗宝 | 无前置 | 寿元换 / 放弃 / 强取 |
+| 2 | 2001 | 幽魂哀歌 | 无前置 | 读碑 / 驱散 / 绕路 |
+| 2 | 2002 | 冥河渡口 | 无前置 | 血祭 / 寿元 / 强渡 |
+| 2 | 2003 | 亡者遗言 | 条件(read_ghost_tablet) | 接受传承 / 拒绝 |
+| 2 | 2004 | 灵魂交易 | 无前置 | 接受 / 拒绝 / 反噬 |
+| 3 | 3001 | 龙骨祭坛 | 无前置 | 肉身献祭 / 心火 / 离去 |
+| 3 | 3002 | 天火试炼 | 无前置 | 破解 / 压制 / 绕路 |
+| 3 | 3003 | 龙血觉醒 | 条件(dragon_sacrifice) | 觉醒 / 压制 |
+| 3 | 3004 | 劫雷降世 | 无前置 | 硬抗 / 分散 / 逃离 |
+
+### Room_Socket_Group_Config 扩展
+
+- Act2 新增 ID 7-13（Battle/Elite/Event×3/Shop/Boss）
+- Act3 新增 ID 14-20（Battle/Elite/Event×3/Shop/Boss）
+- Map_Structure_Config 的 RoomPoolID 按 Act 指向正确的 Socket 组
+
+---
+
+## V0.2.4 · Boss 动态化 + 通关结算闭环（2026-07-10）
+
+**V0.2.4 落地**。Boss 系统从硬编码 bossID=1 切换为 ActID 驱动，P2 形态切换现读取 `Boss_Phase_Config` 配表；通关（击败最终层 Boss）正式弹出结算面板（EndType.Victory × 2.0），与死亡/撤离共享统一的遗产选择流程。三 Act 各有独立龙形 Boss Prefab 和多形态配表。
+
+### Boss 动态化
+
+- **`EnemyBoss.Spawn(pos, hpMul, dmgMul, bossID)`**：新增第四参数 `bossID`，默认 1。
+- **`GameManager.SpawnBossRoom`**：自动从 `LevelDesignDirector.CurrentMap.ActID` 获取 bossID 传入，每 Act 对应独立 Boss 形态配置。
+- **P2 配表驱动**：`EnemyBoss._pendingPhase2Row` 在 Spawn 时缓存 `BossPhaseSelector.Select(bossID).Phase2`；50% HP 触发 `CheckPhaseTransition` 时，若有配表 P2 形态则应用 `StatModifier`（ATK/SPD），否则退化为原有 moveSpeed×1.3 硬编码。
+
+### Boss 多形态美术接入
+
+- **`MonsterPrefabs` 扩展**：新增 `Boss_Act2_Prefab`（Dragon Nightfall）和 `Boss_Act3_Prefab`（Dragon Dusk）字段 + `GetBossPrefab(int bossID)` 查询方法。
+- **`MonsterPrefabs.asset`**：已绑定 Dragon Nightfall / Dragon Dusk 预制体 GUID（与 Dragon Darkness 同系列，共享动画骨骼）。
+- **`EnemyBoss.Spawn`**：现使用 `prefabs.GetBossPrefab(bossID)` 替代原 `Boss敌人Prefab`。
+
+### Boss_Phase_Config 填充 Act2 / Act3
+
+- **BossID=2 「幽冥谷守灵」**（5 形态）：常规 / 亡魂共鸣(kill≥30) / 冥河化身(道心≤15) / 悯生(kill<10) / 仇恨积聚(因果≥5)。
+- **BossID=3 「炼狱峰龙魂」**（5 形态）：常规 / 龙怒焚天(道心≤10) / 古龙试炼(无死通关Act2) / 寂灭苏醒(因果≥7) / 怜悯(善举+低杀戮)。
+- 每形态含独立对白、数值修正(StatModifier)、召唤配置(SummonSquadID)。
+
+### Flag 系统扩展
+
+- **`PlayerStateHooks.KillCount`**：全局击杀计数，`LevelDesignBootstrap.OnEnemyKilled` 每次击杀 +1 → 写入 `BossFlagSet("kill_count")`。
+- **`PlayerStateHooks.MarkActCleared(actID)`**：无死通关某 Act 后写入 `cleared_act{N}_no_death=1`。
+- **`PlayerStateHooks.MarkDeath()`**：标记本局死亡（`LevelDesignBootstrap.OnPlayerDied` 触发）。
+- **`ResetForNewRun`**：新局清零 KillCount、HasDiedThisRun。
+
+### 通关结算闭环
+
+- **`SpawnExtractPointAndPortal` 中 `isLastRealm=true` 分支重写**：
+  - 计算 `victoryMul = 2.0`，调用 `InsightSystem.CommitOnExtract(2.0)` 和 `CultivationSystem.CommitOnExtract(2.0)`。
+  - 提交洞府素材。
+  - 弹出 `ExtractResultPanel.Show(EndType.Victory, legacyModules, ...)`。
+  - 确认后返回洞府（`EnterVillageHub()`）。
+- 通关不再是无声无息的 `_gameOver=true`，而是正式走统一结算流程。
+
+### 验证要点
+
+- [ ] 编译 0 error
+- [ ] 击败最终层 Boss 后弹出"秘境通关"面板，经验 ×2.0 + 遗产选择
+- [ ] 不同 Act 的 Boss 应用不同形态（如果 Boss_Phase_Config 有对应行）
+- [ ] 50% HP P2 切换时，若配表有 Phase2 行则应用 StatModifier
+
+---
+
 ## V0.2.2 · 统一结算 + 遗产系统（2026-07-09）
 
 **V0.2.2 落地**。统一了所有局终出口（死亡/撤离/通关）的经验结算模型，并实现了「遗产模块」系统——每次局终，玩家从背包中选择 1 个模块带入下一局首战。

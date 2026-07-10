@@ -111,6 +111,15 @@ namespace XianTu
             if (materialsCount > 0)
                 AddRow(rows, "洞府素材", $"{materialsCount} 件");
 
+            // V0.2.5：显示单局时长
+            float runSec = GameManager.Instance != null ? GameManager.Instance.RunElapsedSeconds : 0f;
+            if (runSec > 0f)
+            {
+                int min = Mathf.FloorToInt(runSec / 60f);
+                int sec = Mathf.FloorToInt(runSec % 60f);
+                AddRow(rows, "探索时长", $"{min:D2}:{sec:D2}");
+            }
+
             string bonusText = totalMul > 1.001f
                 ? $"总倍率 ×{totalMul:F2}（结算 ×{expMul:F1} · 层深 ×{layerMul:F2}）"
                 : totalMul < 0.999f

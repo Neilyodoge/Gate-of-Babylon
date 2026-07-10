@@ -17,3 +17,5 @@ MonoBehaviour:
   "\u51B2\u950B\u654C\u4EBAPrefab": {fileID: 1331890821213243041, guid: 052ea3aeedde74a44bf959dc85e15781, type: 3}
   "\u6CD5\u5E08\u654C\u4EBAPrefab": {fileID: 2097827472302657340, guid: ac24d348ed0eea048a271e360f3ca7ff, type: 3}
   "Boss\u654C\u4EBAPrefab": {fileID: 4685546102585767789, guid: abec01c83c231304e9d4055afb7999f9, type: 3}
+  Boss_Act2_Prefab: {fileID: 2488614154046801509, guid: c24f091d97b67fa458193d14d82b9927, type: 3}
+  Boss_Act3_Prefab: {fileID: 6871454928475388035, guid: de202835daed4824f9e3e594518e17af, type: 3}

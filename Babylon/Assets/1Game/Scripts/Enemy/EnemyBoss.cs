@@ -69,6 +69,9 @@ namespace XianTu
         private float _hitFlashTimer;
         private bool _phase2Triggered;
 
+        // V0.2.4：配表驱动的 P2 形态（BossPhaseSelector 选出的次优先形态）
+        private LevelDesign.BossPhaseRow _pendingPhase2Row;
+
         // 预警
         private GameObject _warningIndicator;
         private EnemyHealthBar _healthBar;
@@ -217,15 +220,27 @@ namespace XianTu
             {
                 _phase2Triggered = true;
                 _phase = BossPhase.Phase2;
-                stats.moveSpeed *= 1.3f;
 
-                // 阶段转换视觉效果：所有Renderer变红
+                // V0.2.4：如果有配表 P2 形态，应用其数值修正
+                if (_pendingPhase2Row != null)
+                {
+                    float hp = stats.maxHp;
+                    float atk = stats.attackDamage;
+                    float spd = stats.moveSpeed;
+                    LevelDesign.BossPhaseSelector.ApplyStatModifier(_pendingPhase2Row, ref hp, ref atk, ref spd);
+                    stats.attackDamage = atk;
+                    stats.moveSpeed = spd;
+                    Debug.Log($"<color=red>★ Boss P2 形态：{_pendingPhase2Row.PhaseName} | ATK→{atk:F1} SPD→{spd:F2} ★</color>");
+                }
+                else
+                {
+                    stats.moveSpeed *= 1.3f;
+                }
+
                 for (int i = 0; i < _originalColors.Length; i++)
                     _originalColors[i] = new Color(1f, 0.3f, 0.1f);
 
                 Debug.Log("<color=red>★ Boss 进入狂暴阶段！★</color>");
-
-                // 召唤2只小怪
                 SpawnMinions(2);
             }
         }
@@ -858,10 +873,10 @@ namespace XianTu
         }
 
         /// <summary>工厂方法：生成Boss</summary>
-        public static EnemyBoss Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
+        public static EnemyBoss Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f, int bossID = 1)
         {
             var prefabs = MonsterPrefabs.Instance;
-            var prefab = prefabs != null ? prefabs.Boss敌人Prefab : null;
+            var prefab = prefabs != null ? prefabs.GetBossPrefab(bossID) : null;
             var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy_Boss");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");
@@ -881,19 +896,17 @@ namespace XianTu
             }
             else
             {
-                // Prefab模型的Boss适当放大
                 go.transform.localScale = Vector3.one * 2f;
             }
 
             var existingCols = go.GetComponents<Collider>();
             foreach (var c in existingCols) Object.Destroy(c);
-            // 也移除子物体上的碰撞体，避免冲突
             var childCols = go.GetComponentsInChildren<Collider>();
             foreach (var c in childCols) Object.Destroy(c);
 
             var cc = go.AddComponent<CharacterController>();
-            cc.radius = 1.0f;   // 匹配大体型
-            cc.height = 3.6f;   // 匹配大体型
+            cc.radius = 1.0f;
+            cc.height = 3.6f;
             cc.center = new Vector3(0, 1.8f, 0);
 
             var boss = go.AddComponent<EnemyBoss>();
@@ -913,9 +926,10 @@ namespace XianTu
             }
             boss.stats.currentHp = boss.stats.maxHp;
 
-            // GDD §12.3：根据 BossFlagSet 应用形态修正 + 出场对白
-            // 仅在 LevelDesign 系统就绪时生效；不就绪则保持原有数值（向下兼容）。
-            LevelDesign.LevelDesignDirector.Instance.ApplyBossPhase(boss, bossID: 1);
+            // V0.2.4：按传入 bossID 应用形态修正 + 出场对白
+            var phaseResult = LevelDesign.LevelDesignDirector.Instance.ApplyBossPhase(boss, bossID);
+            if (phaseResult != null)
+                boss._pendingPhase2Row = LevelDesign.BossPhaseSelector.Select(bossID)?.Phase2;
 
             return boss;
         }

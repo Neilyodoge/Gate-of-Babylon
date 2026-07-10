@@ -46,6 +46,12 @@ namespace XianTu
         private GameObject _currentRoomGo; // 当前房间的 GameObject
         private bool _gameOver;
 
+        // V0.2.5：单局时长计时
+        private float _runStartTime;
+        private float _runElapsedTime;
+        /// <summary>当前单局已耗时（秒）</summary>
+        public float RunElapsedSeconds => _gameOver ? _runElapsedTime : (Time.time - _runStartTime);
+
         /// <summary>v3：开关 TreeMap 主循环（可由 Inspector / F12 切换，自动持久化到 PlayerPrefs）</summary>
         public bool UseTreeMapFlow
         {
@@ -203,6 +209,7 @@ namespace XianTu
             _currentRoomInLevel = 0;
             _flatRoomIndex = 0;
             _gameOver = false;
+            _runStartTime = Time.time;
 
             // v0.5.7：清零本局累计伤害（轮回一击按此结算）
             RunCombatStats.Reset();
@@ -480,7 +487,8 @@ namespace XianTu
             room.StartBattle();
 
             Vector3 bossPos = spawnPos + new Vector3(0, 0, 8f);
-            EnemyBoss.Spawn(bossPos, hpMul, dmgMul);
+            int bossID = LevelDesign.LevelDesignDirector.Instance?.CurrentMap?.ActID ?? 1;
+            EnemyBoss.Spawn(bossPos, hpMul, dmgMul, bossID);
         }
 
         private void SpawnShopRoom(Vector3 spawnPos)
@@ -924,12 +932,38 @@ namespace XianTu
 
             if (isLastRealm)
             {
-                // 最后一层：直接通关
-                _currentLevel++;
-                _currentRoomInLevel = 0;
-                Debug.Log("<color=yellow>✨✨✨ 通关成功！✨✨✨</color>");
+                // V0.2.4：通关 → 弹结算面板（EndType.Victory × 2.0 + 遗产选择）
                 _gameOver = true;
+                _runElapsedTime = Time.time - _runStartTime;
+                float victoryMul = 2.0f;
+                int insightRaw = InsightSystem.Instance.CommitOnExtract(victoryMul);
+                int temperingRaw = 0;
+                if (FeatureFlags.EnableCaveMeta)
+                    temperingRaw = CultivationSystem.Instance.CommitOnExtract(victoryMul);
+                int matCount = CaveInventory.Instance.TotalPendingCount;
+                CaveInventory.Instance.CommitCurrentRun();
+
+                IReadOnlyList<ModuleDef> legacyModules = null;
+                if (PlayerController.Instance != null)
+                {
+                    var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
+                    if (inv != null && inv.Modules.Count > 0)
+                        legacyModules = inv.Modules;
+                }
+
+                string realmName = _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
+                ExtractResultPanel.Show(_currentLevel, realmName,
+                    insightRaw, temperingRaw, matCount,
+                    ExtractResultPanel.EndType.Victory, legacyModules,
+                    () =>
+                    {
+                        EnterVillageHub();
+                        _transitioning = false;
+                        _gameOver = false;
+                        Debug.Log("<color=yellow>✨✨✨ 通关成功！返回洞府 ✨✨✨</color>");
+                    });
                 GameEvents.Publish(new GameEvents.GameWon());
+                Debug.Log($"<color=lime>[RunTimer] 通关时长：{_runElapsedTime / 60f:F1} 分钟（目标 25-40min）</color>");
                 return;
             }
 
@@ -973,6 +1007,8 @@ namespace XianTu
         private void OnPlayerDied(GameEvents.PlayerDied evt)
         {
             _gameOver = true;
+            _runElapsedTime = Time.time - _runStartTime;
+            Debug.Log($"<color=red>[RunTimer] 死亡时长：{_runElapsedTime / 60f:F1} 分钟（目标 25-40min）</color>");
 
             // V0.2.2：死亡 0.5x 经验转入永久（不再全丢）
             int insightRaw = InsightSystem.Instance.RunInsight;

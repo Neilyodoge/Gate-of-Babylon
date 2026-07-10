@@ -5,6 +5,20 @@
     {"ID":3,"SceneName":"Demo1","RoomType":2,"EnemySquadID":[2],"ItemDropIDs":[2001,3001],"ItemDropWeights":[80,20],"EventID":0,"EventTriggerRate":0,"Weight":100},
     {"ID":4,"SceneName":"Demo1","RoomType":3,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":0,"EventTriggerRate":0,"Weight":100},
     {"ID":5,"SceneName":"Demo1","RoomType":4,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":1001,"EventTriggerRate":100,"Weight":100},
-    {"ID":6,"SceneName":"Demo1","RoomType":5,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":0,"EventTriggerRate":0,"Weight":100}
+    {"ID":6,"SceneName":"Demo1","RoomType":5,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":0,"EventTriggerRate":0,"Weight":100},
+    {"ID":7,"SceneName":"Act2_Battle","RoomType":1,"EnemySquadID":[1],"ItemDropIDs":[2001],"ItemDropWeights":[100],"EventID":2001,"EventTriggerRate":20,"Weight":100},
+    {"ID":8,"SceneName":"Act2_Elite","RoomType":2,"EnemySquadID":[2],"ItemDropIDs":[2001,3001],"ItemDropWeights":[70,30],"EventID":0,"EventTriggerRate":0,"Weight":100},
+    {"ID":9,"SceneName":"Act2_Event1","RoomType":4,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":2001,"EventTriggerRate":100,"Weight":50},
+    {"ID":10,"SceneName":"Act2_Event2","RoomType":4,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":2002,"EventTriggerRate":100,"Weight":50},
+    {"ID":11,"SceneName":"Act2_Event3","RoomType":4,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":2004,"EventTriggerRate":100,"Weight":40},
+    {"ID":12,"SceneName":"Act2_Shop","RoomType":3,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":0,"EventTriggerRate":0,"Weight":100},
+    {"ID":13,"SceneName":"Act2_Boss","RoomType":5,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":0,"EventTriggerRate":0,"Weight":100},
+    {"ID":14,"SceneName":"Act3_Battle","RoomType":1,"EnemySquadID":[1],"ItemDropIDs":[2001],"ItemDropWeights":[100],"EventID":3001,"EventTriggerRate":15,"Weight":100},
+    {"ID":15,"SceneName":"Act3_Elite","RoomType":2,"EnemySquadID":[2],"ItemDropIDs":[2001,3001],"ItemDropWeights":[60,40],"EventID":0,"EventTriggerRate":0,"Weight":100},
+    {"ID":16,"SceneName":"Act3_Event1","RoomType":4,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":3001,"EventTriggerRate":100,"Weight":50},
+    {"ID":17,"SceneName":"Act3_Event2","RoomType":4,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":3002,"EventTriggerRate":100,"Weight":50},
+    {"ID":18,"SceneName":"Act3_Event3","RoomType":4,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":3004,"EventTriggerRate":100,"Weight":40},
+    {"ID":19,"SceneName":"Act3_Shop","RoomType":3,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":0,"EventTriggerRate":0,"Weight":100},
+    {"ID":20,"SceneName":"Act3_Boss","RoomType":5,"EnemySquadID":[],"ItemDropIDs":[],"ItemDropWeights":[],"EventID":0,"EventTriggerRate":0,"Weight":100}
   ]
 }

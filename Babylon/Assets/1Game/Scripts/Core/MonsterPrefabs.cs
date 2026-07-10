@@ -42,6 +42,23 @@ namespace XianTu
         [Tooltip("Boss敌人的模型Prefab（如Dragon Darkness）")]
         public GameObject Boss敌人Prefab;
 
+        [Header("═══ Boss 多形态 ═══")]
+        [Tooltip("Act2 Boss（幽冥谷守灵 / Dragon Nightfall）")]
+        public GameObject Boss_Act2_Prefab;
+        [Tooltip("Act3 Boss（炼狱峰龙魂 / Dragon Dusk）")]
+        public GameObject Boss_Act3_Prefab;
+
+        /// <summary>按 bossID 返回对应 Prefab。1=默认Boss，2=Act2，3=Act3。</summary>
+        public GameObject GetBossPrefab(int bossID)
+        {
+            return bossID switch
+            {
+                2 => Boss_Act2_Prefab != null ? Boss_Act2_Prefab : Boss敌人Prefab,
+                3 => Boss_Act3_Prefab != null ? Boss_Act3_Prefab : Boss敌人Prefab,
+                _ => Boss敌人Prefab,
+            };
+        }
+
         /// <summary>
         /// 实例化怪物模型，如果Prefab为空则回退到胶囊体
         /// </summary>
