@@ -29,13 +29,13 @@ public class SceneOptimizeTool : EditorWindow
     private Vector2 _scrollPos;
 
     // ==================== 检查标准设置====================
-    // 特效 - 阈值
-    private int _maxParticlesThreshold = 30;
-    private float _emissionRateThreshold = 12f;
-    private int _burstCountThreshold = 18;
-    private float _startLifetimeThreshold = 3f;
+    // 特效 - 阈值（手游基准）
+    private int _maxParticlesThreshold = 20;
+    private float _emissionRateThreshold = 10f;
+    private int _burstCountThreshold = 15;
+    private float _startLifetimeThreshold = 2f;
     private int _maxLightsThreshold = 0;
-    private int _lineRendererVertThreshold = 60;
+    private int _lineRendererVertThreshold = 30;
 
     // 特效 - 检查项开关
     private bool _chkMaxParticles = true;
@@ -53,17 +53,29 @@ public class SceneOptimizeTool : EditorWindow
     private bool _chkShadowCasting = true;
     private bool _chkTrailLine = true;
     private bool _chkCullOff = true;
+    private bool _chkAlphaCoverage = true;
+    private bool _chkPrefabCost = true;
+    private bool _chkBlendToAlphaTest = true;
 
-    // 材质
-    private int _textureHighThreshold = 2048;
+    // 贴图 Alpha 利用率阈值（低于此值标记警告）
+    private float _alphaCoverageThreshold = 0.3f;
+    // Alpha 采样时透明度判定阈值
+    private float _alphaTestThreshold = 0.01f;
+    // Prefab 综合成本阈值
+    private int _prefabCostThreshold = 300;
+    // Alpha 二值化判定：中间过渡区域像素占比低于此值则视为无过渡
+    private float _alphaGradientRatioThreshold = 0.05f;
 
-    // 模型
-    private int _highPolyThreshold = 10000;
-    private int _meshColliderThreshold = 5000;
-    private int _duplicateMeshMinTri = 1000;        // 重复 Mesh 最低关注面数
+    // 材质（手游贴图尺寸：特效贴图一般不超过 512，场景/角色不超过 1024）
+    private int _textureHighThreshold = 512;
+
+    // 模型（手游基准）
+    private int _highPolyThreshold = 5000;
+    private int _meshColliderThreshold = 2000;
+    private int _duplicateMeshMinTri = 500;         // 重复 Mesh 最低关注面数
 
     // ==================== UI 状态====================
-    private bool _showSettings = true;        // 标准设置折叠（默认展开）
+    private bool _showSettings = false;       // 标准设置折叠（默认收起）
     private bool _onlyShowWarnings = false;   // 仅显示警告
     private string _searchFilter = "";        // 搜索过滤
     private bool _hasCheckedVFX = false;
@@ -78,6 +90,49 @@ public class SceneOptimizeTool : EditorWindow
         public string tooltip; // 鼠标悬停提示文字
         public GameObject targetObj;
         public MessageType msgType;
+    }
+
+    // ==================== 分类影响等级（用于排序和颜色） ====================
+    // 3=极高, 2=高, 1=中, 0=信息
+    private static readonly Dictionary<string, int> _categoryImpactLevel = new Dictionary<string, int>
+    {
+        // 极高 = 3
+        { "MaxParticles 超标", 3 },
+        { "EmissionRate 超标", 3 },
+        { "粒子 Collision 模块", 3 },
+        { "粒子 Sub Emitters", 3 },
+        { "粒子 Lights 模块", 3 },
+        { "粒子 Mesh 渲染模式", 3 },
+        { "Blend→AlphaTest 优化提示", 3 },
+        { "Prefab 综合成本", 3 },
+        // 高 = 2
+        { "Burst 超标", 2 },
+        { "Start Lifetime 超标", 2 },
+        { "粒子 Prewarm", 2 },
+        { "粒子 Trails 拖尾", 2 },
+        { "粒子 Noise 模块", 2 },
+        { "粒子 Trigger 模块", 2 },
+        { "粒子投射阴影", 2 },
+        { "贴图 Alpha 利用率", 2 },
+        // 中 = 1
+        { "Trail/Line 渲染器", 1 },
+        { "粒子材质 Cull Off", 1 },
+        // 信息 = 0
+        { "粒子系统总览", 0 },
+    };
+
+    /// <summary>
+    /// 根据影响等级返回对应颜色：极高=红, 高=橙, 中=蓝, 无风险=绿
+    /// </summary>
+    private static Color GetImpactColor(int level)
+    {
+        switch (level)
+        {
+            case 3:  return new Color(1f, 0.3f, 0.3f);     // 极高 - 红
+            case 2:  return new Color(1f, 0.7f, 0.2f);     // 高 - 橙
+            case 1:  return new Color(0.4f, 0.75f, 1f);    // 中 - 蓝
+            default: return new Color(0.55f, 0.85f, 0.55f); // 信息/无风险 - 绿
+        }
     }
 
     // ==================== 分类悬停提示 ====================
@@ -100,6 +155,9 @@ public class SceneOptimizeTool : EditorWindow
         { "粒子投射阴影", "【影响: GPU（高）】额外 Shadow Pass。\n粒子通常不需要投射阴影，开启会显著增加 Draw Call 和 GPU 开销。\n建议全部关闭。" },
         { "Trail/Line 渲染器", "【影响: CPU + GPU】动态 Mesh 生成。\n这类渲染器会动态生成 Mesh，过多会增加 CPU 和内存开销。" },
         { "粒子材质 Cull Off", "【影响: GPU】双面渲染使绘制量翻倍。\n双面渲染会使 GPU 绘制量翻倍，应仅在确实需要时使用。" },
+        { "贴图 Alpha 利用率", "【影响: GPU（高）】贴图中非透明像素占总像素的比例。\n利用率低说明大量透明像素被 GPU 无效处理（透明片元仍会执行完整 Fragment Shader）。\n建议 ≥30%，低于此值应裁切贴图或使用自定义 Mesh 替代 Billboard。" },
+        { "Prefab 综合成本", "【影响: CPU + GPU（综合·极高）】按根节点分组，综合评估单个特效 Prefab 的总成本。\n\n成本 = 峰值粒子数 + PS数量×5 + 高开销模块加成\n\n加成项：Collision +50 | SubEmitter +30 | Lights +MaxLights×20\n        Mesh模式 +顶点÷4 | Trails +20 | Noise +10\n\n手游建议 ≤300。" },
+        { "Blend→AlphaTest 优化提示", "【影响: GPU（极高）】检测使用 Alpha Blend 但贴图 Alpha 无过渡（非0即1）的材质。\n此类材质可改用 AlphaTest/Cutout 模式：\n  · Early-Z 提前剔除被遮挡片元，大幅减少无效着色\n  · 无需透明排序，降低 CPU 开销\n  · 不写入 FrameBuffer Alpha，减少带宽消耗\n判定规则：Alpha 过渡区域（0.05~0.95）像素占比 <5% 视为无过渡。" },
 
         // ----- 材质贴图 -----
         { "空材质引用", "检查渲染器上是否存在空（Missing）材质引用。\n空材质会导致粉色显示错误并产生不必要的 Draw Call。" },
@@ -315,16 +373,16 @@ public class SceneOptimizeTool : EditorWindow
             {
                 case TabType.VFX:
                     DrawVFXCheckRow(ref _chkMaxParticles, "极高", "Max Particles",
-                        "【CPU + GPU】内存分配、顶点数。\n过高会导致大量粒子同时存在，增加渲染和内存压力。\n移动端建议 ≤30，PC 建议 ≤500。",
+                        "【CPU + GPU】内存分配、顶点数。\n过高会导致大量粒子同时存在，增加渲染和内存压力。\n手游建议 ≤20。",
                         ref _maxParticlesThreshold);
                     DrawVFXCheckRow(ref _chkEmissionRate, "极高", "Emission Rate",
-                        "【CPU + GPU】实际同屏粒子数。\n过高会导致每帧产生大量新粒子，加重 CPU 模拟和 GPU 渲染。\n移动端建议 ≤12/s，PC 建议 ≤100/s。",
+                        "【CPU + GPU】实际同屏粒子数。\n过高会导致每帧产生大量新粒子，加重 CPU 模拟和 GPU 渲染。\n手游建议 ≤10/s。",
                         ref _emissionRateThreshold);
                     DrawVFXCheckRow(ref _chkBurst, "高", "Burst Count",
-                        "【CPU + GPU】瞬间高峰粒子数。\n单次 Burst 大量粒子会导致帧率瞬间下降。\n移动端建议 ≤18。",
+                        "【CPU + GPU】瞬间高峰粒子数。\n单次 Burst 大量粒子会导致帧率瞬间下降。\n手游建议 ≤15。",
                         ref _burstCountThreshold);
                     DrawVFXCheckRow(ref _chkStartLifetime, "高", "Start Lifetime (s)",
-                        "【CPU】同屏存活粒子数。\n生命周期越长同屏活跃粒子越多。\n缩短 Lifetime 可有效降低同屏粒子数。\n移动端建议 ≤3s。",
+                        "【CPU】同屏存活粒子数。\n生命周期越长同屏活跃粒子越多。\n缩短 Lifetime 可有效降低同屏粒子数。\n手游建议 ≤2s。",
                         ref _startLifetimeThreshold);
                     DrawVFXCheckRow(ref _chkCollision, "极高", "Collision Module",
                         "【CPU（极高）】物理查询 Raycast/Spherecast。\n每粒子每帧做射线检测，代价极高。\n确认必要后用 World 碰撞 + Low Quality，否则关闭。");
@@ -350,6 +408,14 @@ public class SceneOptimizeTool : EditorWindow
                         ref _lineRendererVertThreshold);
                     DrawVFXCheckRow(ref _chkCullOff, "中", "粒子材质 Cull Off",
                         "【GPU】双面渲染使绘制量翻倍。\n双面渲染会使 GPU 绘制量翻倍，仅在确实需要时使用。");
+                    DrawVFXCheckRow(ref _chkAlphaCoverage, "高", "贴图 Alpha 利用率 (%)",
+                        "【GPU（高）】贴图中非透明像素占比。\n利用率低说明大量透明像素被无效处理。\n建议 ≥30%，低于此值考虑裁切贴图或自定义 Mesh。",
+                        ref _alphaCoverageThreshold);
+                    DrawVFXCheckRow(ref _chkPrefabCost, "极高", "Prefab 综合成本",
+                        "【CPU + GPU（综合）】按根节点分组，综合评估 Prefab 总成本。\n成本 = 峰值粒子数 + PS数×5 + 模块加成。\n手游建议 ≤300。",
+                        ref _prefabCostThreshold);
+                    DrawVFXCheckRow(ref _chkBlendToAlphaTest, "极高", "Blend→AlphaTest 优化",
+                        "【GPU（极高）】检测 Alpha 无过渡但使用 Transparent Blend 的粒子材质。\n改用 AlphaTest/Cutout 后：\n  · Early-Z 可提前剔除被遮挡片元，大幅减少无效着色\n  · 无需透明排序，降低 CPU 开销\n  · 不写入 FrameBuffer Alpha，减少带宽\n过渡区域像素占比 <5% 视为无过渡。");
 
                     if (_maxParticlesThreshold < 1) _maxParticlesThreshold = 1;
                     if (_emissionRateThreshold < 1f) _emissionRateThreshold = 1f;
@@ -357,6 +423,9 @@ public class SceneOptimizeTool : EditorWindow
                     if (_startLifetimeThreshold < 0.1f) _startLifetimeThreshold = 0.1f;
                     if (_maxLightsThreshold < 0) _maxLightsThreshold = 0;
                     if (_lineRendererVertThreshold < 1) _lineRendererVertThreshold = 1;
+                    if (_alphaCoverageThreshold < 0.01f) _alphaCoverageThreshold = 0.01f;
+                    if (_alphaCoverageThreshold > 1f) _alphaCoverageThreshold = 1f;
+                    if (_prefabCostThreshold < 1) _prefabCostThreshold = 1;
                     break;
 
                 case TabType.Material:
@@ -1371,6 +1440,260 @@ if (GUILayout.Button("✗", GUILayout.Width(22)))
             }
         }
 
+        // --- 17. 贴图 Alpha 利用率检查（含边缘距离分析） ---
+        if (_chkAlphaCoverage)
+        {
+            int alphaWarnings = 0;
+            var checkedTextures = new Dictionary<Texture2D, AlphaAnalysisResult>();
+
+            foreach (var ps in allParticleSystems)
+            {
+                var psr = ps.GetComponent<ParticleSystemRenderer>();
+                if (psr == null) continue;
+
+                var mat = psr.sharedMaterial;
+                if (mat == null) continue;
+
+                var mainTex = mat.mainTexture as Texture2D;
+                if (mainTex == null) continue;
+
+                AlphaAnalysisResult analysis;
+                if (!checkedTextures.TryGetValue(mainTex, out analysis))
+                {
+                    analysis = AnalyzeTextureAlpha(mainTex, _alphaTestThreshold);
+                    checkedTextures[mainTex] = analysis;
+                }
+
+                if (!analysis.valid) continue;
+
+                string edgeInfo = $"边缘余量: 上{analysis.marginTop:P0} 下{analysis.marginBottom:P0} 左{analysis.marginLeft:P0} 右{analysis.marginRight:P0}";
+
+                if (analysis.coverage < _alphaCoverageThreshold)
+                {
+                    if (analysis.croppableRatio < 0.1f)
+                    {
+                        // 内容已贴近边缘，无优化空间
+                        _vfxResults.Add(new CheckResult
+                        {
+                            category = "贴图 Alpha 利用率",
+                            description = $"Alpha 利用率 = {analysis.coverage:P1}（低于标准 {_alphaCoverageThreshold:P0}，但内容已贴近边缘，优化空间有限）贴图: \"{mainTex.name}\" ({mainTex.width}×{mainTex.height}) {edgeInfo} | 路径: {GetHierarchyPath(ps.gameObject)}",
+                            targetObj = ps.gameObject,
+                            msgType = MessageType.Info
+                        });
+                    }
+                    else
+                    {
+                        alphaWarnings++;
+                        _vfxResults.Add(new CheckResult
+                        {
+                            category = "贴图 Alpha 利用率",
+                            description = $"Alpha 利用率 = {analysis.coverage:P1}（标准 ≥{_alphaCoverageThreshold:P0}）可裁切 {analysis.croppableRatio:P0} 的空白区域 | 贴图: \"{mainTex.name}\" ({mainTex.width}×{mainTex.height}) {edgeInfo} | 路径: {GetHierarchyPath(ps.gameObject)}",
+                            targetObj = ps.gameObject,
+                            msgType = MessageType.Warning
+                        });
+                    }
+                }
+                else
+                {
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "贴图 Alpha 利用率",
+                        description = $"Alpha 利用率 = {analysis.coverage:P1} 贴图: \"{mainTex.name}\" ({mainTex.width}×{mainTex.height}) | 路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Info
+                    });
+                }
+            }
+            if (alphaWarnings == 0 && checkedTextures.Count > 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "贴图 Alpha 利用率",
+                    description = $"✓ 已检查 {checkedTextures.Count} 张贴图，Alpha 利用率均在标准内或内容已贴近边缘",
+                    msgType = MessageType.Info
+                });
+            }
+            else if (checkedTextures.Count == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "贴图 Alpha 利用率",
+                    description = "未找到可分析的粒子贴图（可能贴图不可读或无 Texture2D）",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        // --- 18. Prefab 综合成本 ---
+        if (_chkPrefabCost)
+        {
+            var rootGroups = new Dictionary<GameObject, List<ParticleSystem>>();
+            foreach (var ps in allParticleSystems)
+            {
+                GameObject root = GetParticleGroupRoot(ps.gameObject);
+                if (!rootGroups.ContainsKey(root))
+                    rootGroups[root] = new List<ParticleSystem>();
+                rootGroups[root].Add(ps);
+            }
+
+            int costWarnings = 0;
+            foreach (var kv in rootGroups)
+            {
+                var root = kv.Key;
+                var systems = kv.Value;
+                if (systems.Count == 0) continue;
+
+                int psCount = systems.Count;
+
+                // 峰值粒子数（时间线模拟）
+                float peakCount;
+                float peakTime;
+                int activeAtPeak;
+                EstimatePeakParticles(systems, out peakCount, out peakTime, out activeAtPeak);
+                int peakInt = Mathf.CeilToInt(peakCount);
+
+                // 高开销模块加成
+                int modulePenalty = 0;
+                int trailCount = 0, noiseCount = 0, collisionCount = 0;
+                int subEmitterCount = 0, lightsCount = 0, meshVertSum = 0;
+                foreach (var ps in systems)
+                {
+                    var trails = ps.trails;
+                    if (trails.enabled) { modulePenalty += 20; trailCount++; }
+
+                    var noise = ps.noise;
+                    if (noise.enabled) { modulePenalty += 10; noiseCount++; }
+
+                    var collision = ps.collision;
+                    if (collision.enabled) { modulePenalty += 50; collisionCount++; }
+
+                    var subEmitters = ps.subEmitters;
+                    if (subEmitters.enabled) { modulePenalty += 30; subEmitterCount++; }
+
+                    var lights = ps.lights;
+                    if (lights.enabled)
+                    {
+                        int maxLights = Mathf.Max(1, lights.maxLights);
+                        modulePenalty += maxLights * 20;
+                        lightsCount++;
+                    }
+
+                    var psr = ps.GetComponent<ParticleSystemRenderer>();
+                    if (psr != null && psr.renderMode == ParticleSystemRenderMode.Mesh)
+                    {
+                        var mesh = psr.mesh;
+                        if (mesh != null)
+                        {
+                            int verts = mesh.vertexCount;
+                            modulePenalty += verts / 4;
+                            meshVertSum += verts;
+                        }
+                    }
+                }
+
+                // 综合成本 = 峰值粒子数 + PS数量×5 + 模块加成
+                int totalCost = peakInt + psCount * 5 + modulePenalty;
+
+                // 构建明细字符串
+                var sb = new System.Text.StringBuilder();
+                sb.Append($"综合成本 = {totalCost}");
+                if (totalCost > _prefabCostThreshold)
+                    sb.Append($"（标准 ≤{_prefabCostThreshold}）");
+                sb.Append($"\n  · 峰值粒子: {peakInt}（t={peakTime:F2}s, {activeAtPeak}/{psCount} PS 活跃）");
+                sb.Append($"\n  · PS 数量: {psCount}（固定开销 {psCount * 5}）");
+                if (modulePenalty > 0)
+                {
+                    sb.Append($"\n  · 模块加成: {modulePenalty}（");
+                    var parts = new List<string>();
+                    if (trailCount > 0) parts.Add($"Trails×{trailCount}");
+                    if (noiseCount > 0) parts.Add($"Noise×{noiseCount}");
+                    if (collisionCount > 0) parts.Add($"Collision×{collisionCount}");
+                    if (subEmitterCount > 0) parts.Add($"SubEmitter×{subEmitterCount}");
+                    if (lightsCount > 0) parts.Add($"Lights×{lightsCount}");
+                    if (meshVertSum > 0) parts.Add($"MeshVerts={meshVertSum}");
+                    sb.Append(string.Join(", ", parts.ToArray()));
+                    sb.Append("）");
+                }
+                sb.Append($"\n  根节点: {GetHierarchyPath(root)}");
+
+                bool exceed = totalCost > _prefabCostThreshold;
+                if (exceed) costWarnings++;
+
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "Prefab 综合成本",
+                    description = sb.ToString(),
+                    targetObj = root,
+                    msgType = exceed ? MessageType.Warning : MessageType.Info
+                });
+            }
+            if (costWarnings == 0 && rootGroups.Count > 0)
+            {
+                int insertIdx = _vfxResults.FindIndex(r => r.category == "Prefab 综合成本");
+                if (insertIdx >= 0)
+                {
+                    _vfxResults.Insert(insertIdx, new CheckResult
+                    {
+                        category = "Prefab 综合成本",
+                        description = $"✓ 已分析 {rootGroups.Count} 组特效，综合成本均在标准 {_prefabCostThreshold} 以内",
+                        msgType = MessageType.Info
+                    });
+                }
+            }
+        }
+
+        // --- 19. Blend → AlphaTest 优化提示 ---
+        if (_chkBlendToAlphaTest)
+        {
+            int blendHintCount = 0;
+            // 缓存贴图分析结果：true = 无 Alpha 过渡（二值化）
+            var texBinaryCache = new Dictionary<Texture2D, bool>();
+
+            foreach (var ps in allParticleSystems)
+            {
+                var psr = ps.GetComponent<ParticleSystemRenderer>();
+                if (psr == null) continue;
+
+                var mat = psr.sharedMaterial;
+                if (mat == null) continue;
+
+                // 仅检查使用 Alpha Blend 的材质（排除 Additive）
+                if (!IsAlphaBlendMaterial(mat)) continue;
+
+                var mainTex = mat.mainTexture as Texture2D;
+                if (mainTex == null) continue;
+
+                bool isBinary;
+                if (!texBinaryCache.TryGetValue(mainTex, out isBinary))
+                {
+                    isBinary = IsAlphaBinary(mainTex, _alphaGradientRatioThreshold);
+                    texBinaryCache[mainTex] = isBinary;
+                }
+
+                if (isBinary)
+                {
+                    blendHintCount++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "Blend→AlphaTest 优化提示",
+                        description = $"材质 \"{mat.name}\" (Shader: {mat.shader.name}) 使用 Alpha Blend 但贴图 \"{mainTex.name}\" 无 Alpha 过渡，建议改用 AlphaTest/Cutout | 路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Warning
+                    });
+                }
+            }
+            if (blendHintCount == 0)
+            {
+                _vfxResults.Add(new CheckResult
+                {
+                    category = "Blend→AlphaTest 优化提示",
+                    description = "✓ 未发现可优化的 Alpha Blend 粒子材质（所有 Blend 材质的贴图均有 Alpha 过渡）",
+                    msgType = MessageType.Info
+                });
+            }
+        }
+
+        SortResultsBySeverity(_vfxResults);
         Debug.Log($"[场景优化工具] 特效检查完成，共 {_vfxResults.Count} 条结果");
         Repaint();
     }
@@ -1665,6 +1988,7 @@ if (GUILayout.Button("✗", GUILayout.Width(22)))
             });
         }
 
+        SortResultsBySeverity(_materialResults);
 Debug.Log($"[场景优化工具] 材质检查完成，共 {_materialResults.Count} 条结果");
         Repaint();
     }
@@ -2379,6 +2703,7 @@ description = "✓ 无问题",
             }
         }
 
+        SortResultsBySeverity(_meshResults);
         Debug.Log($"[场景优化工具] 模型面数检查完成，共 {_meshResults.Count} 条结果，检查范围 {(isScoped ? string.Join(", ", checkRoots.Select(r => r.name)) : "全场景")}");
         Repaint();
     }
@@ -2483,26 +2808,10 @@ EditorGUILayout.LabelField("点击顶部 ▶ 按钮开始检查", _headerStyle, 
                 int warnCnt = _categoryWarningCount.ContainsKey(result.category) ? _categoryWarningCount[result.category] : 0;
                 int totalCnt = _categoryTotalCount.ContainsKey(result.category) ? _categoryTotalCount[result.category] : 0;
 
-                // 首次遇到的 category：有警告默认展开，全部通过默认折叠
+                // 首次遇到的 category：默认全部折叠
                 if (!_foldoutStates.ContainsKey(result.category))
                 {
-                    if (isSubCategory)
-                    {
-                        // 子category：自身有警告就展开
-                        _foldoutStates[result.category] = warnCnt > 0;
-                    }
-                    else
-                    {
-                        // 一级 category：汇总自身+ 所有子 category 的警告数
-                        int totalWarn = warnCnt;
-                        string parentKey = result.category + " > ";
-                        foreach (var kv in _categoryWarningCount)
-                        {
-                            if (kv.Key.StartsWith(parentKey))
-                                totalWarn += kv.Value;
-                        }
-                        _foldoutStates[result.category] = totalWarn > 0;
-                    }
+                    _foldoutStates[result.category] = false;
                 }
                 string foldLabel;
 
@@ -2527,9 +2836,9 @@ EditorGUILayout.LabelField("点击顶部 ▶ 按钮开始检查", _headerStyle, 
 
                         var prevColor = GUI.contentColor;
                         if (warnCnt > 0)
-                            GUI.contentColor = new Color(1f, 0.8f, 0.45f);
+                            GUI.contentColor = GetImpactColor(GetCategoryImpactLevel(result.category));
                         else
-                            GUI.contentColor = new Color(0.55f, 0.85f, 0.55f);
+                            GUI.contentColor = GetImpactColor(-1); // 无风险 - 绿色
 
                         var subContent = new GUIContent(foldLabel, subTooltip);
                         _foldoutStates[result.category] = EditorGUILayout.Foldout(
@@ -2577,9 +2886,9 @@ EditorGUILayout.LabelField("点击顶部 ▶ 按钮开始检查", _headerStyle, 
                         {
                             var prevColor = GUI.contentColor;
                             if (parentWarnCnt > 0)
-                                GUI.contentColor = new Color(1f, 0.75f, 0.3f);
+                                GUI.contentColor = GetImpactColor(GetCategoryImpactLevel(result.category));
                             else
-                                GUI.contentColor = new Color(0.5f, 0.9f, 0.5f);
+                                GUI.contentColor = GetImpactColor(-1);
 
                             var headerContent = new GUIContent(foldLabel, catTooltip);
                             _foldoutStates[result.category] = EditorGUILayout.Foldout(
@@ -2600,13 +2909,13 @@ EditorGUILayout.LabelField("点击顶部 ▶ 按钮开始检查", _headerStyle, 
                     {
                         var prevColor = GUI.contentColor;
                         if (parentWarnCnt > 0)
-                            GUI.contentColor = new Color(1f, 0.75f, 0.3f);
+                            GUI.contentColor = GetImpactColor(GetCategoryImpactLevel(result.category));
                         else
-                            GUI.contentColor = new Color(0.5f, 0.9f, 0.5f);
+                            GUI.contentColor = GetImpactColor(-1);
 
                         var headerContent = new GUIContent(foldLabel, catTooltip);
                         _foldoutStates[result.category] = EditorGUILayout.Foldout(
-                            _foldoutStates[result.category], headerContent, true, EditorStyles.foldoutHeader);
+                            _foldoutStates[result.category], headerContent, true, EditorStyles.foldout);
                         GUI.contentColor = prevColor;
                     }
 
@@ -2831,5 +3140,426 @@ else if (result.description.StartsWith("✓"))
             default:
                 return new ParticleSystem.MinMaxCurve(maxValue);
         }
+    }
+
+    // ==================================================================================
+    //  检查结果排序（按严重程度）
+    // ==================================================================================
+
+    /// <summary>
+    /// 对检查结果排序：
+    /// 1. 有问题（Warning/Error）的分类在前，无问题的在后
+    /// 2. 有问题的分类之间按影响等级排序（极高 > 高 > 中）
+    /// 3. 同一分类内 Error > Warning > Info
+    /// </summary>
+    private void SortResultsBySeverity(List<CheckResult> results)
+    {
+        if (results == null || results.Count <= 1) return;
+
+        // 判断每个分类是否有问题
+        var categoryHasWarning = new Dictionary<string, bool>();
+        foreach (var r in results)
+        {
+            if (!categoryHasWarning.ContainsKey(r.category))
+                categoryHasWarning[r.category] = false;
+            if (r.msgType == MessageType.Warning || r.msgType == MessageType.Error)
+                categoryHasWarning[r.category] = true;
+        }
+
+        results.Sort((a, b) =>
+        {
+            bool hasWarnA = categoryHasWarning.ContainsKey(a.category) && categoryHasWarning[a.category];
+            bool hasWarnB = categoryHasWarning.ContainsKey(b.category) && categoryHasWarning[b.category];
+
+            // 有问题的分类在前
+            if (hasWarnA != hasWarnB)
+                return hasWarnA ? -1 : 1;
+
+            // 同为有问题的分类：按影响等级排序（极高在前）
+            if (hasWarnA && hasWarnB)
+            {
+                int impactA = GetCategoryImpactLevel(a.category);
+                int impactB = GetCategoryImpactLevel(b.category);
+                if (impactA != impactB) return impactB.CompareTo(impactA);
+            }
+
+            // 保持分类分组
+            int catCmp = string.Compare(a.category, b.category, StringComparison.Ordinal);
+            if (catCmp != 0) return catCmp;
+
+            // 同分类内按严重度排序
+            int sevA = MsgTypeSeverity(a.msgType);
+            int sevB = MsgTypeSeverity(b.msgType);
+            return sevB.CompareTo(sevA);
+        });
+    }
+
+    private static int GetCategoryImpactLevel(string category)
+    {
+        // 支持子 category（如 "Shader 分类统计 > xxx"）
+        string baseCat = category.Contains(" > ")
+            ? category.Substring(0, category.IndexOf(" > "))
+            : category;
+        int level;
+        return _categoryImpactLevel.TryGetValue(baseCat, out level) ? level : 0;
+    }
+
+    private static int MsgTypeSeverity(MessageType type)
+    {
+        switch (type)
+        {
+            case MessageType.Error:   return 3;
+            case MessageType.Warning: return 2;
+            case MessageType.Info:    return 1;
+            default:                  return 0;
+        }
+    }
+
+    // ==================================================================================
+    //  Blend → AlphaTest 分析
+    // ==================================================================================
+
+    /// <summary>
+    /// 判断材质是否使用 Alpha Blend 模式（排除 Additive）。
+    /// 通过混合因子属性或 Shader 名称 / RenderQueue 综合判定。
+    /// </summary>
+    private bool IsAlphaBlendMaterial(Material mat)
+    {
+        if (mat == null) return false;
+
+        // 方式1：检查 _DstBlend 属性（FxStandard 系列使用此属性）
+        // OneMinusSrcAlpha = 10（标准 Alpha Blend）
+        if (mat.HasProperty("_DstBlend"))
+        {
+            int dst = (int)mat.GetFloat("_DstBlend");
+            // dst == 10 = OneMinusSrcAlpha（Alpha Blend）
+            // dst == 1 = One（Additive），排除
+            return dst == 10;
+        }
+
+        // 方式2：检查 _Dst 属性（UberFX 等使用此属性）
+        if (mat.HasProperty("_Dst"))
+        {
+            int dst = (int)mat.GetFloat("_Dst");
+            return dst == 10;
+        }
+
+        // 方式3：Shader 名称推断
+        string shaderName = mat.shader.name.ToLower();
+        // Additive 类不是 Alpha Blend
+        if (shaderName.Contains("add")) return false;
+        // 明确包含 blend/alpha 的视为 Alpha Blend
+        if (shaderName.Contains("blend") || shaderName.Contains("alpha blend"))
+            return true;
+
+        // 方式4：RenderQueue 在 Transparent 范围（3000+）且不是 Additive
+        if (mat.renderQueue >= 3000)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// 判断贴图的 Alpha 通道是否为二值化（无过渡渐变）。
+    /// 统计 Alpha 在中间过渡区域（0.05~0.95）的像素占比，
+    /// 低于 gradientRatioThreshold 则视为二值化。
+    /// </summary>
+    private bool IsAlphaBinary(Texture2D tex, float gradientRatioThreshold)
+    {
+        if (tex == null) return false;
+
+        Color[] pixels = ReadTexturePixels(tex);
+        if (pixels == null || pixels.Length == 0) return false;
+
+        const float lowBound = 0.05f;
+        const float highBound = 0.95f;
+
+        int gradientCount = 0;
+        int totalNonZero = 0;
+
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            float a = pixels[i].a;
+            if (a > 0.001f) totalNonZero++;
+            if (a > lowBound && a < highBound)
+                gradientCount++;
+        }
+
+        // 全透明贴图不算二值化
+        if (totalNonZero == 0) return false;
+
+        float gradientRatio = (float)gradientCount / pixels.Length;
+        return gradientRatio < gradientRatioThreshold;
+    }
+
+    // ==================================================================================
+    //  贴图像素读取 & Alpha 利用率分析
+    // ==================================================================================
+
+    /// <summary>
+    /// 安全读取 Texture2D 的像素数据，自动处理不可读贴图。
+    /// </summary>
+    private Color[] ReadTexturePixels(Texture2D tex)
+    {
+        if (tex == null) return null;
+
+        if (tex.isReadable)
+            return tex.GetPixels();
+
+        // 不可读贴图：通过 RenderTexture 中转读取
+        var prevRT = RenderTexture.active;
+        var tmpRT = RenderTexture.GetTemporary(tex.width, tex.height, 0, RenderTextureFormat.ARGB32);
+        Graphics.Blit(tex, tmpRT);
+        RenderTexture.active = tmpRT;
+
+        var readable = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
+        readable.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+        readable.Apply();
+
+        var pixels = readable.GetPixels();
+
+        RenderTexture.active = prevRT;
+        RenderTexture.ReleaseTemporary(tmpRT);
+        DestroyImmediate(readable);
+
+        return pixels;
+    }
+
+    /// <summary>
+    /// Alpha 综合分析结果
+    /// </summary>
+    private struct AlphaAnalysisResult
+    {
+        public bool valid;
+        public float coverage;          // 非透明像素占比 (0~1)
+        public float marginTop;         // 上方空白占比
+        public float marginBottom;      // 下方空白占比
+        public float marginLeft;        // 左方空白占比
+        public float marginRight;       // 右方空白占比
+        public float croppableRatio;    // 可裁切的空白区域占比 (0~1)
+    }
+
+    /// <summary>
+    /// 综合分析贴图 Alpha：利用率 + 边缘距离 + 可裁切率。
+    /// 一次读取像素，同时计算所有指标。
+    /// </summary>
+    private AlphaAnalysisResult AnalyzeTextureAlpha(Texture2D tex, float alphaThreshold)
+    {
+        var result = new AlphaAnalysisResult();
+        if (tex == null) return result;
+
+        Color[] pixels = ReadTexturePixels(tex);
+        if (pixels == null || pixels.Length == 0) return result;
+
+        int w = tex.width;
+        int h = tex.height;
+
+        // 同时计算 coverage 和 bounding box
+        int opaqueCount = 0;
+        int minX = w, maxX = -1, minY = h, maxY = -1;
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                if (pixels[y * w + x].a > alphaThreshold)
+                {
+                    opaqueCount++;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        result.valid = true;
+        result.coverage = (float)opaqueCount / pixels.Length;
+
+        if (opaqueCount == 0)
+        {
+            // 全透明
+            result.marginTop = 1f;
+            result.marginBottom = 1f;
+            result.marginLeft = 1f;
+            result.marginRight = 1f;
+            result.croppableRatio = 1f;
+            return result;
+        }
+
+        // 边缘余量（内容到纹理边界的距离占比）
+        result.marginTop = (float)minY / h;
+        result.marginBottom = (float)(h - 1 - maxY) / h;
+        result.marginLeft = (float)minX / w;
+        result.marginRight = (float)(w - 1 - maxX) / w;
+
+        // 可裁切率 = 1 - (内容包围盒面积 / 总面积)
+        float bboxW = maxX - minX + 1;
+        float bboxH = maxY - minY + 1;
+        float bboxArea = bboxW * bboxH;
+        result.croppableRatio = 1f - (bboxArea / (w * h));
+
+        return result;
+    }
+
+    /// <summary>
+    /// 计算 Texture2D 的 Alpha 利用率（非透明像素占比）。
+    /// 自动处理不可读贴图：临时通过 RenderTexture 拷贝读取。
+    /// 返回 0~1 范围；返回 -1 表示无法分析。
+    /// </summary>
+    private float CalcAlphaCoverage(Texture2D tex, float alphaThreshold)
+    {
+        if (tex == null) return -1f;
+
+        Color[] pixels = ReadTexturePixels(tex);
+        if (pixels == null || pixels.Length == 0) return -1f;
+
+        int opaqueCount = 0;
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            if (pixels[i].a > alphaThreshold)
+                opaqueCount++;
+        }
+
+        return (float)opaqueCount / pixels.Length;
+    }
+
+    // ==================================================================================
+    //  峰值粒子数估算（时间线模拟）
+    // ==================================================================================
+
+    /// <summary>
+    /// 获取粒子系统的分组根节点。
+    /// 如果设置了检查范围，返回匹配的 scope target；
+    /// 否则沿层级向上找到最近的包含 ParticleSystem 的根对象。
+    /// </summary>
+    private GameObject GetParticleGroupRoot(GameObject go)
+    {
+        // 优先匹配 scope target
+        if (_vfxScopeTargets.Count > 0)
+        {
+            foreach (var target in _vfxScopeTargets)
+            {
+                if (target == null) continue;
+                if (go.transform.IsChildOf(target.transform))
+                    return target;
+            }
+        }
+
+        // 向上查找到最顶层的含 ParticleSystem 的节点
+        Transform t = go.transform;
+        GameObject root = go;
+        while (t.parent != null)
+        {
+            t = t.parent;
+            if (t.GetComponent<ParticleSystem>() != null)
+                root = t.gameObject;
+            else
+                break;
+        }
+        return root;
+    }
+
+    /// <summary>
+    /// 基于时间线模拟，估算一组 ParticleSystem 的峰值同时存活粒子数。
+    /// </summary>
+    private void EstimatePeakParticles(List<ParticleSystem> systems, out float peakCount, out float peakTime, out int activeAtPeak)
+    {
+        const float timeStep = 0.05f;
+
+        // 确定扫描时间范围
+        float maxTime = 0f;
+        foreach (var ps in systems)
+        {
+            var main = ps.main;
+            float delay = GetMinMaxCurveMax(main.startDelay);
+            float duration = main.duration;
+            float lifetime = GetMinMaxCurveMax(main.startLifetime);
+            float end = delay + duration + lifetime;
+            if (main.loop) end = Mathf.Max(end, 10f);
+            maxTime = Mathf.Max(maxTime, end);
+        }
+
+        // 避免极长时间线
+        maxTime = Mathf.Min(maxTime, 30f);
+
+        peakCount = 0f;
+        peakTime = 0f;
+        activeAtPeak = 0;
+
+        for (float t = 0; t <= maxTime; t += timeStep)
+        {
+            float total = 0f;
+            int activeCount = 0;
+
+            for (int i = 0; i < systems.Count; i++)
+            {
+                float alive = EstimateAliveAt(systems[i], t);
+                total += alive;
+                if (alive > 0.5f) activeCount++;
+            }
+
+            if (total > peakCount)
+            {
+                peakCount = total;
+                peakTime = t;
+                activeAtPeak = activeCount;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 估算单个 ParticleSystem 在时刻 t 的存活粒子数（纯配置推算，无需运行时）。
+    /// </summary>
+    private float EstimateAliveAt(ParticleSystem ps, float t)
+    {
+        var main = ps.main;
+        var emission = ps.emission;
+
+        if (!emission.enabled) return 0f;
+
+        float delay = GetMinMaxCurveMax(main.startDelay);
+        float duration = main.duration;
+        float lifetime = GetMinMaxCurveMax(main.startLifetime);
+        bool looping = main.loop;
+        int maxParticles = main.maxParticles;
+
+        float localT = t - delay;
+        if (localT < 0f) return 0f;
+
+        // 非循环：超出 duration + lifetime 后所有粒子已消亡
+        if (!looping && localT > duration + lifetime) return 0f;
+
+        // 循环：取模到单次 duration 周期
+        float cycleT = looping ? (localT % duration) : localT;
+        float elapsed = Mathf.Min(cycleT, duration);
+
+        // 持续发射的稳态粒子数 = rate × min(elapsed, lifetime)
+        float rate = GetMinMaxCurveMax(emission.rateOverTime);
+        float steadyState = rate * Mathf.Min(elapsed, lifetime);
+
+        // Burst 贡献：在 [burstTime, burstTime + lifetime] 窗口内仍存活
+        float burstAlive = 0f;
+        int burstCount = emission.burstCount;
+        for (int i = 0; i < burstCount; i++)
+        {
+            var burst = emission.GetBurst(i);
+            float burstTime = burst.time;
+            float burstMaxCount = burst.count.constantMax;
+
+            if (looping)
+            {
+                // 循环时 burst 每周期触发一次
+                if (cycleT >= burstTime && cycleT <= burstTime + lifetime)
+                    burstAlive += burstMaxCount;
+            }
+            else
+            {
+                if (localT >= burstTime && localT <= burstTime + lifetime)
+                    burstAlive += burstMaxCount;
+            }
+        }
+
+        return Mathf.Min(steadyState + burstAlive, maxParticles);
     }
 }
