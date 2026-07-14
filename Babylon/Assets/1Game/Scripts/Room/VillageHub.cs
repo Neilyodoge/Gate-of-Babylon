@@ -336,7 +336,7 @@ namespace XianTu
                 displayName = "秘境之门",
                 icon = "✦",
                 roleSub = "入秘境 · 进入第一关",
-                hintText = "按 [F] 入秘境",
+                hintText = "按 [F] 选择模板并入秘境",
                 themeColor = new Color(0.7f, 0.4f, 1f),
                 yOffset = 4.5f,
                 showLongRangeMarker = true
@@ -379,16 +379,16 @@ namespace XianTu
             if (!IsRoutedActive) return;
             if (ModuleAssemblyUI.IsVisible) return;
 
-            // v0.6：道伤已移除，山门不再因任何状态阻拦
-            if (_headCard != null) _headCard.UpdateHintText("按 [F] 入秘境");
-
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
             {
-                // v0.5.4：丹药系统移除，按 F 直接入秘境
                 if (_headCard != null) _headCard.SetHintVisible(false);
                 _triggered = true;
-                _onEnter?.Invoke();
+                StartTemplateSelectUI.Show(tpl =>
+                {
+                    if (tpl != null) tpl.ApplyToPlayer();
+                    _onEnter?.Invoke();
+                });
             }
         }
 

@@ -92,6 +92,7 @@ namespace XianTu
             DestroyIfExists("RunHUD");
             DestroyIfExists("PauseMenu");
             DestroyIfExists("MainMenu");
+            DestroyIfExists("PlayerInfoPanel");
             DestroyIfExists("CodexUITK");
             DestroyIfExists("SettingsUI");
             DestroyIfExists("BuffBarUITK");
@@ -137,6 +138,7 @@ namespace XianTu
 
             Wire(root, "start", StartWithTemplate);
             Wire(root, "continue", Hide);
+            Wire(root, "info", () => PlayerInfoPanel.Show());
             Wire(root, "codex", () => CodexUITK.Show());
             Wire(root, "settings", () => SettingsUI.Show());
             Wire(root, "quit", QuitGame);
@@ -144,14 +146,10 @@ namespace XianTu
             if (_overlay != null) _overlay.style.display = DisplayStyle.None;
         }
 
-        /// <summary>V0.1.13：开始前先弹起始模板选择，选中后应用模板并进入游戏。</summary>
+        /// <summary>V0.3.2：直接进入村庄 Hub（模板选择移至山门入口）。</summary>
         private static void StartWithTemplate()
         {
-            StartTemplateSelectUI.Show(tpl =>
-            {
-                if (tpl != null) tpl.ApplyToPlayer();
-                Hide();
-            });
+            Hide();
         }
 
         private static void Wire(VisualElement root, string name, System.Action action)

@@ -5,9 +5,10 @@
             <ui:Label text="仙 途 秘 境" class="mm-title" />
             <ui:Label text="闯秘境修仙 · 搜打撤 · 洞府养成" class="mm-subtitle" />
             <ui:VisualElement name="btns" class="mm-btns">
-                <ui:Button name="start" text="入 秘 境" class="mm-btn mm-btn--primary" />
+                <ui:Button name="start" text="进入基地" class="mm-btn mm-btn--primary" />
                 <ui:Button name="continue" text="继续修行" class="mm-btn" />
-                <ui:Button name="codex" text="仙物图鉴" class="mm-btn" />
+                <ui:Button name="info" text="角色信息" class="mm-btn" />
+                <ui:Button name="codex" text="图鉴" class="mm-btn" />
                 <ui:Button name="settings" text="设置" class="mm-btn" />
                 <ui:Button name="quit" text="退出游戏" class="mm-btn mm-btn--warn" />
             </ui:VisualElement>

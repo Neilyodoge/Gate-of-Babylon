@@ -4,7 +4,8 @@
         <ui:VisualElement name="panel" class="pm-panel">
             <ui:Label text="仙 途 · 暂 停" class="pm-title" />
             <ui:Button name="resume" text="继续修行" class="pm-btn" />
-            <ui:Button name="codex" text="仙物图鉴" class="pm-btn" />
+            <ui:Button name="info" text="角色信息" class="pm-btn" />
+            <ui:Button name="codex" text="图鉴" class="pm-btn" />
             <ui:Button name="settings" text="设置" class="pm-btn" />
             <ui:Button name="tomain" text="返回主菜单" class="pm-btn pm-btn--warn" />
             <ui:Button name="quit" text="退出游戏" class="pm-btn pm-btn--warn" />

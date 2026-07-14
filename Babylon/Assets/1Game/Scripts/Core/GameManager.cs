@@ -168,6 +168,7 @@ namespace XianTu
             BuffBarUITK.EnsureExists();   // v0.6：UITK 状态栏（取代旧 IMGUI StatusEffectHUD）
             RunHUD.Ensure();
             PauseMenu.Ensure();
+            PlayerInfoPanel.Ensure();     // V0.3.0：信息面板（Tab 键切换）
             // v0.5 Week 9：启动时显示主菜单（暂停游戏直到玩家点"开始入梦"）
             MainMenu.ShowOnBoot();
         }

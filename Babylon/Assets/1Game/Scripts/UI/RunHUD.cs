@@ -196,7 +196,7 @@ namespace XianTu
 
             const float W = 168f;
             float x = Screen.width - W - 12f;
-            float y = 12f;
+            float y = 115f;
             const float lineH = 20f;
 
             // 行数：道心常显；因果债≠0 显；寿元≠100 显

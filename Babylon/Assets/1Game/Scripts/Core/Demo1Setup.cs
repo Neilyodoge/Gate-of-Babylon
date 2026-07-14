@@ -595,7 +595,7 @@ namespace XianTu
             // ========== 右上角：敌人计数（小地图下方） ==========
             var enemyPanel = CreateUIImage(canvasGo.transform, "EnemyPanel",
                 new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-180, -95), new Vector2(-20, -60),
+                new Vector2(-180, -110), new Vector2(-20, -75),
                 new Color(0.15f, 0.1f, 0.1f, 0.7f));
 
             // 骷髅图标（用文字代替）
@@ -791,9 +791,9 @@ namespace XianTu
 
             // ========== 底部：操作提示 ==========
             var controlsHint = CreateUIText(canvasGo.transform, "ControlsHint",
-            "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  M 模块装配  |  Tab Debug", 12,
+            "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  M 模块装配  |  Tab 角色信息  |  ESC 暂停", 12,
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                new Vector2(-300, 2), new Vector2(300, 14));
+                new Vector2(-380, 2), new Vector2(380, 14));
             var hintTxt = controlsHint.GetComponent<Text>();
             hintTxt.alignment = TextAnchor.MiddleCenter;
             hintTxt.color = new Color(1, 1, 1, 0.3f);
@@ -834,11 +834,19 @@ namespace XianTu
             SetPrivateField(minimap, "playerDot", playerDot.GetComponent<Image>());
 
             // 标题
-            var title = CreateUIText(mapPanel.transform, "MapTitle", "仙途", 12,
+            var title = CreateUIText(mapPanel.transform, "MapTitle", "地图", 12,
                 new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(2, -18), new Vector2(-2, -2));
             title.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
             title.GetComponent<Text>().color = new Color(0.8f, 0.7f, 0.5f);
+
+            // 图例（小地图下方）
+            var legendText = CreateUIText(canvasTransform, "MinimapLegend",
+                "⚔战斗  ⚡精英  ?事件  $商店  ♥休息  ☠Boss", 10,
+                new Vector2(1, 1), new Vector2(1, 1),
+                new Vector2(-220, -72), new Vector2(-20, -57));
+            legendText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            legendText.GetComponent<Text>().color = new Color(0.55f, 0.6f, 0.7f, 0.8f);
 
             // 注册到GameManager
             if (GameManager.Instance != null)

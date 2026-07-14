@@ -100,6 +100,7 @@ namespace XianTu
             _confirmMsg = root.Q<Label>("confirm-msg");
 
             Wire(root, "resume", Hide);
+            Wire(root, "info", () => { Hide(); PlayerInfoPanel.Show(); });
             Wire(root, "codex", () => { Hide(); CodexUITK.Show(); });
             Wire(root, "settings", () => SettingsUI.Show());
             Wire(root, "tomain", () => AskConfirm("返回主菜单将丢失本局进度，确定吗？",
@@ -166,6 +167,7 @@ namespace XianTu
         private static bool IsBlockedByOtherUI()
         {
             if (ModuleAssemblyUI.IsVisible) return true;
+            if (PlayerInfoPanel.IsVisible) return true;
             if (CodexUITK.IsVisible) return true;
             if (SettingsUI.IsVisible) return true;
             return false;
