@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 namespace XianTu
 {
     /// <summary>
-    /// 局末结算面板（UITK）—— 撤离/死亡/通关后弹出。
+    /// 局末结算面板（UITK）—— 死亡/通关后弹出。
     /// 展示经验明细 + 层深倍率 + 遗产模块选择（选 1 个模块带入下局）。
     /// </summary>
     public class ExtractResultPanel : MonoBehaviour
@@ -26,7 +26,7 @@ namespace XianTu
             System.Action onConfirm)
         {
             Show(layerIndex, realmName, insightEarned, temperingEarned, materialsEarned,
-                 EndType.Extract, null, onConfirm);
+                 EndType.Death, null, onConfirm);
         }
 
         public static void Show(int layerIndex, string realmName,
@@ -83,7 +83,7 @@ namespace XianTu
             float expMul = endType switch
             {
                 EndType.Death => 0.5f,
-                EndType.Extract => 1f,
+                EndType.Extract => 1f, // V0.4: 保留枚举值兼容，不再使用
                 EndType.Victory => 2f,
                 _ => 1f
             };
@@ -94,7 +94,7 @@ namespace XianTu
 
             string endLabel = endType switch
             {
-                EndType.Death => "梦境破碎",
+                EndType.Death => "探索失败",
                 EndType.Extract => "安全撤离",
                 EndType.Victory => "秘境通关",
                 _ => "结算"
@@ -109,7 +109,7 @@ namespace XianTu
             AddRow(rows, mulLabel, $"{insightRaw} → {insightFinal}");
             AddRow(rows, "历练", $"{temperingRaw} → {temperingFinal}");
             if (materialsCount > 0)
-                AddRow(rows, "洞府素材", $"{materialsCount} 件");
+                AddRow(rows, "收集素材", $"{materialsCount} 件");
 
             // V0.2.5：显示单局时长
             float runSec = GameManager.Instance != null ? GameManager.Instance.RunElapsedSeconds : 0f;
@@ -124,7 +124,7 @@ namespace XianTu
                 ? $"总倍率 ×{totalMul:F2}（结算 ×{expMul:F1} · 层深 ×{layerMul:F2}）"
                 : totalMul < 0.999f
                     ? $"总倍率 ×{totalMul:F2}（死亡 ×{expMul:F1}）"
-                    : "第 1 层阶段返回：无额外倍率";
+                    : "基础倍率";
             root.Q<Label>("bonus").text = bonusText;
 
             // V0.2.2：遗产模块选择区域
@@ -134,8 +134,8 @@ namespace XianTu
             btn.clicked -= OnConfirm;
             btn.clicked += OnConfirm;
             btn.text = _legacyModules != null && _legacyModules.Count > 0
-                ? "确认遗产 · 返回洞府"
-                : "返回洞府";
+                ? "确认遗产 · 返回基地"
+                : "返回基地";
 
             _overlay.style.display = DisplayStyle.Flex;
             Time.timeScale = 0f;

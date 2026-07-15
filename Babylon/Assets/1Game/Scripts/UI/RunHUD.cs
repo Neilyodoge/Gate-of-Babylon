@@ -4,10 +4,7 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 搜打撤 HUD（v0.5）—— 右侧常驻 UI，分两块：
-    ///
-    /// 1. 局内：本局 CaveInventory 缓冲（拾到但还没撤离的洞府素材）+ 一句"撤离才能带回"提示
-    /// 2. 局外：洞府灵气 + 魂伤剩余倒计时
+    /// 局内 HUD（v0.5）—— 右侧常驻 UI，显示收集素材与状态信息。
     ///
     /// 拾取时弹一条飘字（监听 CaveMaterialPickedUp 事件）。
     /// </summary>
@@ -45,17 +42,11 @@ namespace XianTu
 
         private void OnEnable()
         {
-            GameEvents.Subscribe<GameEvents.CaveMaterialPickedUp>(OnCaveMaterialPickedUp);
-            GameEvents.Subscribe<GameEvents.ExtractSuccess>(OnExtractSuccess);
-            GameEvents.Subscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
             GameEvents.Subscribe<GameEvents.InsightChanged>(OnInsightChanged);
         }
 
         private void OnDisable()
         {
-            GameEvents.Unsubscribe<GameEvents.CaveMaterialPickedUp>(OnCaveMaterialPickedUp);
-            GameEvents.Unsubscribe<GameEvents.ExtractSuccess>(OnExtractSuccess);
-            GameEvents.Unsubscribe<GameEvents.ExtractInterrupted>(OnExtractInterrupted);
             GameEvents.Unsubscribe<GameEvents.InsightChanged>(OnInsightChanged);
         }
 
@@ -99,36 +90,7 @@ namespace XianTu
             _insightFlushTimer = 0f;
         }
 
-        private void OnCaveMaterialPickedUp(GameEvents.CaveMaterialPickedUp evt)
-        {
-            if (evt.Item == null) return;
-            _toasts.Add(new PickupToast
-            {
-                text = $"+{evt.Amount} {evt.Item.itemName} · 撤离后带回",
-                color = new Color(0.70f, 0.92f, 0.55f),
-                remaining = ToastDuration
-            });
-        }
-
-        private void OnExtractSuccess(GameEvents.ExtractSuccess evt)
-        {
-            _toasts.Add(new PickupToast
-            {
-                text = $"撤离成功！{evt.CaveMaterialsCommitted} 件洞府素材已带回",
-                color = new Color(0.55f, 0.95f, 0.70f),
-                remaining = ToastDuration * 1.5f
-            });
-        }
-
-        private void OnExtractInterrupted(GameEvents.ExtractInterrupted evt)
-        {
-            _toasts.Add(new PickupToast
-            {
-                text = $"撤离中断（{evt.Reason}）",
-                color = new Color(1f, 0.55f, 0.45f),
-                remaining = ToastDuration
-            });
-        }
+        // V0.4：移除了 CaveMaterial 拾取、撤离成功/中断 toast（搜打撤系统已移除）
 
         private void Update()
         {
@@ -188,7 +150,7 @@ namespace XianTu
             }
         }
 
-        // ========== 修仙状态：道心 / 因果 / 寿元（v0.5.5，右上角）==========
+        // ========== 角色状态：意志 / 因果 / 寿元（v0.5.5，右上角）==========
 
         private void DrawMoralStatus()
         {
@@ -199,7 +161,7 @@ namespace XianTu
             float y = 115f;
             const float lineH = 20f;
 
-            // 行数：道心常显；因果债≠0 显；寿元≠100 显
+            // 行数：意志常显；因果债≠0 显；寿元≠100 显
             int lines = 1;
             bool showKarma = h.KarmaDebt != 0;
             bool showLifespan = h.Lifespan != 100;
@@ -216,17 +178,17 @@ namespace XianTu
 
             float ly = y + 5f;
 
-            // —— 道心 ——
+            // —— 意志 ——
             string dxHex = h.Daoxin >= 80 ? "6cc0ff" : h.Daoxin >= 50 ? "d8e0e8" : h.Daoxin >= 20 ? "ffb060" : "ff5560";
             GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH),
-                $"<color=#{dxHex}>道心 · {h.DaoxinState} {h.Daoxin}</color>", style);
+                $"<color=#{dxHex}>意志 · {h.DaoxinState} {h.Daoxin}</color>", style);
             ly += lineH;
 
-            // —— 因果债 ——
+            // —— 因果 ——
             if (showKarma)
             {
                 string kHex = h.KarmaDebt > 0 ? "ff8866" : "8fd08f";
-                string kLabel = h.KarmaDebt > 0 ? $"因果债 +{h.KarmaDebt}" : $"善缘 {h.KarmaDebt}";
+                string kLabel = h.KarmaDebt > 0 ? $"恶业 +{h.KarmaDebt}" : $"善缘 {h.KarmaDebt}";
                 GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH), $"<color=#{kHex}>{kLabel}</color>", style);
                 ly += lineH;
             }
@@ -291,7 +253,7 @@ namespace XianTu
                 richText = true
             };
             style.normal.textColor = Color.white;
-            GUI.Label(bgRect, $"本局经验 {insight.RunInsight}（撤离转 50% 入永久）", style);
+            GUI.Label(bgRect, $"本局经验 {insight.RunInsight}", style);
         }
 
         private void DrawPickupToasts()

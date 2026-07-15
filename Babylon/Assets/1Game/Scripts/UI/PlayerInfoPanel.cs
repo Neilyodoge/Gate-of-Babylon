@@ -6,7 +6,7 @@ namespace XianTu
 {
     /// <summary>
     /// V0.3.0 信息面板 —— 展示玩家基础属性、成长属性、当前模板信息。
-    /// Tab 键切换显示/隐藏（局内外均可），主菜单暂停菜单可按钮调起。
+    /// C 键切换显示/隐藏（局内外均可），主菜单暂停菜单可按钮调起。
     /// UITK 程序化构建，无需额外 uxml/uss 资产。
     /// </summary>
     public class PlayerInfoPanel : MonoBehaviour
@@ -165,18 +165,9 @@ namespace XianTu
 
         private void RefreshTemplate()
         {
-            var tpl = StartTemplateRegistry.Selected;
-            if (tpl != null)
-            {
-                _templateName.text = $"起始模板：{tpl.displayName}";
-                _templateDesc.text = tpl.description ?? "";
-                _templateName.style.color = new StyleColor(tpl.themeColor);
-            }
-            else
-            {
-                _templateName.text = "起始模板：未选择";
-                _templateDesc.text = "";
-            }
+            _templateName.text = "冒险者";
+            _templateDesc.text = "";
+            _templateName.style.color = new StyleColor(new Color(0.9f, 0.85f, 0.6f));
         }
 
         private void RefreshStats()
@@ -247,7 +238,7 @@ namespace XianTu
             if (hooks != null)
             {
                 grid.Add(StatCard("击杀数", $"{hooks.KillCount}", new Color(0.95f, 0.55f, 0.45f)));
-                grid.Add(StatCard("道心", $"{hooks.Daoxin} ({hooks.DaoxinState})", DaoxinColor(hooks.Daoxin)));
+                grid.Add(StatCard("意志", $"{hooks.Daoxin} ({hooks.DaoxinState})", DaoxinColor(hooks.Daoxin)));
             }
         }
 
@@ -335,7 +326,7 @@ namespace XianTu
             var kb = Keyboard.current;
             if (kb == null) return;
 
-            if (kb.tabKey.wasPressedThisFrame)
+            if (kb.cKey.wasPressedThisFrame)
             {
                 if (MainMenu.IsVisible || PauseMenu.IsVisible || ModuleAssemblyUI.IsVisible) return;
                 Toggle();

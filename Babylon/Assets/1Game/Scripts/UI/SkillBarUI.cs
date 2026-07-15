@@ -9,9 +9,9 @@ namespace XianTu
     /// 圆形技能图标（Q/E/R + 闪避 + 普攻）
     ///
     /// 交互：
-    /// 1. 按F拾取功法 → 自动放入第一个空位
+    /// 1. 按F拾取技能 → 自动放入第一个空位
     /// 2. 鼠标按住技能槽位拖动 → 松开到其他槽位上交换位置
-    /// 3. 拖到空白区域松开 → 功法掉落到地面
+    /// 3. 拖到空白区域松开 → 技能掉落到地面
     /// 4. 悬停显示信息提示
     /// </summary>
     public class SkillBarUI : MonoBehaviour
@@ -218,7 +218,7 @@ namespace XianTu
                             Random.insideUnitSphere * 1.5f;
                         dropPos.y = PlayerController.Instance.transform.position.y + 0.5f;
                         SkillPickup.Spawn(skill, dropPos);
-                        Debug.Log($"<color=gray>丢弃功法：{skill.skillName}</color>");
+                        Debug.Log($"<color=gray>丢弃技能：{skill.skillName}</color>");
                     }
                 }
             }
@@ -250,7 +250,7 @@ namespace XianTu
 
         private void OnSkillEquipped(GameEvents.SkillEquipped evt) => RefreshSkillSlots();
 
-        /// <summary>刷新技能槽位显示（空槽暗色虚化，有技能显示品阶色+功法名+发光边框）</summary>
+        /// <summary>刷新技能槽位显示（空槽暗色虚化，有技能显示品阶色+技能名+发光边框）</summary>
         public void RefreshSkillSlots()
         {
             if (PlayerController.Instance == null) return;
@@ -409,7 +409,7 @@ namespace XianTu
                     {
                         _tooltipTitle.text = $"[{keys[_hoverSkillSlot]}] 空技能槽";
                         _tooltipTitle.color = new Color(0.5f, 0.5f, 0.5f);
-                        _tooltipDesc.text = "拾取功法后自动装备";
+                        _tooltipDesc.text = "拾取技能后自动装备";
                         _tooltipEffect.text = "";
                         _tooltipPanel.SetActive(true);
                         _tooltipPanel.transform.SetAsLastSibling();

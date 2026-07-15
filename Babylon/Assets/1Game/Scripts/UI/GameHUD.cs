@@ -390,7 +390,7 @@ namespace XianTu
                 shardCountText.text = $"{evt.SpiritShards}";
 
             if (evt.Delta > 0)
-                ShowMessage($"<color=#88CCFF>获得灵力碎片 +{evt.Delta}</color>");
+                ShowMessage($"<color=#88CCFF>获得碎片 +{evt.Delta}</color>");
         }
 
         // ==================== 房间清理 ====================
@@ -408,7 +408,7 @@ namespace XianTu
             {
                 deathPanel.SetActive(true);
                 if (deathTitleText != null)
-                    deathTitleText.text = "梦境破碎";
+                    deathTitleText.text = "探索失败";
                 if (deathSubText != null)
                 {
                     string realm = GameManager.Instance != null ? GameManager.Instance.CurrentRealmName : "未知";

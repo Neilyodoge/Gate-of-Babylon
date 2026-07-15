@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace XianTu
 {
     /// <summary>
-    /// 村庄 Hub —— 玩家入梦后的"现实"出生点（参考 Hades 2 的 Mourning Fields）。
+    /// 村庄 Hub —— 冒险者基地（参考 Hades 2 的 Mourning Fields）。
     /// 不属于 6 层境界的任何一层，玩家在此进行：
     ///   1. 走配置使按 F → 打开模块装配界面配置初始 Build（GDD V.07）
     ///   2. 走山门 → 调 GameManager.StartNewRun() 进入第一关
@@ -87,7 +87,7 @@ namespace XianTu
                 new Vector2(2.4f, 0.6f), 36, new Color(1f, 0.8f, 0.4f));
 
             // 副标题
-            CreateWorldText(tablet.transform, "TabletSub", "—— 闯秘境修仙 · 由此出发 ——",
+            CreateWorldText(tablet.transform, "TabletSub", "—— 探索秘境 · 由此出发 ——",
                 new Vector3(0, -0.2f, 0.85f), Quaternion.Euler(0, 180f, 0),
                 new Vector2(3f, 0.4f), 18, new Color(0.85f, 0.7f, 0.5f));
         }
@@ -336,7 +336,7 @@ namespace XianTu
                 displayName = "秘境之门",
                 icon = "✦",
                 roleSub = "入秘境 · 进入第一关",
-                hintText = "按 [F] 选择模板并入秘境",
+                hintText = "按 [F] 入秘境",
                 themeColor = new Color(0.7f, 0.4f, 1f),
                 yOffset = 4.5f,
                 showLongRangeMarker = true
@@ -384,11 +384,8 @@ namespace XianTu
             {
                 if (_headCard != null) _headCard.SetHintVisible(false);
                 _triggered = true;
-                StartTemplateSelectUI.Show(tpl =>
-                {
-                    if (tpl != null) tpl.ApplyToPlayer();
-                    _onEnter?.Invoke();
-                });
+                // V0.4：删除职业/模板选择，直接进入秘境
+                _onEnter?.Invoke();
             }
         }
 

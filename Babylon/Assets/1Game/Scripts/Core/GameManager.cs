@@ -5,8 +5,8 @@ namespace XianTu
 {
     /// <summary>
     /// 游戏管理器 —— 控制整局游戏流程
-    /// 线性推进 6 层（第一层→第六层）
-    /// 每层包含多个房间（2~3个），通关所有房间后进入下一层
+    /// V0.4：线性推进 6 层，每层 10+ 个房间（统一结构），通关所有房间后进入下一层。
+    /// 新增准备房间 → 技能三选一 → 战斗开始。
     /// </summary>
     public class GameManager : MonoBehaviour
     {
@@ -168,8 +168,8 @@ namespace XianTu
             BuffBarUITK.EnsureExists();   // v0.6：UITK 状态栏（取代旧 IMGUI StatusEffectHUD）
             RunHUD.Ensure();
             PauseMenu.Ensure();
-            PlayerInfoPanel.Ensure();     // V0.3.0：信息面板（Tab 键切换）
-            // v0.5 Week 9：启动时显示主菜单（暂停游戏直到玩家点"开始入梦"）
+            PlayerInfoPanel.Ensure();     // V0.3.0：信息面板（C 键切换，V0.4 解决与 Debug 面板 Tab 键冲突）
+            // v0.5 Week 9：启动时显示主菜单
             MainMenu.ShowOnBoot();
         }
 
@@ -181,11 +181,9 @@ namespace XianTu
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
 
-            // 清理上局残留的 root-level 对象（ExtractPoint / 传送门 / 散落拾取物）
+            // 清理上局残留的 root-level 对象（传送门 / 散落拾取物）
             if (LevelTransition.Instance != null)
                 LevelTransition.Instance.DestroyPortal();
-            foreach (var ep in FindObjectsOfType<ExtractPoint>())
-                Destroy(ep.gameObject);
             CleanupLeftoverPickups();
 
             // 防御：上一局如果 timeScale 被改过，进村恢复到 1，否则玩家会卡在 0 速度。
@@ -200,7 +198,7 @@ namespace XianTu
 
             TeleportPlayer(spawnPos);
 
-            Debug.Log("<color=magenta>═══ 入梦之村 · 配置模块后从山门入梦 ═══</color>");
+            Debug.Log("<color=magenta>═══ 冒险者基地 · 从秘境之门出发 ═══</color>");
         }
 
         /// <summary>开始新的一局</summary>
@@ -216,13 +214,12 @@ namespace XianTu
             RunCombatStats.Reset();
 
             Debug.Log("<color=magenta>═══════════════════════════</color>");
-            Debug.Log("<color=magenta>  入秘境... 仙途秘境开始</color>");
+            Debug.Log("<color=magenta>  进入秘境... 冒险开始</color>");
             Debug.Log("<color=magenta>═══════════════════════════</color>");
 
-            // 起手功法 / 阵法台增益 —— 一次性 / 持久效果
+            // 阵法台增益保留
             if (PlayerController.Instance != null)
             {
-                StartSkillLoader.Apply(PlayerController.Instance);
                 FormationBuffApplier.Apply(PlayerController.Instance);
             }
 
@@ -240,9 +237,31 @@ namespace XianTu
             if (_minimap != null)
                 _minimap.Initialize(_levelLayout);
 
-            SpawnCurrentRoom();
+            // V0.4：先进入准备房间（技能三选一），完成后再进入第一个战斗房间
+            SpawnPrepRoom();
+        }
 
-            // V0.2.2：遗产模块注入 — 上局选定的模块在首战掉落
+        /// <summary>V0.4：生成准备房间，技能选择完毕后进入第一个战斗房间。</summary>
+        private void SpawnPrepRoom()
+        {
+            if (_currentRoomGo != null)
+                Destroy(_currentRoomGo);
+            CleanupLeftoverPickups();
+
+            Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
+            _currentRoomGo = new GameObject("PrepRoom");
+            _currentRoomGo.transform.position = spawnPos;
+            var prep = _currentRoomGo.AddComponent<PrepRoom>();
+            prep.Initialize(skillPool, OnPrepRoomComplete);
+
+            TeleportPlayer(spawnPos);
+            Debug.Log("<color=#6699ff>═══ 准备房间 · 选择初始技能 ═══</color>");
+        }
+
+        private void OnPrepRoomComplete()
+        {
+            Debug.Log("<color=#66ff99>准备完成 · 进入第一关</color>");
+            SpawnCurrentRoom();
             TryInjectLegacyModule();
         }
 
@@ -333,26 +352,36 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 整局房间布局（写死，不再随机）。设计目标：
-        ///   - 每境第一间永远战斗（导入战斗节奏）
-        ///   - 每境最后是核心房（商店 / 升级 / 宝箱 / 休息 / Boss）
-        ///   - 整局保证 2 家商店、1 间休息、2 个宝箱、2 个升级台，节奏稳定
-        ///   - 总长度 16 间房，跑一次约 20~30 分钟
+        /// V0.4 固定布局回退方案（TreeMap 不可用时）。
+        /// 每层统一结构：10-11 个房间，节奏一致。
+        /// 战→战→精英→商店→战→战→事件→战→战→升级→Boss
         /// </summary>
         private static readonly Minimap.RoomType[][] _fixedLayout =
         {
-            // 0 第一层：战 → 商店（早期见到商店）
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Shop },
-            // 1 第二层：战 → 战 → 宝箱
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Treasure },
-            // 2 第三层：战 → 升级 → 休息
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Upgrade, Minimap.RoomType.Rest },
-            // 3 第四层：战 → 商店 → 战
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle },
-            // 4 第五层：战 → 宝箱 → 升级
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Treasure, Minimap.RoomType.Upgrade },
-            // 5 第六层：战 → Boss
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Boss }
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
         };
 
         /// <summary>使用 <see cref="_fixedLayout"/> 装载本局所有房间</summary>
@@ -389,7 +418,7 @@ namespace XianTu
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
 
-            // 清理上一关残留的掉落物（灵物和功法拾取物）
+            // 清理上一关残留的掉落物（技能 / 模块拾取物）
             CleanupLeftoverPickups();
 
             Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
@@ -497,7 +526,7 @@ namespace XianTu
             _currentRoomGo = new GameObject($"ShopRoom_Lv{_currentLevel}_{CurrentRealmName}");
             _currentRoomGo.transform.position = spawnPos;
             var room = _currentRoomGo.AddComponent<ShopRoom>();
-            room.Initialize(_currentLevel, skillPool);
+            room.Initialize(_currentLevel, skillPool, modulePool);
             Debug.Log($"<color=yellow>【{CurrentRealmName}】商店房间 — 按F离开</color>");
         }
 
@@ -657,8 +686,8 @@ namespace XianTu
 
             if (levelComplete)
             {
-                // v0.5 搜打撤：当前层全部通关 → 在房间内 spawn【出梦点】，玩家可选择撤离 vs 闯下一层
-                SpawnExtractPointAndPortal();
+                // V0.4：当前层全部通关 → 生成传送门进入下一层（或通关结算）
+                SpawnLevelCompletePortal();
                 return;
             }
             else
@@ -842,7 +871,7 @@ namespace XianTu
 
         private static string TypeTooltip(Minimap.RoomType t) => t switch
         {
-            Minimap.RoomType.Battle => "刷怪 + 拾取局内灵物 / 洞府素材",
+            Minimap.RoomType.Battle => "战斗 + 拾取模块 / 资源",
             Minimap.RoomType.Elite => "精英怪 — 强化敌人 + 保底稀有模块掉落",
             Minimap.RoomType.Event => "叙事事件 — 选择驱动的随机奖励/代价",
             Minimap.RoomType.Shop => "用本局货币购买灵物 / 丹药",
@@ -854,86 +883,18 @@ namespace XianTu
         };
 
         /// <summary>
-        /// v0.5 搜打撤：每层结束时同时生成【出梦点】（撤离）和【下一层传送门】（继续），让玩家做决策。
-        /// V0.2.1：仅当 HasStageReturn[currentLevel]=1 时显示出梦点，否则直接进入下一层。
+        /// V0.4：当前层通关后，生成传送门进入下一层；最终层则弹通关结算面板。
+        /// 不再有撤离/出梦点选择，标准 roguelike 流程。
         /// </summary>
-        private void SpawnExtractPointAndPortal()
+        private void SpawnLevelCompletePortal()
         {
             Vector3 roomCenter = _currentRoomGo != null ? _currentRoomGo.transform.position : Vector3.zero;
             float roomHalfDepth = GetCurrentRoomHalfDepth();
 
             bool isLastRealm = _currentLevel >= _realmNames.Length - 1;
 
-            // V0.2.1：检查配表是否允许本层阶段返回
-            bool hasStageReturn = ShouldShowStageReturn();
-
-            if (!isLastRealm && !hasStageReturn)
-            {
-                // 无阶段返回点 → 直接传送到下一层
-                if (LevelTransition.Instance != null)
-                {
-                    Vector3 portalPos = roomCenter + new Vector3(0f, 0, roomHalfDepth * 0.5f);
-                    LevelTransition.Instance.SpawnPortal(portalPos, () =>
-                    {
-                        _currentLevel++;
-                        _currentRoomInLevel = 0;
-                        Debug.Log($"<color=magenta>═══ 闯入下一层：{CurrentRealmName} ═══</color>");
-                        SpawnCurrentRoom();
-                    });
-                }
-                else
-                {
-                    _currentLevel++;
-                    _currentRoomInLevel = 0;
-                    SpawnCurrentRoom();
-                }
-                return;
-            }
-
-            // 逐层挑战台已移除。
-            // 秘境层推进只剩"撤离 vs 继续"+ 等级差压制作为难度门槛。
-
-            // 出梦点：放在房间西侧（左边）
-            var extractGo = new GameObject($"ExtractPoint_Level{_currentLevel}");
-            extractGo.transform.position = roomCenter + new Vector3(-6f, 0, 0);
-            var ep = extractGo.AddComponent<ExtractPoint>();
-            int capturedLevel = _currentLevel;
-            ep.Build(() =>
-            {
-                float mul = ExtractResultPanel.LayerMultiplier(capturedLevel);
-                string realmName = capturedLevel < _realmNames.Length ? _realmNames[capturedLevel] : "巅峰";
-
-                int matCount = CaveInventory.Instance.TotalPendingCount;
-                CaveInventory.Instance.CommitCurrentRun();
-                int insightRaw = InsightSystem.Instance.CommitOnExtract(mul);
-                int temperingRaw = 0;
-                if (FeatureFlags.EnableCaveMeta)
-                    temperingRaw = CultivationSystem.Instance.CommitOnExtract(mul);
-
-                // V0.2.2：收集模块背包用于遗产选择
-                IReadOnlyList<ModuleDef> legacyModules = null;
-                if (PlayerController.Instance != null)
-                {
-                    var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
-                    if (inv != null && inv.Modules.Count > 0)
-                        legacyModules = inv.Modules;
-                }
-
-                ExtractResultPanel.Show(capturedLevel, realmName,
-                    insightRaw, temperingRaw, matCount,
-                    ExtractResultPanel.EndType.Extract, legacyModules,
-                    () =>
-                    {
-                        EnterVillageHub();
-                        _transitioning = false;
-                        _gameOver = false;
-                        Debug.Log($"<color=#88ff88>[GameManager] 撤离成功 · 回到洞府（层深倍率 ×{mul:F2}）</color>");
-                    });
-            });
-
             if (isLastRealm)
             {
-                // V0.2.4：通关 → 弹结算面板（EndType.Victory × 2.0 + 遗产选择）
                 _gameOver = true;
                 _runElapsedTime = Time.time - _runStartTime;
                 float victoryMul = 2.0f;
@@ -961,24 +922,30 @@ namespace XianTu
                         EnterVillageHub();
                         _transitioning = false;
                         _gameOver = false;
-                        Debug.Log("<color=yellow>✨✨✨ 通关成功！返回洞府 ✨✨✨</color>");
+                        Debug.Log("<color=yellow>✨✨✨ 通关成功！返回基地 ✨✨✨</color>");
                     });
                 GameEvents.Publish(new GameEvents.GameWon());
                 Debug.Log($"<color=lime>[RunTimer] 通关时长：{_runElapsedTime / 60f:F1} 分钟（目标 25-40min）</color>");
                 return;
             }
 
-            // 下一层传送门：放在房间东侧（右边）
+            // 非最终层 → 直接传送到下一层
             if (LevelTransition.Instance != null)
             {
-                Vector3 portalPos = roomCenter + new Vector3(6f, 0, 0);
+                Vector3 portalPos = roomCenter + new Vector3(0f, 0, roomHalfDepth * 0.5f);
                 LevelTransition.Instance.SpawnPortal(portalPos, () =>
                 {
                     _currentLevel++;
                     _currentRoomInLevel = 0;
-                    Debug.Log($"<color=magenta>═══ 闯入下一层：{CurrentRealmName} ═══</color>");
+                    Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
                     SpawnCurrentRoom();
                 });
+            }
+            else
+            {
+                _currentLevel++;
+                _currentRoomInLevel = 0;
+                SpawnCurrentRoom();
             }
         }
 
@@ -1045,7 +1012,7 @@ namespace XianTu
                     EnterVillageHub();
                     _transitioning = false;
                     _gameOver = false;
-                    Debug.Log($"<color=#ff8866>[GameManager] 死亡结算完成 · 回到洞府（残魂 {qiCompensation} 灵气）</color>");
+                    Debug.Log($"<color=#ff8866>[GameManager] 死亡结算完成 · 回到基地（补偿 {qiCompensation} 资源）</color>");
                 });
         }
 

@@ -291,7 +291,23 @@ namespace XianTu
         {
             if (moduleRewardPool == null || moduleRewardPool.Length == 0) return;
 
-            int dropCount = _isEliteRoom ? 3 : (Random.value < 0.5f ? 2 : 1);
+            var config = GameConfig.Instance;
+            if (config != null && !_isEliteRoom)
+            {
+                if (Random.value > config.模块掉落概率) return;
+            }
+
+            int dropCount;
+            if (_isEliteRoom)
+            {
+                dropCount = config != null ? config.精英房模块掉落数量 : 3;
+            }
+            else
+            {
+                int min = config != null ? config.模块掉落数量最少 : 1;
+                int max = config != null ? config.模块掉落数量最多 : 2;
+                dropCount = Random.Range(min, max + 1);
+            }
             int rarityBias = GetFloorRarityBias() + (_isEliteRoom ? 20 : 0);
 
             var player = PlayerController.Instance;

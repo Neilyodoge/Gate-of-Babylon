@@ -10,7 +10,7 @@ namespace XianTu
     /// </summary>
     public class Demo1Setup : MonoBehaviour
     {
-        [Header("功法池（可选，自动配置会填充）")]
+        [Header("技能池（可选，自动配置会填充）")]
         [SerializeField] private SkillData[] skillPool;
 
         [Header("技能（可选）")]
@@ -255,104 +255,17 @@ namespace XianTu
                 combat.SetHitVFX(hitVFXPrefab);
             }
 
-            // 设置测试技能（如果 Inspector 中没有配置，运行时创建默认技能）
-            if (testSkillQ != null)
-            {
-                combat.EquipSkillQ(testSkillQ);
-            }
-            else
-            {
-                // 兜底：运行时创建默认落石术
-                var fallbackQ = ScriptableObject.CreateInstance<SkillData>();
-                fallbackQ.skillName = "落石术";
-                fallbackQ.description = "召唤巨石砸落指定位置";
-                fallbackQ.skillType = SkillType.AreaDamage;
-                fallbackQ.baseDamage = 30f;
-                fallbackQ.damageScaling = 0.5f;
-                fallbackQ.cooldown = 8f;
-                fallbackQ.aoeRadius = 3f;
-                fallbackQ.vfxDuration = 1.5f;
-                combat.EquipSkillQ(fallbackQ);
-                Debug.Log("<color=yellow>[Demo1Setup] Q技能未配置，已使用内置落石术</color>");
-            }
-
-            // E槽位：V.08 起始 3 个核心技能无空窗；testSkillE 未配置则从 Skills 目录挑一个
-            if (testSkillE != null)
-            {
-                combat.EquipSkillE(testSkillE);
-            }
-            else
-            {
-                var pickedE = PickStartingSkillFromDisk(combat.GetSkillInSlot(0));
-                if (pickedE != null)
-                {
-                    combat.EquipSkillE(pickedE);
-                    Debug.Log($"<color=yellow>[Demo1Setup] E技能未配置，自动分配：{pickedE.skillName}</color>");
-                }
-                else
-                {
-                    Debug.Log("<color=yellow>[Demo1Setup] E技能槽位留空，等待玩家探索获取</color>");
-                }
-            }
-
-            // R槽位：V.08 起始 3 个核心技能无空窗
-            if (testSkillR != null)
-            {
-                combat.EquipSkillR(testSkillR);
-            }
-            else
-            {
-                var pickedR = PickStartingSkillFromDisk(combat.GetSkillInSlot(0), combat.GetSkillInSlot(1));
-                if (pickedR != null)
-                {
-                    combat.EquipSkillR(pickedR);
-                    Debug.Log($"<color=yellow>[Demo1Setup] R技能未配置，自动分配：{pickedR.skillName}</color>");
-                }
-                else
-                {
-                    Debug.Log("<color=yellow>[Demo1Setup] R技能槽位留空，等待玩家探索获取</color>");
-                }
-            }
+            // V0.4：玩家初始无技能，Q/E/R 全部留空。
+            // 仅保留 Inspector 手动配置的测试技能（开发调试用）。
+            if (testSkillQ != null) combat.EquipSkillQ(testSkillQ);
+            if (testSkillE != null) combat.EquipSkillE(testSkillE);
+            if (testSkillR != null) combat.EquipSkillR(testSkillR);
             playerGo.AddComponent<PlayerResources>();
 
             // 主角档案系统：组件就绪后热构建所选主角模型（剑客/法师）。
             // 默认档案（sortOrder 最小）一般为剑客，与旧的 Frank_Katana 一致。
             if (useProfile)
                 playerCtrl.ApplyCharacterProfile(selectedProfile);
-        }
-
-        /// <summary>
-        /// V.08：从磁盘 SkillData 资产中挑一个尚未被占用的核心技能，用作起始槽位 fallback。
-        /// 优先选与已占用技能不同 skillType 的，确保 3 个槽位覆盖多样 build 原型。
-        /// </summary>
-        private SkillData PickStartingSkillFromDisk(params SkillData[] used)
-        {
-#if UNITY_EDITOR
-            var guids = UnityEditor.AssetDatabase.FindAssets("t:SkillData", new[] { "Assets/1Game/Data/Skills" });
-            var usedTypes = new System.Collections.Generic.HashSet<SkillType>();
-            foreach (var u in used) if (u != null) usedTypes.Add(u.skillType);
-
-            SkillData firstDifferent = null;
-            SkillData firstAny = null;
-            foreach (var g in guids)
-            {
-                var p = UnityEditor.AssetDatabase.GUIDToAssetPath(g);
-                var s = UnityEditor.AssetDatabase.LoadAssetAtPath<SkillData>(p);
-                if (s == null) continue;
-                bool alreadyUsed = false;
-                foreach (var u in used) if (u != null && u == s) { alreadyUsed = true; break; }
-                if (alreadyUsed) continue;
-
-                firstAny ??= s;
-                if (!usedTypes.Contains(s.skillType))
-                {
-                    firstDifferent ??= s;
-                }
-            }
-            return firstDifferent ?? firstAny;
-#else
-            return null;
-#endif
         }
 
         private void SetupCamera()
@@ -403,12 +316,12 @@ namespace XianTu
                         if (skill != null) skills.Add(skill);
                     }
                     skillPool = skills.ToArray();
-                    Debug.Log($"<color=green>[Demo1Setup] 自动加载了 {skillPool.Length} 个功法数据</color>");
+                    Debug.Log($"<color=green>[Demo1Setup] 自动加载了 {skillPool.Length} 个技能数据</color>");
                 }
 #endif
             }
 
-            // 设置功法池
+            // 设置技能池
             {
                 var skillList = new System.Collections.Generic.List<SkillData>();
 
@@ -432,11 +345,11 @@ namespace XianTu
                 if (skillPoolField != null && skillList.Count > 0)
                 {
                     skillPoolField.SetValue(gm, skillList.ToArray());
-                    Debug.Log($"<color=cyan>[Demo1Setup] 功法池：{skillList.Count} 个功法</color>");
+                    Debug.Log($"<color=cyan>[Demo1Setup] 技能池：{skillList.Count} 个技能</color>");
                 }
                 else if (skillList.Count == 0)
                 {
-                    Debug.Log("<color=yellow>[Demo1Setup] 未找到功法数据，功法池为空</color>");
+                    Debug.Log("<color=yellow>[Demo1Setup] 未找到技能数据，技能池为空</color>");
                 }
             }
 
@@ -757,7 +670,7 @@ namespace XianTu
             // GDD 5.13：角色旁三竖条 Proc 指示器
             canvasGo.AddComponent<ProcBarsHUD>();
 
-            // ========== 左下角：灵力碎片计数 ==========
+            // ========== 左下角：碎片计数 ==========
             var shardPanel = CreateUIImage(canvasGo.transform, "ShardPanel",
                 new Vector2(0, 0), new Vector2(0, 0),
                 new Vector2(20, 55), new Vector2(160, 90),
@@ -791,7 +704,7 @@ namespace XianTu
 
             // ========== 底部：操作提示 ==========
             var controlsHint = CreateUIText(canvasGo.transform, "ControlsHint",
-            "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  M 模块装配  |  Tab 角色信息  |  ESC 暂停", 12,
+            "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  M 模块装配  |  C 角色信息  |  ESC 暂停", 12,
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(-380, 2), new Vector2(380, 14));
             var hintTxt = controlsHint.GetComponent<Text>();
@@ -863,7 +776,7 @@ namespace XianTu
                 new Color(0.05f, 0, 0, 0.75f));
 
             // 标题
-            var title = CreateUIText(panel.transform, "DeathTitle", "梦境破碎", 48,
+            var title = CreateUIText(panel.transform, "DeathTitle", "探索失败", 48,
                 new Vector2(0.5f, 0.6f), new Vector2(0.5f, 0.6f),
                 new Vector2(-200, -30), new Vector2(200, 30));
             var titleTxt = title.GetComponent<Text>();
@@ -929,7 +842,7 @@ namespace XianTu
             titleOutline.effectDistance = new Vector2(2, -2);
 
             // 副标题
-            var sub = CreateUIText(panel.transform, "WinSubText", "飞升成仙，证道圆满", 22,
+            var sub = CreateUIText(panel.transform, "WinSubText", "秘境征服，冒险圆满", 22,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(-200, -15), new Vector2(200, 15));
             var subTxt = sub.GetComponent<Text>();

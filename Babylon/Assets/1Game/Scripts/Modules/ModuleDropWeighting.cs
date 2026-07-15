@@ -4,18 +4,16 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// P1 起始模板：模块掉落的软性动态权重。
+    /// 模块掉落的软性动态权重。
     ///
-    /// 依据三项抬升相关模块的掉落权重，但每个模块的基础权重恒 &gt; 0——不硬锁任何模块，玩家随时可转向：
-    /// 1. 起始模板风格（当前 <see cref="StartTemplateRegistry.Selected"/> 起手模块的 styleTags）。
-    /// 2. 半成型链补齐（某槽位有件但缺触发器/效果器 → 抬升对应大类）。
-    /// 3. 本局构筑协同（与已拥有模块 styleTags 重叠）。
-    /// 4. V0.2.1 层级稀有度偏移（rarityBias 提升高品阶模块被选中概率）。
+    /// 依据以下维度抬升相关模块的掉落权重，但每个模块的基础权重恒 &gt; 0——不硬锁任何模块，玩家随时可转向：
+    /// 1. 半成型链补齐（某槽位有件但缺触发器/效果器 → 抬升对应大类）。
+    /// 2. 本局构筑协同（与已拥有模块 styleTags 重叠）。
+    /// 3. V0.2.1 层级稀有度偏移（rarityBias 提升高品阶模块被选中概率）。
     /// </summary>
     public static class ModuleDropWeighting
     {
         public const float BaseWeight = 1f;
-        public const float TemplateAffinityBonus = 1.5f;
         public const float GapFillBonus = 2f;
         public const float StyleSynergyBonus = 0.75f;
 
@@ -46,7 +44,6 @@ namespace XianTu
 
         private struct Ctx
         {
-            public StyleTag templateStyle;
             public StyleTag ownedStyle;
             public bool needsTrigger;
             public bool needsEffect;
@@ -55,11 +52,6 @@ namespace XianTu
         private static Ctx BuildContext()
         {
             var ctx = new Ctx();
-
-            var tpl = StartTemplateRegistry.Selected;
-            if (tpl != null && tpl.startingModules != null)
-                foreach (var m in tpl.startingModules)
-                    if (m != null) ctx.templateStyle |= m.styleTags;
 
             var player = PlayerController.Instance;
             if (player != null)
@@ -90,9 +82,6 @@ namespace XianTu
         {
             if (m == null) return 0f;
             float w = BaseWeight;
-
-            if (ctx.templateStyle != StyleTag.None && (m.styleTags & ctx.templateStyle) != 0)
-                w += TemplateAffinityBonus;
 
             bool isTrigger = m.category == ModuleCategory.Trigger || m.category == ModuleCategory.Universal;
             bool isEffect = m.category == ModuleCategory.Effect || m.category == ModuleCategory.Universal;

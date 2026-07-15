@@ -6,18 +6,18 @@ namespace XianTu
 {
     /// <summary>
     /// 商店房间 —— 完整的商店UI系统
-    /// 进入房间后自动弹出商店面板，展示3个随机商品
-    /// 用灵力碎片购买灵物/功法
+    /// 进入房间后自动弹出商店面板，展示随机商品（技能 + 模块）
+    /// 用碎片购买技能/模块
     /// </summary>
     public class ShopRoom : MonoBehaviour, IInteractable
     {
         private SkillData[] _shopSkills;
+        private ModuleDef[] _shopModules;
         private int _roomIndex;
         private GameObject _roomVisuals;
         private Transform _shopkeeperTransform;
 
         // ===== IInteractable：参与统一 F 交互路由 =====
-        // 商店优先级最高 —— 玩家若同时在商店和拾取物范围内，先满足商店交互
         public Vector3 InteractionWorldPos =>
             _shopkeeperTransform != null ? _shopkeeperTransform.position : transform.position;
         public int InteractionPriority => 40;
@@ -35,10 +35,10 @@ namespace XianTu
         private Label _tooltipBody;
         private bool _shopOpen;
 
-        // 商品数据
         private class ShopSlot
         {
             public SkillData skill;
+            public ModuleDef module;
             public int price;
             public bool sold;
             public VisualElement cardEl;
@@ -54,10 +54,11 @@ namespace XianTu
         private bool _playerInRange;
         private NpcHeadCard _headCard; // 统一头顶 UI（v0.3.3）
 
-        public void Initialize(int roomIndex, SkillData[] skillPool = null)
+        public void Initialize(int roomIndex, SkillData[] skillPool = null, ModuleDef[] modulePool = null)
         {
             _roomIndex = roomIndex;
             _shopSkills = skillPool;
+            _shopModules = modulePool;
             BuildRoom();
             CreateShopUI();
 
@@ -120,7 +121,7 @@ namespace XianTu
             {
                 displayName = "散修商人",
                 icon = "✦",
-                roleSub = "灵物交易",
+                roleSub = "道具交易",
                 hintText = "按 [F] 交易",
                 themeColor = new Color(1f, 0.82f, 0.35f),
                 yOffset = 2.0f,
@@ -227,12 +228,15 @@ namespace XianTu
             _cardsRow.Clear();
             _shopSlots.Clear();
 
-            const int totalSlots = 5;
             int slotIdx = 0;
+
+            // V0.4：2 个技能 + 3 个模块
+            int skillSlots = 2;
+            int moduleSlots = 3;
 
             if (_shopSkills != null && _shopSkills.Length > 0)
             {
-                for (int i = 0; i < totalSlots && slotIdx < totalSlots; i++)
+                for (int i = 0; i < skillSlots; i++)
                 {
                     var skill = _shopSkills[Random.Range(0, _shopSkills.Length)];
                     if (skill == null) continue;
@@ -240,13 +244,64 @@ namespace XianTu
                     slotIdx++;
                 }
             }
+
+            if (_shopModules != null && _shopModules.Length > 0)
+            {
+                for (int i = 0; i < moduleSlots; i++)
+                {
+                    var mod = ModuleDropWeighting.PickWeighted(_shopModules, GetFloorRarityBias());
+                    if (mod == null) continue;
+                    _shopSlots.Add(BuildModuleCard(mod, CalculateModulePrice(mod), slotIdx));
+                    slotIdx++;
+                }
+            }
+        }
+
+        private static int GetFloorRarityBias()
+        {
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            if (dir?.CurrentMap == null) return 0;
+            var db = LevelDesign.ConfigDatabase.Instance;
+            if (db == null) return 0;
+            int currentLevel = GameManager.Instance != null ? GameManager.Instance.CurrentLevel : 0;
+            foreach (var kv in db.MapStructures)
+            {
+                if (kv.Value.ActID == dir.CurrentMap.ActID)
+                    return kv.Value.GetRarityBias(currentLevel);
+            }
+            return 0;
         }
 
         private int CalculateSkillPrice(SkillData skill)
         {
-            // 功法价格更贵 4.5x（原 3.5x）：凡 23 / 灵 68 / 玄 180 / 地 450 / 天 1125
             int basePrice = PlayerResources.GetDecomposeShards(skill.rarity);
             return Mathf.RoundToInt(basePrice * 4.5f);
+        }
+
+        private int CalculateModulePrice(ModuleDef mod)
+        {
+            int basePrice = PlayerResources.GetDecomposeShards(mod.rarity);
+            return Mathf.RoundToInt(basePrice * 3f);
+        }
+
+        private static string ModuleCategoryName(ModuleCategory c) => c switch
+        {
+            ModuleCategory.Trigger => "触发器",
+            ModuleCategory.Effect => "效果器",
+            ModuleCategory.Modifier => "改造件",
+            ModuleCategory.Universal => "通用",
+            _ => "模块"
+        };
+
+        private ShopSlot BuildModuleCard(ModuleDef mod, int price, int index)
+        {
+            var slot = new ShopSlot { module = mod, price = price };
+            Color rc = RarityColor(mod.rarity);
+            string brief = $"{ModuleCategoryName(mod.category)}\n{mod.description}";
+            if (brief.Length > 40) brief = brief.Substring(0, 40) + "…";
+            var card = NewCard(rc, "▣", mod.displayName, $"模块·{ModuleCategoryName(mod.category)}", brief, slot, index);
+            _cardsRow.Add(card);
+            return slot;
         }
 
         private ShopSlot BuildSkillCard(SkillData skill, int price, int index)
@@ -256,7 +311,7 @@ namespace XianTu
             string brief = skill.skillType == SkillType.Heal
                 ? $"治疗 {skill.healAmount}\nCD {skill.cooldown}s"
                 : $"伤害 {skill.baseDamage}\nCD {skill.cooldown}s";
-            var card = NewCard(rc, "法", skill.skillName, $"功法·{SkillTypeName(skill.skillType)}", brief, slot, index);
+            var card = NewCard(rc, "技", skill.skillName, $"技能·{SkillTypeName(skill.skillType)}", brief, slot, index);
             _cardsRow.Add(card);
             return slot;
         }
@@ -329,11 +384,10 @@ namespace XianTu
 
             if (PlayerResources.Instance == null || !PlayerResources.Instance.SpendShards(slot.price))
             {
-                Debug.Log("<color=red>灵力碎片不足！</color>");
+                Debug.Log("<color=red>碎片不足！</color>");
                 return;
             }
 
-            // 功法商品购买
             if (slot.skill != null)
             {
                 if (PlayerController.Instance != null)
@@ -353,18 +407,24 @@ namespace XianTu
                         }
                         else
                         {
-                            // 槽位满了 → 生成SkillPickup让玩家通过选择面板替换
                             Vector3 dropPos = PlayerController.Instance.transform.position + new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f));
                             SkillPickup.Spawn(slot.skill, dropPos);
                         }
                     }
                 }
-
                 ApplySold(slot);
-                Debug.Log($"<color=green>购买功法成功：{slot.skill.skillName}（花费 {slot.price} 灵力碎片）</color>");
-                RefreshShardsDisplay();
-                RefreshAllCards();
-                return;
+                Debug.Log($"<color=green>购买技能成功：{slot.skill.skillName}（花费 {slot.price} 碎片）</color>");
+            }
+            else if (slot.module != null)
+            {
+                if (PlayerController.Instance != null)
+                {
+                    var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
+                    if (inv == null) inv = PlayerController.Instance.gameObject.AddComponent<ModuleInventory>();
+                    inv.Add(slot.module);
+                }
+                ApplySold(slot);
+                Debug.Log($"<color=green>购买模块成功：{slot.module.displayName}（花费 {slot.price} 碎片）</color>");
             }
 
             RefreshShardsDisplay();
@@ -374,7 +434,7 @@ namespace XianTu
         private void RefreshShardsDisplay()
         {
             if (_shardsLabel != null && PlayerResources.Instance != null)
-                _shardsLabel.text = $"✦ 灵力碎片：{PlayerResources.Instance.SpiritShards}";
+                _shardsLabel.text = $"✦ 碎片：{PlayerResources.Instance.SpiritShards}";
         }
 
         private void RefreshAllCards()
@@ -400,13 +460,22 @@ namespace XianTu
             if (_tooltipEl == null || _tooltipTitle == null || _tooltipBody == null) return;
             var slot = _shopSlots[slotIndex];
 
-            if (slot.skill == null) return;
-            _tooltipTitle.text = $"{slot.skill.skillName}（{RarityName(slot.skill.rarity)} · 功法）";
-            _tooltipTitle.style.color = RarityColor(slot.skill.rarity);
-            string eff = slot.skill.skillType == SkillType.Heal
-                ? $"类型：{SkillTypeName(slot.skill.skillType)}　治疗：{slot.skill.healAmount} (+{slot.skill.healScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s"
-                : $"类型：{SkillTypeName(slot.skill.skillType)}　伤害：{slot.skill.baseDamage} (+{slot.skill.damageScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s";
-            _tooltipBody.text = $"{slot.skill.description}\n{eff}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 灵力碎片")}";
+            if (slot.skill != null)
+            {
+                _tooltipTitle.text = $"{slot.skill.skillName}（{RarityName(slot.skill.rarity)} · 技能）";
+                _tooltipTitle.style.color = RarityColor(slot.skill.rarity);
+                string eff = slot.skill.skillType == SkillType.Heal
+                    ? $"类型：{SkillTypeName(slot.skill.skillType)}　治疗：{slot.skill.healAmount} (+{slot.skill.healScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s"
+                    : $"类型：{SkillTypeName(slot.skill.skillType)}　伤害：{slot.skill.baseDamage} (+{slot.skill.damageScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s";
+                _tooltipBody.text = $"{slot.skill.description}\n{eff}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 碎片")}";
+            }
+            else if (slot.module != null)
+            {
+                _tooltipTitle.text = $"{slot.module.displayName}（{RarityName(slot.module.rarity)} · {ModuleCategoryName(slot.module.category)}）";
+                _tooltipTitle.style.color = RarityColor(slot.module.rarity);
+                _tooltipBody.text = $"{slot.module.description}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 碎片")}";
+            }
+            else return;
             _tooltipEl.style.visibility = Visibility.Visible;
         }
 

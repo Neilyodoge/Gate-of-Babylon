@@ -164,14 +164,14 @@ namespace XianTu
             if (_continueBtn != null)
             {
                 _continueBtn.SetEnabled(hasSave);
-                _continueBtn.text = hasSave ? "继续修行" : "继续修行（无存档）";
+                _continueBtn.text = hasSave ? "继续冒险" : "继续冒险（无存档）";
             }
             if (_saveInfo != null)
             {
                 if (hasSave)
                 {
                     var data = SaveSystem.Instance.Data;
-                    _saveInfo.text = $"灵气 {data.caveQi}　·　通关 {data.totalRunsCompleted}　·　陨落 {data.totalDeaths}　·　天赋 {data.unlockedTalentIds.Count}";
+                    _saveInfo.text = $"资源 {data.caveQi}　·　通关 {data.totalRunsCompleted}　·　阵亡 {data.totalDeaths}　·　解锁 {data.unlockedTalentIds.Count}";
                 }
                 else _saveInfo.text = "";
             }

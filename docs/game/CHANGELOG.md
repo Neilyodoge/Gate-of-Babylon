@@ -6,6 +6,57 @@
 
 ---
 
+## V0.4.0 · 战斗/关卡/系统全面重构（2026-07-15）
+
+**V0.4 全量落地**。按 GDD §11.4 V0.4 版本计划，完成战斗板块（2 项）、关卡板块（4 项）、系统板块（1 项）全部修改，同时完成主题从"修仙"到"通用冒险/奇幻"的文案替换。
+
+### 前置：主题替换 + V0.3 清理
+- 全部玩家可见 UI 文案中的修仙术语替换为通用冒险词汇（梦境破碎→探索失败、灵力碎片→碎片、功法→技能、洞府→基地、道心→意志等）。
+- 涉及文件：`PlayerInfoPanel`、`GameHUD`、`ExtractResultPanel`、`RunHUD`、`SkillBarUI`、`MainMenu`、`Demo1Setup`、`VillageHub`、`GameManager`、`ShopRoom`。
+- GDD 内 V0.3 版本计划 + 版本表记录行已删除（已留档）。
+
+### 战斗1：删除职业选择
+- 移除 `StartTemplateSelectUI` 在 `VillagePortal` 中的调用，山门按 F 直接进入秘境。
+- `Demo1Setup.CreatePlayer()`：移除 Q/E/R 技能自动分配逻辑（仅保留 Inspector 手动配置用于调试）。
+- 移除 `PickStartingSkillFromDisk()` 方法（不再需要从磁盘挑选起始技能）。
+- `GameManager.StartNewRun()`：移除 `StartSkillLoader.Apply()` 调用（起手功法系统不再使用）。
+- `ModuleDropWeighting`：移除 `StartTemplateRegistry.Selected` 依赖和 `TemplateAffinityBonus` 权重。
+
+### 战斗2：技能三选一
+- 新增 `SkillSelectUI.cs`（UITK 程序化构建）：从技能池中筛选最低品质（`ItemRarity.Fan`）技能，随机展示 3 个供玩家选 1 个装备到 Q 槽位。
+- 技能卡片展示：类型颜色 + 技能名 + 类型标签 + 描述 + 伤害/冷却数值。
+- 玩家初始无任何技能，所有技能变化来自准备房间选择和局内拾取/购买。
+
+### 关卡1：准备房间
+- 新增 `PrepRoom.cs` + `PrepRoomExit.cs`：局外→准备房间→技能选择→局内。
+- 准备房间独立调色板（冷蓝色调），带告示牌和出口门。
+- 选完技能后出口解锁（头顶提示从"先选择一个技能"变为"按 [F] 进入秘境"），按 F 进入第一个战斗房间。
+- `GameManager.StartNewRun()` 流程改为：初始化→生成地图→PrepRoom→OnPrepRoomComplete→SpawnCurrentRoom。
+
+### 关卡2：删除撤退系统
+- `GameManager`：`SpawnExtractPointAndPortal()` → `SpawnLevelCompletePortal()`，移除 ExtractPoint 生成和撤离选择分支。
+- 层间过渡简化为：非最终层→直接传送门进下一层；最终层→通关结算面板。
+- `RunHUD`：移除 `CaveMaterialPickedUp`、`ExtractSuccess`、`ExtractInterrupted` 事件订阅和对应 toast。
+- `ExtractResultPanel`：简化默认 `Show()` 重载为 `EndType.Death`；保留 `EndType.Extract` 枚举值兼容但不再使用。
+- `EnterVillageHub()`：移除 `ExtractPoint` 清理逻辑。
+
+### 关卡3：模块掉落 + 商店购买
+- `GameConfig` 新增 4 个字段：`模块掉落概率`(0.75)、`模块掉落数量最少`(1)、`模块掉落数量最多`(2)、`精英房模块掉落数量`(3)。
+- `BattleRoom.SpawnModuleReward()`：使用 `GameConfig` 驱动掉落概率和数量（替代原有硬编码 `Random.value < 0.5f ? 2 : 1`）。
+- `ShopRoom`：新增 `ModuleDef[]` 参数，商品布局改为 2 技能 + 3 模块。新增 `BuildModuleCard()`、`CalculateModulePrice()`、模块购买逻辑（加入 `ModuleInventory`）、模块悬停提示。
+- `GameManager.SpawnShopRoom()`：传入 `modulePool`。
+
+### 关卡4：关卡房间扩充
+- `_fixedLayout`：6 层统一为每层 11 个房间（战→战→精英→商店→战→战→事件→战→战→升级→Boss）。
+- `Map_Structure_Config.csv` + `.json`：三个 Act 统一为 MaxFloor=4、MinNodes=3、MaxNodes=4、HasStageReturn 全 0（无阶段返回）。
+
+### 系统1：C 键角色信息
+- `PlayerInfoPanel`：快捷键从 `Tab` 改为 `C`，解决与 `DebugConsole`（Tab 键）的冲突。
+- `Demo1Setup` 底部操作提示同步更新。
+- `GameManager` 相关注释同步更新。
+
+---
+
 ## V0.3.0–V0.3.4 · 系统交互重构 + UI 优化（2026-07-14）
 
 **V0.3 全量落地**。按 GDD §11.4 V0.3 版本计划，对 UI 交互系统进行一轮重构，解决信息不透明、操作提示缺失、职业选择流程不合理、图鉴空白、HUD 布局重叠等问题。
