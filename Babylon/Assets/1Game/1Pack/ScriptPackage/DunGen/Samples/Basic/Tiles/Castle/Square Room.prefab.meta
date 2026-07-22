@@ -1,0 +1,25 @@
+fileFormatVersion: 2
+guid: 0038d4b2a0a21c64199e7305302d1dc8
+labels:
+- map
+- random
+- boss
+- labyrinth
+- generator
+- maze
+- dungeoncrawler
+- roguelike
+- rogue
+- dungen
+- tile
+- room
+- layout
+- dungeon
+- proceduralgeneration
+- generation
+- procedural
+PrefabImporter:
+  externalObjects: {}
+  userData: 8fc56c2385bbc00d525aa4de1f5de41c
+  assetBundleName: 
+  assetBundleVariant: 
