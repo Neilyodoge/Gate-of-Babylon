@@ -125,6 +125,34 @@
             "shortcutSlot": 0,
             "createdTimeStamp": 1784789286143,
             "modifiedTimeStamp": 1784789286143
+        },
+        {
+            "guid": "cfddf88e5d22226449136489bb0caa01",
+            "title": "S_Lookdev",
+            "comment": "",
+            "titleColor": {
+                "r": 0.4000000059604645,
+                "g": 0.6941176652908325,
+                "b": 1.0,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1785145053810,
+            "modifiedTimeStamp": 1785145069893
+        },
+        {
+            "guid": "0735c275001a2c84dafdb30deced5d8d",
+            "title": "渲染设置",
+            "comment": "",
+            "titleColor": {
+                "r": 0.4131758511066437,
+                "g": 1.0,
+                "b": 0.3999999761581421,
+                "a": 1.0
+            },
+            "shortcutSlot": 4,
+            "createdTimeStamp": 1785145326980,
+            "modifiedTimeStamp": 1785145326980
         }
     ]
 }
