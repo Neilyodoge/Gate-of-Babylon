@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 
-public class TLWaterSDFBaker : EditorWindow
+public class NPRWaterSDFBaker : EditorWindow
 {
     MeshRenderer m_WaterRenderer;
     int          m_Resolution   = 256;
@@ -13,8 +13,8 @@ public class TLWaterSDFBaker : EditorWindow
     LayerMask    m_TerrainLayer = ~0;
     float        m_MinObjSize   = 1f;
 
-    [MenuItem("Window/TLWater SDF Baker")]
-    static void Open() => GetWindow<TLWaterSDFBaker>("TLWater SDF Baker");
+    [MenuItem("Window/NPRWater SDF Baker")]
+    static void Open() => GetWindow<NPRWaterSDFBaker>("NPRWater SDF Baker");
 
     void OnEnable()
     {
@@ -92,7 +92,7 @@ public class TLWaterSDFBaker : EditorWindow
         if (tempColliders.Count > 0)
             Physics.SyncTransforms();
 
-        EditorUtility.DisplayProgressBar("TLWater SDF", "Raycasting...", 0.1f);
+        EditorUtility.DisplayProgressBar("NPRWater SDF", "Raycasting...", 0.1f);
 
         // Step 1: Raycast to build binary mask (true = land above water)
         // Uses RaycastAll + size filter to skip small objects
@@ -122,7 +122,7 @@ public class TLWaterSDFBaker : EditorWindow
             }
         }
 
-        EditorUtility.DisplayProgressBar("TLWater SDF", "Computing SDF (JFA)...", 0.4f);
+        EditorUtility.DisplayProgressBar("NPRWater SDF", "Computing SDF (JFA)...", 0.4f);
 
         // Step 2: Jump Flooding Algorithm
         int[] nearX = new int[w * h];
@@ -181,7 +181,7 @@ public class TLWaterSDFBaker : EditorWindow
             step /= 2;
         }
 
-        EditorUtility.DisplayProgressBar("TLWater SDF", "Saving texture...", 0.8f);
+        EditorUtility.DisplayProgressBar("NPRWater SDF", "Saving texture...", 0.8f);
 
         // Step 3: Compute pixel distances → normalized by max world distance
         float pixelsPerUnitX = w / sizeX;
@@ -243,7 +243,7 @@ public class TLWaterSDFBaker : EditorWindow
         }
 
         EditorUtility.ClearProgressBar();
-        Debug.Log($"[TLWater] SDF baked: {texPath} ({w}x{h}, maxDist={m_MaxDistance})" +
+        Debug.Log($"[NPRWater] SDF baked: {texPath} ({w}x{h}, maxDist={m_MaxDistance})" +
                   (tempColliders.Count > 0 ? $" (auto-added & removed {tempColliders.Count} temp colliders)" : ""));
     }
 

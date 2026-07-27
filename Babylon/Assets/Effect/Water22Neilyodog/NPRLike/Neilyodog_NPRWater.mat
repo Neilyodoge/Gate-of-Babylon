@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Neilyodog_TLWater
+  m_Name: Neilyodog_NPRWater
   m_Shader: {fileID: 4800000, guid: 8f55fe5403ba5394682dcde1cc933277, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0

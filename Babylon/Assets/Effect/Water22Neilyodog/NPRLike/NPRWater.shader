@@ -1,8 +1,8 @@
-Shader "Neilyodog/TLWater"
+Shader "Neilyodog/NPRWater"
 {
-    // TLWater - 简化版水面
+    // NPRWater - 简化版水面
     // 基于 WaterNPR 精简: 去反射/去扭曲/去法线/去Blinn-Phong高光
-    // 深浅水颜色由 LUT 控制 (配合 TLWaterGUI 的 Gradient 编辑器)
+    // 深浅水颜色由 LUT 控制 (配合 NPRWaterGUI 的 Gradient 编辑器)
     Properties
     {
         [Header(Water Depth Color)]
@@ -74,10 +74,10 @@ Shader "Neilyodog/TLWater"
             #pragma multi_compile_fog
             #pragma shader_feature_local _DEBUG_SDF
 
-            #include "TLWaterPass.hlsl"
+            #include "NPRWaterPass.hlsl"
 
             ENDHLSL
         }
     }
-    CustomEditor "TLWaterGUI"
+    CustomEditor "NPRWaterGUI"
 }

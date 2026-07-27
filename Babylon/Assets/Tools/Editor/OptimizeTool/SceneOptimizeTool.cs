@@ -145,7 +145,7 @@ public class SceneOptimizeTool : EditorWindow
         { "Burst 超标", "【影响: CPU + GPU】瞬间高峰粒子数。\n单次 Burst 产生大量粒子会导致帧率瞬间下降。\n移动端单次 Burst 建议 ≤30。" },
         { "Start Lifetime 超标", "【影响: CPU（高）】同屏存活粒子数。\n生命周期越长同屏活跃粒子越多，缩短 Lifetime 可有效降低同屏粒子数。\n移动端建议 ≤3s。" },
         { "粒子 Collision 模块", "【影响: CPU（极高）】物理查询 Raycast/Spherecast。\n每粒子每帧做射线检测，代价极高。\n确认必要后用 World 碰撞 + 低精度，否则关闭。" },
-        { "粒子 Sub Emitters", "【影响: CPU + GPU（极高）】指数级粒子生成。\n子发射器会连锁产生大量粒子，严格限制层级和子粒子数。\n每级子发射都会使粒子总量指数增长。" },
+        { "粒子 Sub Emitters", "【影响: CPU + GPU（极高）】检测 Sub Emitters 模块开启但引用为 null 的无效配置。\n空引用的子发射器不会产生粒子但仍有 CPU 遍历开销，应清理或关闭模块。" },
         { "粒子 Lights 模块", "【影响: GPU（极高）】每粒子附加一个实时点光源。\n极度昂贵！每个粒子光源都需要额外的光照计算 Pass。\n移动端建议 MaxLights ≤2 或完全禁用，改用自发光 Shader。" },
         { "粒子 Mesh 渲染模式", "【影响: GPU（极高）】顶点数成倍增长。\nMesh 模式下顶点数 = 粒子数 × 网格顶点数。\nBillboard 模式开销最低（每粒子仅 4 个顶点），优先使用。" },
         { "粒子 Prewarm", "【影响: CPU（高）】首帧模拟尖峰。\n启用后首帧会模拟完整生命周期的粒子，可能导致明显卡顿。\n除非确实需要一开始就有满屏粒子，否则关闭。" },
@@ -156,7 +156,7 @@ public class SceneOptimizeTool : EditorWindow
         { "Trail/Line 渲染器", "【影响: CPU + GPU】动态 Mesh 生成。\n这类渲染器会动态生成 Mesh，过多会增加 CPU 和内存开销。" },
         { "粒子材质 Cull Off", "【影响: GPU】双面渲染使绘制量翻倍。\n双面渲染会使 GPU 绘制量翻倍，应仅在确实需要时使用。" },
         { "贴图 Alpha 利用率", "【影响: GPU（高）】贴图中非透明像素占总像素的比例。\n利用率低说明大量透明像素被 GPU 无效处理（透明片元仍会执行完整 Fragment Shader）。\n建议 ≥30%，低于此值应裁切贴图或使用自定义 Mesh 替代 Billboard。" },
-        { "Prefab 综合成本", "【影响: CPU + GPU（综合·极高）】按根节点分组，综合评估单个特效 Prefab 的总成本。\n\n成本 = 峰值粒子数 + PS数量×5 + 高开销模块加成\n\n加成项：Collision +50 | SubEmitter +30 | Lights +MaxLights×20\n        Mesh模式 +顶点÷4 | Trails +20 | Noise +10\n\n手游建议 ≤300。" },
+        { "Prefab 综合成本", "【影响: CPU + GPU（综合·极高）】按根节点分组，综合评估单个特效 Prefab 的总成本。\n\n成本 = 峰值粒子数 + PS数量×5 + 高开销模块加成\n（峰值粒子数含 Sub Emitters 递归计算）\n\n加成项：Collision +50 | SubEmitter +30 | Lights +MaxLights×20\n        Mesh模式 +顶点÷4 | Trails +20 | Noise +10\n\n同时展示平均存活粒子数，更准确反映实际运行时开销。\n手游建议 ≤300。" },
         { "Blend→AlphaTest 优化提示", "【影响: GPU（极高）】检测使用 Alpha Blend 但贴图 Alpha 无过渡（非0即1）的材质。\n此类材质可改用 AlphaTest/Cutout 模式：\n  · Early-Z 提前剔除被遮挡片元，大幅减少无效着色\n  · 无需透明排序，降低 CPU 开销\n  · 不写入 FrameBuffer Alpha，减少带宽消耗\n判定规则：Alpha 过渡区域（0.05~0.95）像素占比 <5% 视为无过渡。" },
 
         // ----- 材质贴图 -----
@@ -387,7 +387,7 @@ public class SceneOptimizeTool : EditorWindow
                     DrawVFXCheckRow(ref _chkCollision, "极高", "Collision Module",
                         "【CPU（极高）】物理查询 Raycast/Spherecast。\n每粒子每帧做射线检测，代价极高。\n确认必要后用 World 碰撞 + Low Quality，否则关闭。");
                     DrawVFXCheckRow(ref _chkSubEmitters, "极高", "Sub Emitters",
-                        "【CPU + GPU（极高）】指数级粒子生成。\n子发射器会连锁产生大量粒子。\n每级子发射使粒子总量指数增长，严格限制层级。");
+                        "【CPU + GPU（极高）】检测无效配置。\n开启了 Sub Emitters 但引用为 null 会产生无效开销。\n同时 Prefab 综合成本已递归计算子粒子实际存活数。");
                     DrawVFXCheckRow(ref _chkLights, "极高", "Lights Module",
                         "【GPU（极高）】每粒子附加一个实时点光源。\n极度昂贵！每个粒子光源都需要额外光照 Pass。\n移动端建议 MaxLights = 0 或禁用，改用自发光 Shader。",
                         ref _maxLightsThreshold);
@@ -412,7 +412,7 @@ public class SceneOptimizeTool : EditorWindow
                         "【GPU（高）】贴图中非透明像素占比。\n利用率低说明大量透明像素被无效处理。\n建议 ≥30%，低于此值考虑裁切贴图或自定义 Mesh。",
                         ref _alphaCoverageThreshold);
                     DrawVFXCheckRow(ref _chkPrefabCost, "极高", "Prefab 综合成本",
-                        "【CPU + GPU（综合）】按根节点分组，综合评估 Prefab 总成本。\n成本 = 峰值粒子数 + PS数×5 + 模块加成。\n手游建议 ≤300。",
+                        "【CPU + GPU（综合）】按根节点分组，综合评估 Prefab 总成本。\n成本 = 峰值粒子数(含SubEmitter递归) + PS数×5 + 模块加成。\n同时展示峰值/平均存活粒子数。手游建议 ≤300。",
                         ref _prefabCostThreshold);
                     DrawVFXCheckRow(ref _chkBlendToAlphaTest, "极高", "Blend→AlphaTest 优化",
                         "【GPU（极高）】检测 Alpha 无过渡但使用 Transparent Blend 的粒子材质。\n改用 AlphaTest/Cutout 后：\n  · Early-Z 可提前剔除被遮挡片元，大幅减少无效着色\n  · 无需透明排序，降低 CPU 开销\n  · 不写入 FrameBuffer Alpha，减少带宽\n过渡区域像素占比 <5% 视为无过渡。");
@@ -1125,19 +1125,41 @@ if (GUILayout.Button("✗", GUILayout.Width(22)))
             }
         }
 
-        // --- 7. Sub Emitters 检查 ---
+        // --- 7. Sub Emitters 检查（检测开启但引用为 null 的无效配置）---
         if (_chkSubEmitters)
         {
             int subEmitterWarnings = 0;
             foreach (var ps in allParticleSystems)
             {
-                if (ps.subEmitters.enabled && ps.subEmitters.subEmittersCount > 0)
+                var subModule = ps.subEmitters;
+                if (!subModule.enabled) continue;
+
+                int count = subModule.subEmittersCount;
+                int nullCount = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    if (subModule.GetSubEmitterSystem(i) == null)
+                        nullCount++;
+                }
+
+                if (nullCount > 0)
                 {
                     subEmitterWarnings++;
                     _vfxResults.Add(new CheckResult
                     {
                         category = "粒子 Sub Emitters",
-                        description = $"Sub Emitters 数量 = {ps.subEmitters.subEmittersCount}，路径: {GetHierarchyPath(ps.gameObject)}",
+                        description = $"Sub Emitters 已启用但有 {nullCount}/{count} 个引用为 null（无效配置），路径: {GetHierarchyPath(ps.gameObject)}",
+                        targetObj = ps.gameObject,
+                        msgType = MessageType.Error
+                    });
+                }
+                else if (count == 0)
+                {
+                    subEmitterWarnings++;
+                    _vfxResults.Add(new CheckResult
+                    {
+                        category = "粒子 Sub Emitters",
+                        description = $"Sub Emitters 模块已启用但列表为空（可关闭节省开销），路径: {GetHierarchyPath(ps.gameObject)}",
                         targetObj = ps.gameObject,
                         msgType = MessageType.Warning
                     });
@@ -1148,7 +1170,7 @@ if (GUILayout.Button("✗", GUILayout.Width(22)))
                 _vfxResults.Add(new CheckResult
                 {
                     category = "粒子 Sub Emitters",
-                    description = "✓ 所有粒子系统均未使用 Sub Emitters",
+                    description = "✓ 所有 Sub Emitters 配置正常（无空引用）",
                     msgType = MessageType.Info
                 });
             }
@@ -1545,12 +1567,14 @@ if (GUILayout.Button("✗", GUILayout.Width(22)))
 
                 int psCount = systems.Count;
 
-                // 峰值粒子数（时间线模拟）
+                // 峰值粒子数（时间线模拟，含 Sub Emitters 递归）
                 float peakCount;
                 float peakTime;
                 int activeAtPeak;
-                EstimatePeakParticles(systems, out peakCount, out peakTime, out activeAtPeak);
+                float avgCount;
+                EstimatePeakParticles(systems, out peakCount, out peakTime, out activeAtPeak, out avgCount);
                 int peakInt = Mathf.CeilToInt(peakCount);
+                int avgInt = Mathf.CeilToInt(avgCount);
 
                 // 高开销模块加成
                 int modulePenalty = 0;
@@ -1599,7 +1623,7 @@ if (GUILayout.Button("✗", GUILayout.Width(22)))
                 sb.Append($"综合成本 = {totalCost}");
                 if (totalCost > _prefabCostThreshold)
                     sb.Append($"（标准 ≤{_prefabCostThreshold}）");
-                sb.Append($"\n  · 峰值粒子: {peakInt}（t={peakTime:F2}s, {activeAtPeak}/{psCount} PS 活跃）");
+                sb.Append($"\n  · 存活粒子: 峰值 {peakInt} / 平均 {avgInt}（t={peakTime:F2}s, {activeAtPeak}/{psCount} PS 活跃）");
                 sb.Append($"\n  · PS 数量: {psCount}（固定开销 {psCount * 5}）");
                 if (modulePenalty > 0)
                 {
@@ -3461,9 +3485,9 @@ else if (result.description.StartsWith("✓"))
     }
 
     /// <summary>
-    /// 基于时间线模拟，估算一组 ParticleSystem 的峰值同时存活粒子数。
+    /// 基于时间线模拟，估算一组 ParticleSystem 的峰值和平均同时存活粒子数（含 Sub Emitters 递归）。
     /// </summary>
-    private void EstimatePeakParticles(List<ParticleSystem> systems, out float peakCount, out float peakTime, out int activeAtPeak)
+    private void EstimatePeakParticles(List<ParticleSystem> systems, out float peakCount, out float peakTime, out int activeAtPeak, out float avgCount)
     {
         const float timeStep = 0.05f;
 
@@ -3486,6 +3510,8 @@ else if (result.description.StartsWith("✓"))
         peakCount = 0f;
         peakTime = 0f;
         activeAtPeak = 0;
+        float totalSum = 0f;
+        int sampleCount = 0;
 
         for (float t = 0; t <= maxTime; t += timeStep)
         {
@@ -3497,7 +3523,13 @@ else if (result.description.StartsWith("✓"))
                 float alive = EstimateAliveAt(systems[i], t);
                 total += alive;
                 if (alive > 0.5f) activeCount++;
+
+                // 递归计算 Sub Emitters 贡献
+                total += EstimateSubEmitterAliveAt(systems[i], t);
             }
+
+            totalSum += total;
+            sampleCount++;
 
             if (total > peakCount)
             {
@@ -3506,6 +3538,124 @@ else if (result.description.StartsWith("✓"))
                 activeAtPeak = activeCount;
             }
         }
+
+        avgCount = sampleCount > 0 ? totalSum / sampleCount : 0f;
+    }
+
+    /// <summary>
+    /// 估算单个 ParticleSystem 的 Sub Emitters 在时刻 t 的存活子粒子数。
+    /// 递归处理多级子发射器（最多 3 级防止无限递归）。
+    /// </summary>
+    private float EstimateSubEmitterAliveAt(ParticleSystem parentPS, float t, int depth = 0)
+    {
+        if (depth >= 3) return 0f;
+
+        var subModule = parentPS.subEmitters;
+        if (!subModule.enabled) return 0f;
+
+        float totalSubAlive = 0f;
+        int subCount = subModule.subEmittersCount;
+
+        for (int i = 0; i < subCount; i++)
+        {
+            var childPS = subModule.GetSubEmitterSystem(i);
+            if (childPS == null) continue;
+
+            var subType = subModule.GetSubEmitterType(i);
+            float parentAlive = EstimateAliveAt(parentPS, t);
+
+            var childMain = childPS.main;
+            float childLifetime = GetMinMaxCurveMax(childMain.startLifetime);
+            var childEmission = childPS.emission;
+            float childRate = childEmission.enabled ? GetMinMaxCurveMax(childEmission.rateOverTime) : 0f;
+            int childMax = childMain.maxParticles;
+
+            float subAlive = 0f;
+
+            switch (subType)
+            {
+                case ParticleSystemSubEmitterType.Birth:
+                    // 父粒子出生时触发：子粒子数 ≈ 父粒子发射速率 × 子粒子 burst/rate × 子粒子生命周期
+                    float parentRate = GetParentEmissionRate(parentPS);
+                    float childBurstOnTrigger = GetSubEmitterBurstCount(childPS);
+                    subAlive = parentRate * (childBurstOnTrigger + childRate * childLifetime);
+                    subAlive = Mathf.Min(subAlive, childMax);
+                    break;
+
+                case ParticleSystemSubEmitterType.Death:
+                    // 父粒子死亡时触发：稳态 = 父粒子死亡速率 × 子粒子生命周期 × 每次触发数
+                    float parentDeathRate = GetParentEmissionRate(parentPS);
+                    float childBurstOnDeath = GetSubEmitterBurstCount(childPS);
+                    subAlive = parentDeathRate * childBurstOnDeath * Mathf.Min(childLifetime, 1f);
+                    subAlive = Mathf.Min(subAlive, childMax);
+                    break;
+
+                case ParticleSystemSubEmitterType.Collision:
+                    // 碰撞触发：估计存活父粒子中有一半碰撞
+                    float childBurstOnCol = GetSubEmitterBurstCount(childPS);
+                    subAlive = parentAlive * 0.3f * childBurstOnCol;
+                    subAlive = Mathf.Min(subAlive, childMax);
+                    break;
+
+                default:
+                    subAlive = 0f;
+                    break;
+            }
+
+            totalSubAlive += subAlive;
+            // 递归计算孙级 sub emitters
+            totalSubAlive += EstimateSubEmitterAliveAt(childPS, t, depth + 1) * Mathf.Min(subAlive / Mathf.Max(childMax, 1f), 1f);
+        }
+
+        return totalSubAlive;
+    }
+
+    /// <summary>
+    /// 获取父粒子的有效发射速率（rate + burst 均摊）
+    /// </summary>
+    private float GetParentEmissionRate(ParticleSystem ps)
+    {
+        var emission = ps.emission;
+        if (!emission.enabled) return 0f;
+
+        float rate = GetMinMaxCurveMax(emission.rateOverTime);
+        float duration = ps.main.duration;
+
+        // 把 burst 均摊到 duration 上
+        int burstCount = emission.burstCount;
+        float totalBurst = 0f;
+        for (int i = 0; i < burstCount; i++)
+        {
+            totalBurst += emission.GetBurst(i).count.constantMax;
+        }
+        float burstRate = duration > 0 ? totalBurst / duration : 0f;
+
+        return rate + burstRate;
+    }
+
+    /// <summary>
+    /// 获取 Sub Emitter 被触发时会产生的粒子数（burst 总和 + 首帧 rate 贡献）
+    /// </summary>
+    private float GetSubEmitterBurstCount(ParticleSystem childPS)
+    {
+        var emission = childPS.emission;
+        if (!emission.enabled) return 1f;
+
+        float count = 0f;
+        int burstCount = emission.burstCount;
+        for (int i = 0; i < burstCount; i++)
+        {
+            count += emission.GetBurst(i).count.constantMax;
+        }
+
+        // 如果没有 burst，取 rate 的一帧贡献作为估算
+        if (count < 0.01f)
+        {
+            float rate = GetMinMaxCurveMax(emission.rateOverTime);
+            count = Mathf.Max(rate * 0.016f, 1f);
+        }
+
+        return count;
     }
 
     /// <summary>

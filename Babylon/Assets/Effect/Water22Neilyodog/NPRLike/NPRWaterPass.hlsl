@@ -1,7 +1,7 @@
-#ifndef TLWATERPASS
-#define TLWATERPASS
+#ifndef NPRWATERPASS
+#define NPRWATERPASS
 
-#include "TLWaterInput.hlsl"
+#include "NPRWaterInput.hlsl"
 
 Varyings vert(Attributes v)
 {

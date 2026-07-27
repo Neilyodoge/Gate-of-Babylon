@@ -111,6 +111,20 @@
             "shortcutSlot": 0,
             "createdTimeStamp": 1781607071685,
             "modifiedTimeStamp": 1781607071685
+        },
+        {
+            "guid": "976bea80520b6a24382fc3c3264143cd",
+            "title": "烘焙设置",
+            "comment": "",
+            "titleColor": {
+                "r": 1.0,
+                "g": 0.970022976398468,
+                "b": 0.3999999761581421,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1784789286143,
+            "modifiedTimeStamp": 1784789286143
         }
     ]
 }

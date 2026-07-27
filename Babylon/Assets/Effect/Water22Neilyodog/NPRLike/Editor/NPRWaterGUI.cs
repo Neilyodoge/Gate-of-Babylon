@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using System.IO;
 
-public class TLWaterGUI : ShaderGUI
+public class NPRWaterGUI : ShaderGUI
 {
     Gradient m_Gradient;
     bool     m_GradientLoaded;
@@ -125,10 +125,10 @@ public class TLWaterGUI : ShaderGUI
 
             var sdfProp = FindProperty("_FoamSDF", properties, false);
             if (sdfProp != null)
-                materialEditor.TexturePropertySingleLine(new GUIContent("SDF贴图", "从 Window > TLWater SDF Baker 烘焙"), sdfProp);
+                materialEditor.TexturePropertySingleLine(new GUIContent("SDF贴图", "从 Window > NPRWater SDF Baker 烘焙"), sdfProp);
 
             if (GUILayout.Button("Open SDF Baker", GUILayout.Height(24)))
-                EditorWindow.GetWindow<TLWaterSDFBaker>("TLWater SDF Baker");
+                EditorWindow.GetWindow<NPRWaterSDFBaker>("NPRWater SDF Baker");
 
             EditorGUILayout.Space(4);
             DrawProp(materialEditor, properties, "_FoamTint");
@@ -221,7 +221,7 @@ public class TLWaterGUI : ShaderGUI
 
         AssetDatabase.SaveAssets();
         lutProp.textureValue = tex;
-        Debug.Log("[TLWater] LUT saved: " + texPath);
+        Debug.Log("[NPRWater] LUT saved: " + texPath);
     }
 
     // ----------------------------------------------------------------
@@ -232,8 +232,8 @@ public class TLWaterGUI : ShaderGUI
     {
         string path = AssetDatabase.GetAssetPath(mat);
         if (string.IsNullOrEmpty(path))
-            return "TLWater_" + mat.GetInstanceID();
-        return "TLWater_Gradient_" + AssetDatabase.AssetPathToGUID(path);
+            return "NPRWater_" + mat.GetInstanceID();
+        return "NPRWater_Gradient_" + AssetDatabase.AssetPathToGUID(path);
     }
 
     void SaveGradient(Material mat, Gradient gradient)

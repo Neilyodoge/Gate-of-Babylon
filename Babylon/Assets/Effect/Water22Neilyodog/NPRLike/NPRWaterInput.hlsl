@@ -1,5 +1,5 @@
-#ifndef TLWATERINPUT
-#define TLWATERINPUT
+#ifndef NPRWATERINPUT
+#define NPRWATERINPUT
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
