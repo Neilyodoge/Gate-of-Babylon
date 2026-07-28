@@ -28,6 +28,7 @@
 
 **设计草案（非正式 · 未并入 GDD）**
 - [ideas/](design/ideas/) — 索引与状态约定
+- [创意收集箱.md](design/ideas/创意收集箱.md) — 按玩法系统记录的快速点子（未评审）
 - [区域可刷ARPG_方向草案.md](design/ideas/区域可刷ARPG_方向草案.md) — 遗迹式区域 + 暗黑刷 BD + 多 Boss/事件/特殊关（草案）
 
 **数据 / 配表**
