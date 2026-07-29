@@ -12,31 +12,33 @@ Shader "UnityChan/Blush - Transparent"
 
 	SubShader
 	{
-		Blend SrcAlpha OneMinusSrcAlpha, One One 
-		ZWrite Off
 		Tags
 		{
+			"RenderPipeline"="UniversalPipeline"
 			"Queue"="Geometry+3"
 			"IgnoreProjector"="True"
 			"RenderType"="Overlay"
-			"LightMode"="ForwardBase"
 		}
-		
+
 		Pass
 		{
+			Name "Forward"
+			Tags { "LightMode"="UniversalForward" }
+			Blend SrcAlpha OneMinusSrcAlpha, One One
+			ZWrite Off
 			Cull Back
 			ZTest LEqual
-CGPROGRAM
-#pragma multi_compile_fwdbase
-#pragma target 3.0
-#pragma vertex vert
-#pragma fragment frag
-#include "UnityCG.cginc"
-#include "AutoLight.cginc"
-#include "CharaSkin.cginc"
-ENDCG
+			HLSLPROGRAM
+			#pragma target 3.0
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma multi_compile_instancing
+			#pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+			#pragma multi_compile _ _SHADOWS_SOFT
+			#include "CharaSkin.cginc"
+			ENDHLSL
 		}
 	}
 
-	FallBack "Transparent/Cutout/Diffuse"
+	FallBack Off
 }

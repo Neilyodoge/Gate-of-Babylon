@@ -1,110 +1,100 @@
-﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+﻿// UnityChan Toon Shader —— URP 版本（反向外扩描边 Outline）
+// 顶点沿裁剪空间法线外扩，Cull Front 渲染背面形成描边
 
-// Outline shader
-// アウトラインシェーダ
+#ifndef UNITYCHAN_CHARA_OUTLINE_URP_INCLUDED
+#define UNITYCHAN_CHARA_OUTLINE_URP_INCLUDED
 
-// Editable parameters
-// 編集可能パラメータ
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-// Material color
-// マテリアルの色
-float4 _Color;
-
-// Light color
-// 光源の色
-float4 _LightColor0;
-
-// Outline thickness
-// アウトラインの太さ
-float  _EdgeThickness = 1.0;
-
-// Depth bias to help prevent z-fighting
-// Zファイティングを緩和するための深度バイアス値
-float  _DepthBias = 0.00012;
-
-float4 _MainTex_ST;
-
-// Main texture
-// メインテクスチャ
-sampler2D _MainTex;
-
-struct v2f
-{
-	float4 pos : SV_POSITION;
-	float2 UV  : TEXCOORD0;
-};
-
-// Float types
 #define float_t  half
 #define float2_t half2
 #define float3_t half3
 #define float4_t half4
 
-// Amount to scale the distance from the camera into a value to scale the outline by. Tweak as desired
-// カメラからの距離をアウトラインの太さに変換するための値。お好きなように調整してみてください
-#define OUTLINE_DISTANCE_SCALE (0.0016)
-// Minimum and maximum outline thicknesses (Before multiplying by _EdgeThickness)
-// 太さの上限と下限（_EdgeThicknessをかける前の制限）
+// CBUFFER 与 CharaMain 保持一致布局（便于 SRP Batcher）
+CBUFFER_START(UnityPerMaterial)
+    float4 _Color;
+    float4 _ShadowColor;
+    float  _SpecularPower;
+    float  _EdgeThickness;
+    float  _DepthBias;
+    float4 _MainTex_ST;
+CBUFFER_END
+
+TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
+
+struct appdata_uchan
+{
+    float4 vertex   : POSITION;
+    float3 normal   : NORMAL;
+    float2 texcoord : TEXCOORD0;
+    UNITY_VERTEX_INPUT_INSTANCE_ID
+};
+
+struct v2f
+{
+    float4 pos : SV_POSITION;
+    float2 UV  : TEXCOORD0;
+    UNITY_VERTEX_INPUT_INSTANCE_ID
+};
+
+// 描边参数
+#define OUTLINE_DISTANCE_SCALE   (0.0016)
 #define OUTLINE_NORMAL_SCALE_MIN (0.003)
 #define OUTLINE_NORMAL_SCALE_MAX (0.030)
 
-// Vertex shader
-// 頂点シェーダ
-v2f vert(appdata_base v)
+v2f vert( appdata_uchan v )
 {
-	float4 projPos = UnityObjectToClipPos(v.vertex);
-	float4 projNormal = normalize(UnityObjectToClipPos(float4(v.normal, 0)));
+    v2f o = (v2f)0;
+    UNITY_SETUP_INSTANCE_ID(v);
 
-	float distanceToCamera = OUTLINE_DISTANCE_SCALE * projPos.z;
-	float normalScale = _EdgeThickness * 
-		lerp(OUTLINE_NORMAL_SCALE_MIN, OUTLINE_NORMAL_SCALE_MAX, distanceToCamera);
-	
-	v2f o;
-	o.pos = projPos + normalScale * projNormal;
-	#ifdef UNITY_REVERSED_Z 
-		o.pos.z -= _DepthBias;
-	#else
-		o.pos.z += _DepthBias;
-	#endif	
-	o.UV = v.texcoord.xy;
-	
-	return o;
+    float4 projPos    = TransformObjectToHClip( v.vertex.xyz );
+    // 等价原 UnityObjectToClipPos(float4(normal,0))：法线经 M*VP 变换到裁剪空间
+    float4 projNormal = normalize( mul( GetWorldToHClipMatrix(),
+                                        mul( GetObjectToWorldMatrix(), float4( v.normal, 0.0 ) ) ) );
+
+    float distanceToCamera = OUTLINE_DISTANCE_SCALE * projPos.z;
+    float normalScale = _EdgeThickness *
+        lerp( OUTLINE_NORMAL_SCALE_MIN, OUTLINE_NORMAL_SCALE_MAX, distanceToCamera );
+
+    o.pos = projPos + normalScale * projNormal;
+    #ifdef UNITY_REVERSED_Z
+        o.pos.z -= _DepthBias;
+    #else
+        o.pos.z += _DepthBias;
+    #endif
+    o.UV = v.texcoord.xy;
+    return o;
 }
 
-// Get the maximum component of a 3-component color
-// RGB色の最大の値を取得
-inline float_t GetMaxComponent(float3_t inColor)
+inline float_t GetMaxComponent( float3_t inColor )
 {
-	return max(max(inColor.r, inColor.g), inColor.b);
+    return max( max( inColor.r, inColor.g ), inColor.b );
 }
 
-// Function to fake setting the saturation of a color. Not a true HSL computation.
-// 色の彩度を擬似的に調整するための関数。本当のHSL計算ではありません。
-inline float3_t SetSaturation(float3_t inColor, float_t inSaturation)
+// 伪饱和度调整（非真实 HSL）
+inline float3_t SetSaturation( float3_t inColor, float_t inSaturation )
 {
-	// Compute the saturated color to be one where all components smaller than the max are set to 0.
-	// Note that this is just an approximation.
-	// 彩度が一番高い色をRGBコンポーネントの一番高い値より低い値が全部0になっているものとします。
-	// これはあくまで擬似計算。
-	float_t maxComponent = GetMaxComponent(inColor) - 0.0001;
-	float3_t saturatedColor = step(maxComponent.rrr, inColor) * inColor;
-	return lerp(inColor, saturatedColor, inSaturation);
+    float_t maxComponent = GetMaxComponent( inColor ) - 0.0001;
+    float3_t saturatedColor = step( maxComponent.rrr, inColor ) * inColor;
+    return lerp( inColor, saturatedColor, inSaturation );
 }
 
-// Outline color parameters. Tweak as desired
-// アウトラインの色を調整するための値。お好きなように調整して下さい
 #define SATURATION_FACTOR 0.6
 #define BRIGHTNESS_FACTOR 0.8
 
-// Fragment shader
-// フラグメントシェーダ
-float4_t frag(v2f i) : COLOR
+half4 frag( v2f i ) : SV_Target
 {
-	float4_t mainMapColor = tex2D(_MainTex, i.UV);
-	
-	float3_t outlineColor = BRIGHTNESS_FACTOR 
-		* SetSaturation(mainMapColor.rgb, SATURATION_FACTOR)
-		* mainMapColor.rgb;
-	
-	return float4_t(outlineColor, mainMapColor.a) * _Color * _LightColor0; 
+    UNITY_SETUP_INSTANCE_ID(i);
+
+    float4_t mainMapColor = SAMPLE_TEXTURE2D( _MainTex, sampler_MainTex, i.UV );
+
+    float3_t outlineColor = BRIGHTNESS_FACTOR
+        * SetSaturation( mainMapColor.rgb, SATURATION_FACTOR )
+        * mainMapColor.rgb;
+
+    return float4_t( outlineColor, mainMapColor.a ) * _Color * _MainLightColor;
 }
+
+#endif // UNITYCHAN_CHARA_OUTLINE_URP_INCLUDED

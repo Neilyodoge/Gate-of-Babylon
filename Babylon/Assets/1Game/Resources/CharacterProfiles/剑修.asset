@@ -18,10 +18,10 @@ MonoBehaviour:
   description: "\u8FD1\u8EAB\u4E09\u6BB5\u8FDE\u65A9\uFF0C\u5200\u5149\u51CC\u5389\u3002\n\u9738\u4F53\u8FDE\u62DB\uFF0C\u8D34\u8138\u8F93\u51FA\u3002"
   themeColor: {r: 0.95, g: 0.78, b: 0.3, a: 1}
   sortOrder: 0
-  modelPrefab: {fileID: 100024, guid: c544be3651b5d0442a6ed780add0aa36, type: 3}
+  modelPrefab: {fileID: 100248, guid: c07e4614807f42542ad7eb862ff5a01c, type: 3}
   animatorController: {fileID: 9100000, guid: 456b313ff274ef9449fab7f6d8785cfb, type: 2}
   modelScale: 1
-  modelAvatar: {fileID: 0}
+  modelAvatar: {fileID: 9000000, guid: c07e4614807f42542ad7eb862ff5a01c, type: 3}
   rangedBasicAttack: 0
   basicProjectilePrefab: {fileID: 0}
   basicProjectileSpeed: 18
