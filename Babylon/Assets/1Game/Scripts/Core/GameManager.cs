@@ -69,7 +69,7 @@ namespace XianTu
         /// v3：在 SpawnCurrentRoom 之前强制覆盖下一间房间的类型。
         /// 通常由 RoomChoiceUI 调用：玩家选了某张卡 → 写回 _levelRooms 对应槽位。
         /// </summary>
-        public void OverrideNextRoomType(Minimap.RoomType type)
+        public void OverrideNextRoomType(RoomType type)
         {
             if (_levelRooms == null || _currentLevel >= _levelRooms.Count) return;
             var layer = _levelRooms[_currentLevel];
@@ -90,10 +90,13 @@ namespace XianTu
         }
 
         // 房间布局（二维：每层包含多个房间）
-        private List<List<Minimap.RoomType>> _levelRooms; // [层][房间索引]
-        private List<Minimap.RoomType> _levelLayout; // 扁平化布局（兼容小地图）
+        private List<List<RoomType>> _levelRooms; // [层][房间索引]
+        private List<RoomType> _levelLayout; // 扁平化布局（兼容小地图）
         private Minimap _minimap;
         private int _flatRoomIndex; // 扁平化的房间索引（用于小地图）
+
+        // V0.4.2 解耦：房间生成委托给工厂（IRoomFactory），流程控制不再持有各类 Spawn* 逻辑。
+        private readonly IRoomFactory _roomFactory = new RoomFactory();
 
         public int CurrentLevel => _currentLevel;
         public int CurrentRoomInLevel => _currentRoomInLevel;
@@ -269,12 +272,11 @@ namespace XianTu
             // GDD V.07：初始化模块系统（确保 ModuleInventory + ModuleSlotManager 存在）
             InitModuleSystem();
 
-            // V0.2：通过 LevelDesignDirector 生成程序化树状地图
-            var dir = LevelDesign.LevelDesignDirector.Instance;
-            dir.StartNewRun();
+            // V0.2 / V0.4.2：通过 IMapProvider 生成本局地图（默认 LevelDesign 树状图）
+            MapProviders.Current.StartRun();
 
-            // 从 TreeMap 生成兼容的房间布局（兼容小地图 + 现有 SpawnCurrentRoom）
-            GenerateLevelLayoutFromTreeMap(dir.CurrentMap);
+            // 从地图拓扑生成房间布局（兼容小地图 + 现有 SpawnCurrentRoom）
+            GenerateLevelLayoutFromProvider();
 
             // 初始化小地图
             if (_minimap != null)
@@ -354,30 +356,26 @@ namespace XianTu
         }
 
         /// <summary>
-        /// V0.2：从 TreeMap 生成兼容旧 _levelRooms 结构的房间布局。
-        /// 把树状图的每一层映射为 _levelRooms 的一个 layer，保持向后兼容。
+        /// V0.4.2：从 <see cref="IMapProvider"/> 的拓扑生成 _levelRooms 结构的房间布局。
+        /// 地图未就绪时回退固定布局。房间类型映射由 provider 在边界完成。
         /// </summary>
-        private void GenerateLevelLayoutFromTreeMap(LevelDesign.TreeMap map)
+        private void GenerateLevelLayoutFromProvider()
         {
-            _levelRooms = new List<List<Minimap.RoomType>>();
-            _levelLayout = new List<Minimap.RoomType>();
+            _levelRooms = new List<List<RoomType>>();
+            _levelLayout = new List<RoomType>();
 
-            if (map == null || map.Floors.Count == 0)
+            var floors = MapProviders.Current.GetFloors();
+            if (floors == null || floors.Count == 0)
             {
-                Debug.LogWarning("[GameManager] TreeMap 为空，回退固定布局");
+                Debug.LogWarning("[GameManager] 地图未就绪，回退固定布局");
                 GenerateLevelLayout();
                 return;
             }
 
-            for (int f = 0; f < map.Floors.Count; f++)
+            foreach (var floor in floors)
             {
-                var floor = map.Floors[f];
-                var rooms = new List<Minimap.RoomType>();
-                foreach (var node in floor)
-                {
-                    rooms.Add(MapLevelRoomToMinimap(node.RoomType));
-                }
-                if (rooms.Count == 0) rooms.Add(Minimap.RoomType.Battle);
+                var rooms = new List<RoomType>(floor);
+                if (rooms.Count == 0) rooms.Add(RoomType.Battle);
                 _levelRooms.Add(rooms);
                 _levelLayout.AddRange(rooms);
             }
@@ -391,7 +389,7 @@ namespace XianTu
                     layoutStr += $" {rt}";
                 layoutStr += "] → ";
             }
-            Debug.Log($"<color=cyan>[V0.2] TreeMap 布局：{layoutStr}</color>");
+            Debug.Log($"<color=cyan>[V0.4.2] 地图布局：{layoutStr}</color>");
         }
 
         /// <summary>
@@ -399,33 +397,33 @@ namespace XianTu
         /// 每层 12 关：战→战→精英→商店→战→事件→战→商店→战→精英→战→Boss
         /// 约束：精英 ≤2，商店 ≤4
         /// </summary>
-        private static readonly Minimap.RoomType[][] _fixedLayout =
+        private static readonly RoomType[][] _fixedLayout =
         {
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Event,
-                    Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Elite, Minimap.RoomType.Battle, Minimap.RoomType.Boss },
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Event,
-                    Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Elite, Minimap.RoomType.Battle, Minimap.RoomType.Boss },
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Event,
-                    Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Elite, Minimap.RoomType.Battle, Minimap.RoomType.Boss },
+            new[] { RoomType.Battle, RoomType.Battle, RoomType.Elite,
+                    RoomType.Shop, RoomType.Battle, RoomType.Event,
+                    RoomType.Battle, RoomType.Shop, RoomType.Battle,
+                    RoomType.Elite, RoomType.Battle, RoomType.Boss },
+            new[] { RoomType.Battle, RoomType.Battle, RoomType.Elite,
+                    RoomType.Shop, RoomType.Battle, RoomType.Event,
+                    RoomType.Battle, RoomType.Shop, RoomType.Battle,
+                    RoomType.Elite, RoomType.Battle, RoomType.Boss },
+            new[] { RoomType.Battle, RoomType.Battle, RoomType.Elite,
+                    RoomType.Shop, RoomType.Battle, RoomType.Event,
+                    RoomType.Battle, RoomType.Shop, RoomType.Battle,
+                    RoomType.Elite, RoomType.Battle, RoomType.Boss },
         };
 
         /// <summary>使用 <see cref="_fixedLayout"/> 装载本局所有房间</summary>
         private void GenerateLevelLayout()
         {
-            _levelRooms = new List<List<Minimap.RoomType>>();
-            _levelLayout = new List<Minimap.RoomType>();
+            _levelRooms = new List<List<RoomType>>();
+            _levelLayout = new List<RoomType>();
 
             for (int i = 0; i < _realmNames.Length; i++)
             {
-                var rooms = new List<Minimap.RoomType>(i < _fixedLayout.Length
+                var rooms = new List<RoomType>(i < _fixedLayout.Length
                     ? _fixedLayout[i]
-                    : new[] { Minimap.RoomType.Battle });
+                    : new[] { RoomType.Battle });
                 _levelRooms.Add(rooms);
                 _levelLayout.AddRange(rooms);
             }
@@ -474,194 +472,40 @@ namespace XianTu
 
             Debug.Log($"<color=cyan>【{CurrentRealmName}】房间 {_currentRoomInLevel + 1}/{_levelRooms[_currentLevel].Count} — {roomType}</color>");
 
-            switch (roomType)
-            {
-                case Minimap.RoomType.Battle:
-                    SpawnBattleRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Elite:
-                    SpawnEliteRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Event:
-                    SpawnEventRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Shop:
-                    SpawnShopRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Rest:
-                    SpawnRestRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Treasure:
-                    SpawnTreasureRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Boss:
-                    SpawnBossRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Upgrade:
-                    SpawnUpgradeRoom(spawnPos);
-                    break;
-            }
+            // V0.4.2：房间生成委托给 IRoomFactory
+            _currentRoomGo = _roomFactory.Spawn(roomType, BuildRoomContext(spawnPos));
 
             // 将玩家传送到房间中心
             TeleportPlayer(spawnPos);
         }
 
-        private void SpawnBattleRoom(Vector3 spawnPos)
+        /// <summary>V0.4.2：打包当局参数供 <see cref="IRoomFactory"/> 生成房间。</summary>
+        private RoomSpawnContext BuildRoomContext(Vector3 spawnPos)
         {
-            _currentRoomGo = new GameObject($"BattleRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-            var room = _currentRoomGo.AddComponent<BattleRoom>();
-
-            // V0.2：从 TreeMap 配表读取每层缩放倍率（缺省回退旧公式）
-            float floorScale = GetCurrentFloorEnemyScale();
-            int enemyCount = baseEnemyCount + _currentLevel * enemyCountPerLevel;
-            float hpMul = (1f + _currentLevel * hpScalePerLevel) * floorScale;
-            float dmgMul = (1f + _currentLevel * dmgScalePerLevel) * floorScale;
-            room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, roomSize, roomSize);
-            room.SetSkillPool(skillPool);
-            room.SetModulePool(modulePool);
-
-            if (enemyHitVFXPrefab != null)
-                room.SetEnemyHitVFX(enemyHitVFXPrefab);
-
-            Debug.Log($"<color=yellow>【{CurrentRealmName}】战斗房间 | 敌人 x{enemyCount} | 血量 x{hpMul:F1} | 伤害 x{dmgMul:F1} | 层缩放 x{floorScale:F2}</color>");
-            room.StartBattle();
-        }
-
-        private void SpawnBossRoom(Vector3 spawnPos)
-        {
-            _currentRoomGo = new GameObject($"BossRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-            var room = _currentRoomGo.AddComponent<BattleRoom>();
-
-            float hpMul = 1f + _currentLevel * hpScalePerLevel;
-            float dmgMul = 1f + _currentLevel * dmgScalePerLevel;
-            int normalEnemyCount = 2;
-            room.Initialize(_currentLevel, normalEnemyCount, hpMul, dmgMul, roomSize, roomSize);
-            room.SetSkillPool(skillPool);
-            room.SetModulePool(modulePool);
-
-            if (enemyHitVFXPrefab != null)
-                room.SetEnemyHitVFX(enemyHitVFXPrefab);
-
-            Debug.Log($"<color=red>【{CurrentRealmName}】★ Boss 房间 ★</color>");
-            room.StartBattle();
-
-            Vector3 bossPos = spawnPos + new Vector3(0, 0, 8f);
-            int bossID = LevelDesign.LevelDesignDirector.Instance?.CurrentMap?.ActID ?? 1;
-            EnemyBoss.Spawn(bossPos, hpMul, dmgMul, bossID);
-        }
-
-        private void SpawnShopRoom(Vector3 spawnPos)
-        {
-            _currentRoomGo = new GameObject($"ShopRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-            var room = _currentRoomGo.AddComponent<ShopRoom>();
-            room.Initialize(_currentLevel, skillPool, modulePool);
-            Debug.Log($"<color=yellow>【{CurrentRealmName}】商店房间 — 按F离开</color>");
-        }
-
-        /// <summary>V0.2.1：精英战斗房 — 更少但更强的敌人 + 保底高稀有度模块掉落</summary>
-        private void SpawnEliteRoom(Vector3 spawnPos)
-        {
-            _currentRoomGo = new GameObject($"EliteRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-            var room = _currentRoomGo.AddComponent<BattleRoom>();
-
-            var config = GameConfig.Instance;
-            float eliteHpMul = config != null ? config.精英怪血量倍率 : 3f;
-            float eliteDmgMul = config != null ? config.精英怪伤害倍率 : 1.5f;
-            float floorScale = GetCurrentFloorEnemyScale();
-
-            int enemyCount = Mathf.Max(2, baseEnemyCount - 1);
-            float hpMul = (1f + _currentLevel * hpScalePerLevel) * floorScale * eliteHpMul;
-            float dmgMul = (1f + _currentLevel * dmgScalePerLevel) * floorScale * eliteDmgMul;
-
-            room.Initialize(_currentLevel, enemyCount, hpMul, dmgMul, roomSize, roomSize);
-            room.SetSkillPool(skillPool);
-            room.SetModulePool(modulePool);
-            room.SetEliteRoom(true);
-
-            if (enemyHitVFXPrefab != null)
-                room.SetEnemyHitVFX(enemyHitVFXPrefab);
-
-            Debug.Log($"<color=#ff8800>【{CurrentRealmName}】★ 精英房 ★ | 敌人 x{enemyCount} | 血量 x{hpMul:F1} | 伤害 x{dmgMul:F1}</color>");
-            room.StartBattle();
-        }
-
-        /// <summary>V0.2.1：事件房 — 触发叙事事件（StoryEventService），完成后自动 RoomCleared</summary>
-        private void SpawnEventRoom(Vector3 spawnPos)
-        {
-            _currentRoomGo = new GameObject($"EventRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-
-            RoomBuilder.Build(_currentRoomGo.transform, roomSize, roomSize, _currentLevel);
-
-            Debug.Log($"<color=#6677ff>【{CurrentRealmName}】事件房 — 触发叙事事件</color>");
-
-            var dir = LevelDesign.LevelDesignDirector.Instance;
-            dir.TryTriggerRoomEvent(() =>
+            return new RoomSpawnContext
             {
-                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _currentRoomInLevel, IsEvent = true, IsCombatRoom = true });
-            });
+                level = _currentLevel,
+                realmName = CurrentRealmName,
+                spawnPos = spawnPos,
+                roomSize = roomSize,
+                skillPool = skillPool,
+                modulePool = modulePool,
+                enemyHitVFX = enemyHitVFXPrefab,
+                baseEnemyCount = baseEnemyCount,
+                enemyCountPerLevel = enemyCountPerLevel,
+                hpScalePerLevel = hpScalePerLevel,
+                dmgScalePerLevel = dmgScalePerLevel,
+                floorScale = GetCurrentFloorEnemyScale(),
+                bossActId = MapProviders.Current.CurrentActId,
+                roomIndex = _currentRoomInLevel,
+            };
         }
 
-        private void SpawnRestRoom(Vector3 spawnPos)
-        {
-            _currentRoomGo = new GameObject($"RestRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-            var room = _currentRoomGo.AddComponent<RestRoom>();
-            room.Initialize(_currentLevel);
-            Debug.Log($"<color=cyan>【{CurrentRealmName}】休息房间 — 灵泉恢复生命 — 按F离开</color>");
-        }
+        /// <summary>V0.4.2：当前层敌人数值缩放（经 IMapProvider）</summary>
+        private float GetCurrentFloorEnemyScale() => MapProviders.Current.GetEnemyScale(_currentLevel);
 
-        private void SpawnTreasureRoom(Vector3 spawnPos)
-        {
-            _currentRoomGo = new GameObject($"TreasureRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-            var room = _currentRoomGo.AddComponent<TreasureRoom>();
-            room.Initialize(_currentLevel);
-            Debug.Log($"<color=yellow>【{CurrentRealmName}】宝箱房间 — 靠近开启 — 按F离开</color>");
-        }
-
-        private void SpawnUpgradeRoom(Vector3 spawnPos)
-        {
-            _currentRoomGo = new GameObject($"UpgradeRoom_Lv{_currentLevel}_{CurrentRealmName}");
-            _currentRoomGo.transform.position = spawnPos;
-            var room = _currentRoomGo.AddComponent<UpgradeRoom>();
-            room.Initialize(_currentLevel);
-            Debug.Log($"<color=green>【{CurrentRealmName}】升级房间 — 靠近功法宗师按F修炼 — 按F离开</color>");
-        }
-
-        /// <summary>V0.2：从 LevelDesignDirector.CurrentMap 获取当前层的敌人缩放倍率</summary>
-        private float GetCurrentFloorEnemyScale()
-        {
-            var dir = LevelDesign.LevelDesignDirector.Instance;
-            if (dir?.CurrentMap == null) return 1f;
-            var db = LevelDesign.ConfigDatabase.Instance;
-            if (db == null) return 1f;
-            foreach (var kv in db.MapStructures)
-            {
-                if (kv.Value.ActID == dir.CurrentMap.ActID)
-                    return kv.Value.GetEnemyScale(_currentLevel);
-            }
-            return 1f;
-        }
-
-        /// <summary>V0.2.1：从配表检查当前层是否有阶段返回点</summary>
-        private bool ShouldShowStageReturn()
-        {
-            var dir = LevelDesign.LevelDesignDirector.Instance;
-            if (dir?.CurrentMap == null) return true;
-            var db = LevelDesign.ConfigDatabase.Instance;
-            if (db == null) return true;
-            foreach (var kv in db.MapStructures)
-            {
-                if (kv.Value.ActID == dir.CurrentMap.ActID)
-                    return kv.Value.GetHasStageReturn(_currentLevel);
-            }
-            return true;
-        }
+        /// <summary>V0.4.2：当前层是否显示阶段返回点（经 IMapProvider）</summary>
+        private bool ShouldShowStageReturn() => MapProviders.Current.GetHasStageReturn(_currentLevel);
 
         private void TeleportPlayer(Vector3 pos)
         {
@@ -703,48 +547,33 @@ namespace XianTu
         /// </summary>
         private static int GetFloorRarityBias()
         {
-            var dir = LevelDesign.LevelDesignDirector.Instance;
-            if (dir?.CurrentMap == null) return 0;
-            var db = LevelDesign.ConfigDatabase.Instance;
-            if (db == null) return 0;
             int currentLevel = Instance != null ? Instance.CurrentLevel : 0;
-            foreach (var kv in db.MapStructures)
-            {
-                if (kv.Value.ActID == dir.CurrentMap.ActID)
-                    return kv.Value.GetRarityBias(currentLevel);
-            }
-            return 0;
+            return MapProviders.Current.GetRarityBias(currentLevel);
         }
 
         private void ContinueAfterReward(GameEvents.RoomCleared evt)
         {
-            // V0.2：标记 TreeMap 当前节点已完成
-            LevelDesign.LevelDesignDirector.Instance?.MarkCurrentNodeCleared();
+            // V0.4.2：标记地图当前节点已完成
+            MapProviders.Current.MarkCurrentCleared();
 
             _currentRoomInLevel++;
             _flatRoomIndex++;
 
-            // ── TreeMap 动态扩展 ──
-            // 固定布局 _fixedLayout 每层只有 2~3 个房间，但 TreeMap 一个 Act 可能有 5~6 个节点。
-            // 如果 TreeMap 当前节点还有后续子节点（没走到 Boss），就动态往 _levelRooms 里追加槽位，
+            // ── 地图动态扩展 ──
+            // 固定布局 _fixedLayout 每层只有若干房间，但地图一个 Act 可能有更多节点。
+            // 如果地图当前节点还有后续节点（没走到 Boss），就动态往 _levelRooms 里追加槽位，
             // 防止 _currentRoomInLevel >= layer.Count 被误判为"本层通关"。
             if (useTreeMapFlow)
             {
-                var dir = LevelDesign.LevelDesignDirector.Instance;
-                if (dir != null && dir.CurrentMap != null)
+                if (MapProviders.Current.CurrentNodeHasNext && _currentLevel < _levelRooms.Count)
                 {
-                    var curNode = dir.CurrentMapNode;
-                    bool treeHasMore = curNode != null && curNode.Next != null && curNode.Next.Count > 0;
-                    if (treeHasMore && _currentLevel < _levelRooms.Count)
-                    {
-                        var layer = _levelRooms[_currentLevel];
-                        while (_currentRoomInLevel >= layer.Count)
-                            layer.Add(Minimap.RoomType.Battle);
-                        if (_levelLayout != null)
-                            while (_flatRoomIndex >= _levelLayout.Count)
-                                _levelLayout.Add(Minimap.RoomType.Battle);
-                        Debug.Log($"<color=cyan>[TreeMapFlow] 动态扩展槽位 → layer.Count={layer.Count}  flatLayout={_levelLayout?.Count}</color>");
-                    }
+                    var layer = _levelRooms[_currentLevel];
+                    while (_currentRoomInLevel >= layer.Count)
+                        layer.Add(RoomType.Battle);
+                    if (_levelLayout != null)
+                        while (_flatRoomIndex >= _levelLayout.Count)
+                            _levelLayout.Add(RoomType.Battle);
+                    Debug.Log($"<color=cyan>[MapFlow] 动态扩展槽位 → layer.Count={layer.Count}  flatLayout={_levelLayout?.Count}</color>");
                 }
             }
 
@@ -795,53 +624,25 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 弹 TreeMap UI 走格子；返回 false 表示当前情境不适合（无 TreeMap / Boss 房 / 无候选节点）。
-        /// 玩家选完后 → 把节点类型映射回 Minimap.RoomType → OverrideNextRoomType + SpawnCurrentRoom。
+        /// V0.4.2：弹地图导航 UI 走格子（经 IMapProvider）；返回 false 表示当前情境不适合
+        /// （无地图 / Boss 房 / 无候选节点）。玩家选完后 → OverrideNextRoomType + SpawnCurrentRoom。
         /// </summary>
         private bool TryShowTreeMapNavigation()
         {
-            var dir = LevelDesign.LevelDesignDirector.Instance;
-            if (dir == null || dir.CurrentMap == null) return false;
-
-            var cur = dir.CurrentMap.CurrentNode;
-            if (cur == null || cur.Next == null || cur.Next.Count == 0) return false;
-
-            // Boss 房保持线性叙事
+            // Boss 房保持线性叙事：把"下一槽位是否 Boss"交给 provider 判定
+            bool bossNext = false;
             if (_levelRooms != null && _currentLevel < _levelRooms.Count)
             {
                 var layer = _levelRooms[_currentLevel];
-                if (_currentRoomInLevel >= 0 && _currentRoomInLevel < layer.Count
-                    && layer[_currentRoomInLevel] == Minimap.RoomType.Boss)
-                    return false;
+                bossNext = _currentRoomInLevel >= 0 && _currentRoomInLevel < layer.Count
+                           && layer[_currentRoomInLevel] == RoomType.Boss;
             }
 
-            dir.ShowMap(node =>
+            return MapProviders.Current.TryShowNavigation(bossNext, picked =>
             {
-                if (node != null)
-                {
-                    var mapped = MapLevelRoomToMinimap(node.RoomType);
-                    OverrideNextRoomType(mapped);
-                }
+                OverrideNextRoomType(picked);
                 SpawnCurrentRoom();
             });
-            return true;
-        }
-
-        /// <summary>
-        /// LevelDesign 系统的 LevelRoomType（Battle/Elite/Shop/Event/Boss）→ Minimap.RoomType。
-        /// Event 房映射为 Treasure（最接近"特殊房"），Elite 仍归 Battle。
-        /// </summary>
-        private static Minimap.RoomType MapLevelRoomToMinimap(LevelDesign.LevelRoomType t)
-        {
-            return t switch
-            {
-                LevelDesign.LevelRoomType.Battle => Minimap.RoomType.Battle,
-                LevelDesign.LevelRoomType.Elite => Minimap.RoomType.Elite,
-                LevelDesign.LevelRoomType.Shop => Minimap.RoomType.Shop,
-                LevelDesign.LevelRoomType.Event => Minimap.RoomType.Event,
-                LevelDesign.LevelRoomType.Boss => Minimap.RoomType.Boss,
-                _ => Minimap.RoomType.Battle
-            };
         }
 
         /// <summary>展示 3 选 1 房间卡片。返回 false 表示当前情境不适合展示（例如下一房间是 Boss）。</summary>
@@ -860,7 +661,7 @@ namespace XianTu
             }
 
             var currentSlot = layer[_currentRoomInLevel];
-            if (currentSlot == Minimap.RoomType.Boss)
+            if (currentSlot == RoomType.Boss)
             {
                 Debug.Log("<color=yellow>[TreeMapFlow] 跳过：下一间是 Boss 房</color>");
                 return false;
@@ -884,23 +685,23 @@ namespace XianTu
         }
 
         /// <summary>构建 3 张候选卡片：包括"默认"那张 + 2 张异类</summary>
-        private LevelDesign.RoomChoiceUI.Candidate[] BuildRoomCandidates(Minimap.RoomType defaultType)
+        private LevelDesign.RoomChoiceUI.Candidate[] BuildRoomCandidates(RoomType defaultType)
         {
             // 在深层后，候选池可以增加"宝箱 / 升级 / 休息"权重
-            var pool = new System.Collections.Generic.List<Minimap.RoomType>
+            var pool = new System.Collections.Generic.List<RoomType>
             {
-                Minimap.RoomType.Battle,
-                Minimap.RoomType.Shop,
-                Minimap.RoomType.Treasure,
-                Minimap.RoomType.Rest,
-                Minimap.RoomType.Upgrade
+                RoomType.Battle,
+                RoomType.Shop,
+                RoomType.Treasure,
+                RoomType.Rest,
+                RoomType.Upgrade
             };
             // 把默认槽位也加入（这样玩家有"按设计走" 的选项）
             pool.Add(defaultType);
 
             // 去重 + 洗牌
-            var distinct = new System.Collections.Generic.HashSet<Minimap.RoomType>(pool);
-            var shuffled = new System.Collections.Generic.List<Minimap.RoomType>(distinct);
+            var distinct = new System.Collections.Generic.HashSet<RoomType>(pool);
+            var shuffled = new System.Collections.Generic.List<RoomType>(distinct);
             for (int i = shuffled.Count - 1; i > 0; i--)
             {
                 int j = UnityEngine.Random.Range(0, i + 1);
@@ -923,29 +724,29 @@ namespace XianTu
             return arr;
         }
 
-        private static string TypeTitle(Minimap.RoomType t) => t switch
+        private static string TypeTitle(RoomType t) => t switch
         {
-            Minimap.RoomType.Battle => "战斗",
-            Minimap.RoomType.Elite => "精英",
-            Minimap.RoomType.Event => "事件",
-            Minimap.RoomType.Shop => "商店",
-            Minimap.RoomType.Rest => "休息",
-            Minimap.RoomType.Treasure => "宝藏",
-            Minimap.RoomType.Boss => "Boss",
-            Minimap.RoomType.Upgrade => "悟道",
+            RoomType.Battle => "战斗",
+            RoomType.Elite => "精英",
+            RoomType.Event => "事件",
+            RoomType.Shop => "商店",
+            RoomType.Rest => "休息",
+            RoomType.Treasure => "宝藏",
+            RoomType.Boss => "Boss",
+            RoomType.Upgrade => "悟道",
             _ => "未知"
         };
 
-        private static string TypeTooltip(Minimap.RoomType t) => t switch
+        private static string TypeTooltip(RoomType t) => t switch
         {
-            Minimap.RoomType.Battle => "战斗 + 拾取模块 / 资源",
-            Minimap.RoomType.Elite => "精英怪 — 强化敌人 + 保底稀有模块掉落",
-            Minimap.RoomType.Event => "叙事事件 — 选择驱动的随机奖励/代价",
-            Minimap.RoomType.Shop => "用本局货币购买灵物 / 丹药",
-            Minimap.RoomType.Rest => "灵泉静修，回复生命",
-            Minimap.RoomType.Treasure => "开启宝箱，获得稀有奖励",
-            Minimap.RoomType.Boss => "层 Boss，挑战极限",
-            Minimap.RoomType.Upgrade => "拜访功法宗师，强化已有功法",
+            RoomType.Battle => "战斗 + 拾取模块 / 资源",
+            RoomType.Elite => "精英怪 — 强化敌人 + 保底稀有模块掉落",
+            RoomType.Event => "叙事事件 — 选择驱动的随机奖励/代价",
+            RoomType.Shop => "用本局货币购买灵物 / 丹药",
+            RoomType.Rest => "灵泉静修，回复生命",
+            RoomType.Treasure => "开启宝箱，获得稀有奖励",
+            RoomType.Boss => "层 Boss，挑战极限",
+            RoomType.Upgrade => "拜访功法宗师，强化已有功法",
             _ => ""
         };
 
@@ -1183,7 +984,7 @@ namespace XianTu
         // ==================== Debug 接口 ====================
 
         /// <summary>Debug：直接跳转到指定类型的房间</summary>
-        public void DebugGotoRoom(Minimap.RoomType roomType)
+        public void DebugGotoRoom(RoomType roomType)
         {
             _gameOver = false;
             _transitioning = false;
@@ -1207,33 +1008,8 @@ namespace XianTu
             if (PostProcessSetup.Instance != null)
                 PostProcessSetup.Instance.UpdateAtmosphere(_currentLevel, _realmNames.Length);
 
-            switch (roomType)
-            {
-                case Minimap.RoomType.Battle:
-                    SpawnBattleRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Elite:
-                    SpawnEliteRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Event:
-                    SpawnEventRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Shop:
-                    SpawnShopRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Rest:
-                    SpawnRestRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Treasure:
-                    SpawnTreasureRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Boss:
-                    SpawnBossRoom(spawnPos);
-                    break;
-                case Minimap.RoomType.Upgrade:
-                    SpawnUpgradeRoom(spawnPos);
-                    break;
-            }
+            // V0.4.2：房间生成委托给 IRoomFactory
+            _currentRoomGo = _roomFactory.Spawn(roomType, BuildRoomContext(spawnPos));
 
             // 传送玩家
             TeleportPlayer(spawnPos);

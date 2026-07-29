@@ -329,17 +329,9 @@ namespace XianTu
 
         private static int GetFloorRarityBias()
         {
-            var dir = LevelDesign.LevelDesignDirector.Instance;
-            if (dir?.CurrentMap == null) return 0;
-            var db = LevelDesign.ConfigDatabase.Instance;
-            if (db == null) return 0;
+            // V0.4.2 解耦：统一走 IMapProvider，不再直接触碰 LevelDesignDirector / ConfigDatabase。
             int currentLevel = GameManager.Instance != null ? GameManager.Instance.CurrentLevel : 0;
-            foreach (var kv in db.MapStructures)
-            {
-                if (kv.Value.ActID == dir.CurrentMap.ActID)
-                    return kv.Value.GetRarityBias(currentLevel);
-            }
-            return 0;
+            return MapProviders.Current.GetRarityBias(currentLevel);
         }
 
         /// <summary>设置敌人受击特效</summary>

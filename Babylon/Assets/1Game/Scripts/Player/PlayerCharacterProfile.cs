@@ -51,6 +51,10 @@ namespace XianTu
 
         [Header("特效覆盖（可选，留空则沿用 Demo1Setup 的全局设置）")]
         public GameObject slashVFXPrefab;
+        [Tooltip("V0.4.3：关闭挥击(刀光)特效——平砍按键不出特效，仅命中怪物时出打击特效")]
+        public bool disableSlashVFX;
         public GameObject hitVFXPrefab;
+        [Tooltip("V0.4.3：命中特效随机集合。非空时优先于 hitVFXPrefab，每次命中怪物随机取一个（近战主角改用随机 hit-line）")]
+        public GameObject[] hitVFXPrefabs;
     }
 }

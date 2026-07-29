@@ -6,6 +6,42 @@
 
 ---
 
+## V0.4.3 · 近战平砍特效（2026-07-29）
+
+**目标**：近战主角平砍**去挥击刀光**，改为**命中怪物时**随机播放 hit-line 打击特效（不再是按键挥击就出）。
+
+- `PlayerCombat`：新增 `hitVFXPrefabs` 命中特效随机集合 + `SetHitVFXSet()` + `PickHitVFX()`（过滤空槽后随机）；`SpawnHitVFX`（仅命中敌人时调用）优先从集合随机取一个，空则回退单个 `hitVFXPrefab`。新增 `DisableSlashVFX()` 关闭挥击刀光。`OnSlashVFXRequested`（挥击路径）维持单个 `slashVFXPrefab` 逻辑。
+- `PlayerCharacterProfile`：新增 `disableSlashVFX` 开关 + `hitVFXPrefabs` 集合字段（按角色覆盖）。
+- `PlayerController.ApplyCharacterProfile`：`disableSlashVFX` → 清挥击特效；`hitVFXPrefabs` 非空 → 应用命中随机集合，否则回退单个。
+- 资产：`剑修` 档案 `disableSlashVFX=true`（挥击无特效）+ `hitVFXPrefabs` = [`hit-line-1`, `hit-line-2`]（`ArtRes/Package/VFX/Hit & Slashes Vol.3`）。仅影响近战主角，法修不受影响。
+
+> 修正：本条初版误把 hit-line 放在挥击(swing)路径（按键即出）；按需求改到命中(hit)路径（打到怪才出）。
+
+---
+
+## V0.4.2 · 关卡层解耦（2026-07-29）
+
+**目标**：把 `GameManager` 这个上帝对象拆薄，让「地图拓扑 / 房间生成 / 游戏流程」各自独立、可替换，为后续替换地图系统（如接入杀戮尖塔式地图）铺路。
+
+### 新建领域层 `Core/Level/`
+- **`RoomType.cs`**：房间类型**领域枚举**（单一真源），从 `Minimap` 内嵌枚举提升为顶层 `XianTu.RoomType`（成员/整数值保持一致）；`Minimap` 反过来消费它，解除「UI 类持有领域模型」的反向依赖。
+- **`IMapProvider.cs`**：地图/拓扑抽象接口 + `MapProviders.Current` 全局可替换入口（`StartRun` / `GetFloors` / `GetEnemyScale` / `GetRarityBias` / `GetHasStageReturn` / `TryTriggerRoomEvent` / `MarkCurrentCleared` / `CurrentNodeHasNext` / `TryShowNavigation` / `CurrentActId`）。
+- **`LevelDesignMapProvider.cs`**：默认实现，收口对 `LevelDesignDirector` / `ConfigDatabase` / `TreeMap` 的直接访问，并在边界完成 `LevelRoomType → RoomType` 映射。
+- **`RoomFactory.cs`**：`IRoomFactory` + `RoomSpawnContext`，原 `GameManager.Spawn*Room` 全部搬入。
+
+### GameManager 瘦身
+- 房间生成大 switch → `_roomFactory.Spawn(type, ctx)`，删除 ~200 行 `Spawn*` 方法。
+- 敌人缩放 / Boss ActID / 事件触发 / 节点标记 / 地图导航全部改经 `IMapProvider`，不再直接 `using` LevelDesign。
+- `GetFloorRarityBias` 原在 GameManager/BattleRoom/ShopRoom **各抄一份**，统一收口到 `MapProviders.Current.GetRarityBias()`。
+
+### 文档与规则
+- 更新 `1Game/Docs/程序_架构说明.md`：修正滞后基线 + 新增 §十「关卡层解耦」。
+- 新增 Cursor 规则 `.cursor/rules/架构文档同步.mdc`：改动游戏逻辑后必须同步架构文档。
+
+> 说明：`LevelRoomType` 与 `RoomType` 目前仍双存、在 provider 边界映射（TreeMap 生成内部仍用 `LevelRoomType`）；`IMapView` 表现层接口留待真正换图时再抽。
+
+---
+
 ## V0.4.1 Phase3 · 大秘境（2026-07-29）
 
 **目标**：GDD §11.4.1 + Q-008/Q-009——局外大秘境挑战（装备 Build 验证数值），计时清怪 → Boss，奖励搭框架。

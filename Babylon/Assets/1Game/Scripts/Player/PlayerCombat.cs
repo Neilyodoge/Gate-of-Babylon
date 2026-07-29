@@ -26,6 +26,8 @@ namespace XianTu
 
         [Header("打击特效")]
         [SerializeField] private GameObject hitVFXPrefab;
+        // V0.4.3：命中特效随机集合。非空时优先于单个 hitVFXPrefab（每次命中怪物随机取一个）。
+        [SerializeField] private GameObject[] hitVFXPrefabs;
 
         [Header("技能槽位")]
         [SerializeField] private SkillData skillQ;
@@ -449,22 +451,45 @@ namespace XianTu
                 ReduceRandomSkillCooldown(0.10f);
         }
 
-        /// <summary>生成打击特效</summary>
+        /// <summary>生成打击特效（命中怪物时调用）</summary>
         private void SpawnHitVFX(Vector3 hitPoint)
         {
-            if (hitVFXPrefab == null) return;
+            // V0.4.3：优先从命中随机集合取一个（近战主角命中怪物随机 hit-line）；集合空则回退单个。
+            GameObject prefab = PickHitVFX();
+            if (prefab == null) return;
 
             GameObject vfx;
             if (ObjectPool.Instance != null)
             {
-                vfx = ObjectPool.Instance.Get(hitVFXPrefab, hitPoint, Quaternion.identity);
+                vfx = ObjectPool.Instance.Get(prefab, hitPoint, Quaternion.identity);
                 ObjectPool.Instance.Return(vfx, 1f);
             }
             else
             {
-                vfx = Instantiate(hitVFXPrefab, hitPoint, Quaternion.identity);
+                vfx = Instantiate(prefab, hitPoint, Quaternion.identity);
                 Destroy(vfx, 1f);
             }
+        }
+
+        /// <summary>V0.4.3：命中特效选取——集合非空则随机取一个，否则回退单个 hitVFXPrefab。</summary>
+        private GameObject PickHitVFX()
+        {
+            if (hitVFXPrefabs != null && hitVFXPrefabs.Length > 0)
+            {
+                int count = 0;
+                for (int i = 0; i < hitVFXPrefabs.Length; i++)
+                    if (hitVFXPrefabs[i] != null) count++;
+                if (count > 0)
+                {
+                    int pick = Random.Range(0, count);
+                    for (int i = 0; i < hitVFXPrefabs.Length; i++)
+                    {
+                        if (hitVFXPrefabs[i] == null) continue;
+                        if (pick-- == 0) return hitVFXPrefabs[i];
+                    }
+                }
+            }
+            return hitVFXPrefab;
         }
 
         // ==================== 技能 ====================
@@ -1846,10 +1871,26 @@ namespace XianTu
             slashVFXSpawnPoint = spawnPoint;
         }
 
+        /// <summary>V0.4.3：关闭挥击(刀光)特效——近战主角平砍不出挥击特效，命中怪物才出打击特效。</summary>
+        public void DisableSlashVFX()
+        {
+            slashVFXPrefab = null;
+        }
+
         /// <summary>设置打击特效Prefab</summary>
         public void SetHitVFX(GameObject prefab)
         {
             hitVFXPrefab = prefab;
+        }
+
+        /// <summary>
+        /// V0.4.3：设置命中特效随机集合（每次命中怪物随机取一个）。
+        /// 设置后清空单个 hitVFXPrefab，确保只出集合内特效（近战主角命中随机 hit-line）。
+        /// </summary>
+        public void SetHitVFXSet(GameObject[] prefabs)
+        {
+            hitVFXPrefabs = prefabs;
+            hitVFXPrefab = null;
         }
 
         /// <summary>设置攻击原点</summary>

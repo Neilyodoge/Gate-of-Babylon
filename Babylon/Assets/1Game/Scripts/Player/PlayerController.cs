@@ -615,9 +615,16 @@ namespace XianTu
                 if (slashPoint != null)
                     slashPoint.localPosition = profile.slashVFXOffset;
 
+                // 挥击(刀光)特效：档案指定则覆盖；标记关闭则清空（近战主角平砍不出挥击特效）
                 if (profile.slashVFXPrefab != null && slashPoint != null)
                     combat.SetSlashVFX(profile.slashVFXPrefab, slashPoint);
-                if (profile.hitVFXPrefab != null)
+                else if (profile.disableSlashVFX)
+                    combat.DisableSlashVFX();
+
+                // V0.4.3：命中特效——优先随机集合（命中怪物随机 hit-line），否则回退单个
+                if (profile.hitVFXPrefabs != null && profile.hitVFXPrefabs.Length > 0)
+                    combat.SetHitVFXSet(profile.hitVFXPrefabs);
+                else if (profile.hitVFXPrefab != null)
                     combat.SetHitVFX(profile.hitVFXPrefab);
             }
 

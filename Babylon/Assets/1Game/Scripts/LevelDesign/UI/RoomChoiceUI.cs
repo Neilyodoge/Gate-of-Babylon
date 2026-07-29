@@ -17,14 +17,14 @@ namespace XianTu.LevelDesign
 
         public struct Candidate
         {
-            public Minimap.RoomType type;
+            public RoomType type;
             public string title;
             public string tooltip;
         }
 
         private bool _visible;
         private Candidate[] _candidates;
-        private Action<Minimap.RoomType> _onSelected;
+        private Action<RoomType> _onSelected;
         private CursorLockMode _prevLock;
         private bool _prevVisible;
 
@@ -32,11 +32,11 @@ namespace XianTu.LevelDesign
         private VisualElement _overlay;
         private VisualElement _cards;
 
-        public static void Show(Candidate[] candidates, Action<Minimap.RoomType> onSelected)
+        public static void Show(Candidate[] candidates, Action<RoomType> onSelected)
         {
             if (candidates == null || candidates.Length == 0)
             {
-                onSelected?.Invoke(Minimap.RoomType.Battle);
+                onSelected?.Invoke(RoomType.Battle);
                 return;
             }
 
@@ -152,7 +152,7 @@ namespace XianTu.LevelDesign
             }
         }
 
-        private void Pick(Minimap.RoomType t)
+        private void Pick(RoomType t)
         {
             _visible = false;
             if (_overlay != null) _overlay.style.display = DisplayStyle.None;
@@ -161,31 +161,31 @@ namespace XianTu.LevelDesign
             _onSelected?.Invoke(t);
         }
 
-        private static string TypeIcon(Minimap.RoomType t)
+        private static string TypeIcon(RoomType t)
         {
             // 用汉字单字图标，避免默认字体缺失 ⚔/✦ 等字形显示空框
             return t switch
             {
-                Minimap.RoomType.Battle => "战",
-                Minimap.RoomType.Shop => "市",
-                Minimap.RoomType.Rest => "憩",
-                Minimap.RoomType.Treasure => "宝",
-                Minimap.RoomType.Boss => "王",
-                Minimap.RoomType.Upgrade => "升",
+                RoomType.Battle => "战",
+                RoomType.Shop => "市",
+                RoomType.Rest => "憩",
+                RoomType.Treasure => "宝",
+                RoomType.Boss => "王",
+                RoomType.Upgrade => "升",
                 _ => "?"
             };
         }
 
-        private static Color TypeColor(Minimap.RoomType t)
+        private static Color TypeColor(RoomType t)
         {
             return t switch
             {
-                Minimap.RoomType.Battle => new Color(0.85f, 0.3f, 0.3f),
-                Minimap.RoomType.Shop => new Color(1f, 0.85f, 0.3f),
-                Minimap.RoomType.Rest => new Color(0.4f, 0.85f, 0.95f),
-                Minimap.RoomType.Treasure => new Color(0.95f, 0.7f, 0.2f),
-                Minimap.RoomType.Boss => new Color(0.7f, 0.2f, 0.7f),
-                Minimap.RoomType.Upgrade => new Color(0.5f, 0.95f, 0.5f),
+                RoomType.Battle => new Color(0.85f, 0.3f, 0.3f),
+                RoomType.Shop => new Color(1f, 0.85f, 0.3f),
+                RoomType.Rest => new Color(0.4f, 0.85f, 0.95f),
+                RoomType.Treasure => new Color(0.95f, 0.7f, 0.2f),
+                RoomType.Boss => new Color(0.7f, 0.2f, 0.7f),
+                RoomType.Upgrade => new Color(0.5f, 0.95f, 0.5f),
                 _ => Color.gray
             };
         }

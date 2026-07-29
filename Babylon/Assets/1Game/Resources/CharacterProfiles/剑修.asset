@@ -30,4 +30,8 @@ MonoBehaviour:
   attackOriginOffset: {x: 0, y: 0.9, z: 0.6}
   slashVFXOffset: {x: 0, y: 1, z: 0.8}
   slashVFXPrefab: {fileID: 0}
+  disableSlashVFX: 1
   hitVFXPrefab: {fileID: 0}
+  hitVFXPrefabs:
+  - {fileID: 1008842686038376, guid: 42c427f9d12527f4b86f4e770b4ce034, type: 3}
+  - {fileID: 1931391723872664, guid: 8690041cf7250174eb66ceb76d6bf32a, type: 3}

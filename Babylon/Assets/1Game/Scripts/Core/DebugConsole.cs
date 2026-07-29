@@ -207,7 +207,7 @@ namespace XianTu
         private void GotoShopRoom()
         {
             if (GameManager.Instance == null) return;
-            GameManager.Instance.DebugGotoRoom(Minimap.RoomType.Shop);
+            GameManager.Instance.DebugGotoRoom(RoomType.Shop);
             AddLog("<color=yellow>$ 跳转到商店房间</color>");
         }
 
@@ -215,7 +215,7 @@ namespace XianTu
         private void GotoBattleRoom()
         {
             if (GameManager.Instance == null) return;
-            GameManager.Instance.DebugGotoRoom(Minimap.RoomType.Battle);
+            GameManager.Instance.DebugGotoRoom(RoomType.Battle);
             AddLog("<color=orange>⚔ 跳转到战斗房间</color>");
         }
 
@@ -223,7 +223,7 @@ namespace XianTu
         private void GotoBossRoom()
         {
             if (GameManager.Instance == null) return;
-            GameManager.Instance.DebugGotoRoom(Minimap.RoomType.Boss);
+            GameManager.Instance.DebugGotoRoom(RoomType.Boss);
             AddLog("<color=red>☠ 跳转到Boss房间</color>");
         }
 
@@ -231,7 +231,7 @@ namespace XianTu
         private void GotoRestRoom()
         {
             if (GameManager.Instance == null) return;
-            GameManager.Instance.DebugGotoRoom(Minimap.RoomType.Rest);
+            GameManager.Instance.DebugGotoRoom(RoomType.Rest);
             AddLog("<color=cyan>♥ 跳转到休息房间</color>");
         }
 
@@ -239,7 +239,7 @@ namespace XianTu
         private void GotoTreasureRoom()
         {
             if (GameManager.Instance == null) return;
-            GameManager.Instance.DebugGotoRoom(Minimap.RoomType.Treasure);
+            GameManager.Instance.DebugGotoRoom(RoomType.Treasure);
             AddLog("<color=orange>★ 跳转到宝箱房间</color>");
         }
 
@@ -247,7 +247,7 @@ namespace XianTu
         private void GotoUpgradeRoom()
         {
             if (GameManager.Instance == null) return;
-            GameManager.Instance.DebugGotoRoom(Minimap.RoomType.Upgrade);
+            GameManager.Instance.DebugGotoRoom(RoomType.Upgrade);
             AddLog("<color=green>↑ 跳转到升级房间</color>");
         }
 

@@ -16,7 +16,7 @@ namespace XianTu
         private int _currentRoomIndex;
         private int _totalRooms;
 
-        public enum RoomType { Battle, Shop, Rest, Treasure, Boss, Upgrade, Elite, Event }
+        // V0.4.2：RoomType 已提升为顶层领域枚举 XianTu.RoomType（见 Core/Level/RoomType.cs）。
 
         /// <summary>初始化小地图布局</summary>
         public void Initialize(List<RoomType> roomLayout)
