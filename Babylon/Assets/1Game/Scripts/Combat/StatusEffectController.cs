@@ -146,7 +146,7 @@ namespace XianTu
             float crFlat = 0f, cdFlat = 0f;
             int pierceFlat = 0;
             float psPct = 0f;
-            float defFlat = 0f, avatarCoeffFlat = 0f, dmgBonusPct = 0f, armorPenFlat = 0f, skillDmgPct = 0f;
+            float defFlat = 0f, dmgBonusPct = 0f, armorPenFlat = 0f, skillDmgPct = 0f;
 
             foreach (var kv in _effects)
             {
@@ -181,8 +181,7 @@ namespace XianTu
                             psPct += v; break;
                         case StatType.Defense:
                             defFlat += v; break;
-                        case StatType.AvatarCoefficient:
-                            avatarCoeffFlat += v; break;
+                        // StatType.LegacyCoeff（原化身系数）已废弃：不再聚合
                         case StatType.DamageBonusPercent:
                             dmgBonusPct += v; break;
                         case StatType.ArmorPenPercent:
@@ -205,7 +204,6 @@ namespace XianTu
             stats.projectileSpeed *= (1f + psPct);
 
             stats.defense += defFlat;
-            stats.avatarCoefficient += avatarCoeffFlat;
             stats.damageBonusPercent += dmgBonusPct;
             stats.armorPenPercent = Mathf.Clamp01(stats.armorPenPercent + armorPenFlat);
             stats.skillDamagePercent += skillDmgPct;

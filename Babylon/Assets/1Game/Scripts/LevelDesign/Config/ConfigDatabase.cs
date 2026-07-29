@@ -13,7 +13,6 @@ namespace XianTu.LevelDesign
     ///   Room_Socket_Group_Config.json
     ///   Event_Story_Config.json
     ///   Boss_Phase_Config.json
-    ///   Item_InRun_Config.json
     ///   Material_CaveRes_Config.json
     ///
     /// 每个 JSON 文件根对象为 { "Rows": [ ... ] }，符合 Unity JsonUtility 限制。
@@ -38,7 +37,6 @@ namespace XianTu.LevelDesign
         public Dictionary<int, RoomSocketRow> RoomSockets { get; private set; } = new();
         public Dictionary<int, StoryEventRow> StoryEvents { get; private set; } = new();
         public Dictionary<int, BossPhaseRow> BossPhases { get; private set; } = new();
-        public Dictionary<int, ItemInRunRow> ItemsInRun { get; private set; } = new();
         public Dictionary<int, MaterialCaveResRow> CaveMaterials { get; private set; } = new();
         // v0.5.5 战斗配表（GDD §6.9 / §6.9-2）
         public Dictionary<int, SkillBaseRow> SkillBases { get; private set; } = new();
@@ -62,7 +60,6 @@ namespace XianTu.LevelDesign
         public SkillBaseRow GetSkillBase(int id) => SkillBases.TryGetValue(id, out var r) ? r : null;
         public SkillEffectRow GetSkillEffect(int id) => SkillEffects.TryGetValue(id, out var r) ? r : null;
         public SkillParamRow GetSkillParam(int id) => SkillParams.TryGetValue(id, out var r) ? r : null;
-        public ItemInRunRow GetItem(int id) => ItemsInRun.TryGetValue(id, out var r) ? r : null;
         public ModuleBaseRow GetModule(string moduleId) =>
             !string.IsNullOrEmpty(moduleId) && Modules.TryGetValue(moduleId, out var r) ? r : null;
         public ModuleTriggerParamRow GetModuleTriggerParam(string moduleId) =>
@@ -86,8 +83,6 @@ namespace XianTu.LevelDesign
                 "LevelDesign/Event_Story_Config", t => t.Rows, r => r.ID);
             BossPhases = LoadTable<BossPhaseTable, BossPhaseRow>(
                 "LevelDesign/Boss_Phase_Config", t => t.Rows, r => r.ID);
-            ItemsInRun = LoadTable<ItemInRunTable, ItemInRunRow>(
-                "LevelDesign/Item_InRun_Config", t => t.Rows, r => r.ID);
             CaveMaterials = LoadTable<MaterialCaveResTable, MaterialCaveResRow>(
                 "LevelDesign/Material_CaveRes_Config", t => t.Rows, r => r.ID);
             SkillBases = LoadTable<SkillBaseTable, SkillBaseRow>(
@@ -114,7 +109,7 @@ namespace XianTu.LevelDesign
             Loaded = true;
             Debug.Log($"[ConfigDatabase] 已加载 — Maps:{MapStructures.Count} Rooms:{RoomSockets.Count} " +
                       $"Events:{StoryEvents.Count} BossPhases:{BossPhases.Count} " +
-                      $"Items:{ItemsInRun.Count} Materials:{CaveMaterials.Count} " +
+                      $"Materials:{CaveMaterials.Count} " +
                       $"Skills:{SkillBases.Count} Effects:{SkillEffects.Count} SkillParams:{SkillParams.Count} Modules:{Modules.Count} " +
                       $"ModTrig:{ModuleTriggerParams.Count} ModEff:{ModuleEffectParams.Count} " +
                       $"ModMod:{ModuleModifierParams.Count} ModUni:{ModuleUniversalParams.Count} " +

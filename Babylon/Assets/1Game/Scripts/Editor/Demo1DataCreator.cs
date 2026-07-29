@@ -45,34 +45,9 @@ namespace XianTu.Editor
         [MenuItem("仙途秘境/② 创建 Demo1 测试数据", false, 2)]
         public static void CreateAllDemo1Data()
         {
-            EnsureDirectory(ITEM_PATH);
             EnsureDirectory(SKILL_PATH);
 
-            CreateFireOrb();
-            CreateWindOrb();
-            CreateJadePendant();
-            CreateRustySword();
-            CreateHealPill();
-            // 灵品灵物
-            CreateThunderBead();
-            CreateShadowCloak();
-            // 玄品灵物
-            CreateDragonScale();
-            CreatePhoenixFeather();
-            // 地品灵物
-            CreateVoidStone();
-            // 天品灵物
-            CreateCelestialOrb();
-            // 新增灵物
-            CreateIceJade();
-            CreateBloodCoral();
-            CreateMirrorShard();
-            CreateSpiritVine();
-            CreateStarDust();
-            CreateSoulLantern();
-            CreateChaosCore();
-            CreateFallingRock();
-            CreateGoldenBell();
+            // 去修仙化：局内灵物系统已移除，不再生成灵物 SO（原 Create*Orb/Bead/... 调用已删）。
             CreateThunderStrike();
             CreateSwordProjectile();
             CreateEarthDash();
@@ -89,7 +64,7 @@ namespace XianTu.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 18 个灵物 + 12 个功法 + 1 个音效配置</color>");
+            Debug.Log("<color=green>✅ Demo1 测试数据创建完成！共 12 个功法 + 1 个音效配置（灵物系统已移除）</color>");
         }
 
         [MenuItem("仙途秘境/③ 创建 Animator Controller", false, 3)]
@@ -392,19 +367,7 @@ namespace XianTu.Editor
 
             var so = new SerializedObject(setup);
 
-            // 加载灵物数据
-            string[] itemGuids = AssetDatabase.FindAssets("t:ItemData", new[] { "Assets/1Game/Data/Items" });
-            var itemPoolProp = so.FindProperty("itemPool");
-            if (itemPoolProp != null)
-            {
-                itemPoolProp.arraySize = itemGuids.Length;
-                for (int i = 0; i < itemGuids.Length; i++)
-                {
-                    string assetPath = AssetDatabase.GUIDToAssetPath(itemGuids[i]);
-                    itemPoolProp.GetArrayElementAtIndex(i).objectReferenceValue =
-                        AssetDatabase.LoadAssetAtPath<ItemData>(assetPath);
-                }
-            }
+            // 去修仙化：局内灵物系统已移除，不再加载 itemPool。
 
             // 加载技能
             var skillQ = AssetDatabase.LoadAssetAtPath<SkillData>(SKILL_PATH + "落石术.asset");
@@ -459,7 +422,6 @@ namespace XianTu.Editor
                 UnityEngine.SceneManagement.SceneManager.GetActiveScene());
 
             Debug.Log("<color=green>✅ Demo1 场景配置完成！</color>");
-            Debug.Log($"  灵物：{itemGuids.Length} 个");
 
             // 加载功法数据到skillPool
             string[] skillGuids = AssetDatabase.FindAssets("t:SkillData", new[] { "Assets/1Game/Data/Skills" });
@@ -577,7 +539,7 @@ namespace XianTu.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log("<color=green>✅ 法系主角 Mori 配置完成！村庄『问道使』NPC 处可选择剑修/法修。</color>");
+            Debug.Log("<color=green>✅ Mori 资源配置完成（去修仙化：已不再生成法修职业档案，仅保留单一主角档案剑修）。</color>");
         }
 
         /// <summary>
@@ -703,10 +665,12 @@ namespace XianTu.Editor
             return controller;
         }
 
-        /// <summary>创建剑修/法修两张主角档案到 Resources/CharacterProfiles/。</summary>
+        /// <summary>创建单一主角档案（剑修）到 Resources/CharacterProfiles/。
+        /// 去修仙化：已移除多职业/法修档案，游戏只保留单一冒险者主角档案。
+        /// 注意：若已手工把剑修.asset 换成其它模型/命中特效，勿再跑此工具以免被重置回默认。</summary>
         private static void CreateCharacterProfiles(RuntimeAnimatorController moriController)
         {
-            // ===== 剑修（默认，沿用 Frank_Katana） =====
+            // ===== 剑修（唯一主角档案，沿用 Frank_Katana 默认配置） =====
             var frankFbx = AssetDatabase.LoadAssetAtPath<GameObject>(
                 FRANK_MESH_PATH + "Frank_RPG_Katana_Unity_Y_top.FBX");
             var playerController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
@@ -727,34 +691,7 @@ namespace XianTu.Editor
             sword.slashVFXOffset = new Vector3(0f, 1.0f, 0.8f);
             EditorUtility.SetDirty(sword);
 
-            // ===== 法修（Mori，远程） =====
-            var moriFbx = AssetDatabase.LoadAssetAtPath<GameObject>(FindAssetPath(MAGIC_PACK_PATH, MORI_FBX_NAME));
-
-            var mage = LoadOrCreateProfile(CHAR_PROFILE_PATH + "法修.asset");
-            mage.characterId = "mage";
-            mage.displayName = "法修";
-            mage.roleTag = "远程 · 法修";
-            mage.description = "远程轰击，左键凝灵弹轰敌。\n走位放风筝，技能为核心。";
-            mage.themeColor = new Color(0.35f, 0.75f, 0.95f);
-            mage.sortOrder = 1;
-            mage.modelPrefab = moriFbx;
-            mage.animatorController = moriController;
-            mage.modelScale = 0.03f;   // Mori 原始导入尺寸约为玩家百倍，缩到 0.03 匹配
-            // 记录模型 Avatar，运行时若实例不带 Animator 则补建并绑定（Generic 骨架兜底）
-            string moriPathForAvatar = FindAssetPath(MAGIC_PACK_PATH, MORI_FBX_NAME);
-            if (!string.IsNullOrEmpty(moriPathForAvatar))
-                foreach (var a in AssetDatabase.LoadAllAssetsAtPath(moriPathForAvatar))
-                    if (a is Avatar av) { mage.modelAvatar = av; break; }
-            mage.rangedBasicAttack = true;
-            mage.basicElement = ElementTag.Water;
-            mage.basicProjectileSpeed = 18f;
-            mage.basicDamageMultiplier = 1f;
-            mage.attackOriginOffset = new Vector3(0f, 1.1f, 0.5f);
-            mage.slashVFXOffset = new Vector3(0f, 1.2f, 0.7f);
-            EditorUtility.SetDirty(mage);
-
             Debug.Log($"  剑修档案：{(frankFbx != null ? "Frank ✓" : "❌ 模型未找到")} / 控制器 {(playerController != null ? "✓" : "❌ 先跑步骤③")}");
-            Debug.Log($"  法修档案：{(moriFbx != null ? "Mori ✓" : "❌ 模型未找到")} / 控制器 {(moriController != null ? "✓" : "❌")}");
         }
 
         private static PlayerCharacterProfile LoadOrCreateProfile(string path)

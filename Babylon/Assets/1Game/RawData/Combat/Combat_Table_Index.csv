@@ -11,7 +11,6 @@ Map_Structure_Config,关卡,ID,启用,Room_Socket_Group_Config,区域路线结�
 Room_Socket_Group_Config,关卡,ID,启用,Map_Structure_Config;Event_Story_Config,房间内容配置：房型/敌人小队/掉落/事件/权重
 Event_Story_Config,叙事,EventID,启用,-,事件配置：多选/单选/条件事件与选项（嵌套 Options）
 Boss_Phase_Config,Boss,ID,启用,-,Boss 形态配置：阶段/前置旗标/对白/技能组/属性修正
-Item_InRun_Config,历史,ID,待评估,-,旧局内灵物属性表；灵物系统已退出，评估能否复用为模块掉落数值来源
 Material_CaveRes_Config,历史,ID,已归档,-,旧洞府素材表；局外洞府系统已在 V0.1.14 移除，仅留档
 Module_Trigger_Param_Config,模块,ModuleId,启用,Module_Base_Config;Module_Enum_Legend,触发器参数仓库表（13 行）：TriggerType/阈值/冷却/interval/consumeStacks/moveDist/healthThreshold/consumeKind/window/maxStacks；自 ModuleDef 导出，运行时暂仍走 SO
 Module_Effect_Param_Config,模块,ModuleId,启用,Module_Base_Config;Module_Enum_Legend,效果器参数仓库表（20 行）：EffectType/Role/伤害/缩放/AoE/元素/治疗/护盾/buff/投射/减速/眩晕/击退/位移/牵引/DoT/无敌/召唤/陷阱/易伤全参数；自 ModuleDef 导出

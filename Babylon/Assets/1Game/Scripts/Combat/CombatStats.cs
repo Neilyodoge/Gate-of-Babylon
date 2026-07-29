@@ -4,7 +4,7 @@ namespace XianTu
 {
     /// <summary>
     /// 战斗属性数据，所有战斗实体（玩家/敌人）共用
-    /// 灵物效果通过修改这些属性来生效
+    /// 模块 / BUFF / 配表通过修改这些属性来生效
     /// </summary>
     [System.Serializable]
     public class CombatStats
@@ -29,9 +29,7 @@ namespace XianTu
         public float defense = 0f;
 
         [Header("GDD §13 新增乘区")]
-        /// <summary>化身系数（per-avatar，如金 0.05 / 木 0.03 等）</summary>
-        public float avatarCoefficient = 0f;
-        /// <summary>增伤百分比（通用乘区，来自灵物/buff 等）</summary>
+        /// <summary>增伤百分比（通用乘区，来自 buff 等）</summary>
         public float damageBonusPercent = 0f;
         /// <summary>减防百分比（穿甲，降低目标防御的有效值）</summary>
         public float armorPenPercent = 0f;
@@ -53,7 +51,7 @@ namespace XianTu
 
         // ======================== GDD §13 伤害公式 ========================
         //
-        // 基础伤害 = (base × (1 + avatarCoeff [+ dmgBonus%]) - targetDef × (1 - armorPen%)) × [skillDmg] × critDmg?
+        // 基础伤害 = (base × (1 + dmgBonus%) - targetDef × (1 - armorPen%)) × [skillDmg] × critDmg?
         //
         // 普攻：skillDmg = 1（不参与）
         // 技能：skillDmg = SkillData.baseDamage（或 skillDamagePercent 加成后的值）
@@ -66,7 +64,7 @@ namespace XianTu
         /// </summary>
         public (float damage, bool isCrit) CalcMeleeDamage(float targetDefense)
         {
-            float raw = attackDamage * (1f + avatarCoefficient + damageBonusPercent)
+            float raw = attackDamage * (1f + damageBonusPercent)
                       - targetDefense * (1f - Mathf.Clamp01(armorPenPercent));
             raw = Mathf.Max(1f, raw);
 
@@ -81,7 +79,7 @@ namespace XianTu
         /// </summary>
         public (float damage, bool isCrit) CalcSkillDamage(float targetDefense, float skillMul)
         {
-            float raw = attackDamage * (1f + avatarCoefficient + damageBonusPercent)
+            float raw = attackDamage * (1f + damageBonusPercent)
                       - targetDefense * (1f - Mathf.Clamp01(armorPenPercent));
             raw = Mathf.Max(1f, raw);
             raw *= Mathf.Max(0.01f, skillMul * (1f + skillDamagePercent));
@@ -106,7 +104,7 @@ namespace XianTu
         /// </summary>
         public (float damage, bool isCrit) BuildSummonDamage(float baseRatio, float flatBonus = 0f, bool inheritCrit = true)
         {
-            float dmg = flatBonus + attackDamage * baseRatio * (1f + avatarCoefficient + damageBonusPercent);
+            float dmg = flatBonus + attackDamage * baseRatio * (1f + damageBonusPercent);
             bool isCrit = false;
             if (inheritCrit && Random.value < critRate)
             {

@@ -742,7 +742,7 @@ namespace XianTu
             RoomType.Battle => "战斗 + 拾取模块 / 资源",
             RoomType.Elite => "精英怪 — 强化敌人 + 保底稀有模块掉落",
             RoomType.Event => "叙事事件 — 选择驱动的随机奖励/代价",
-            RoomType.Shop => "用本局货币购买灵物 / 丹药",
+            RoomType.Shop => "用本局货币购买技能 / 模块",
             RoomType.Rest => "灵泉静修，回复生命",
             RoomType.Treasure => "开启宝箱，获得稀有奖励",
             RoomType.Boss => "层 Boss，挑战极限",

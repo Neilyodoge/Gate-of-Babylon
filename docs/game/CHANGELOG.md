@@ -6,6 +6,32 @@
 
 ---
 
+## V0.4.4 · 去修仙化清理 · R4（2026-07-29）
+
+**目标**：GDD 已确认去修仙化，物理删除过期的「职业 / 化身 / 局内灵物」逻辑与资产（承 R1/R2/R3）。经确认：**保留单一主角档案**（不硬编码主角），洞府素材（CaveMaterial）与 `ItemRarity` 共享枚举**不属于灵物范畴，保留**。Unity 编译 0 错误。
+
+**A · 职业 / 起始模板（去多职业，留单一主角档案）**
+- 删除脚本：`Core/StartTemplate.cs`（含 `StartTemplateRegistry`）、`UI/StartTemplateSelectUI.cs`、`UI/CharacterSelectUITK.cs`（均无外部调用者，村庄门户早已直接入秘境）。
+- 删除资产：`Resources/StartTemplates/`（炼金师/守卫者/刺客/播种者/法修·元素范围/游侠·投射连锁/剑修·近战爆发 等 8 个）、`Resources/CharacterProfiles/法修.asset`。
+- 保留：`PlayerCharacterProfile` / `PlayerCharacterRegistry` / `剑修.asset` 作为**单一主角档案**（`Registry.Selected` 取 sortOrder 最小 → 剑修，驱动 Kazuko 模型 + 命中特效，不受影响）。
+- `Editor/Demo1DataCreator`：不再生成 `法修` 档案，更新日志文案。
+
+**B · 化身（残留清理）**
+- 删除孤儿 UI 资产：`Resources/UI/AvatarSelect.uxml/.uss`、`Resources/UI/GrowthUITK.uxml/.uss`（早无 `.cs` 消费者）。
+- 删除战斗残留：`CombatStats.avatarCoefficient`（化身乘区）字段 + 三条伤害公式中的该项；`StatusEffectController` 去其聚合；`StatType.AvatarCoefficient` → 改为 `LegacyCoeff` **墓碑**（保序不移动，避免破坏已序列化数据）。
+- 保留：`AvatarSelectPanelSettings.asset`（多 UITK 面板共用的字体/设置，非化身逻辑）。
+
+**C · 局内灵物**
+- 删除资产：`Data/Items/`（20 个 SO）、`Resources/Items/`（20 个 SO）、`RawData/LevelDesign/Item_InRun_Config.csv`、`Resources/LevelDesign/Item_InRun_Config.json`、`Resources/UI/BattleRewardUI.uxml/.uss`。
+- 删除代码逻辑：`ConfigTables.ItemInRunRow`/`ItemInRunTable`、`ConfigDatabase.ItemsInRun`/`GetItem`/加载/日志、`CsvToJsonImporter` 的 `Item_InRun_Config` 导入与 `ParseItemInRunRow`、`Combat_Table_Index.csv` 灵物行；`StoryEventService` 事件奖励/代价改为按 ID 占位（不再查灵物表）；`Demo1DataCreator` 不再生成/加载灵物 SO；`GameManager` 商店 tooltip「购买灵物/丹药」→「购买技能/模块」。
+- 保留：`Items/ItemData.cs`（承载 `ItemRarity`/`ItemCategory` 共享枚举，被 20+ 模块/技能/UI 引用）、拾取基础设施（`PickupBase`/`SkillPickup`/`WorldPromptPanel`）、洞府素材管线（`ItemPickup`/`CaveInventory`/`CaveMaterialPool` + `Resources/CaveMaterials/`）。
+
+**残留（非承重，后续可选清）**：`Demo1DataCreator` 内 `Create*Orb/Bead/...` 等灵物 SO 生成方法体已成孤儿（无调用者，编译无害）；各处 `灵物`/`化身` 字样的历史注释；`1Game/Docs/资源_灵物配置指南.md` 等历史文档保留留痕。
+
+**文档同步**：GDD 版本表 + §10.3 归档表 R4；`1Game/Docs/程序_架构说明.md`（基线快照 + 目录注释 + §4.6 类速查去死条目 + §9.7 数值公式）。
+
+---
+
 ## V0.4.3 · 近战平砍特效（2026-07-29）
 
 **目标**：近战主角平砍**去挥击刀光**，改为**命中怪物时**随机播放 hit-line 打击特效（不再是按键挥击就出）。

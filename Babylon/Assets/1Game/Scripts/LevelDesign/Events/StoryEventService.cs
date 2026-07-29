@@ -113,30 +113,19 @@ namespace XianTu.LevelDesign
                 PlayerStateHooks.Instance.ChangeLifespan(opt.LifespanChange);
         }
 
-        private void GrantItemReward(int itemRowID)
+        // 局内灵物表已移除（去修仙化）：事件奖励/代价暂以 Flag + 日志占位，
+        // 后续接入模块 / 货币奖励时再替换（GDD §12.2.3）。
+        private void GrantItemReward(int rewardID)
         {
-            var db = ConfigDatabase.Instance;
-            if (!db.ItemsInRun.TryGetValue(itemRowID, out var row))
-            {
-                Debug.LogWarning($"[StoryEvent] 奖励 ItemID={itemRowID} 不存在");
-                return;
-            }
-
-            // 把事实写入日志 + Flag
-            BossFlagSet.Instance.Add($"reward_{row.Name_CN}", 1);
-            Debug.Log($"[StoryEvent] ✓ 获得（占位）：{row.Name_CN} —— {row.Desc_CN}");
+            if (rewardID <= 0) return;
+            BossFlagSet.Instance.Add($"reward_{rewardID}", 1);
+            Debug.Log($"[StoryEvent] ✓ 获得（占位）：RewardID={rewardID}");
         }
 
-        private void ConsumeItemCost(int itemRowID)
+        private void ConsumeItemCost(int costID)
         {
-            var db = ConfigDatabase.Instance;
-            if (!db.ItemsInRun.TryGetValue(itemRowID, out var row))
-            {
-                Debug.LogWarning($"[StoryEvent] 代价 ItemID={itemRowID} 不存在");
-                return;
-            }
-            Debug.Log($"[StoryEvent] − 消耗（占位）：{row.Name_CN}");
-            // TODO: 真正的扣除逻辑（背包数量 -1）
+            if (costID <= 0) return;
+            Debug.Log($"[StoryEvent] − 消耗（占位）：CostID={costID}");
         }
 
         // ------------------------------------------------------------

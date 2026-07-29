@@ -637,6 +637,7 @@ Proc → Consume 模型要求玩家**清晰感知"现在哪个技能可以爆了
 | **【代码层移除·R1】洞府/局外系统**（灵脉 `SpiritVeinSystem/Module/Pickup` / 闭关石室 `MeditationChamber` / 御灵花园 `SpiritBeastGarden`+`SpiritBeastCompanion` / 机缘 `CaveOpportunitySystem`+UI / 灵田 `LingTian` / 炼器房 `ForgeRoom`） | V0.1.14 | 2026-07-02 | 无（局外 meta 整体退出可玩路径） | 上表 V0.1.10 已作设计级归档；本次**物理删除脚本+资产+.meta**并清理全部引用，编译通过 |
 | **【代码层移除·R2】事件/惩罚系统**（心魔 `InnerDemonTribulation`+`InnerDemonMeter` / 渡劫战 `TribulationTrial` / 秘境异象 `RealmAnomaly` / 境界压制 `CultivationSuppression`） | V0.1.14 | 2026-07-02 | 无（纯叙事惩罚，无法中性化） | 纯叙事事件层，**物理删除**并清理 `GameEvents`/`GameManager`/`RunHUD`/敌人 引用；`MoralEffects`（道心/因果/寿元）暂留仅切断异象依赖 |
 | **【代码层中性化·R3】纵向进度线词汇**（境界→等级/阶、修为→进阶经验、悟性/灵力(Insight)→经验、成色→品质、渡劫/凝实→晋级/精炼） | V0.1.14 | 2026-07-02 | 通用「等级/经验」词汇（保留 `CultivationSystem`/`InsightSystem` 系统骨架与字段名，仅改显示/日志/注释） | 系统框架保留可复用；类名/存档字段名不变以兼容旧档 |
+| **【代码层移除·R4】职业/化身/局内灵物**（职业：`StartTemplate`+`StartTemplateSelectUI`+`CharacterSelectUITK`+`StartTemplates/`8资产+`法修`档案；化身：`AvatarSelect`/`GrowthUITK` 孤儿 UI + `CombatStats.avatarCoefficient` 战斗乘区；灵物：`Data/Items`+`Resources/Items` 各20 SO + `Item_InRun_Config` CSV/JSON + `BattleRewardUI` UI + `ConfigDatabase.ItemsInRun`/`ItemInRunRow`/导表/事件占位奖励逻辑） | V0.4.4 | 2026-07-29 | 单一主角档案（`PlayerCharacterProfile`/`剑修`，村庄门户直接入秘境，无职业选择）；化身乘区并入通用增伤，`StatType.LegacyCoeff` 墓碑保序；灵物退出，`ItemRarity`/`ItemCategory` 共享枚举与洞府素材（CaveMaterial）管线保留 | 设计层 V0.1.10 已归档，本次**物理删除脚本+资产+.meta**并清理全部引用，Unity 编译 0 错误 |
 | Demo1 历史功能清单 | V0.1.0 → V0.1.10 | 历史 ~ 2026-06-24 | 战斗部分已被模块增强系统全面重构；其余作为基线参考 | 历史归档，详见下方明细 |
 
 #### 10.3.1 Demo1 历史功能明细（V0.1.0 基线）
@@ -704,6 +705,7 @@ Demo1 阶段核心战斗 / 化身 / 灵物 / 协同 / 6 层境界推进已完成
 | V0.4.1 | — | 2026-07-29 | 局内→局外双循环（Phase1 局内调整 + Phase2 存档系统 + Phase3 大秘境框架） | 已完成 |
 | V0.4.2 | — | 2026-07-29 | 关卡层解耦（`Core/Level`：`RoomType` 领域枚举 + `IMapProvider` 地图抽象 + `IRoomFactory` 房间工厂，为替换地图系统铺路） | 已完成 |
 | V0.4.3 | — | 2026-07-29 | 近战主角平砍特效：去挥击刀光；命中怪物才出随机 hit-line 打击特效（档案 `disableSlashVFX` + `hitVFXPrefabs` 集合） | 已完成 |
+| V0.4.4 | — | 2026-07-29 | 去修仙化清理（R4）：物理删除「职业/起始模板选择」+「化身孤儿 UI/`avatarCoefficient` 乘区」+「局内灵物资产与配表」；保留单一主角档案（剑修）、`ItemRarity` 共享枚举与洞府素材管线。详见 §10.3 归档表 R4 | 已完成 |
 
 > 后续在 V0.1 框架内继续推进时，按 `V0.1.13 / V0.1.14 …` 顺延；进入 V0.2 时另起 `V0.2.x` 子阶段。
 
