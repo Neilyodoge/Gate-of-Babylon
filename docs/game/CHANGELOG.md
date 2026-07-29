@@ -6,6 +6,57 @@
 
 ---
 
+## V0.4.1 Phase3 · 大秘境（2026-07-29）
+
+**目标**：GDD §11.4.1 + Q-008/Q-009——局外大秘境挑战（装备 Build 验证数值），计时清怪 → Boss，奖励搭框架。
+
+### 大秘境入口
+- **新建 `RiftEntrance`**（`VillageHub.cs`）：村庄右侧红紫色传送门，按 F 进入大秘境。
+- 前置门控：局外 Build 背包为空时提示「需先带出 Build 才能进入」，无法进入。
+
+### 流程管理
+- **新建 `RiftManager.cs`**：大秘境流程编排——缓冲区 → 装备 Build → 计时挑战 → 奖励 → 回村。`RiftTier` 每通关 +1 提升难度。
+- `GameManager`：新增 `InRift` 标志 + `EnterRift()` / `ExitRiftToVillage()` + `PlacePlayer()`；`OnRoomCleared` / `OnPlayerDied` 在大秘境模式下短路交由 `RiftManager` 处理；进出大秘境满血复活。
+
+### 缓冲区 + Build 装备
+- **新建 `RiftBufferRoom.cs`**：缓冲区含装备台 NPC（`RiftEquipStation`）+ 挑战门（`RiftChallengeGate`）。
+- **新建 `RiftEquipUI.cs`**：列出背包所有 Build，选一套 `ApplyToPlayer()` 装备到角色；未装备时挑战门自动弹出装备 UI。
+- `BuildSnapshot.ApplyToPlayer()`：从 Resources 还原技能（按 `skillName`）+ 模块链（按 `moduleId`）装到玩家。
+
+### 计时挑战间
+- **新建 `RiftChamber.cs`**：计时清怪 → Boss（参考暗黑 3 大秘境）。目标击杀数 `20 + (tier-1)×5`，HP/DMG 随层数缩放；达标后清场刷 Boss，击杀 Boss 通关。IMGUI 顶部 HUD 显示计时 + 进度。
+
+### 奖励框架
+- **新建 `RiftRewardUI.cs`**：成功/失败结算面板，展示层数 + 用时，奖励区为占位框架（实际产出待策划书面确认，GDD Q-009）。显示时冻结时间。
+
+---
+
+## V0.4.1 Phase2 · 存档系统（2026-07-29）
+
+**目标**：GDD §11.4 V0.4.1 Phase2——进度存档 3 槽 + Build 无限存档 + 局外背包。
+
+### 存档槽位系统
+- **重构 `SaveSystem.cs`**：从单文件 `save_v1.json` 改为 3 槽位 `save_slot_{0-2}.json`。
+- 兼容旧存档：首次启动自动迁移旧 `save_v1.json` 到槽位 0。
+- `PlayerPrefs` 记录最近使用的槽位（`GoB.LastSaveSlot`），支持断点续玩。
+- 进入秘境时自动存档（`AutoSave()`）。
+
+### Build 背包
+- **新建 `BuildSnapshot.cs`**：`BuildSnapshot` + `ChainSnapshot` 数据结构，序列化 3 技能 + 3 增强链（通过 `skillName` / `moduleId` 引用）。
+- `BuildSnapshot.CaptureFromPlayer()`：运行时从 `PlayerCombat` + `ModuleSlotManager` 抓取当前 Build 快照。
+- `SaveDataV1`：新增 `buildBackpack: List<BuildSnapshot>` 和 `slotName` / `createdTimestamp` 字段。
+- 通关 / 死亡时自动保存 Build（`GameManager` 调用 `SaveSystem.SaveBuildFromCurrentRun()`）。
+
+### 存档选择 UI
+- **新建 `SaveSlotSelectUI.cs`**：UITK 程序化面板，3 张卡片展示槽位状态，支持加载 / 新建 / 覆盖确认。
+- `MainMenu`：「开始游戏」→ 弹出存档选择面板；「继续游戏」→ 直接加载最近槽位。
+
+### Build 背包 UI
+- **新建 `BuildBackpackUI.cs`**：UITK 面板，列表展示所有已保存 Build（名称 / 摘要 / 时间），支持删除。
+- **新建 `BuildManagerNPC`**（`VillageHub.cs`）：村庄右侧金色 NPC，按 F 打开 Build 背包。
+
+---
+
 ## V0.4.1 Phase1 · 局内调整（2026-07-28）
 
 **目标**：GDD §11.4 V0.4.1 版本计划 Phase1，核心是将游戏从「地面掉落 + 背包」转型为「三选一奖励 + 直接装备」。

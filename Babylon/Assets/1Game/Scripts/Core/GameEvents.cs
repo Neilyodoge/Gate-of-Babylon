@@ -84,6 +84,12 @@ namespace XianTu
         public struct RoomCleared
         {
             public int RoomIndex;
+            /// <summary>V0.4.1：是否精英房（影响三选一概率）</summary>
+            public bool IsElite;
+            /// <summary>V0.4.1：是否事件房（事件房 100% 触发三选一）</summary>
+            public bool IsEvent;
+            /// <summary>V0.4.1：是否战斗类房间（战斗/精英/事件），只有战斗类房间触发三选一</summary>
+            public bool IsCombatRoom;
         }
 
         /// <summary>技能冷却更新</summary>

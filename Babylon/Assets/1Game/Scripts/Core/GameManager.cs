@@ -13,7 +13,8 @@ namespace XianTu
         public static GameManager Instance { get; private set; }
 
         [Header("层数配置")]
-        private readonly string[] _realmNames = { "第一层", "第二层", "第三层", "第四层", "第五层", "第六层" };
+        // V0.4.1：3 层结构（每层 12 关 × 3 路线）
+        private readonly string[] _realmNames = { "第一层", "第二层", "第三层" };
 
         [Header("难度曲线")]
         [SerializeField] private int baseEnemyCount = 3;
@@ -96,6 +97,51 @@ namespace XianTu
 
         public int CurrentLevel => _currentLevel;
         public int CurrentRoomInLevel => _currentRoomInLevel;
+
+        // ==================== V0.4.1 大秘境集成 ====================
+        /// <summary>是否处于大秘境模式（局外挑战，独立于常规 6 层循环）。</summary>
+        public bool InRift { get; private set; }
+        /// <summary>技能池（供大秘境敌人掉落 / Build 还原等复用）。</summary>
+        public SkillData[] SkillPool => skillPool;
+        /// <summary>模块池。</summary>
+        public ModuleDef[] ModulePool => modulePool;
+        /// <summary>把玩家瞬移到指定位置（供大秘境房间复用）。</summary>
+        public void PlacePlayer(Vector3 pos) => TeleportPlayer(pos);
+
+        /// <summary>进入大秘境：销毁当前房间，交由 RiftManager 构建缓冲区。</summary>
+        public void EnterRift()
+        {
+            if (_currentRoomGo != null) Destroy(_currentRoomGo);
+            CleanupLeftoverPickups();
+            if (Time.timeScale < 0.9f) Time.timeScale = 1f;
+
+            InRift = true;
+            _gameOver = false;
+            RunCombatStats.Reset();
+
+            // 满血进入大秘境
+            if (PlayerController.Instance != null)
+                PlayerController.Instance.Stats.ResetHp();
+
+            // 确保模块系统就绪（EquipChain 需要 ModuleSlotManager）
+            InitModuleSystem();
+
+            RiftManager.Instance.EnterBuffer();
+            Debug.Log("<color=#ff66cc>═══ 进入大秘境 · 缓冲区 ═══</color>");
+        }
+
+        /// <summary>大秘境结束，返回村庄。</summary>
+        public void ExitRiftToVillage()
+        {
+            InRift = false;
+            _gameOver = false;
+
+            // 死亡后返回村庄需复活满血
+            if (PlayerController.Instance != null)
+                PlayerController.Instance.Stats.ResetHp();
+
+            EnterVillageHub();
+        }
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
         public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
 
@@ -103,10 +149,6 @@ namespace XianTu
         {
             var player = PlayerController.Instance;
             if (player == null) return;
-
-            var inv = player.GetComponent<ModuleInventory>();
-            if (inv == null) inv = player.gameObject.AddComponent<ModuleInventory>();
-            inv.Clear();
 
             var slots = player.GetComponent<ModuleSlotManager>();
             if (slots == null) slots = player.gameObject.AddComponent<ModuleSlotManager>();
@@ -117,12 +159,10 @@ namespace XianTu
                 modulePool = ModulePoolLoader.LoadAll();
 
             // V0.1.18c 运行时读表：用参数仓库表覆盖模块 SO 数值（仅 Play 模式，缺行回退）。
-            // 在 GrantSeedLoadout 之前执行，保证种子 loadout 也用覆盖后的数值。
             ModuleTableApplier.ApplyAll(modulePool);
 
-            // Grant seed loadout (first T+E+M → auto-assemble on Q)
-            if (modulePool != null && modulePool.Length > 0)
-                ModulePoolLoader.GrantSeedLoadout(player, modulePool);
+            // V0.4.1：开局不给种子 loadout，Q/E/R 全空（保留普攻）。
+            // 玩家通过三选一奖励逐步获取技能和模块。
         }
 
         private const string PrefKeyTreeMapFlow = "GoB.UseTreeMapFlow";
@@ -216,6 +256,9 @@ namespace XianTu
             Debug.Log("<color=magenta>═══════════════════════════</color>");
             Debug.Log("<color=magenta>  进入秘境... 冒险开始</color>");
             Debug.Log("<color=magenta>═══════════════════════════</color>");
+
+            // V0.4.1：进入关卡时自动存档
+            SaveSystem.Instance.AutoSave();
 
             // 阵法台增益保留
             if (PlayerController.Instance != null)
@@ -352,36 +395,24 @@ namespace XianTu
         }
 
         /// <summary>
-        /// V0.4 固定布局回退方案（TreeMap 不可用时）。
-        /// 每层统一结构：10-11 个房间，节奏一致。
-        /// 战→战→精英→商店→战→战→事件→战→战→升级→Boss
+        /// V0.4.1 固定布局回退方案（TreeMap 不可用时）。
+        /// 每层 12 关：战→战→精英→商店→战→事件→战→商店→战→精英→战→Boss
+        /// 约束：精英 ≤2，商店 ≤4
         /// </summary>
         private static readonly Minimap.RoomType[][] _fixedLayout =
         {
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Event,
+                    Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Elite, Minimap.RoomType.Battle, Minimap.RoomType.Boss },
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Event,
+                    Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Elite, Minimap.RoomType.Battle, Minimap.RoomType.Boss },
             new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
-            new[] { Minimap.RoomType.Battle, Minimap.RoomType.Battle, Minimap.RoomType.Elite,
-                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Event, Minimap.RoomType.Battle, Minimap.RoomType.Battle,
-                    Minimap.RoomType.Upgrade, Minimap.RoomType.Boss },
+                    Minimap.RoomType.Shop, Minimap.RoomType.Battle, Minimap.RoomType.Event,
+                    Minimap.RoomType.Battle, Minimap.RoomType.Shop, Minimap.RoomType.Battle,
+                    Minimap.RoomType.Elite, Minimap.RoomType.Battle, Minimap.RoomType.Boss },
         };
 
         /// <summary>使用 <see cref="_fixedLayout"/> 装载本局所有房间</summary>
@@ -571,7 +602,7 @@ namespace XianTu
             var dir = LevelDesign.LevelDesignDirector.Instance;
             dir.TryTriggerRoomEvent(() =>
             {
-                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _currentRoomInLevel });
+                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _currentRoomInLevel, IsEvent = true, IsCombatRoom = true });
             });
         }
 
@@ -648,9 +679,45 @@ namespace XianTu
 
         private void OnRoomCleared(GameEvents.RoomCleared evt)
         {
+            // 大秘境自行管理战斗流程，忽略常规 TreeMap 推进
+            if (InRift) return;
             if (_gameOver || _transitioning) return;
             _transitioning = true;
 
+            // V0.4.1：只有战斗类房间（战斗/精英/事件）触发三选一奖励
+            if (evt.IsCombatRoom)
+            {
+                int bias = GetFloorRarityBias() + (evt.IsElite ? 20 : 0);
+                RewardPickUI.TryShow(evt.IsElite, evt.IsEvent,
+                    skillPool, modulePool, bias,
+                    () => ContinueAfterReward(evt));
+                return;
+            }
+
+            ContinueAfterReward(evt);
+        }
+
+        /// <summary>
+        /// V0.4.1：按当前层从地图结构配表取模块稀有度偏移（与 BattleRoom 同逻辑）。
+        /// 供三选一奖励调度使用；查不到表时返回 0（无偏移）。
+        /// </summary>
+        private static int GetFloorRarityBias()
+        {
+            var dir = LevelDesign.LevelDesignDirector.Instance;
+            if (dir?.CurrentMap == null) return 0;
+            var db = LevelDesign.ConfigDatabase.Instance;
+            if (db == null) return 0;
+            int currentLevel = Instance != null ? Instance.CurrentLevel : 0;
+            foreach (var kv in db.MapStructures)
+            {
+                if (kv.Value.ActID == dir.CurrentMap.ActID)
+                    return kv.Value.GetRarityBias(currentLevel);
+            }
+            return 0;
+        }
+
+        private void ContinueAfterReward(GameEvents.RoomCleared evt)
+        {
             // V0.2：标记 TreeMap 当前节点已完成
             LevelDesign.LevelDesignDirector.Instance?.MarkCurrentNodeCleared();
 
@@ -913,6 +980,9 @@ namespace XianTu
                         legacyModules = inv.Modules;
                 }
 
+                // V0.4.1：通关时保存 Build 到局外背包
+                SaveSystem.Instance.SaveBuildFromCurrentRun();
+
                 string realmName = _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
                 ExtractResultPanel.Show(_currentLevel, realmName,
                     insightRaw, temperingRaw, matCount,
@@ -974,6 +1044,14 @@ namespace XianTu
 
         private void OnPlayerDied(GameEvents.PlayerDied evt)
         {
+            // 大秘境死亡：不进行局内结算/存档，交由 RiftManager 处理失败流程
+            if (InRift)
+            {
+                _gameOver = true;
+                RiftManager.Instance.OnPlayerDiedInRift();
+                return;
+            }
+
             _gameOver = true;
             _runElapsedTime = Time.time - _runStartTime;
             Debug.Log($"<color=red>[RunTimer] 死亡时长：{_runElapsedTime / 60f:F1} 分钟（目标 25-40min）</color>");
@@ -992,6 +1070,9 @@ namespace XianTu
             int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
 
             SaveSystem.Instance.Data.totalDeaths++;
+
+            // V0.4.1：死亡时也保存 Build（玩家可在大秘境使用当前进度的 Build）
+            SaveSystem.Instance.SaveBuildFromCurrentRun();
             SaveSystem.Instance.Save();
 
             // 收集玩家当前模块背包用于遗产选择

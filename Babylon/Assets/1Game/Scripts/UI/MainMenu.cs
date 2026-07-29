@@ -97,7 +97,12 @@ namespace XianTu
             DestroyIfExists("SettingsUI");
             DestroyIfExists("BuffBarUITK");
             DestroyIfExists("CaveEconomy");
-
+            DestroyIfExists("SaveSlotSelectUI");
+            DestroyIfExists("RewardPickUI");
+            DestroyIfExists("BuildBackpackUI");
+            DestroyIfExists("RiftManager");
+            DestroyIfExists("RiftEquipUI");
+            DestroyIfExists("RiftRewardUI");
         }
 
         private static void DestroyIfExists(string goName)
@@ -106,12 +111,23 @@ namespace XianTu
             if (go != null) Destroy(go);
         }
 
+        /// <summary>V0.4.1：继续游戏——加载最近使用的存档槽位</summary>
+        private static void ContinueGame()
+        {
+            if (!SaveSystem.Instance.HasActiveSlot)
+            {
+                int last = PlayerPrefs.GetInt("GoB.LastSaveSlot", -1);
+                if (last >= 0 && last < SaveSystem.MaxSlots && SaveSystem.Instance.SlotExists(last))
+                    SaveSystem.Instance.LoadSlot(last);
+            }
+            Hide();
+        }
+
         private static bool HasSave()
         {
-            var data = SaveSystem.Instance.Data;
-            return data != null && (data.totalRunsCompleted > 0 || data.totalDeaths > 0 || data.caveQi > 0
-                                    || data.unlockedTalentIds.Count > 0
-                                    || data.unlockedSkillIds.Count > 0);
+            for (int i = 0; i < SaveSystem.MaxSlots; i++)
+                if (SaveSystem.Instance.SlotExists(i)) return true;
+            return false;
         }
 
         // ========== UITK ==========
@@ -137,7 +153,7 @@ namespace XianTu
             _saveInfo = root.Q<Label>("saveinfo");
 
             Wire(root, "start", StartWithTemplate);
-            Wire(root, "continue", Hide);
+            Wire(root, "continue", ContinueGame);
             Wire(root, "info", () => PlayerInfoPanel.Show());
             Wire(root, "codex", () => CodexUITK.Show());
             Wire(root, "settings", () => SettingsUI.Show());
@@ -146,10 +162,13 @@ namespace XianTu
             if (_overlay != null) _overlay.style.display = DisplayStyle.None;
         }
 
-        /// <summary>V0.3.2：直接进入村庄 Hub（模板选择移至山门入口）。</summary>
+        /// <summary>V0.4.1：点击「开始游戏」弹出存档选择面板。</summary>
         private static void StartWithTemplate()
         {
-            Hide();
+            SaveSlotSelectUI.Show(() =>
+            {
+                Hide();
+            });
         }
 
         private static void Wire(VisualElement root, string name, System.Action action)
@@ -168,10 +187,15 @@ namespace XianTu
             }
             if (_saveInfo != null)
             {
-                if (hasSave)
+                if (hasSave && SaveSystem.Instance.HasActiveSlot)
                 {
                     var data = SaveSystem.Instance.Data;
-                    _saveInfo.text = $"资源 {data.caveQi}　·　通关 {data.totalRunsCompleted}　·　阵亡 {data.totalDeaths}　·　解锁 {data.unlockedTalentIds.Count}";
+                    int builds = data.buildBackpack?.Count ?? 0;
+                    _saveInfo.text = $"通关 {data.totalRunsCompleted}　·　阵亡 {data.totalDeaths}　·　Build×{builds}";
+                }
+                else if (hasSave)
+                {
+                    _saveInfo.text = "已有存档 — 点击「开始游戏」选择存档";
                 }
                 else _saveInfo.text = "";
             }

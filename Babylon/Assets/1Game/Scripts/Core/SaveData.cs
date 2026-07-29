@@ -121,6 +121,22 @@ namespace XianTu
         /// 初始：每化身第一条分支免费解锁；更多分支通过机缘/成就/剧情解锁。
         /// </summary>
         public List<string> unlockedGrowthBranches = new();
+
+        // ========== V0.4.1：存档槽位信息 ==========
+
+        /// <summary>存档槽位名称（用于 UI 显示）</summary>
+        public string slotName = "";
+
+        /// <summary>存档创建时间戳</summary>
+        public long createdTimestamp = 0;
+
+        // ========== V0.4.1：局外 Build 背包 ==========
+
+        /// <summary>
+        /// 局外 Build 背包——存放从局内带出的所有 Build 快照。
+        /// 通关或主动退出时追加一条；在大秘境缓冲区可选择装备其中一套。
+        /// </summary>
+        public List<BuildSnapshot> buildBackpack = new();
     }
 
     /// <summary>链式机缘的"待回访"条目：某个机缘选择会埋下一个 N 局后回访的后续事件。</summary>

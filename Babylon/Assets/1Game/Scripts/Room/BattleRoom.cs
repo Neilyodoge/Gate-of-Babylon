@@ -210,9 +210,14 @@ namespace XianTu
 
             Debug.Log($"<color=green>房间清理完成！</color>");
 
-            SpawnSkillReward();
-            SpawnModuleReward();
-            GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
+            // V0.4.1：不再地面掉落，改为三选一奖励 UI。
+            // 由 GameManager 监听 RoomCleared 后统一调度 RewardPickUI。
+            GameEvents.Publish(new GameEvents.RoomCleared
+            {
+                RoomIndex = _roomIndex,
+                IsElite = _isEliteRoom,
+                IsCombatRoom = true
+            });
         }
 
         /// <summary>通关后掉落功法奖励</summary>

@@ -34,6 +34,9 @@ namespace XianTu
         private Label _tooltipTitle;
         private Label _tooltipBody;
         private bool _shopOpen;
+        private Button _refreshBtn;
+        private int _refreshCount;
+        private const int RefreshBaseCost = 20;
 
         private class ShopSlot
         {
@@ -217,8 +220,17 @@ namespace XianTu
             var close = root.Q<Button>("close");
             if (close != null) close.clicked += CloseShop;
 
+            // V0.4.1：刷新按钮
+            var refresh = root.Q<Button>("refresh");
+            if (refresh != null)
+            {
+                refresh.clicked += OnRefreshClicked;
+                _refreshBtn = refresh;
+            }
+
             GenerateShopItems();
             HideItemTooltip();
+            UpdateRefreshButton();
             if (_overlay != null) _overlay.style.display = DisplayStyle.None;
         }
 
@@ -230,9 +242,9 @@ namespace XianTu
 
             int slotIdx = 0;
 
-            // V0.4：2 个技能 + 3 个模块
+            // V0.4.1：2 个技能 + 5 个模块 = 7 个商品
             int skillSlots = 2;
-            int moduleSlots = 3;
+            int moduleSlots = 5;
 
             if (_shopSkills != null && _shopSkills.Length > 0)
             {
@@ -417,11 +429,17 @@ namespace XianTu
             }
             else if (slot.module != null)
             {
+                // V0.4.1：直接装备到增强链（无背包），装不下则提示打开装配 UI
                 if (PlayerController.Instance != null)
                 {
-                    var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
-                    if (inv == null) inv = PlayerController.Instance.gameObject.AddComponent<ModuleInventory>();
-                    inv.Add(slot.module);
+                    var mgr = PlayerController.Instance.GetComponent<ModuleSlotManager>();
+                    if (mgr != null)
+                    {
+                        bool ok = RewardPickUI.TryAutoEquipModule(mgr, slot.module);
+                        if (!ok)
+                            Debug.Log("<color=#ffcc33>[Shop] 模块槽位已满，请打开装配界面 [M] 手动调整</color>");
+                    }
+                    GameEvents.Publish(new GameEvents.ModulePickedUp { Module = slot.module });
                 }
                 ApplySold(slot);
                 Debug.Log($"<color=green>购买模块成功：{slot.module.displayName}（花费 {slot.price} 碎片）</color>");
@@ -492,6 +510,7 @@ namespace XianTu
             if (_overlay != null) _overlay.style.display = DisplayStyle.Flex;
             RefreshShardsDisplay();
             RefreshAllCards();
+            UpdateRefreshButton();
 
             UnityEngine.Cursor.lockState = CursorLockMode.None;
             UnityEngine.Cursor.visible = true;
@@ -502,6 +521,35 @@ namespace XianTu
             _shopOpen = false;
             if (_overlay != null) _overlay.style.display = DisplayStyle.None;
             HideItemTooltip();
+        }
+
+        /// <summary>V0.4.1：刷新商品（消耗基础货币，每次刷新费用递增）</summary>
+        private void OnRefreshClicked()
+        {
+            int cost = GetRefreshCost();
+            if (PlayerResources.Instance == null || !PlayerResources.Instance.SpendShards(cost))
+            {
+                Debug.Log("<color=red>碎片不足，无法刷新！</color>");
+                return;
+            }
+
+            _refreshCount++;
+            GenerateShopItems();
+            RefreshShardsDisplay();
+            RefreshAllCards();
+            UpdateRefreshButton();
+            Debug.Log($"<color=cyan>[Shop] 商品已刷新（花费 {cost}，第 {_refreshCount} 次）</color>");
+        }
+
+        private int GetRefreshCost() => RefreshBaseCost * (_refreshCount + 1);
+
+        private void UpdateRefreshButton()
+        {
+            if (_refreshBtn == null) return;
+            int cost = GetRefreshCost();
+            _refreshBtn.text = $"🔄 刷新商品（✦{cost}）";
+            bool canAfford = PlayerResources.Instance != null && PlayerResources.Instance.HasShards(cost);
+            _refreshBtn.SetEnabled(canAfford);
         }
 
         private void Update()

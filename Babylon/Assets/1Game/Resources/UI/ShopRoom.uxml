@@ -11,6 +11,7 @@
             </ui:VisualElement>
             <ui:VisualElement name="footer" class="shop-footer">
                 <ui:Label text="悬停查看详情 · 点击购买 | [Esc] 关闭商店" class="shop-hint" />
+                <ui:Button name="refresh" text="🔄 刷新商品" class="shop-close" />
                 <ui:Button name="close" text="关闭商店" class="shop-close" />
             </ui:VisualElement>
         </ui:VisualElement>
