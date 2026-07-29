@@ -6,6 +6,40 @@
 
 ---
 
+## V0.4.1 Phase1 · 局内调整（2026-07-28）
+
+**目标**：GDD §11.4 V0.4.1 版本计划 Phase1，核心是将游戏从「地面掉落 + 背包」转型为「三选一奖励 + 直接装备」。
+
+### Phase1b: 开局无技能
+- `GameManager.InitModuleSystem()`：移除 `ModulePoolLoader.GrantSeedLoadout()` 调用，开局 Q/E/R 全空（保留鼠标左键普攻）。
+- `Demo1Setup`：已有 V0.4 改动，开局不赋技能。
+
+### Phase1c: 三选一奖励系统（核心新机制）
+- **新建** `RewardPickUI.cs`：UITK 程序化三选一面板——战斗房清场 70% / 精英房 90% / 事件房 100% 触发。
+- 三张卡牌同类（全技能 或 全模块），玩家必须选择一张或点「跳过」。
+- 技能栏满时自动弹替换确认 UI，展示 3 个槽位可替换，被替换技能按稀有度折算货币（`PlayerResources.GetDecomposeShards`）。
+- 模块自动装备到第一个有空位的增强链（`TryAutoEquipModule`），装不下则提示打开装配 UI。
+- `BattleRoom.OnRoomCleared()`：移除 `SpawnSkillReward()` / `SpawnModuleReward()` 地面掉落调用。
+- `GameEvents.RoomCleared`：新增 `IsElite` / `IsEvent` / `IsCombatRoom` 字段。
+- `GameManager.OnRoomCleared()`：战斗类房间清场后先弹 `RewardPickUI.TryShow()`，完成后才走过渡流程。
+
+### Phase1d: 移除局内背包
+- `GameManager.InitModuleSystem()`：不再初始化 `ModuleInventory`。
+- `ShopRoom` 购买模块：从 `inv.Add()` 改为 `RewardPickUI.TryAutoEquipModule()` 直接装备到链。
+- `ModuleInventory` 类保留（`ModuleAssemblyUI` 依赖），但运行时不填充。
+
+### Phase1e: 商店扩展
+- 商品数量：2 技能 + 5 模块 = 7 件（原 2+3=5）。
+- **新增刷新按钮**：`ShopRoom.uxml` 添加 `refresh` 按钮，消耗基础货币刷新全部商品，每次刷新费用递增（基础 20 × 次数）。
+- 技能替换折算：由 `RewardPickUI` 替换确认流程统一处理。
+
+### Phase1a: 关卡结构调整
+- 层数从 6 改为 3（`_realmNames`）。
+- 固定布局 `_fixedLayout`：每层 12 关（战→战→精英→商店→战→事件→战→商店→战→精英→战→Boss），精英 ≤2，商店 ≤2。
+- `Map_Structure_Config.csv`：3 条记录，每条 `MaxFloor=1` / `MinNodes=MaxNodes=12`，敌人缩放 1.0/1.3/1.6。
+
+---
+
 ## V0.4.1 · 创意收集机制（2026-07-27）
 
 - 新增 [创意收集箱](design/ideas/创意收集箱.md)，作为未评审玩法点子的分类记录入口，不替代 GDD 或开发排期。

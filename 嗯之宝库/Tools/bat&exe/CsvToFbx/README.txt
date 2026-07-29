@@ -20,20 +20,25 @@
 
 【使用方式】
 
-  方式一：双击 启动GUI.bat
-    打开图形界面，选择文件后点击转换。
+  方式一（推荐）：双击 启动GUI.vbs
+    静默启动图形界面，不会弹出黑色 cmd 窗口。
+    若未安装 Python 或启动失败，会自动弹窗提示。
 
-  方式二：拖放文件到 命令行转换.bat
-    将 .csv 文件直接拖到 bat 图标上即可转换。
+  方式二：双击 run_gui.bat
+    同样以无窗口方式启动 GUI（内部会调用 启动GUI.vbs / pythonw）。
 
-  方式三：命令行
+  方式三：拖放文件到 run_cmd.bat
+    将 .csv 文件直接拖到 bat 图标上即可转换（命令行版，会显示日志窗口）。
+
+  方式四：命令行
     python csv_to_fbx.py input.csv [output.fbx] [mesh_name]
 
 【文件说明】
   csv_to_fbx.py      - 核心转换逻辑（命令行版）
-  csv_to_fbx_gui.py  - tkinter 图形界面
-  启动GUI.bat         - 一键启动 GUI
-  命令行转换.bat      - 命令行/拖放转换
+  csv_to_fbx_gui.py  - tkinter 图形界面（含启动失败弹窗提示）
+  启动GUI.vbs         - 无窗口静默启动 GUI（推荐）
+  run_gui.bat         - 一键启动 GUI（无 cmd 窗口）
+  run_cmd.bat         - 命令行/拖放转换（显示日志窗口）
   README.txt          - 本说明文件
 
 ═══════════════════════════════════════════════════

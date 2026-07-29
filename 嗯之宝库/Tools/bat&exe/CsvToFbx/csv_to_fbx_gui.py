@@ -40,8 +40,8 @@ class CsvToFbxApp:
     def __init__(self, root):
         self.root = root
         self.root.title("RenderDoc CSV → FBX 转换工具")
-        self.root.geometry("680x520")
-        self.root.minsize(580, 420)
+        self.root.geometry("680x640")
+        self.root.minsize(580, 480)
         self.root.configure(bg="#2b2b2b")
 
         self.files = []
@@ -111,15 +111,11 @@ class CsvToFbxApp:
                                        command=self._start_convert)
         self.convert_btn.pack(fill=tk.X, pady=(4, 8), ipady=6)
 
-        # 进度条
-        self.progress = ttk.Progressbar(main_frame, mode='determinate')
-        self.progress.pack(fill=tk.X, pady=(0, 4))
-
         # 日志区
         log_frame = ttk.LabelFrame(main_frame, text=" 转换日志 ", padding=4)
         log_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.log_text = tk.Text(log_frame, height=6, bg="#1a1a1a", fg="#b8d8b8",
+        self.log_text = tk.Text(log_frame, height=14, bg="#1a1a1a", fg="#b8d8b8",
                                  font=("Consolas", 9), borderwidth=0, wrap=tk.WORD)
         scrollbar = ttk.Scrollbar(log_frame, orient=tk.VERTICAL, command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=scrollbar.set)
@@ -166,7 +162,6 @@ class CsvToFbxApp:
 
         self.is_converting = True
         self.convert_btn.config(state=tk.DISABLED)
-        self.progress['value'] = 0
 
         thread = threading.Thread(target=self._do_convert, daemon=True)
         thread.start()
@@ -175,6 +170,7 @@ class CsvToFbxApp:
         total = len(self.files)
         success = 0
         failed = 0
+        fail_details = []  # 记录失败文件及具体原因，转换结束后弹窗提示
 
         for i, csv_path in enumerate(self.files):
             filename = os.path.basename(csv_path)
@@ -207,22 +203,53 @@ class CsvToFbxApp:
                 success += 1
 
             except Exception as e:
-                self.root.after(0, self._log, f"  ✗ 失败: {str(e)}")
+                # 记录完整堆栈到日志，方便定位具体原因
+                import traceback
+                tb = traceback.format_exc()
+                reason = str(e).strip() or e.__class__.__name__
+                self.root.after(0, self._log, f"  ✗ 失败: {reason}")
+                self.root.after(0, self._log, tb.rstrip())
+                fail_details.append((filename, reason))
                 failed += 1
-
-            self.root.after(0, self._update_progress, (i + 1) / total * 100)
 
         summary = f"\n{'='*40}\n转换完成: 成功 {success} 个, 失败 {failed} 个"
         self.root.after(0, self._log, summary)
-        self.root.after(0, self._finish_convert)
+        self.root.after(0, self._finish_convert, fail_details)
 
-    def _update_progress(self, value):
-        self.progress['value'] = value
-
-    def _finish_convert(self):
+    def _finish_convert(self, fail_details=None):
         self.is_converting = False
         self.convert_btn.config(state=tk.NORMAL)
-        self.progress['value'] = 100
+
+        # 有失败时弹窗提示具体原因
+        if fail_details:
+            lines = [f"• {name}\n    原因: {reason}" for name, reason in fail_details]
+            detail = "\n".join(lines)
+            messagebox.showerror(
+                "转换失败",
+                f"以下 {len(fail_details)} 个文件转换失败：\n\n{detail}\n\n"
+                f"（详细堆栈见下方“转换日志”）"
+            )
+
+
+def _show_startup_error(msg):
+    """在没有控制台（pythonw/vbs 静默启动）时，用弹窗提示启动失败。"""
+    # 优先尝试用 tkinter 弹窗
+    try:
+        import tkinter as _tk
+        from tkinter import messagebox as _mb
+        _r = _tk.Tk()
+        _r.withdraw()
+        _mb.showerror("CSV → FBX 启动失败", msg)
+        _r.destroy()
+        return
+    except Exception:
+        pass
+    # 退化方案：直接调用 Windows MessageBox（tkinter 都不可用时）
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, msg, "CSV → FBX 启动失败", 0x10)
+    except Exception:
+        pass
 
 
 def main():
@@ -232,4 +259,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        _show_startup_error("程序启动失败：\n\n" + traceback.format_exc())
