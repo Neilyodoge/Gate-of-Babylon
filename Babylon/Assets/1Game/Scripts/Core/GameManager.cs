@@ -161,6 +161,18 @@ namespace XianTu
 
             EnterVillageHub();
         }
+
+        /// <summary>
+        /// 从普通秘境准备区返回基地。仅准备区出口调用；正式进入地图后不提供此入口。
+        /// </summary>
+        public void ExitRunPreparationToVillage()
+        {
+            _transitioning = false;
+            _gameOver = false;
+            RewardPickUI.ForceHide();
+            SkillSelectUI.Hide();
+            EnterVillageHub();
+        }
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
         public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
 
@@ -168,6 +180,9 @@ namespace XianTu
         {
             var player = PlayerController.Instance;
             if (player == null) return;
+
+            if (player.GetComponent<ModuleInventory>() == null)
+                player.gameObject.AddComponent<ModuleInventory>();
 
             var slots = player.GetComponent<ModuleSlotManager>();
             if (slots == null) slots = player.gameObject.AddComponent<ModuleSlotManager>();
@@ -301,6 +316,7 @@ namespace XianTu
             _gameOver = false;
             _pendingLegacyInject = true;
             _runStartTime = Time.time;
+            RewardPickUI.ResetCategoryCycle();
 
             // v0.5.7：清零本局累计伤害（轮回一击按此结算）
             RunCombatStats.Reset();
@@ -334,11 +350,11 @@ namespace XianTu
                 _minimap.SetVisible(true);
             }
 
-            // V0.4：先进入准备房间（技能三选一），完成后再进入第一个战斗房间
+            // V0.4.1：先进入准备房间；触发正式入口时才选择初始技能，选完进入第一间。
             SpawnPrepRoom();
         }
 
-        /// <summary>V0.4：生成准备房间，技能选择完毕后进入第一个战斗房间。</summary>
+        /// <summary>生成准备房间：可返回基地；触发正式入口并选择技能后进入第一间。</summary>
         private void SpawnPrepRoom()
         {
             if (_currentRoomGo != null)
@@ -349,10 +365,10 @@ namespace XianTu
             _currentRoomGo = new GameObject("PrepRoom");
             _currentRoomGo.transform.position = spawnPos;
             var prep = _currentRoomGo.AddComponent<PrepRoom>();
-            prep.Initialize(skillPool, OnPrepRoomComplete);
+            prep.Initialize(skillPool, OnPrepRoomComplete, ExitRunPreparationToVillage);
 
             TeleportPlayer(spawnPos);
-            Debug.Log("<color=#6699ff>═══ 准备房间 · 选择初始技能 ═══</color>");
+            Debug.Log("<color=#6699ff>═══ 秘境准备区 · 可前往入口或返回基地 ═══</color>");
         }
 
         private void OnPrepRoomComplete()

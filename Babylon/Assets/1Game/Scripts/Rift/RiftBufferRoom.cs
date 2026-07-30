@@ -6,7 +6,7 @@ namespace XianTu
     /// <summary>
     /// V0.4.1 大秘境缓冲区（Phase3）。
     /// 玩家在此装备局内带出的 Build，然后走「挑战之门」开始计时挑战。
-    /// 参考村庄 Hub 的结构：一个装备台 NPC + 一个挑战门。
+    /// 缓冲区同时提供返回基地出口；正式挑战间不提供返回入口。
     /// </summary>
     public class RiftBufferRoom : MonoBehaviour
     {
@@ -66,6 +66,16 @@ namespace XianTu
             gateGo.transform.SetParent(transform, false);
             gateGo.transform.localPosition = new Vector3(0f, 0f, RoomDepth / 2f - 4f);
             gateGo.AddComponent<RiftChallengeGate>().Build(_onStartChallenge);
+
+            // ===== 返回基地（右侧）—— 仅缓冲区可用 =====
+            var returnGo = new GameObject("RiftReturnToHubExit");
+            returnGo.transform.SetParent(transform, false);
+            returnGo.transform.localPosition = new Vector3(RoomWidth / 2f - 4f, 0f, 0f);
+            returnGo.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+            returnGo.AddComponent<PreparationGate>().Build(
+                () => RiftManager.Instance.ExitBufferToVillage(),
+                "返回基地", "离开大秘境准备区", "按 [F] 返回基地",
+                new Color(0.35f, 0.85f, 0.65f));
         }
     }
 

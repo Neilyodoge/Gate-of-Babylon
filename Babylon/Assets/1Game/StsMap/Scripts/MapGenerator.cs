@@ -23,6 +23,9 @@ namespace Map
             config = conf;
             nodes.Clear();
 
+            if (conf.useRouteBudget)
+                return GenerateRouteBudgetMap(conf);
+
             GenerateLayerDistances();
 
             for (int i = 0; i < conf.layers.Count; i++)
@@ -42,6 +45,122 @@ namespace Map
             // pick a random name of the boss level for this map:
             string bossNodeName = config.nodeBlueprints.Where(b => b.nodeType == NodeType.Boss).ToList().Random().name;
             return new Map(conf.name, bossNodeName, nodesList, new List<Vector2Int>());
+        }
+
+        /// <summary>
+        /// 《仙途秘境》V0.4.1：把 24~26 个总节点拆为三条长短不同的独立路线，
+        /// 最后汇入一个共享 Boss。原 silverua 算法的 layers 表示纵向层数，因此把
+        /// layers 扩到 24 会误变成“每条路线 24 间”；预算模式直接以总节点数为约束。
+        /// </summary>
+        private static Map GenerateRouteBudgetMap(MapConfig conf)
+        {
+            int routeCount = Mathf.Max(2, conf.routeCount);
+            int totalNodeCount = Mathf.Max(routeCount + 2, conf.totalNodeCount.GetValue());
+            int normalNodeCount = totalNodeCount - 1; // 共享 Boss 占 1
+            int[] routeLengths = DistributeRouteLengths(normalNodeCount, routeCount);
+
+            var result = new List<Node>(totalNodeCount);
+            float horizontalSpacing = 4f;
+            float verticalSpacing = 3f;
+            float xOffset = (routeCount - 1) * horizontalSpacing * 0.5f;
+            int maxLength = routeLengths.Max();
+
+            for (int route = 0; route < routeCount; route++)
+            {
+                Node previous = null;
+                int eliteCount = 0;
+                int storeCount = 0;
+
+                for (int step = 0; step < routeLengths[route]; step++)
+                {
+                    NodeType type = PickBudgetNodeType(step, routeLengths[route], ref eliteCount, ref storeCount);
+                    string blueprintName = GetBlueprintName(conf, type);
+                    var node = new Node(type, blueprintName, new Vector2Int(route, step))
+                    {
+                        position = new Vector2(
+                            route * horizontalSpacing - xOffset,
+                            step * verticalSpacing)
+                    };
+
+                    if (previous != null)
+                    {
+                        previous.AddOutgoing(node.point);
+                        node.AddIncoming(previous.point);
+                    }
+
+                    result.Add(node);
+                    previous = node;
+                }
+            }
+
+            string bossNodeName = GetBlueprintName(conf, NodeType.Boss);
+            var boss = new Node(NodeType.Boss, bossNodeName,
+                new Vector2Int(routeCount / 2, maxLength))
+            {
+                position = new Vector2(0f, maxLength * verticalSpacing + 2f)
+            };
+
+            for (int route = 0; route < routeCount; route++)
+            {
+                var last = result.First(n => n.point.x == route && n.point.y == routeLengths[route] - 1);
+                last.AddOutgoing(boss.point);
+                boss.AddIncoming(last.point);
+            }
+            result.Add(boss);
+
+            Debug.Log($"[MapGenerator] 路线预算地图：总节点={result.Count}，路线长度={string.Join("/", routeLengths)}（共享 Boss 另计）");
+            return new Map(conf.name, bossNodeName, result, new List<Vector2Int>());
+        }
+
+        private static int[] DistributeRouteLengths(int total, int routeCount)
+        {
+            var lengths = new int[routeCount];
+            int baseLength = total / routeCount;
+            int remainder = total % routeCount;
+            for (int i = 0; i < routeCount; i++)
+                lengths[i] = baseLength + (i < remainder ? 1 : 0);
+
+            // 总数恰好整除时也制造长短差，避免三条路线完全等长。
+            if (remainder == 0 && baseLength > 2)
+            {
+                lengths[0]--;
+                lengths[routeCount - 1]++;
+            }
+            lengths.Shuffle();
+            return lengths;
+        }
+
+        private static NodeType PickBudgetNodeType(int step, int routeLength,
+            ref int eliteCount, ref int storeCount)
+        {
+            if (step == 0) return NodeType.MinorEnemy;
+            if (step == routeLength - 1 && Random.value < 0.5f) return NodeType.RestSite;
+
+            float roll = Random.value;
+            if (roll < 0.08f && eliteCount < 2)
+            {
+                eliteCount++;
+                return NodeType.EliteEnemy;
+            }
+            if (roll < 0.18f && storeCount < 4)
+            {
+                storeCount++;
+                return NodeType.Store;
+            }
+            if (roll < 0.30f) return NodeType.Mystery;
+            if (roll < 0.40f) return NodeType.Treasure;
+            if (roll < 0.50f) return NodeType.RestSite;
+            return NodeType.MinorEnemy;
+        }
+
+        private static string GetBlueprintName(MapConfig conf, NodeType type)
+        {
+            var matches = conf.nodeBlueprints.Where(b => b != null && b.nodeType == type).ToList();
+            if (matches.Count > 0) return matches.Random().name;
+
+            // 配置缺某类型蓝图时回退普通战斗，避免生成空节点。
+            var fallback = conf.nodeBlueprints.Where(b => b != null && b.nodeType == NodeType.MinorEnemy).ToList();
+            return fallback.Count > 0 ? fallback.Random().name : string.Empty;
         }
 
         private static void GenerateLayerDistances()

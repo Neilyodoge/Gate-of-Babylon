@@ -6,6 +6,31 @@
 
 ---
 
+## V0.4.1 · §11.4.7 补充反馈（4 项 · 2026-07-30）
+
+1. **初始技能后移到正式入口**：`PrepRoom` 进入时不再自动弹三选一；玩家触发“秘境入口”后才打开 `SkillSelectUI`，选择完成立即进入 STS 地图首节点。
+2. **两个准备区可返回基地**：新增通用 `PreparationGate`。普通秘境准备区与大秘境缓冲区各有“返回基地”门；正式秘境房间和大秘境挑战间不生成返回门。
+3. **每境总节点 24~26，拆为三路线**：`MapConfig` 新增路线预算模式；`MapGenerator` 将总节点（含共享 Boss）分配到 3 条长短不同路线，不再把 24 层错误解释为“每条路线 24 间”。`SilveruaMapProvider` 改为 1 个初始占位 + 根据当前地图节点 `outgoing` 动态扩展，Boss 也由地图共享收束节点驱动。
+4. **修复局内只出技能、不出模组**：
+   - 新增 `ModuleCatalog` 与 `Resources/ModuleCatalog.asset`，显式收录 `Data/Modules` 下 59 个 `ModuleDef`，修复 `Resources.LoadAll` 无法读取非 Resources 目录、编辑器注入掩盖打包空池的问题。
+   - 混合奖励从每次独立 50% 随机改为“首战模块、之后技能/模块交替”，消除连续只出技能的随机长尾。
+   - `InitModuleSystem` 保证玩家持有 `ModuleInventory`；奖励或商店自动装配失败时改为放入背包，不再出现“提示已获得但实际丢失”。
+
+**验证**：Unity 编译 0 error；离线生成 8 张地图均为 24~26 节点、3 个起点、3 路汇入共享 Boss；`ModulePoolLoader` 从 Catalog 读回 59 个模块。未启动 Play，避免覆盖当前未保存的 `CombatArena_Dungeon_Test` 场景改动。
+
+---
+
+## V0.4.2 · 三向 UE 风格 PBR Shader（2026-07-30）
+
+- 新增 `Assets/1Game/Shader/Game_TripPBR.shader`：世界空间三向采样 Base/Normal/Mask，修正平坦法线贴图改变几何法线的问题。
+- 新增可复用 `Game_Lighitng.hlsl`：独立封装 UE 风格 Disney Diffuse、GGX NDF、Smith Joint Visibility、Schlick Fresnel 与 Epic 环境 BRDF 近似。
+- 材质通道收敛为三张贴图：Base、Normal、Mask；Mask 固定为 `R=Metallic / G=AO / B=Emission Mask / A=Smoothness`。
+- UE 漫反射公式适配 Unity 光强标定：保留 Disney Diffuse 曲线，但不重复乘 `1/π`，修复同光照下比 URP Lit 暗约 68% 的问题。
+- 旧 `TriplanarHalfLambertPBR.shader` 已删除；测试材质迁移并重命名为 `Game_TripPBR.mat`，保留原 Base/Normal/打包贴图引用。
+- Unity Shader 导入验证通过，0 编译消息。
+
+---
+
 ## V0.4.1（工程规范）· 场景搭建合规化：美术对象场景预置 + Demo1Setup 按类别拆分（2026-07-30）
 
 **目标**：把「一个 950 行 `Demo1Setup` 运行时 new 出所有东西」改成 Unity 标准做法——美术相关对象放场景里直接调参，运行时实例化的对象按类别拆到不同节点/脚本。

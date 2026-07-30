@@ -14,6 +14,17 @@ namespace XianTu
         public static ModuleDef[] LoadAll()
         {
             if (_cachedPool != null && _cachedPool.Length > 0) return _cachedPool;
+
+            var catalog = Resources.Load<ModuleCatalog>("ModuleCatalog");
+            if (catalog != null && catalog.modules != null && catalog.modules.Length > 0)
+                _cachedPool = catalog.modules;
+
+            if (_cachedPool != null && _cachedPool.Length > 0)
+            {
+                Debug.Log($"<color=cyan>[ModulePoolLoader] 从 ModuleCatalog 加载了 {_cachedPool.Length} 个模块定义</color>");
+                return _cachedPool;
+            }
+
             _cachedPool = Resources.LoadAll<ModuleDef>("Modules");
             if (_cachedPool == null || _cachedPool.Length == 0)
             {

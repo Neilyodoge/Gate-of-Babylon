@@ -42,23 +42,16 @@ namespace XianTu
         }
 
         /// <summary>
-        /// 每境房间脚手架：长度 = 地图层数，末间为 Boss，其余为 Battle 占位
-        /// （实际房型由玩家在全图上点选后 <c>OverrideNextRoomType</c> 覆盖）。
+        /// 每境只给一个可动态扩展的 Battle 占位。
+        /// 实际路线长短与 Boss 到达时机完全由 silverua 当前节点的 outgoing 决定，
+        /// 避免再次把配置层数误当成“每条路线的房间数”。
         /// </summary>
         public IReadOnlyList<IReadOnlyList<RoomType>> GetFloors()
         {
             int realms = GameManager.Instance != null ? GameManager.Instance.RealmCount : 3;
-            int layers = Mathf.Max(2, Screen.LayerCount);
-
             var floors = new List<IReadOnlyList<RoomType>>(realms);
             for (int r = 0; r < realms; r++)
-            {
-                var rooms = new List<RoomType>(layers);
-                for (int i = 0; i < layers - 1; i++)
-                    rooms.Add(RoomType.Battle);
-                rooms.Add(RoomType.Boss);
-                floors.Add(rooms);
-            }
+                floors.Add(new List<RoomType> { RoomType.Battle });
             return floors;
         }
 
@@ -74,14 +67,11 @@ namespace XianTu
 
         public void MarkCurrentCleared() { /* silverua 路径在点选节点时已推进，无需额外标记 */ }
 
-        // 房间脚手架长度已与地图层数对齐，无需 GameManager 动态扩展槽位。
-        public bool CurrentNodeHasNext => false;
+        public bool CurrentNodeHasNext => Screen.CurrentNodeHasNext;
 
         public bool TryShowNavigation(bool bossNext, Action<RoomType> onChosen)
         {
-            // Boss 为全图唯一收束点、无分支可选：保持线性，不弹图，直接进 Boss 房。
-            if (bossNext) return false;
-
+            // Boss 也由地图上的共享收束节点选择，地图始终是进度真源。
             Screen.Show(nodeType => onChosen?.Invoke(ToRoomType(nodeType)));
             return true;
         }

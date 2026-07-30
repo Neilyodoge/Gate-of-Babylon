@@ -114,6 +114,14 @@ namespace XianTu
 
         // ==================== 返回 ====================
 
+        /// <summary>从大秘境缓冲区主动返回基地；正式挑战间不生成该出口。</summary>
+        public void ExitBufferToVillage()
+        {
+            RiftTierSelectUI.Hide();
+            RiftEquipUI.Hide();
+            ReturnToVillage();
+        }
+
         private void ReturnToVillage()
         {
             DestroyRoom();

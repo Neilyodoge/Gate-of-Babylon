@@ -30,6 +30,19 @@ namespace XianTu
 
         public bool IsShowing => _canvasGo != null && _canvasGo.activeSelf;
 
+        /// <summary>当前已选节点是否还有后继；地图尚未生成/尚未选点时返回 true。</summary>
+        public bool CurrentNodeHasNext
+        {
+            get
+            {
+                EnsureBuilt();
+                var map = _mapManager != null ? _mapManager.CurrentMap : null;
+                if (map == null || map.path == null || map.path.Count == 0) return true;
+                var node = map.GetNode(map.path[map.path.Count - 1]);
+                return node != null && node.outgoing.Count > 0;
+            }
+        }
+
         /// <summary>地图层数（= 每境房间数脚手架长度）。首次访问会构建地图屏。</summary>
         public int LayerCount
         {

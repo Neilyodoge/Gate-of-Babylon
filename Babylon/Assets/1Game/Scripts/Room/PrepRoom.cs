@@ -6,8 +6,9 @@ using TMPro;
 namespace XianTu
 {
     /// <summary>
-    /// V0.4 准备房间 —— 局外→准备房间→技能选择→局内。
-    /// 玩家从村庄进入后先到此房间，完成技能选择后通过出口进入第一个战斗关卡。
+    /// V0.4 准备房间 —— 局外→准备房间→在入口确认初始技能→局内。
+    /// 技能选择不再在进入准备区时自动弹出；玩家触发正式入口后才选择，选完立即进入局内。
+    /// 准备区另设返回出口，可随时回到局外。
     /// </summary>
     public class PrepRoom : MonoBehaviour
     {
@@ -16,24 +17,18 @@ namespace XianTu
 
         private Action _onReady;
         private SkillData[] _skillPool;
-        private bool _skillSelected;
-        private PrepRoomExit _exit;
         private GameObject _roomVisuals;
 
-        public void Initialize(SkillData[] skillPool, Action onReady)
+        public void Initialize(SkillData[] skillPool, Action onReady, Action onReturnToHub)
         {
             _skillPool = skillPool;
             _onReady = onReady;
             BuildRoom();
-            BuildExit();
-
-            SkillSelectUI.Show(_skillPool, OnSkillPicked);
+            BuildGates(onReturnToHub);
         }
 
         private void OnSkillPicked(SkillData skill)
         {
-            _skillSelected = true;
-
             if (skill != null)
             {
                 var combat = PlayerController.Instance?.GetComponent<PlayerCombat>();
@@ -44,8 +39,7 @@ namespace XianTu
                 }
             }
 
-            if (_exit != null)
-                _exit.Unlock();
+            _onReady?.Invoke();
         }
 
         private void BuildRoom()
@@ -94,21 +88,29 @@ namespace XianTu
                 new Vector3(0, 0.3f, 0.65f), Quaternion.Euler(0, 180f, 0),
                 new Vector2(2f, 0.5f), 32, new Color(0.6f, 0.8f, 1f));
 
-            CreateWorldText(board.transform, "SignSub", "—— 选择技能后前往出口 ——",
+            CreateWorldText(board.transform, "SignSub", "—— 前往入口选择技能，或返回基地 ——",
                 new Vector3(0, -0.2f, 0.65f), Quaternion.Euler(0, 180f, 0),
                 new Vector2(3f, 0.35f), 16, new Color(0.5f, 0.6f, 0.75f));
         }
 
-        private void BuildExit()
+        private void BuildGates(Action onReturnToHub)
         {
             var exitGo = new GameObject("PrepRoomExit");
             exitGo.transform.SetParent(transform, false);
             exitGo.transform.localPosition = new Vector3(0, 0, RoomDepth / 2f - 3f);
-            _exit = exitGo.AddComponent<PrepRoomExit>();
-            _exit.Build(() =>
-            {
-                _onReady?.Invoke();
-            });
+            exitGo.AddComponent<PreparationGate>().Build(
+                () => SkillSelectUI.Show(_skillPool, OnSkillPicked),
+                "秘境入口", "选择初始技能后正式进入", "按 [F] 选择初始技能",
+                new Color(0.4f, 0.6f, 1f));
+
+            var returnGo = new GameObject("ReturnToHubExit");
+            returnGo.transform.SetParent(transform, false);
+            returnGo.transform.localPosition = new Vector3(-RoomWidth / 2f + 3f, 0, 0);
+            returnGo.transform.localRotation = Quaternion.Euler(0, 90f, 0);
+            returnGo.AddComponent<PreparationGate>().Build(
+                onReturnToHub,
+                "返回基地", "离开准备区", "按 [F] 返回基地",
+                new Color(0.35f, 0.85f, 0.65f));
         }
 
         private void OnDestroy()
@@ -169,22 +171,21 @@ namespace XianTu
     }
 
     /// <summary>
-    /// 准备房间出口 —— 技能选择完成后解锁，玩家按 F 进入第一关。
+    /// 准备区通用门：用于“选择技能并进入”或“返回局外”。
     /// </summary>
-    public class PrepRoomExit : MonoBehaviour, IInteractable
+    public class PreparationGate : MonoBehaviour, IInteractable
     {
         public Vector3 InteractionWorldPos => transform.position;
         public int InteractionPriority => 5;
-        public bool IsInteractionAvailable => _unlocked && _playerInRange;
+        public bool IsInteractionAvailable => _playerInRange;
         public bool IsRoutedActive { get; set; }
 
         private bool _playerInRange;
-        private bool _unlocked;
         private bool _triggered;
         private Action _onEnter;
         private NpcHeadCard _headCard;
 
-        public void Build(Action onEnter)
+        public void Build(Action onEnter, string displayName, string roleSub, string hintText, Color themeColor)
         {
             _onEnter = onEnter;
 
@@ -226,29 +227,19 @@ namespace XianTu
 
             _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
             {
-                displayName = "秘境入口",
+                displayName = displayName,
                 icon = "▶",
-                roleSub = "选择技能后可通过",
-                hintText = "先选择一个技能",
-                themeColor = new Color(0.4f, 0.6f, 1f),
+                roleSub = roleSub,
+                hintText = hintText,
+                themeColor = themeColor,
                 yOffset = 4f,
                 showLongRangeMarker = true
             });
         }
 
-        public void Unlock()
-        {
-            _unlocked = true;
-            if (_headCard != null)
-            {
-                _headCard.UpdateName("秘境入口 · 就绪");
-                _headCard.UpdateHintText("按 [F] 进入秘境");
-            }
-        }
-
         private void Update()
         {
-            if (_triggered || !_unlocked || !_playerInRange) return;
+            if (_triggered || !_playerInRange) return;
 
             if (_headCard != null)
                 _headCard.SetHintVisible(IsRoutedActive);

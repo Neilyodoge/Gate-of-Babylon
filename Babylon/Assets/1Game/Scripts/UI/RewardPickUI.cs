@@ -29,6 +29,13 @@ namespace XianTu
         private ModuleDef[] _moduleCandidates;
         private bool _isSkillReward;
         private SkillData _pendingReplaceSkill;
+        private static bool _nextMixedRewardIsModule = true;
+
+        /// <summary>
+        /// 新一局从模块奖励开始轮换。初始技能已在正式入境前获得，
+        /// 首次战后优先给模块，之后技能/模块交替，杜绝随机连续只出技能。
+        /// </summary>
+        public static void ResetCategoryCycle() => _nextMixedRewardIsModule = true;
 
         /// <summary>
         /// 判定是否触发奖励并弹出 UI。
@@ -57,7 +64,11 @@ namespace XianTu
             bool pickSkill;
             if (!canSkill) pickSkill = false;
             else if (!canModule) pickSkill = true;
-            else pickSkill = UnityEngine.Random.value < 0.5f;
+            else
+            {
+                pickSkill = !_nextMixedRewardIsModule;
+                _nextMixedRewardIsModule = !_nextMixedRewardIsModule;
+            }
 
             EnsureInstance();
             _instance._onDone = onDone;
@@ -339,11 +350,14 @@ namespace XianTu
             if (player == null) { Close(); return; }
 
             var slots = player.GetComponent<ModuleSlotManager>();
-            if (slots != null)
+            bool equipped = slots != null && TryAutoEquipModule(slots, mod);
+            if (!equipped)
             {
-                bool equipped = TryAutoEquipModule(slots, mod);
-                if (!equipped)
-                    Debug.Log($"<color=#ffcc33>[RewardPick] 获得模块 {mod.displayName}，请打开装配界面 [M] 手动装配</color>");
+                var inventory = player.GetComponent<ModuleInventory>();
+                if (inventory == null)
+                    inventory = player.gameObject.AddComponent<ModuleInventory>();
+                inventory.Add(mod);
+                Debug.Log($"<color=#ffcc33>[RewardPick] 模块槽位已满，{mod.displayName} 已放入背包，请按 [M] 手动装配</color>");
             }
 
             Debug.Log($"<color=#66ff99>[RewardPick] 选择模块 {mod.displayName}（{mod.category}）</color>");

@@ -419,13 +419,23 @@ namespace XianTu
                 if (PlayerController.Instance != null)
                 {
                     var mgr = PlayerController.Instance.GetComponent<ModuleSlotManager>();
+                    bool equipped = false;
                     if (mgr != null)
                     {
-                        bool ok = RewardPickUI.TryAutoEquipModule(mgr, slot.module);
-                        if (!ok)
-                            Debug.Log("<color=#ffcc33>[Shop] 模块槽位已满，请打开装配界面 [M] 手动调整</color>");
+                        equipped = RewardPickUI.TryAutoEquipModule(mgr, slot.module);
                     }
-                    GameEvents.Publish(new GameEvents.ModulePickedUp { Module = slot.module });
+                    if (equipped)
+                    {
+                        GameEvents.Publish(new GameEvents.ModulePickedUp { Module = slot.module });
+                    }
+                    else
+                    {
+                        var inventory = PlayerController.Instance.GetComponent<ModuleInventory>();
+                        if (inventory == null)
+                            inventory = PlayerController.Instance.gameObject.AddComponent<ModuleInventory>();
+                        inventory.Add(slot.module);
+                        Debug.Log("<color=#ffcc33>[Shop] 模块槽位已满，已放入背包，请按 [M] 手动调整</color>");
+                    }
                 }
                 ApplySold(slot);
                 Debug.Log($"<color=green>购买模块成功：{slot.module.displayName}（花费 {slot.price} 碎片）</color>");

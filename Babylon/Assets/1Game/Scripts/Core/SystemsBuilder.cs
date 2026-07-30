@@ -91,23 +91,25 @@ namespace XianTu
 
             // 模块池注入（GDD V.07 模块化技能）
             {
-                ModuleDef[] mods = null;
+                ModuleDef[] mods = ModulePoolLoader.LoadAll();
 #if UNITY_EDITOR
-                var modGuids = UnityEditor.AssetDatabase.FindAssets("t:ModuleDef", new[] { "Assets/1Game/Data/Modules" });
-                if (modGuids.Length > 0)
+                // ModuleCatalog 尚未生成时保留编辑器兜底；正式运行/打包以 Catalog 为准。
+                if (mods == null || mods.Length == 0)
                 {
-                    var list = new System.Collections.Generic.List<ModuleDef>();
-                    foreach (var guid in modGuids)
+                    var modGuids = UnityEditor.AssetDatabase.FindAssets("t:ModuleDef", new[] { "Assets/1Game/Data/Modules" });
+                    if (modGuids.Length > 0)
                     {
-                        var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
-                        var m = UnityEditor.AssetDatabase.LoadAssetAtPath<ModuleDef>(path);
-                        if (m != null) list.Add(m);
+                        var list = new System.Collections.Generic.List<ModuleDef>();
+                        foreach (var guid in modGuids)
+                        {
+                            var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                            var m = UnityEditor.AssetDatabase.LoadAssetAtPath<ModuleDef>(path);
+                            if (m != null) list.Add(m);
+                        }
+                        mods = list.ToArray();
                     }
-                    mods = list.ToArray();
                 }
 #endif
-                if (mods == null || mods.Length == 0)
-                    mods = Resources.LoadAll<ModuleDef>("Modules");
 
                 if (mods != null && mods.Length > 0)
                 {
