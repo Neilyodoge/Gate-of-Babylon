@@ -493,10 +493,6 @@ namespace XianTu
             // 受伤闪烁效果（无论是否被打断都闪烁，给玩家视觉反馈）
             StartCoroutine(DamageFlash());
 
-            // 受击后处理脉冲（屏幕边缘变红）
-            if (PostProcessSetup.Instance != null)
-                PostProcessSetup.Instance.PulseVignette();
-
             if (!stats.IsAlive)
             {
                 // 金蝉脱壳：受致命伤拦截（武装期内免死）

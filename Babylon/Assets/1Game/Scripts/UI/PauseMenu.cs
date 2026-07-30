@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -26,6 +27,7 @@ namespace XianTu
         private GameObject _confirm;
         private TextMeshProUGUI _confirmMsg;
         private System.Action _confirmAction;
+        private TextMeshProUGUI _saveBtnLabel;
 
         public static void Ensure()
         {
@@ -97,6 +99,10 @@ namespace XianTu
             MakeBtn(panel, "继续游戏", Hide, UGuiKit.BtnPrimary);
             MakeBtn(panel, "角色信息", () => { Hide(); PlayerInfoPanel.Show(); }, UGuiKit.BtnNormal);
             MakeBtn(panel, "图鉴", () => { Hide(); CodexUITK.Show(); }, UGuiKit.BtnNormal);
+            // #9：手动存档按钮（与自动存档同一底层：写入当前活跃存档槽）
+            var saveBtn = UGuiKit.CreateButton(panel.transform, "存档", OnSaveClicked, UGuiKit.BtnNormal, 28, new Vector2(404f, 52f));
+            UGuiKit.SetHeight(saveBtn.GetComponent<RectTransform>(), 52f);
+            _saveBtnLabel = saveBtn.GetComponentInChildren<TextMeshProUGUI>();
             MakeBtn(panel, "设置", () => SettingsUI.Show(), UGuiKit.BtnNormal);
             MakeBtn(panel, "返回主菜单", () => AskConfirm("返回主菜单将丢失本局进度，确定吗？",
                 () => { Hide(); MainMenu.ReturnToMainMenu(); }), UGuiKit.BtnNormal);
@@ -146,6 +152,26 @@ namespace XianTu
         {
             _confirmAction = null;
             if (_confirm != null) _confirm.SetActive(false);
+        }
+
+        // #9：手动存档 —— 与自动存档底层一致（写入当前活跃槽；无活跃槽时 SaveSystem 兜底用槽 0）。
+        private void OnSaveClicked()
+        {
+            bool ok = SaveSystem.Instance != null;
+            if (ok) SaveSystem.Instance.Save();
+            if (_saveBtnLabel != null)
+            {
+                StopAllCoroutines();
+                StartCoroutine(SaveFeedback(ok));
+            }
+        }
+
+        private IEnumerator SaveFeedback(bool ok)
+        {
+            _saveBtnLabel.text = ok ? "已存档" : "存档失败";
+            // 暂停时 timeScale=0，必须用真实时间。
+            yield return new WaitForSecondsRealtime(1.2f);
+            if (_saveBtnLabel != null) _saveBtnLabel.text = "存档";
         }
 
         private static void QuitGame()

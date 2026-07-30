@@ -21,9 +21,8 @@ namespace XianTu.LevelDesign
         public bool autoRollEventOnRoomClear = true;
 
         /// <summary>
-        /// v0.5 兼容模式：(境界Level, 房间Index) → 强制触发的 EventID。
-        /// 当 LevelDesign 没有 TreeMap（v0.5 线性流程）时使用，让玩家自然走到该房间就触发事件。
-        /// Demo2 启用 TreeMap 主循环后会改走 RoomSocketRow.EventID 配置。
+        /// 线性事件调度：(境界Level, 房间Index) → 强制触发的 EventID。
+        /// V0.4.1 起地图为 silverua 全图（无逐节点 EventID 配置），房间剧情事件统一走此表。
         /// </summary>
         private static readonly System.Collections.Generic.Dictionary<(int realm, int room), int> _linearEventSchedule = new()
         {
@@ -40,8 +39,8 @@ namespace XianTu.LevelDesign
         private int _lastRealmObserved = -1;
 
         /// <summary>
-        /// 已经初始化过的区域 Level。防止 SpawnCurrentRoom 每次发布 RealmBreakthrough
-        /// 时反复调用 StartNewRun / BeginAct 导致 TreeMap 被覆盖。
+        /// 本局已处理过 meta 标记的区域 Level（防止 SpawnCurrentRoom 每次发布
+        /// RealmBreakthrough 时重复 MarkActCleared）。回到 realm 0 视为新局并复位。
         /// </summary>
         private readonly System.Collections.Generic.HashSet<int> _actAlreadyStarted = new();
 
@@ -102,16 +101,9 @@ namespace XianTu.LevelDesign
         {
             if (!autoRollEventOnRoomClear) return;
 
+            // V0.4.1：地图改用 silverua 原生全图后，房间事件统一走线性事件调度表
+            // （旧 TreeMap 节点驱动的 mode A 已随 TreeMap 删除）。
             var dir = LevelDesignDirector.Instance;
-
-            // 模式 A：TreeMap 主循环已激活 → 用当前节点配置触发
-            if (dir.CurrentMap != null && dir.CurrentMapNode != null)
-            {
-                dir.TryTriggerRoomEvent();
-                return;
-            }
-
-            // 模式 B：v0.5 兼容模式 → 用线性事件调度表
             var gm = GameManager.Instance;
             if (gm == null) return;
 
@@ -128,39 +120,23 @@ namespace XianTu.LevelDesign
 
         private void OnRealmBreakthrough(GameEvents.RealmBreakthrough evt)
         {
-            // 切换境界时重置线性房间计数
+            // 切换境界时重置线性房间计数；回到 realm 0 视为新局 → 复位区域标记（本单例常驻跨局）。
             if (evt.NewRealmLevel != _lastRealmObserved)
             {
                 _linearRoomsClearedThisRealm = 0;
+                if (evt.NewRealmLevel == 0) _actAlreadyStarted.Clear();
                 _lastRealmObserved = evt.NewRealmLevel;
             }
 
-            // 每个区域只初始化一次，防止 SpawnCurrentRoom 反复发布
-            // RealmBreakthrough 导致 TreeMap 被覆盖（地图重置 Bug）
+            // V0.4.1：整局/区域的 Flag & 状态重置改由 SilveruaMapProvider.StartRun/OnEnterRealm
+            // 调用 Director.StartNewRun()/BeginAct() 完成；此处仅做「区域通关」的 meta 标记（每局一次）。
             if (_actAlreadyStarted.Contains(evt.NewRealmLevel)) return;
+            _actAlreadyStarted.Add(evt.NewRealmLevel);
 
-            // V0.2：GameManager.StartNewRun() 已直接调用 Director.StartNewRun()，
-            // 此处仅对 realm=0 标记"已处理"，不再重复生成地图。
-            if (evt.NewRealmLevel == 0)
-            {
-                _actAlreadyStarted.Clear();
-                _actAlreadyStarted.Add(0);
-                if (LevelDesignDirector.Instance.CurrentMap != null) return;
-                LevelDesignDirector.Instance.StartNewRun();
-            }
-            else if (evt.NewRealmLevel == 2)
-            {
-                // Act1 通关 → 标记
+            if (evt.NewRealmLevel == 2)
                 PlayerStateHooks.Instance.MarkActCleared(1);
-                _actAlreadyStarted.Add(2);
-                LevelDesignDirector.Instance.BeginAct(2);
-            }
             else if (evt.NewRealmLevel == 4)
-            {
                 PlayerStateHooks.Instance.MarkActCleared(2);
-                _actAlreadyStarted.Add(4);
-                LevelDesignDirector.Instance.BeginAct(3);
-            }
         }
 
         private void OnEnemyKilled(GameEvents.EnemyKilled evt)

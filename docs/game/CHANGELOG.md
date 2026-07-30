@@ -6,9 +6,85 @@
 
 ---
 
+## V0.4.1（工程规范）· 场景搭建合规化：美术对象场景预置 + Demo1Setup 按类别拆分（2026-07-30）
+
+**目标**：把「一个 950 行 `Demo1Setup` 运行时 new 出所有东西」改成 Unity 标准做法——美术相关对象放场景里直接调参，运行时实例化的对象按类别拆到不同节点/脚本。
+
+**后处理：改走纯 Unity 默认**
+- **删除** `PostProcessSetup.cs`（原来用代码拼 `Volume`+`VolumeProfile`、并随层数变暗变红 / 受击暗角脉冲）。同步移除 `GameManager`（2 处 `UpdateAtmosphere`）与 `PlayerController`（`PulseVignette`）调用。
+- 新增标准资产 `Assets/1Game/Settings/Demo1PostProcess.asset`（`VolumeProfile`，含 Bloom/Vignette/ColorAdjustments，值沿用旧默认）。
+- 场景「Art/Global Volume」= 标准 `Volume`（isGlobal，priority 1）引用该 Profile；美术在 URP 标准 Inspector 调参，不再有自定义参数面板与动态驱动脚本。
+
+**美术对象场景预置（不再运行时实例化）**
+- `Main Camera`（+`TopDownCamera`+`AudioListener`+URP CameraData，`renderPostProcessing=on`）、`Directional Light`、`Global Volume` 直接放进 Demo1 场景「Art」节点，Inspector 可调。
+- `Demo1Setup` 仅保留相机/平行光的「场景缺失兜底」（后处理不兜底，走场景 Volume）。
+
+**运行时实例化按类别拆分**
+- 场景新增类别根节点 `Systems` / `Gameplay` / `UI`，分别挂新脚本 `SystemsBuilder` / `GameplayBuilder` / `HudBuilder`，生成的对象归到各自节点下（Hierarchy 一眼分类）。
+    - `SystemsBuilder`：对象池 / GameManager(+技能池/模块池注入+DebugConsole) / 顿帧 / 层间过渡 / EventSystem / 音效。
+    - `GameplayBuilder`：临时地面 / 玩家（含主角档案热构建、攻击原点、战斗组件）。
+    - `HudBuilder`：GameCanvas + GameHUD（血条/境界/敌人数/技能栏/连招/碎片/消息/死亡&通关面板/小地图）。
+- `Demo1Setup` 瘦身为 Bootstrap：持有配置（技能/模型/特效等）+ 按依赖顺序调度三个 Builder；未指定 Builder 时运行时兜底查找/新建对应根节点。
+
+**验证**：编译 0 错；Play 下 `cameras=1 lights=1 volumes=1`，GameManager/Player/Pool/HUD/EventSystem 各存在且唯一，控制台 0 报错，渲染（相机/光照/Bloom/Vignette/HUD）正常。
+
+---
+
+## V0.4.1 · §11.4.6 BUG 及调整整理（9 项 · 2026-07-30）
+
+**目标**：按 GDD §11.4.6 表逐项修复/调整，落地「无技能开局 + 无掉落 + 统一 3 关 + BD 只在大秘境 + 大秘境选层 + 手动存档」。
+
+1. **[BUG] 局外去技能**：`GameManager.EnterVillageHub` 进村时 `ClearPlayerLoadout()` —— 清空 Q/E/R 三槽 + 3 条增强链并刷新技能栏（普攻独立，不受影响）。开局在 `Start` 即进村，故初始也「挂空」。
+2. **[BUG] 完全无掉落**：新增总开关 `GameManager.EnableWorldDrops=false`，在 `SkillPickup.Spawn`/`ItemPickup.Spawn`/`ModulePickup.Spawn` 顶部 early-return（`CaveMaterialPool` 经 `ItemPickup.Spawn` 一并生效）。功法/洞府素材/妖丹/模块/宝箱/遗产模块均不再落地；技能与模块改由局内三选一发放，灵力碎片（货币）仍照常直接结算。
+3. **[调整] 每关房间数 20~26**：`DefaultMapConfig.layers` 12→**24**（23 房 + 末 Boss），`GetFloors` 按 `LayerCount` 铺脚手架 → 每境 24 房。仅 1 个 MapConfig，三境共用，房间数一致。
+4. **[BUG] 统一 3 关表现**：换境后第一间也走 STS 全图择路（`SpawnLevelCompletePortal` 传送门回调 `SpawnCurrentRoom`→`EnterNextRoomWithChoice`），消除「另一种关卡形式」；HUD `levelText` 由「第 X 层」改为「第 X/N 关」（境内进度），`realmText` 保留境名，不再两个控件都说「层」。
+5. **[BUG] 装备台刷新技能栏**：`BuildSnapshot.ApplyToPlayer` 装完后广播 3 次 `SkillEquipped` + 兜底 `SkillBarUI.RefreshSkillSlots()`，让玩家直观确认「已替换成功」。
+6. **[调整] 大秘境选层**：新增 `RiftTierSelectUI`（uGUI+TMP，`-10/-1/+1/+10` 步进 + `1/25/50/100` 预设，1~100 层），`RiftManager.OnStartChallengeRequested` 装备 Build 后弹出，选定 → `SetTier` → 开始挑战。
+7. **[调整] 局外剔除 BD 系统**：`VillageHub` 移除「配置使」`ModuleConfigNPC` 与「Build 管理使」`BuildManagerNPC`，村庄只留大秘境入口 + 山门；BD 装备只在大秘境缓冲区 `RiftEquipStation`。
+8. **[调整] 局外不显示地图**：`Minimap.SetVisible(bool)`；进村/进大秘境隐藏，`StartNewRun` 进秘境显示。
+9. **[调整] 暂停菜单存档**：`PauseMenu` 加「存档」按钮 → `SaveSystem.Save()`（与自动存档同底层），点击后按钮短暂显示「已存档」（真实时间协程，兼容 `timeScale=0`）。
+
+**验证**：编译 0 错；`DefaultMapConfig` 运行期读回 `layers=24 lastType=Boss`。
+
+---
+
+## V0.4.1（进度重构线）· 接入 silverua 杀戮尖塔全图作为唯一进度驱动（2026-07-30）
+
+**目标**：把地图彻底换成 silverua [slay-the-spire-map-in-unity](https://github.com/silverua/slay-the-spire-map-in-unity) 原生生成 + 渲染，地图=进度真源、每局重生成、动效用 DOTween；移除旧的 `TreeMapGenerator`/`TreeMapUI`/`RoomChoiceUI` 分叉图路径（换 provider 后不再调用）。
+
+**依赖取舍**（承接 Stage 1）
+- 已把 silverua `Scripts/Prefabs/Sprites/Materials/Resources/Scriptable Objects` + 自带 DOTween 落入 `1Game/StsMap/`。
+- **不持久化地图**（每局重生成）：剔除 `Newtonsoft.Json`（`Map.cs`/`Node.cs`/`MapManager.cs` 去序列化、`MapManager.SaveMap()` 置空、`Start()` 无条件生成）。
+- 去掉编辑器 `OneLine` 特性（`MapConfig.cs`/`MapLayer.cs`）。
+
+**桥接（复用现有 `IMapProvider` 接缝，主循环几乎零改动）**
+- `MapPlayerTracker.EnterNode` → 触发静态事件 `NodeEntered`；延时进入改用非缩放时间 `SetUpdate(true)`（地图是 UI 覆盖层，可能在 `timeScale=0` 下操作）。
+- 新增 `StsMapScreen`（`1Game/Scripts/LevelDesign/StsMap/`）：运行时代码搭 Overlay Canvas + 半透明遮罩 + 标题 + 两个 `ScrollRect`，实例化 `Resources/StsMapObjectsUI`（原 `MapObjectsUI Variant` 预制体）并回填 `MapViewUI` 的 ScrollRect 引用；负责显隐、按境重生成、`NodeEntered`→回调房型后自动隐藏。为此给 `MapViewUI` 加 `SetScrollRects(...)`。
+- 新增 `SilveruaMapProvider : IMapProvider`：每境一张分叉图，`GetFloors()` 用「层数=房间数、末间 Boss」脚手架；`TryShowNavigation` 弹 silverua 全图、点节点后 `NodeType→RoomType`（Minor→Battle / Elite→Elite / RestSite→Rest / Treasure→Treasure / Store→Shop / Boss→Boss / Mystery→Event）；数值查询（敌人缩放/稀有度/阶段返回）仍复用 `ConfigDatabase.MapStructures` 配表。
+
+**GameManager 接入**
+- `Awake` 无条件 `MapProviders.Current = new SilveruaMapProvider()`（旧 `LevelDesignMapProvider` 不再成为 Current，旧 `TreeMapUI` 随之休眠）。
+- 首房也经地图点选进入（silverua 首层即起点选择）：`OnPrepRoomComplete` → `EnterNextRoomWithChoice`；遗产模块改由本局**首个** `SpawnCurrentRoom` 注入（`_pendingLegacyInject`）。
+- 新增 `GameManager.RealmCount`。
+
+**验证（Unity 运行）**：地图生成+渲染正常（左起点→右 Boss 完整分叉图、Kenney 背景板、节点/连线）；模拟点选起点 → `NodeEntered` → provider 回调 `NodeType` → 地图自动隐藏，链路通；`timeScale=0` 下亦生效。编译 0 错。
+
+**遗留清理（同版 · 2026-07-30 收尾）**
+- **物理删除**旧地图代码：`LevelDesign/Map/TreeMap.cs`（`TreeMap`/`TreeNode`/`TreeMapGenerator`）、`LevelDesign/UI/TreeMapUI.cs`、`Core/Level/LevelDesignMapProvider.cs`（含 .meta；空 `Map/` 目录一并删）。`RoomChoiceUI` 更早已删。
+- **`LevelDesignDirector` 解耦地图**：删 `CurrentMap`/`ShowMap`/`CurrentMapNode`/`MarkCurrentNodeCleared`/`IsCurrentNodeBoss`/`TryTriggerRoomEvent`；只留「整局/区域 Flag & 玩家状态重置」+「Boss 形态解析」。
+- **重置职责迁移**：整局/换境的 Flag/状态重置从 `LevelDesignBootstrap.RealmBreakthrough` 移到 `SilveruaMapProvider.StartRun/OnEnterRealm`（内部调 `Director.StartNewRun/BeginAct`）；`Bootstrap` 去掉 TreeMap 节点驱动的 mode A，房间剧情事件统一走线性调度表（mode B），仅保留区域通关 meta 标记（回 realm 0 视为新局复位）。
+- `MapProviders.Current` 默认值改 `SilveruaMapProvider`。
+- **`MapConfig` 按 Act 分化（预留接口）**：`StsMapScreen.SetActConfig(act)` 从 `MapViewUI.allMapConfigs` 按 (act-1) 选配置，provider 在 StartRun/OnEnterRealm 调用；当前列表仅 1 个 `DefaultMapConfig`（各境共用），追加对应 `MapConfig` 即可分化，无需改代码。
+- **`LevelRoomType` 保留**（有意）：它是配表 schema 枚举（`RoomSocketRow.TypeEnum` ↔ CSV RoomType 整数列），非死代码；silverua 侧只用 `NodeType→RoomType`，已不再触碰它，故不合并。
+- 验证：play-mode smoke（provider 重置→事件→Floors/缩放/稀有度）全绿，编译 0 错。
+
+---
+
 ## V0.4.6 · UI 方案统一为 uGUI + TMP（2026-07-29）
 
 **目标**：全项目 UI 从「UITK + uGUI + IMGUI 三套混用」收敛到**单一 uGUI + TextMeshPro**，统一中文字体与视觉，消除 IMGUI 运行期面板与旧 `UnityEngine.UI.Text`（□□□ 中文缺字）。
+
+**技术栈定调（后续锁定）**：UI 方案统一为 **uGUI 全家桶 —— uGUI + TextMeshPro + DOTween（动效）+ 自定义 Shader（视觉）**。不再新增 UITK / IMGUI 面板；新面板一律走 `UGuiKit`。
 
 **基建**
 - 新增 `UI/UGuiKit.cs`：代码化构建库（Overlay Canvas / 遮罩 / 面板 / 文本 / 按钮 / 滑条 / 开关 / 滚动 / 卡片 / 网格 / 属性卡 / 分节标题 + 主题色常量）。所有文本统一走动态中文 TMP 字体 `Resources/Fonts/NotoSansSC SDF`（菜单「仙途秘境/UI/生成中文 TMP 字体资产」生成），并导入 TMP Essential Resources 修复 `TMP_Settings.instance` 为 null。

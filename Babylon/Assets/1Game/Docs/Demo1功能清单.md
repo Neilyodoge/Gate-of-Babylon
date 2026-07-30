@@ -16,7 +16,6 @@
 | 闪避（2层充能） | `PlayerController.cs` | Space 闪避，2层充能（可连续闪避两次），每层独立恢复CD，带无敌帧、输入优先级 |
 | 动画优先级系统 | `PlayerAnimator.cs` | Idle < Attack < Skill < Hit < Evade，高优先级可打断低优先级 |
 | 受伤闪烁 | `PlayerController.cs` | 受击时模型闪白反馈 |
-| 受击后处理脉冲 | `PlayerController.cs` + `PostProcessSetup.cs` | 受击时屏幕边缘变红（Vignette 脉冲） |
 
 ### 1.2 技能系统
 
@@ -98,10 +97,8 @@
 
 | 功能 | 文件 | 说明 |
 |------|------|------|
-| 后处理效果 | `PostProcessSetup.cs` | Bloom / Vignette / Color Grading |
-| 环境氛围 | `PostProcessSetup.cs` | 雾效 + 光照随层数变化（越深越暗/越红） |
-| 受击屏幕脉冲 | `PostProcessSetup.cs` | 受击时 Vignette 变红脉冲 |
-| 俯视角相机 | `TopDownCamera.cs` | 平滑跟随玩家 |
+| 后处理效果 | 场景 `Art/Global Volume` + `Settings/Demo1PostProcess.asset` | 标准 URP Volume+Profile：Bloom / Vignette / Color Adjustments（Inspector 调参，2026-07-30 起改走 Unity 默认，删除旧 `PostProcessSetup`） |
+| 俯视角相机 | `TopDownCamera.cs`（场景 `Art/Main Camera`） | 平滑跟随玩家 |
 
 ### 1.9 基础架构
 
@@ -109,7 +106,8 @@
 |------|------|------|
 | 事件系统 | `GameEvents.cs` | 轻量级发布/订阅解耦 |
 | 配置系统 | `GameConfig.cs` | ScriptableObject 集中管理所有数值 |
-| 场景自动搭建 | `Demo1Setup.cs` | 运行时动态创建所有 GameObject、UI、Animator 等 |
+| 场景搭建（编排） | `Demo1Setup.cs`（瘦 Bootstrap） | 持有配置，按序调度 `SystemsBuilder`/`GameplayBuilder`/`HudBuilder`；美术对象（相机/光/后处理 Volume）改为场景「Art」节点预置 |
+| 场景搭建（分类 Builder） | `SystemsBuilder.cs` / `GameplayBuilder.cs` / `HudBuilder.cs` | 分别构建 Systems / Gameplay / UI 类别对象并挂到对应场景节点下 |
 | 编辑器工具 | `Demo1DataCreator.cs` | 菜单命令一键创建测试数据 / 配置场景 |
 | Debug控制台 | `DebugConsole.cs` | Tab键打开，无敌/锁血/一击必杀/爆率拉满/房间跳转/时间缩放等 |
 | 材质辅助工具 | `MaterialHelper.cs` | 自动处理URP/Standard/Legacy Shader兼容 |
@@ -193,7 +191,10 @@ Assets/1Game/
 │   │   ├── MonsterPrefabs.cs
 │   │   ├── ObjectPool.cs
 │   │   ├── PlayerResources.cs
-│   │   ├── PostProcessSetup.cs
+│   │   ├── Demo1Setup.cs        # 瘦 Bootstrap（编排）
+│   │   ├── SystemsBuilder.cs    # Systems 类别构建
+│   │   ├── GameplayBuilder.cs   # Gameplay 类别构建
+│   │   ├── HudBuilder.cs        # UI 类别构建
 │   │   └── TopDownCamera.cs
 │   ├── Editor/          # 编辑器工具
 │   │   ├── ConfigDashboard.cs

@@ -6,10 +6,10 @@ namespace XianTu
     /// <summary>
     /// 关卡地图 / 拓扑抽象（解耦切面 · V0.4.2）。
     ///
-    /// 设计意图：<see cref="GameManager"/> 与各房间只依赖本接口，不再直接触碰
-    /// <c>LevelDesign.LevelDesignDirector</c> / <c>ConfigDatabase</c> / <c>TreeMap</c>。
-    /// 后续接入杀戮尖塔式地图（如 silverua 那套）只需实现一个新的 IMapProvider，
-    /// 并把它赋给 <see cref="MapProviders.Current"/>，游戏流程代码一行不改。
+    /// 设计意图：<see cref="GameManager"/> 与各房间只依赖本接口，不再直接触碰地图实现。
+    /// V0.4.1 起默认实现是 <see cref="SilveruaMapProvider"/>（接入 silverua 杀戮尖塔全图）；
+    /// 替换地图系统只需实现一个新的 IMapProvider 并赋给 <see cref="MapProviders.Current"/>，
+    /// 游戏流程代码一行不改。
     /// </summary>
     public interface IMapProvider
     {
@@ -60,8 +60,8 @@ namespace XianTu
 
     /// <summary>
     /// <see cref="IMapProvider"/> 全局访问点（可替换）。
-    /// 默认使用第 12 章 LevelDesign 系统的 <see cref="LevelDesignMapProvider"/>；
-    /// 替换地图系统时在启动处赋值 <see cref="Current"/> 即可。
+    /// V0.4.1 起默认使用接入 silverua 杀戮尖塔全图的 <see cref="SilveruaMapProvider"/>；
+    /// 替换地图系统时在启动处赋值 <see cref="Current"/> 即可（GameManager.Awake 已显式赋值）。
     /// </summary>
     public static class MapProviders
     {
@@ -69,7 +69,7 @@ namespace XianTu
 
         public static IMapProvider Current
         {
-            get => _current ??= new LevelDesignMapProvider();
+            get => _current ??= new SilveruaMapProvider();
             set => _current = value;
         }
     }

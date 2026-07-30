@@ -100,6 +100,7 @@ namespace XianTu
                 Debug.LogWarning("[ItemPickup.Spawn] data 为 null，跳过生成");
                 return null;
             }
+            if (!GameManager.EnableWorldDrops) return null; // #2：世界掉落总开关
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = $"ItemPickup_{data.itemName}";

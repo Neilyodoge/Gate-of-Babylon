@@ -95,19 +95,9 @@ namespace XianTu
 
         private void BuildNpcAndPortal(Action onPortalEntered)
         {
-            // GDD V.07：山门 + 配置使（模块 Build 配置）+ Build 管理使
-
-            // ===== NPC：配置使（左侧）—— 打开模块装配界面配置初始 Build =====
-            var configNpcGo = new GameObject("ModuleConfigNPC");
-            configNpcGo.transform.SetParent(transform, false);
-            configNpcGo.transform.localPosition = new Vector3(-6f, 0f, 2f);
-            configNpcGo.AddComponent<ModuleConfigNPC>().Build();
-
-            // ===== NPC：Build 管理使（右侧）—— 查看局外 Build 背包 =====
-            var buildNpcGo = new GameObject("BuildManagerNPC");
-            buildNpcGo.transform.SetParent(transform, false);
-            buildNpcGo.transform.localPosition = new Vector3(6f, 0f, 2f);
-            buildNpcGo.AddComponent<BuildManagerNPC>().Build();
+            // #7：BD 系统（配置使 / Build 管理使）已从局外村庄剔除，只保留在大秘境缓冲区
+            //     （RiftBufferRoom 的装备台）。村庄仅留：大秘境入口 + 山门。
+            //     无技能开局 → 技能/模块全靠局内三选一，局外无需 BD 配置入口。
 
             // ===== 大秘境入口（右侧靠墙）—— 需有 Build 才可进入 =====
             var riftGo = new GameObject("RiftEntrance");

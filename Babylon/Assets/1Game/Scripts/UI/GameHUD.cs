@@ -206,10 +206,18 @@ namespace XianTu
 
         private void OnRealmBreakthrough(GameEvents.RealmBreakthrough evt)
         {
+            // realmText = 境名（第一层/第二层/第三层）；levelText = 境内进度（第 X/N 关）。
+            // 三关统一用同一套文案，避免「只提示第几层、不提示第几关」的困惑。
             if (realmText != null)
                 realmText.text = evt.RealmName;
             if (levelText != null)
-                levelText.text = $"第 {evt.NewRealmLevel + 1} 层";
+            {
+                var gm = GameManager.Instance;
+                if (gm != null)
+                    levelText.text = $"第 {gm.CurrentRoomInLevel + 1}/{gm.TotalRoomsInLevel} 关";
+                else
+                    levelText.text = "";
+            }
 
             ShowMessage($"<color=#FFD700>— {evt.RealmName} —</color>");
         }

@@ -46,6 +46,8 @@ namespace XianTu
         private int _currentRoomInLevel; // 当前层内的房间索引
         private GameObject _currentRoomGo; // 当前房间的 GameObject
         private bool _gameOver;
+        // V0.4.1：本局首个房间生成后再注入遗产模块（首房现改为经地图点选进入）。
+        private bool _pendingLegacyInject;
 
         // V0.2.5：单局时长计时
         private float _runStartTime;
@@ -100,6 +102,17 @@ namespace XianTu
 
         public int CurrentLevel => _currentLevel;
         public int CurrentRoomInLevel => _currentRoomInLevel;
+        /// <summary>本局境（realm/层）总数，供地图提供者生成对应数量的分叉图脚手架。</summary>
+        public int RealmCount => _realmNames.Length;
+
+        // ==================== V0.4.1 掉落物总开关 ====================
+        /// <summary>
+        /// #2：世界掉落物总开关。false = 打任何东西都不产生地面掉落
+        /// （功法 / 洞府素材 / 妖丹 / 模块 / 遗产模块 / 宝箱 均不生成）。
+        /// 技能与模块改由战斗/精英/事件后的「三选一」奖励发放；灵力碎片（货币）仍照常直接结算。
+        /// 集中一处控制，所有 *.Spawn 工厂在生成前查询它。
+        /// </summary>
+        public static bool EnableWorldDrops = false;
 
         // ==================== V0.4.1 大秘境集成 ====================
         /// <summary>是否处于大秘境模式（局外挑战，独立于常规 6 层循环）。</summary>
@@ -128,6 +141,9 @@ namespace XianTu
 
             // 确保模块系统就绪（EquipChain 需要 ModuleSlotManager）
             InitModuleSystem();
+
+            // #8：大秘境（局外挑战）不显示常规秘境小地图。
+            if (_minimap != null) _minimap.SetVisible(false);
 
             RiftManager.Instance.EnterBuffer();
             Debug.Log("<color=#ff66cc>═══ 进入大秘境 · 缓冲区 ═══</color>");
@@ -178,6 +194,10 @@ namespace XianTu
                 return;
             }
             Instance = this;
+
+            // V0.4.1：地图系统换成 silverua 杀戮尖塔全图（节点驱动进度）。
+            // 通过解耦接缝替换 IMapProvider，游戏主循环无需改动。
+            MapProviders.Current = new SilveruaMapProvider();
 
             // v3：跨 session 持久化 TreeMapFlow 开关。
             // 首次运行（无键）→ 强制开启（让玩家立刻看到 3 选 1 卡片）；
@@ -241,7 +261,35 @@ namespace XianTu
 
             TeleportPlayer(spawnPos);
 
+            // #1：局外「挂空」——完全去掉 Q/E/R 技能与增强链（仅保留普攻）。
+            ClearPlayerLoadout();
+            // #8：局外不显示地图（小地图仅在秘境内可见）。
+            if (_minimap != null) _minimap.SetVisible(false);
+
             Debug.Log("<color=magenta>═══ 冒险者基地 · 从秘境之门出发 ═══</color>");
+        }
+
+        /// <summary>
+        /// #1 局外「挂空」：清空玩家 Q/E/R 技能槽 + 3 条增强链，并刷新技能栏 UI。
+        /// 普攻（鼠标左键三段连招）独立于技能槽，不受影响。
+        /// </summary>
+        private void ClearPlayerLoadout()
+        {
+            var player = PlayerController.Instance;
+            if (player == null) return;
+
+            var combat = player.GetComponent<PlayerCombat>();
+            if (combat != null)
+            {
+                combat.UnequipSkill(0);
+                combat.UnequipSkill(1);
+                combat.UnequipSkill(2);
+            }
+
+            var slots = player.GetComponent<ModuleSlotManager>();
+            if (slots != null) slots.ClearAll();
+
+            if (SkillBarUI.Instance != null) SkillBarUI.Instance.RefreshSkillSlots();
         }
 
         /// <summary>开始新的一局</summary>
@@ -251,6 +299,7 @@ namespace XianTu
             _currentRoomInLevel = 0;
             _flatRoomIndex = 0;
             _gameOver = false;
+            _pendingLegacyInject = true;
             _runStartTime = Time.time;
 
             // v0.5.7：清零本局累计伤害（轮回一击按此结算）
@@ -278,9 +327,12 @@ namespace XianTu
             // 从地图拓扑生成房间布局（兼容小地图 + 现有 SpawnCurrentRoom）
             GenerateLevelLayoutFromProvider();
 
-            // 初始化小地图
+            // 初始化小地图（#8：进入秘境才显示）
             if (_minimap != null)
+            {
                 _minimap.Initialize(_levelLayout);
+                _minimap.SetVisible(true);
+            }
 
             // V0.4：先进入准备房间（技能三选一），完成后再进入第一个战斗房间
             SpawnPrepRoom();
@@ -305,9 +357,10 @@ namespace XianTu
 
         private void OnPrepRoomComplete()
         {
-            Debug.Log("<color=#66ff99>准备完成 · 进入第一关</color>");
-            SpawnCurrentRoom();
-            TryInjectLegacyModule();
+            Debug.Log("<color=#66ff99>准备完成 · 择路进入第一处秘境</color>");
+            // V0.4.1：首房也经地图点选进入（silverua 全图首层就是起点选择）。
+            // 遗产模块在首房生成后由 SpawnCurrentRoom 注入（_pendingLegacyInject）。
+            EnterNextRoomWithChoice();
         }
 
         /// <summary>
@@ -456,10 +509,6 @@ namespace XianTu
             // 获取当前层当前房间的类型
             var roomType = _levelRooms[_currentLevel][_currentRoomInLevel];
 
-            // 更新后处理氛围
-            if (PostProcessSetup.Instance != null)
-                PostProcessSetup.Instance.UpdateAtmosphere(_currentLevel, _realmNames.Length);
-
             // 更新小地图
             if (_minimap != null)
                 _minimap.UpdateCurrentRoom(_flatRoomIndex);
@@ -478,6 +527,13 @@ namespace XianTu
 
             // 将玩家传送到房间中心
             TeleportPlayer(spawnPos);
+
+            // V0.4.1：本局首个房间生成完毕 → 注入遗产模块（前世记忆）。
+            if (_pendingLegacyInject)
+            {
+                _pendingLegacyInject = false;
+                TryInjectLegacyModule();
+            }
         }
 
         /// <summary>V0.4.2：打包当局参数供 <see cref="IRoomFactory"/> 生成房间。</summary>
@@ -692,7 +748,9 @@ namespace XianTu
                 return;
             }
 
-            // 非最终层 → 直接传送到下一层
+            // 非最终层 → 传送到下一层
+            // #4：换境后的第一间也必须经 STS 全图择路进入（与第一层完全一致），
+            //     否则会表现为「另一种关卡形式」（无地图、直接刷房）。
             if (LevelTransition.Instance != null)
             {
                 Vector3 portalPos = roomCenter + new Vector3(0f, 0, roomHalfDepth * 0.5f);
@@ -703,7 +761,7 @@ namespace XianTu
                     // V0.4.5：换境重生成该境分叉图并复位起点，保证新境每间都能弹全图。
                     MapProviders.Current.OnEnterRealm(_currentLevel);
                     Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
-                    SpawnCurrentRoom();
+                    EnterNextRoomWithChoice();
                 });
             }
             else
@@ -711,7 +769,7 @@ namespace XianTu
                 _currentLevel++;
                 _currentRoomInLevel = 0;
                 MapProviders.Current.OnEnterRealm(_currentLevel);
-                SpawnCurrentRoom();
+                EnterNextRoomWithChoice();
             }
         }
 
@@ -898,10 +956,6 @@ namespace XianTu
                 Destroy(e);
 
             Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
-
-            // 更新后处理氛围
-            if (PostProcessSetup.Instance != null)
-                PostProcessSetup.Instance.UpdateAtmosphere(_currentLevel, _realmNames.Length);
 
             // V0.4.2：房间生成委托给 IRoomFactory
             _currentRoomGo = _roomFactory.Spawn(roomType, BuildRoomContext(spawnPos));

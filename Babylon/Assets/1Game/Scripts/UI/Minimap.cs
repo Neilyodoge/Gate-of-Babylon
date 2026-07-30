@@ -19,6 +19,13 @@ namespace XianTu
 
         // V0.4.2：RoomType 已提升为顶层领域枚举 XianTu.RoomType（见 Core/Level/RoomType.cs）。
 
+        /// <summary>显隐整个小地图（局外村庄 / 大秘境时隐藏；秘境内显示）。</summary>
+        public void SetVisible(bool visible)
+        {
+            if (gameObject.activeSelf != visible)
+                gameObject.SetActive(visible);
+        }
+
         /// <summary>初始化小地图布局</summary>
         public void Initialize(List<RoomType> roomLayout)
         {

@@ -280,6 +280,7 @@ namespace XianTu
         public static SkillPickup Spawn(SkillData data, Vector3 position)
         {
             if (data == null) return null;
+            if (!GameManager.EnableWorldDrops) return null; // #2：世界掉落总开关
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = $"SkillPickup_{data.skillName}";

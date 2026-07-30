@@ -60,8 +60,16 @@ namespace XianTu
                 RiftEquipUI.Show(OnBuildEquipped);
                 return;
             }
-            StartChallenge();
+            // #6：正式进入前弹出层数选择（最高 100 层），选定后开始挑战。
+            RiftTierSelectUI.Show(RiftTier, tier =>
+            {
+                RiftTier = Mathf.Clamp(tier, RiftTierSelectUI.MinTier, RiftTierSelectUI.MaxTier);
+                StartChallenge();
+            });
         }
+
+        /// <summary>外部设置大秘境层数（供层数选择 UI 使用）。</summary>
+        public void SetTier(int tier) => RiftTier = Mathf.Clamp(tier, RiftTierSelectUI.MinTier, RiftTierSelectUI.MaxTier);
 
         private void OnBuildEquipped(BuildSnapshot snap)
         {

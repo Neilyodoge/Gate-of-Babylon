@@ -20,6 +20,7 @@ namespace XianTu
         public static ModulePickup Spawn(ModuleDef module, Vector3 position)
         {
             if (module == null) return null;
+            if (!GameManager.EnableWorldDrops) return null; // #2：世界掉落总开关
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             go.name = $"[ModulePickup] {module.displayName}";

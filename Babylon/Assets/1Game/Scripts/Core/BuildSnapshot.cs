@@ -103,6 +103,11 @@ namespace XianTu
                 combat.EquipSkillToSlot(FindSkill(skillPool, skillQ), 0);
                 combat.EquipSkillToSlot(FindSkill(skillPool, skillE), 1);
                 combat.EquipSkillToSlot(FindSkill(skillPool, skillR), 2);
+
+                // #5：装备 Build 后广播技能变更 → 下方技能栏(SkillBarUI)/HUD 同步刷新，
+                //     让玩家能直观确认「已替换成功」。EquipSkillToSlot 自身不发此事件。
+                for (int i = 0; i < 3; i++)
+                    GameEvents.Publish(new GameEvents.SkillEquipped { Skill = combat.GetSkillInSlot(i), SlotIndex = i });
             }
 
             // 增强链
@@ -117,6 +122,9 @@ namespace XianTu
                 if (c1 != null && c1.IsValid) slots.EquipChain(1, c1);
                 if (c2 != null && c2.IsValid) slots.EquipChain(2, c2);
             }
+
+            // #5：技能栏兜底刷新（即使无 SkillBarUI 事件订阅者也能对上）。
+            if (SkillBarUI.Instance != null) SkillBarUI.Instance.RefreshSkillSlots();
 
             Debug.Log($"<color=#00ffcc>[BuildSnapshot] 已装备 Build「{buildName}」到玩家</color>");
         }

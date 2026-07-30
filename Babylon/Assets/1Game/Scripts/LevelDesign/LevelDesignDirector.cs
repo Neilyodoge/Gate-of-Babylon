@@ -6,14 +6,13 @@ namespace XianTu.LevelDesign
     /// <summary>
     /// GDD §12 关卡设计系统总控（Bridge / Facade）。
     ///
-    /// 设计意图：把第 12 章的所有子系统（ConfigDatabase / BossFlagSet / TreeMap /
-    /// StoryEventService / BossPhaseSelector）封装到一个稳定 API 后面，
-    /// 让现有 GameManager / VillageHub 只需调用 Director 即可，
-    /// 后续替换 / 扩展子系统不破坏接入点。
+    /// 设计意图：把第 12 章的子系统（ConfigDatabase / BossFlagSet /
+    /// StoryEventService / BossPhaseSelector）封装到一个稳定 API 后面。
     ///
-    /// 当前状态：第 12 章功能可独立运行（不破坏现有 v0.5 线性流程），
-    /// 但**实际接入到 GameManager 主循环**需要后续把 GameManager 的房间推进改造为读 TreeMap。
-    /// 这一步留作 Demo2 实施（GDD §12.6 任务 #6 整合）。
+    /// V0.4.1：地图已改用 silverua 原生全图（<see cref="SilveruaMapProvider"/> + <see cref="StsMapScreen"/>），
+    /// 旧 <c>TreeMap</c>/<c>TreeMapGenerator</c>/<c>TreeMapUI</c> 已删除。Director 此处只保留
+    /// 「整局/区域的 Flag & 玩家状态重置」与「Boss 形态解析」，不再持有地图拓扑。
+    /// 房间事件触发改由 <see cref="LevelDesignBootstrap"/> 的线性调度表驱动。
     /// </summary>
     public class LevelDesignDirector : MonoBehaviour
     {
@@ -32,8 +31,6 @@ namespace XianTu.LevelDesign
             }
         }
 
-        public TreeMap CurrentMap { get; private set; }
-
         // ------------------------------------------------------------
         // 初始化
         // ------------------------------------------------------------
@@ -43,7 +40,7 @@ namespace XianTu.LevelDesign
             var _ = ConfigDatabase.Instance; // 触发懒加载
         }
 
-        /// <summary>整局开始：清空 Flag + 重置玩家状态 + 摇命格 + 生成 Act 1 树状图</summary>
+        /// <summary>整局开始：清空 Flag + 重置玩家状态 + 摇命格 + 清 Act1 Flag。</summary>
         public void StartNewRun()
         {
             EnsureConfigLoaded();
@@ -54,61 +51,16 @@ namespace XianTu.LevelDesign
             Debug.Log("[LevelDesign] 新局已开始");
         }
 
-        /// <summary>进入指定区域：生成树状图、清空区域 Flag</summary>
+        /// <summary>进入指定区域：清空区域 Flag（地图拓扑由 SilveruaMapProvider 负责）。</summary>
         public void BeginAct(int actID)
         {
             BossFlagSet.Instance.ClearAct();
             StoryEventService.Instance.ResetForNewAct();
-            CurrentMap = TreeMapGenerator.Generate(actID);
         }
 
         // ------------------------------------------------------------
-        // 树状图导航
+        // 事件触发
         // ------------------------------------------------------------
-
-        /// <summary>
-        /// 展示树状图。
-        /// readOnly = false（默认）：选择模式，玩家选完节点后触发 onChosen 回调并推进 CurrentNode。
-        /// readOnly = true：查看模式，候选节点不可点击，仅可按 ESC 关闭。
-        /// </summary>
-        public void ShowMap(Action<TreeNode> onChosen = null, bool readOnly = false)
-        {
-            if (CurrentMap == null)
-            {
-                Debug.LogWarning("[LevelDesign] 当前没有树状图，请先调用 BeginAct()");
-                onChosen?.Invoke(null);
-                return;
-            }
-            TreeMapUI.Show(CurrentMap, onChosen, readOnly);
-        }
-
-        public TreeNode CurrentMapNode => CurrentMap?.CurrentNode;
-
-        // ------------------------------------------------------------
-        // 事件触发（房间清场后调用）
-        // ------------------------------------------------------------
-
-        /// <summary>
-        /// 房间清场时调用：根据当前节点类型 + 房间配置触发事件。
-        /// 特殊事件房 → 100% 触发；战斗 / 精英房 → 按 EventTriggerRate 概率。
-        /// </summary>
-        public void TryTriggerRoomEvent(Action onCompleted = null)
-        {
-            var node = CurrentMapNode;
-            if (node == null) { onCompleted?.Invoke(); return; }
-
-            var db = ConfigDatabase.Instance;
-            if (!db.RoomSockets.TryGetValue(node.RoomConfigID, out var roomCfg))
-            {
-                onCompleted?.Invoke();
-                return;
-            }
-
-            if (roomCfg.EventID <= 0) { onCompleted?.Invoke(); return; }
-
-            int rate = node.RoomType == LevelRoomType.Event ? 100 : roomCfg.EventTriggerRate;
-            StoryEventService.Instance.RollAndTrigger(roomCfg.EventID, rate, _ => onCompleted?.Invoke());
-        }
 
         public void ForceTriggerEvent(int eventID, Action onCompleted = null)
         {
@@ -163,17 +115,5 @@ namespace XianTu.LevelDesign
             Debug.Log($"[LevelDesign] Boss 应用形态：{phase.PhaseName} | HP→{hp:F0} ATK→{atk:F1} SPD→{spd:F2}");
             return phase;
         }
-
-        // ------------------------------------------------------------
-        // 房间清算（节点标记 + 进入下一节点）
-        // ------------------------------------------------------------
-
-        public void MarkCurrentNodeCleared()
-        {
-            if (CurrentMapNode == null) return;
-            CurrentMapNode.Cleared = true;
-        }
-
-        public bool IsCurrentNodeBoss => CurrentMapNode != null && CurrentMapNode.RoomType == LevelRoomType.Boss;
     }
 }
