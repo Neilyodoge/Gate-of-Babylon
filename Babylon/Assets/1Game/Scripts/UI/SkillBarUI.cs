@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using TMPro;
 
 namespace XianTu
 {
@@ -45,16 +46,16 @@ namespace XianTu
         // 拖拽幽灵
         private GameObject _dragGhost;
         private Image _dragGhostImage;
-        private Text _dragGhostLabel;
+        private TextMeshProUGUI _dragGhostLabel;
         private RectTransform _dragGhostRT;
-        private Text _dragGhostKeyLabel;
+        private TextMeshProUGUI _dragGhostKeyLabel;
 
         // ==================== 悬停提示 ====================
 
         private GameObject _tooltipPanel;
-        private Text _tooltipTitle;
-        private Text _tooltipDesc;
-        private Text _tooltipEffect;
+        private TextMeshProUGUI _tooltipTitle;
+        private TextMeshProUGUI _tooltipDesc;
+        private TextMeshProUGUI _tooltipEffect;
         private RectTransform _tooltipRT;
 
         private int _hoverSkillSlot = -1;
@@ -159,7 +160,7 @@ namespace XianTu
         {
             if (_dragGhost == null) return;
 
-            var iconText = _dragGhost.transform.Find("IconText")?.GetComponent<Text>();
+            var iconText = _dragGhost.transform.Find("IconText")?.GetComponent<TextMeshProUGUI>();
             var glow = _dragGhost.transform.Find("Glow")?.GetComponent<Image>();
 
             var combat = PlayerController.Instance?.GetComponent<PlayerCombat>();
@@ -269,10 +270,10 @@ namespace XianTu
                 var cdTextTf = skillSlotRTs[i].Find($"SkillCDText_{i}");
                 var borderImg = borderTf?.GetComponent<Image>();
                 var iconImg = iconTf?.GetComponent<Image>();
-                var cdText = cdTextTf?.GetComponent<Text>();
+                var cdText = cdTextTf?.GetComponent<TextMeshProUGUI>();
 
                 var nameLabelTf = skillSlotRTs[i].Find("SkillNameLabel");
-                Text nameLabel = null;
+                TextMeshProUGUI nameLabel = null;
                 if (nameLabelTf == null)
                 {
                     var nameLabelGo = new GameObject("SkillNameLabel");
@@ -283,20 +284,20 @@ namespace XianTu
                     nlRT.pivot = new Vector2(0.5f, 1);
                     nlRT.anchoredPosition = new Vector2(0, -2);
                     nlRT.sizeDelta = new Vector2(100, 16);
-                    nameLabel = nameLabelGo.AddComponent<Text>();
+                    nameLabel = nameLabelGo.AddComponent<TextMeshProUGUI>();
                     nameLabel.fontSize = 11;
-                    nameLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                    nameLabel.alignment = TextAnchor.MiddleCenter;
-                    nameLabel.fontStyle = FontStyle.Bold;
+                    if (UGuiKit.CjkFont != null) nameLabel.font = UGuiKit.CjkFont;
+                    nameLabel.alignment = TextAlignmentOptions.Center;
+                    nameLabel.fontStyle = FontStyles.Bold;
                     nameLabel.raycastTarget = false;
-                    nameLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
-                    var nlOutline = nameLabelGo.AddComponent<Outline>();
-                    nlOutline.effectColor = new Color(0, 0, 0, 0.9f);
-                    nlOutline.effectDistance = new Vector2(1, -1);
+                    nameLabel.enableWordWrapping = false;
+                    nameLabel.overflowMode = TextOverflowModes.Overflow;
+                    nameLabel.outlineColor = new Color(0, 0, 0, 0.9f);
+                    nameLabel.outlineWidth = 0.2f;
                 }
                 else
                 {
-                    nameLabel = nameLabelTf.GetComponent<Text>();
+                    nameLabel = nameLabelTf.GetComponent<TextMeshProUGUI>();
                 }
 
                 if (skill != null)
@@ -485,17 +486,16 @@ namespace XianTu
             titleRT.anchorMax = new Vector2(1, 1);
             titleRT.offsetMin = new Vector2(8, 0);
             titleRT.offsetMax = new Vector2(-8, -4);
-            _tooltipTitle = titleGo.AddComponent<Text>();
+            _tooltipTitle = titleGo.AddComponent<TextMeshProUGUI>();
             _tooltipTitle.fontSize = 18;
-            _tooltipTitle.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _tooltipTitle.alignment = TextAnchor.MiddleCenter;
-            _tooltipTitle.fontStyle = FontStyle.Bold;
+            if (UGuiKit.CjkFont != null) _tooltipTitle.font = UGuiKit.CjkFont;
+            _tooltipTitle.alignment = TextAlignmentOptions.Center;
+            _tooltipTitle.fontStyle = FontStyles.Bold;
             _tooltipTitle.raycastTarget = false;
-            _tooltipTitle.supportRichText = true;
-            _tooltipTitle.horizontalOverflow = HorizontalWrapMode.Overflow;
-            var titleOutline = titleGo.AddComponent<Outline>();
-            titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
-            titleOutline.effectDistance = new Vector2(1, -1);
+            _tooltipTitle.richText = true;
+            _tooltipTitle.enableWordWrapping = false;
+            _tooltipTitle.outlineColor = new Color(0, 0, 0, 0.8f);
+            _tooltipTitle.outlineWidth = 0.2f;
 
             var descGo = new GameObject("Desc");
             descGo.transform.SetParent(_tooltipPanel.transform, false);
@@ -504,14 +504,13 @@ namespace XianTu
             descRT.anchorMax = new Vector2(1, 0.6f);
             descRT.offsetMin = new Vector2(8, 0);
             descRT.offsetMax = new Vector2(-8, 0);
-            _tooltipDesc = descGo.AddComponent<Text>();
+            _tooltipDesc = descGo.AddComponent<TextMeshProUGUI>();
             _tooltipDesc.fontSize = 13;
-            _tooltipDesc.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _tooltipDesc.alignment = TextAnchor.MiddleCenter;
+            if (UGuiKit.CjkFont != null) _tooltipDesc.font = UGuiKit.CjkFont;
+            _tooltipDesc.alignment = TextAlignmentOptions.Center;
             _tooltipDesc.color = new Color(0.8f, 0.8f, 0.8f, 0.9f);
             _tooltipDesc.raycastTarget = false;
-            _tooltipDesc.supportRichText = true;
-            _tooltipDesc.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _tooltipDesc.richText = true;
 
             var effectGo = new GameObject("Effect");
             effectGo.transform.SetParent(_tooltipPanel.transform, false);
@@ -520,14 +519,13 @@ namespace XianTu
             effectRT.anchorMax = new Vector2(1, 0.25f);
             effectRT.offsetMin = new Vector2(8, 4);
             effectRT.offsetMax = new Vector2(-8, 0);
-            _tooltipEffect = effectGo.AddComponent<Text>();
+            _tooltipEffect = effectGo.AddComponent<TextMeshProUGUI>();
             _tooltipEffect.fontSize = 12;
-            _tooltipEffect.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _tooltipEffect.alignment = TextAnchor.MiddleCenter;
+            if (UGuiKit.CjkFont != null) _tooltipEffect.font = UGuiKit.CjkFont;
+            _tooltipEffect.alignment = TextAlignmentOptions.Center;
             _tooltipEffect.color = new Color(0.6f, 0.9f, 0.6f, 0.8f);
             _tooltipEffect.raycastTarget = false;
-            _tooltipEffect.supportRichText = true;
-            _tooltipEffect.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _tooltipEffect.richText = true;
 
             _tooltipPanel.SetActive(false);
         }
@@ -567,16 +565,15 @@ namespace XianTu
             keyRT.pivot = new Vector2(0, 1);
             keyRT.anchoredPosition = new Vector2(2, -2);
             keyRT.sizeDelta = new Vector2(20, 16);
-            _dragGhostKeyLabel = keyGo.AddComponent<Text>();
+            _dragGhostKeyLabel = keyGo.AddComponent<TextMeshProUGUI>();
             _dragGhostKeyLabel.fontSize = 11;
-            _dragGhostKeyLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _dragGhostKeyLabel.alignment = TextAnchor.UpperLeft;
-            _dragGhostKeyLabel.fontStyle = FontStyle.Bold;
+            if (UGuiKit.CjkFont != null) _dragGhostKeyLabel.font = UGuiKit.CjkFont;
+            _dragGhostKeyLabel.alignment = TextAlignmentOptions.TopLeft;
+            _dragGhostKeyLabel.fontStyle = FontStyles.Bold;
             _dragGhostKeyLabel.color = new Color(1, 1, 1, 0.7f);
             _dragGhostKeyLabel.raycastTarget = false;
-            var keyOutline = keyGo.AddComponent<Outline>();
-            keyOutline.effectColor = new Color(0, 0, 0, 0.9f);
-            keyOutline.effectDistance = new Vector2(1, -1);
+            _dragGhostKeyLabel.outlineColor = new Color(0, 0, 0, 0.9f);
+            _dragGhostKeyLabel.outlineWidth = 0.2f;
 
             var iconTextGo = new GameObject("IconText");
             iconTextGo.transform.SetParent(_dragGhost.transform, false);
@@ -585,16 +582,15 @@ namespace XianTu
             iconTextRT.anchorMax = Vector2.one;
             iconTextRT.offsetMin = new Vector2(2, 2);
             iconTextRT.offsetMax = new Vector2(-2, -14);
-            var iconText = iconTextGo.AddComponent<Text>();
+            var iconText = iconTextGo.AddComponent<TextMeshProUGUI>();
             iconText.fontSize = 22;
-            iconText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            iconText.alignment = TextAnchor.MiddleCenter;
-            iconText.fontStyle = FontStyle.Bold;
+            if (UGuiKit.CjkFont != null) iconText.font = UGuiKit.CjkFont;
+            iconText.alignment = TextAlignmentOptions.Center;
+            iconText.fontStyle = FontStyles.Bold;
             iconText.raycastTarget = false;
             iconText.color = Color.white;
-            var iconOutline = iconTextGo.AddComponent<Outline>();
-            iconOutline.effectColor = new Color(0, 0, 0, 0.8f);
-            iconOutline.effectDistance = new Vector2(1, -1);
+            iconText.outlineColor = new Color(0, 0, 0, 0.8f);
+            iconText.outlineWidth = 0.2f;
 
             var labelGo = new GameObject("Label");
             labelGo.transform.SetParent(_dragGhost.transform, false);
@@ -604,14 +600,13 @@ namespace XianTu
             labelRT.pivot = new Vector2(0.5f, 1);
             labelRT.anchoredPosition = new Vector2(0, -2);
             labelRT.sizeDelta = new Vector2(120, 18);
-            _dragGhostLabel = labelGo.AddComponent<Text>();
+            _dragGhostLabel = labelGo.AddComponent<TextMeshProUGUI>();
             _dragGhostLabel.fontSize = 12;
-            _dragGhostLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _dragGhostLabel.alignment = TextAnchor.MiddleCenter;
+            if (UGuiKit.CjkFont != null) _dragGhostLabel.font = UGuiKit.CjkFont;
+            _dragGhostLabel.alignment = TextAlignmentOptions.Center;
             _dragGhostLabel.raycastTarget = false;
-            var labelOutline = labelGo.AddComponent<Outline>();
-            labelOutline.effectColor = new Color(0, 0, 0, 0.9f);
-            labelOutline.effectDistance = new Vector2(1, -1);
+            _dragGhostLabel.outlineColor = new Color(0, 0, 0, 0.9f);
+            _dragGhostLabel.outlineWidth = 0.2f;
 
             _dragGhost.SetActive(false);
         }

@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using TMPro;
 
 namespace XianTu
 {
@@ -23,7 +26,6 @@ namespace XianTu
         private bool _panelOpen;
         public override bool IsPanelOpen => _panelOpen;
 
-        private Vector2 _scroll;
         private int _selectedSkillIdx = -1;
         private const string PageMaterial = "古籍残页";
         private const string ShardMaterial = "道韵碎片"; // v0.5 Week 6 · 高阶功法 + 1 颗
@@ -86,62 +88,94 @@ namespace XianTu
                 orbitSpeed: 35f, verticalBob: 0.35f);
         }
 
-        protected override void OpenPanel() => _panelOpen = true;
+        protected override void OpenPanel()
+        {
+            _panelOpen = true;
+            EnsurePanel();
+            RefreshPanel();
+            if (_ui != null) _ui.SetActive(true);
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+        }
+
         public override void ClosePanel()
         {
             _panelOpen = false;
             _selectedSkillIdx = -1;
+            if (_ui != null) _ui.SetActive(false);
         }
 
-        // ============================== UI ==============================
+        // ============================== UI（uGUI+TMP） ==============================
 
-        private void OnGUI()
+        private GameObject _ui;
+        private TextMeshProUGUI _infoLabel;
+        private RectTransform _listContent;   // scroll content
+        private RectTransform _detailPanel;
+        private RectTransform _startContent;
+
+        private void EnsurePanel()
         {
-            if (!_panelOpen) return;
+            if (_ui != null) return;
 
-            const float W = 720f, H = 500f;
-            var rect = new Rect((Screen.width - W) * 0.5f, (Screen.height - H) * 0.5f, W, H);
-            GUI.Box(rect, "");
+            var canvas = UGuiKit.CreateOverlayCanvas("ScripturePavilionUI", 118);
+            _ui = canvas.gameObject;
+            UGuiKit.CreateScrim(_ui.transform, new Color(0.05f, 0.04f, 0.02f, 0.9f));
 
-            GUILayout.BeginArea(rect);
-            GUILayout.Space(12);
+            var panel = UGuiKit.CreatePanel(_ui.transform, "Panel", new Vector2(780f, 560f), UGuiKit.Panel);
+            UGuiKit.AddVLayout(panel, 8f, new RectOffset(22, 22, 16, 16), TextAnchor.UpperCenter);
 
-            var titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 20, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold
-            };
-            titleStyle.normal.textColor = ModuleColor;
-            GUILayout.Label("📜 藏经阁 · 残页拼合，功法永传", titleStyle);
+            var title = UGuiKit.CreateText(panel, "📜 藏经阁 · 残页拼合，功法永传", 20, ModuleColor, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 30f);
+            _infoLabel = UGuiKit.CreateText(panel, "", 12, new Color(0.75f, 0.78f, 0.85f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(_infoLabel, 22f);
 
+            // 主体：左目录 + 右详情
+            var body = UGuiKit.CreateRow(panel, 10f, 280f);
+            var bhl = body.gameObject.GetComponent<HorizontalLayoutGroup>();
+            bhl.childControlWidth = true; bhl.childForceExpandWidth = false;
+            bhl.childControlHeight = true; bhl.childForceExpandHeight = true;
+            var ble = UGuiKit.SetHeight(body, 300f); ble.flexibleHeight = 1f;
+
+            _listContent = UGuiKit.CreateScroll(body, "List", out _, 4f, new RectOffset(4, 4, 4, 4));
+            var listRoot = (RectTransform)_listContent.parent;
+            listRoot.GetComponent<LayoutElement>().preferredWidth = 300f; listRoot.GetComponent<LayoutElement>().minWidth = 300f;
+
+            var detailGo = new GameObject("Detail", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            _detailPanel = (RectTransform)detailGo.transform;
+            _detailPanel.SetParent(body, false);
+            detailGo.GetComponent<Image>().color = new Color(0.08f, 0.09f, 0.13f, 1f);
+            detailGo.GetComponent<LayoutElement>().flexibleWidth = 1f; detailGo.GetComponent<LayoutElement>().preferredWidth = 440f;
+            var dv = detailGo.AddComponent<VerticalLayoutGroup>();
+            dv.padding = new RectOffset(14, 14, 12, 12); dv.spacing = 6f;
+            dv.childControlWidth = true; dv.childForceExpandWidth = true; dv.childControlHeight = true; dv.childForceExpandHeight = false;
+
+            // 起手携带区
+            var startHeader = UGuiKit.CreateText(panel, "下次入秘境携带（写入 Q 槽）", 12, UGuiKit.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(startHeader, 20f);
+            _startContent = UGuiKit.CreateRow(panel, 8f, 34f);
+            _startContent.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
+
+            var closeBtn = UGuiKit.CreateButton(panel, "关闭 [ESC]", ClosePanel, new Color(0.25f, 0.25f, 0.3f, 0.9f), 15, new Vector2(180f, 32f));
+            UGuiKit.SetHeight(closeBtn.GetComponent<RectTransform>(), 32f);
+
+            _ui.SetActive(false);
+        }
+
+        private void RefreshPanel()
+        {
+            if (_ui == null) return;
             int pages = SaveSystem.Instance.GetCaveItemCount(PageMaterial);
             int shards = SaveSystem.Instance.GetCaveItemCount(ShardMaterial);
-            GUILayout.Label($"古籍残页 ×{pages}  ·  道韵碎片 ×{shards}  （高阶功法需额外消耗道韵碎片）",
-                new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12 });
-            GUILayout.Space(8);
+            _infoLabel.text = $"古籍残页 ×{pages}  ·  道韵碎片 ×{shards}  （高阶功法需额外消耗道韵碎片）";
 
-            GUILayout.BeginHorizontal();
-            DrawSkillList();
-            GUILayout.Space(8);
-            DrawSkillDetail();
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(8);
-            DrawStartSkillSection();
-
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("关闭 [ESC]", GUILayout.Height(28))) ClosePanel();
-            GUILayout.EndArea();
-
-            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
-                ClosePanel();
+            BuildSkillList();
+            BuildSkillDetail();
+            BuildStartSkillSection();
         }
 
-        private void DrawSkillList()
+        private void BuildSkillList()
         {
-            GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(290));
-            GUILayout.Label("功法目录", new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
-            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(220));
-
+            for (int i = _listContent.childCount - 1; i >= 0; i--) Destroy(_listContent.GetChild(i).gameObject);
             var unlocked = new HashSet<string>(SaveSystem.Instance.Data.unlockedSkillIds);
             var skills = ScriptureLibrary.AllSkills;
             for (int i = 0; i < skills.Count; i++)
@@ -149,33 +183,35 @@ namespace XianTu
                 var s = skills[i];
                 bool isUnlocked = unlocked.Contains(s.skillName);
                 bool isSelected = i == _selectedSkillIdx;
-
-                var style = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, richText = true };
                 string prefix = isUnlocked ? "<color=#88ff88>✓</color> " : "  ";
                 string colorHex = "#" + ColorUtility.ToHtmlStringRGB(s.displayColor);
                 string label = $"{prefix}<color={colorHex}>{s.skillName}</color>";
 
-                Color prev = GUI.backgroundColor;
-                if (isSelected) GUI.backgroundColor = ModuleColor;
-                if (GUILayout.Button(label, style, GUILayout.Height(28)))
-                    _selectedSkillIdx = i;
-                GUI.backgroundColor = prev;
+                int captured = i;
+                var btn = UGuiKit.CreateButton(_listContent, label, () => { _selectedSkillIdx = captured; BuildSkillDetail(); RefreshListHighlight(); },
+                    out var lbl, isSelected ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal, 14, new Vector2(280f, 30f));
+                lbl.alignment = TextAlignmentOptions.Left;
+                UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 30f);
             }
-            GUILayout.EndScrollView();
-            GUILayout.EndVertical();
         }
 
-        private void DrawSkillDetail()
+        private void RefreshListHighlight()
         {
-            GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(390), GUILayout.Height(240));
+            for (int i = 0; i < _listContent.childCount; i++)
+            {
+                var img = _listContent.GetChild(i).GetComponent<Image>();
+                if (img != null) img.color = (i == _selectedSkillIdx) ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal;
+            }
+        }
+
+        private void BuildSkillDetail()
+        {
+            for (int i = _detailPanel.childCount - 1; i >= 0; i--) Destroy(_detailPanel.GetChild(i).gameObject);
             var skills = ScriptureLibrary.AllSkills;
             if (_selectedSkillIdx < 0 || _selectedSkillIdx >= skills.Count)
             {
-                GUILayout.FlexibleSpace();
-                GUILayout.Label("← 从左侧选一卷功法",
-                    new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-                GUILayout.FlexibleSpace();
-                GUILayout.EndVertical();
+                var hint = UGuiKit.CreateText(_detailPanel, "← 从左侧选一卷功法", 14, new Color(0.6f, 0.62f, 0.68f), TextAlignmentOptions.Center);
+                var hle = hint.gameObject.AddComponent<LayoutElement>(); hle.flexibleHeight = 1f;
                 return;
             }
 
@@ -185,23 +221,19 @@ namespace XianTu
             int pages = SaveSystem.Instance.GetCaveItemCount(PageMaterial);
             int shards = SaveSystem.Instance.GetCaveItemCount(ShardMaterial);
 
-            var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, richText = true };
-            nameStyle.normal.textColor = entry.displayColor;
             string tier = entry.requiresShard ? " <color=#c080ff>· 高阶</color>" : "";
-            GUILayout.Label(entry.skillName + tier, nameStyle);
-            GUILayout.Label($"<i>{entry.skillType}</i>",
-                new GUIStyle(GUI.skin.label) { richText = true, fontSize = 11 });
-            GUILayout.Space(4);
-            GUILayout.Label(entry.description,
-                new GUIStyle(GUI.skin.label) { wordWrap = true, richText = true });
-
-            GUILayout.FlexibleSpace();
+            var name = UGuiKit.CreateText(_detailPanel, entry.skillName + tier, 16, entry.displayColor, TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(name, 24f);
+            var type = UGuiKit.CreateText(_detailPanel, $"<i>{entry.skillType}</i>", 11, new Color(0.65f, 0.68f, 0.75f), TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(type, 16f);
+            var desc = UGuiKit.CreateText(_detailPanel, entry.description, 13, new Color(0.78f, 0.8f, 0.86f), TextAlignmentOptions.TopLeft);
+            desc.enableWordWrapping = true;
+            var dle = desc.gameObject.AddComponent<LayoutElement>(); dle.flexibleHeight = 1f; dle.minHeight = 80f;
 
             if (unlocked)
             {
-                var okStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
-                okStyle.normal.textColor = new Color(0.6f, 0.95f, 0.6f);
-                GUILayout.Label("✓ 已拼合 · 可在下方设为起手携带", okStyle);
+                var ok = UGuiKit.CreateText(_detailPanel, "✓ 已拼合 · 可在下方设为起手携带", 14, new Color(0.6f, 0.95f, 0.6f), TextAlignmentOptions.Center);
+                UGuiKit.SetHeight(ok, 34f);
             }
             else
             {
@@ -212,70 +244,54 @@ namespace XianTu
                 string label;
                 if (entry.requiresShard)
                 {
-                    if (canAssemble)
-                        label = $"📜 拼合（古籍残页 ×{PagesPerSkill} + 道韵碎片 ×{ShardsPerHighTier}）";
-                    else if (!hasPages)
-                        label = $"残页不足（{pages}/{PagesPerSkill}）";
-                    else
-                        label = $"道韵碎片不足（{shards}/{ShardsPerHighTier}）";
+                    if (canAssemble) label = $"📜 拼合（古籍残页 ×{PagesPerSkill} + 道韵碎片 ×{ShardsPerHighTier}）";
+                    else if (!hasPages) label = $"残页不足（{pages}/{PagesPerSkill}）";
+                    else label = $"道韵碎片不足（{shards}/{ShardsPerHighTier}）";
                 }
                 else
                 {
-                    label = canAssemble
-                        ? $"📜 拼合（古籍残页 ×{PagesPerSkill}）"
-                        : $"残页不足（{pages}/{PagesPerSkill}）";
+                    label = canAssemble ? $"📜 拼合（古籍残页 ×{PagesPerSkill}）" : $"残页不足（{pages}/{PagesPerSkill}）";
                 }
 
-                GUI.enabled = canAssemble;
-                if (GUILayout.Button(label, GUILayout.Height(34)))
-                {
-                    TryAssemble(entry);
-                }
-                GUI.enabled = true;
+                var captured = entry;
+                var btn = UGuiKit.CreateButton(_detailPanel, label, () => { TryAssemble(captured); RefreshPanel(); }, UGuiKit.BtnPrimary, 14, new Vector2(400f, 34f));
+                UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 34f);
+                btn.interactable = canAssemble;
             }
-
-            GUILayout.EndVertical();
         }
 
-        private void DrawStartSkillSection()
+        private void BuildStartSkillSection()
         {
-            GUILayout.BeginVertical(GUI.skin.box);
-            GUILayout.Label("下次入秘境携带（写入 Q 槽）",
-                new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold });
-
+            for (int i = _startContent.childCount - 1; i >= 0; i--) Destroy(_startContent.GetChild(i).gameObject);
             var save = SaveSystem.Instance.Data;
             string current = save.pendingStartSkillId;
 
-            GUILayout.BeginHorizontal();
+            var noneBtn = UGuiKit.CreateButton(_startContent, "不携带", () => { save.pendingStartSkillId = ""; SaveSystem.Instance.Save(); BuildStartSkillSection(); },
+                string.IsNullOrEmpty(current) ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal, 13, new Vector2(100f, 30f));
+            UGuiKit.SetHeight(noneBtn.GetComponent<RectTransform>(), 30f); noneBtn.GetComponent<LayoutElement>().preferredWidth = 100f;
 
-            // "不携带"按钮
-            bool noneSelected = string.IsNullOrEmpty(current);
-            Color prev = GUI.backgroundColor;
-            if (noneSelected) GUI.backgroundColor = new Color(0.55f, 0.55f, 0.55f);
-            if (GUILayout.Button("不携带", GUILayout.Height(26)))
-            {
-                save.pendingStartSkillId = "";
-                SaveSystem.Instance.Save();
-            }
-            GUI.backgroundColor = prev;
-
-            // 每个已解锁功法一个按钮
             foreach (var id in save.unlockedSkillIds)
             {
-                var entry = ScriptureLibrary.GetByName(id);
+                string captured = id;
                 bool isCurrent = current == id;
-                Color p2 = GUI.backgroundColor;
-                if (isCurrent) GUI.backgroundColor = entry != null ? entry.displayColor : Color.green;
-                if (GUILayout.Button(id, GUILayout.Height(26)))
-                {
-                    save.pendingStartSkillId = id;
-                    SaveSystem.Instance.Save();
-                }
-                GUI.backgroundColor = p2;
+                var b = UGuiKit.CreateButton(_startContent, id, () => { save.pendingStartSkillId = captured; SaveSystem.Instance.Save(); BuildStartSkillSection(); },
+                    isCurrent ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal, 13, new Vector2(140f, 30f));
+                UGuiKit.SetHeight(b.GetComponent<RectTransform>(), 30f); b.GetComponent<LayoutElement>().preferredWidth = 140f;
             }
+        }
 
-            GUILayout.EndHorizontal();
-            GUILayout.EndVertical();
+        protected override void Update()
+        {
+            base.Update();
+            if (!_panelOpen) return;
+            var kb = Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame) ClosePanel();
+        }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            if (_ui != null) Destroy(_ui);
         }
 
         // ============================== 逻辑 ==============================

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -15,7 +16,7 @@ namespace XianTu
         private Image _hpFillImage;
         private RectTransform _damageFillRt;
         private Image _borderImage;
-        private Text _hpText;
+        private TextMeshProUGUI _hpText;
         private CanvasGroup _canvasGroup;
 
         private float _currentHp;
@@ -138,21 +139,18 @@ namespace XianTu
             textRt.offsetMin = new Vector2(0, BAR_HEIGHT + 1f);
             textRt.offsetMax = new Vector2(0, BAR_HEIGHT + 13f);
 
-            _hpText = textGo.AddComponent<Text>();
-            _hpText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (_hpText.font == null)
-                _hpText.font = Font.CreateDynamicFontFromOSFont("Arial", 12);
+            _hpText = textGo.AddComponent<TextMeshProUGUI>();
+            if (UGuiKit.CjkFont != null) _hpText.font = UGuiKit.CjkFont;
             _hpText.fontSize = 11;
-            _hpText.alignment = TextAnchor.MiddleCenter;
+            _hpText.alignment = TextAlignmentOptions.Center;
             _hpText.color = new Color(1f, 1f, 1f, 0.95f);
             _hpText.raycastTarget = false;
-            _hpText.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _hpText.verticalOverflow = VerticalWrapMode.Overflow;
+            _hpText.enableWordWrapping = false;
+            _hpText.overflowMode = TextOverflowModes.Overflow;
 
-            // 文字描边
-            var outline = textGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.85f);
-            outline.effectDistance = new Vector2(0.8f, -0.8f);
+            // 文字描边（TMP 内建）
+            _hpText.outlineColor = new Color(0, 0, 0, 0.85f);
+            _hpText.outlineWidth = 0.15f;
 
             _initialized = true;
         }

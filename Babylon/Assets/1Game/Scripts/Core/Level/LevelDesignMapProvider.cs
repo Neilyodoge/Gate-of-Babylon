@@ -21,22 +21,14 @@ namespace XianTu
 
         public void StartRun() => Dir.StartNewRun();
 
-        public IReadOnlyList<IReadOnlyList<RoomType>> GetFloors()
-        {
-            var map = Dir?.CurrentMap;
-            if (map == null || map.Floors.Count == 0) return null;
+        // V0.4.5：换境显式重生成该 Act 的分叉图（BeginAct 内会 Generate 并把 CurrentNode 复位到起点）。
+        public void OnEnterRealm(int realm) => Dir?.BeginAct(realm + 1);
 
-            var floors = new List<IReadOnlyList<RoomType>>(map.Floors.Count);
-            foreach (var floor in map.Floors)
-            {
-                var rooms = new List<RoomType>(floor.Count);
-                foreach (var node in floor)
-                    rooms.Add(Map(node.RoomType));
-                if (rooms.Count == 0) rooms.Add(RoomType.Battle);
-                floors.Add(rooms);
-            }
-            return floors;
-        }
+        // V0.4.5：分叉图（TreeMap）现语义 = 单境（realm）内「深度=房间数」的 STS 分叉导航图，
+        // 由 TryShowNavigation 逐间弹出。它不再充当 _levelRooms 的线性脚手架
+        // （否则会把 12 层分叉误当成 12 个境）。因此这里返回 null，让 GameManager
+        // 用其 3×12 fixedLayout 作线性房间脚手架；每间实际房型由玩家在分叉图上的选择覆盖。
+        public IReadOnlyList<IReadOnlyList<RoomType>> GetFloors() => null;
 
         public float GetEnemyScale(int floor) => WithStructure(floor, (s, f) => s.GetEnemyScale(f), 1f);
 
@@ -63,13 +55,20 @@ namespace XianTu
 
         public bool TryShowNavigation(bool bossNext, Action<RoomType> onChosen)
         {
-            if (Dir == null || Dir.CurrentMap == null) return false;
+            if (Dir == null) return false;
 
-            var cur = Dir.CurrentMap.CurrentNode;
-            if (cur == null || cur.Next == null || cur.Next.Count == 0) return false;
+            // V0.4.5：每境（realm）惰性重生成对应 Act 的 STS 分叉图，
+            // 使分叉图的 CurrentNode 推进与 GameManager 的房间推进锁步。
+            int realm = GameManager.Instance != null ? GameManager.Instance.CurrentLevel : 0;
+            int actId = realm + 1;
+            if (Dir.CurrentMap == null || Dir.CurrentMap.ActID != actId)
+                Dir.BeginAct(actId);
 
             // Boss 房保持线性叙事，不弹导航。
             if (bossNext) return false;
+
+            var cur = Dir.CurrentMap?.CurrentNode;
+            if (cur == null || cur.Next == null || cur.Next.Count == 0) return false;
 
             Dir.ShowMap(node =>
             {

@@ -1,15 +1,16 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// V0.3.3 图鉴 · UI Toolkit —— 展示已知模块和核心技能的完整目录。
-    /// 按 Tab 页切换（模块/技能），支持按大类筛选。
-    /// 主菜单和暂停菜单均可打开。
+    /// V0.3.3 图鉴（V0.4.6 改 uGUI+TMP）—— 展示已知模块和核心技能的完整目录。
+    /// 按 Tab 页切换（模块/技能），支持按大类筛选。主菜单和暂停菜单均可打开。
+    /// 类名保留 CodexUITK 以兼容既有调用。
     /// </summary>
     public class CodexUITK : MonoBehaviour
     {
@@ -18,12 +19,11 @@ namespace XianTu
 
         private bool _visible;
 
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private VisualElement _tabsBar;
-        private VisualElement _filtersBar;
-        private ScrollView _list;
-        private Label _countLabel;
+        private GameObject _root;
+        private RectTransform _tabsBar;
+        private RectTransform _filtersBar;
+        private RectTransform _list;        // scroll content
+        private TextMeshProUGUI _countLabel;
 
         private enum Tab { Modules, Skills }
         private Tab _activeTab = Tab.Modules;
@@ -37,14 +37,14 @@ namespace XianTu
             _instance._activeTab = Tab.Modules;
             _instance._activeFilter = -1;
             _instance.RebuildAll();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void Hide()
         {
             if (_instance == null) return;
             _instance._visible = false;
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
         }
 
         private static void EnsureInstance()
@@ -57,38 +57,32 @@ namespace XianTu
 
         private void Awake()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/CodexUI");
+            var canvas = UGuiKit.CreateOverlayCanvas("CodexCanvas", 122, transform);
+            _root = canvas.gameObject;
+            UGuiKit.CreateScrim(_root.transform, new Color(0.02f, 0.03f, 0.06f, 0.94f));
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 12f;
-            ChineseFontHelper.Apply(_doc.rootVisualElement);
+            var panel = UGuiKit.CreatePanel(_root.transform, "Panel", new Vector2(840f, 720f), UGuiKit.Panel);
+            UGuiKit.AddVLayout(panel, 10f, new RectOffset(24, 24, 18, 18), TextAnchor.UpperCenter);
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            var header = UGuiKit.CreateRow(panel, 10f, 44f);
+            header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
+            var title = UGuiKit.CreateText(header, "图鉴", 30, new Color(0.95f, 0.85f, 0.55f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 40f); title.GetComponent<LayoutElement>().preferredWidth = 560f;
+            _countLabel = UGuiKit.CreateText(header, "", 16, UGuiKit.TextDim, TextAlignmentOptions.Right);
+            UGuiKit.SetHeight(_countLabel, 40f); _countLabel.GetComponent<LayoutElement>().preferredWidth = 160f;
+            var close = UGuiKit.CreateButton(header, "✕", Hide, UGuiKit.BtnNormal, 20, new Vector2(40f, 40f));
+            UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 40f); close.GetComponent<LayoutElement>().preferredWidth = 40f;
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _tabsBar = root.Q<VisualElement>("tabs");
-            _filtersBar = root.Q<VisualElement>("filters");
-            _list = root.Q<ScrollView>("list");
-            if (_list != null)
-            {
-                _list.mode = ScrollViewMode.Vertical;
-                _list.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
-            }
-            _countLabel = root.Q<Label>("count");
-            var close = root.Q<Button>("close");
-            if (close != null) close.clicked += Hide;
+            _tabsBar = UGuiKit.CreateRow(panel, 8f, 40f);
+            _tabsBar.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
+            _filtersBar = UGuiKit.CreateRow(panel, 6f, 36f);
+            _filtersBar.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
 
-            // Update title
-            var titleEl = root.Q<Label>("title");
-            if (titleEl != null) titleEl.text = "图鉴";
+            _list = UGuiKit.CreateScroll(panel, "List", out _, 4f, new RectOffset(6, 6, 6, 6));
+            var scrollRoot = (RectTransform)_list.parent;
+            var le = UGuiKit.SetHeight(scrollRoot, 520f); le.flexibleHeight = 1f;
 
-            BuildTabs();
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            _root.SetActive(false);
         }
 
         private void Update()
@@ -98,22 +92,6 @@ namespace XianTu
             if (kb != null && kb.escapeKey.wasPressedThisFrame) Hide();
         }
 
-        private void BuildTabs()
-        {
-            if (_tabsBar == null) return;
-            _tabsBar.Clear();
-            AddTab("模块", Tab.Modules);
-            AddTab("核心技能", Tab.Skills);
-        }
-
-        private void AddTab(string label, Tab tab)
-        {
-            var b = new Button(() => { _activeTab = tab; _activeFilter = -1; RebuildAll(); }) { text = label };
-            b.AddToClassList("cx-tab");
-            if (tab == _activeTab) b.AddToClassList("cx-tab--active");
-            _tabsBar.Add(b);
-        }
-
         private void RebuildAll()
         {
             BuildTabs();
@@ -121,43 +99,56 @@ namespace XianTu
             RebuildList();
         }
 
+        private void BuildTabs()
+        {
+            for (int i = _tabsBar.childCount - 1; i >= 0; i--) Destroy(_tabsBar.GetChild(i).gameObject);
+            AddTab("模块", Tab.Modules);
+            AddTab("核心技能", Tab.Skills);
+        }
+
+        private void AddTab(string label, Tab tab)
+        {
+            var b = UGuiKit.CreateButton(_tabsBar, label, () => { _activeTab = tab; _activeFilter = -1; RebuildAll(); },
+                tab == _activeTab ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal, 20, new Vector2(140f, 36f));
+            UGuiKit.SetHeight(b.GetComponent<RectTransform>(), 36f); b.GetComponent<LayoutElement>().preferredWidth = 140f;
+        }
+
         private void RebuildFilters()
         {
-            if (_filtersBar == null) return;
-            _filtersBar.Clear();
-            _filtersBar.style.display = DisplayStyle.Flex;
+            for (int i = _filtersBar.childCount - 1; i >= 0; i--) Destroy(_filtersBar.GetChild(i).gameObject);
+            bool show = _activeTab == Tab.Modules;
+            _filtersBar.gameObject.SetActive(show);
+            if (!show) return;
 
-            if (_activeTab == Tab.Modules)
-            {
-                AddFilter("全部", -1);
-                AddFilter("触发器", (int)ModuleCategory.Trigger);
-                AddFilter("效果器", (int)ModuleCategory.Effect);
-                AddFilter("改造件", (int)ModuleCategory.Modifier);
-                AddFilter("万能件", (int)ModuleCategory.Universal);
-            }
-            else
-            {
-                _filtersBar.style.display = DisplayStyle.None;
-            }
+            AddFilter("全部", -1);
+            AddFilter("触发器", (int)ModuleCategory.Trigger);
+            AddFilter("效果器", (int)ModuleCategory.Effect);
+            AddFilter("改造件", (int)ModuleCategory.Modifier);
+            AddFilter("万能件", (int)ModuleCategory.Universal);
         }
 
         private void AddFilter(string label, int value)
         {
-            var b = new Button(() => { _activeFilter = value; RebuildList(); }) { text = label };
-            b.AddToClassList("cx-tab");
-            if (_activeFilter == value) b.AddToClassList("cx-tab--active");
-            _filtersBar.Add(b);
+            var b = UGuiKit.CreateButton(_filtersBar, label, () => { _activeFilter = value; RebuildList(); RefreshFilterColors(); },
+                _activeFilter == value ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal, 16, new Vector2(96f, 32f));
+            UGuiKit.SetHeight(b.GetComponent<RectTransform>(), 32f); b.GetComponent<LayoutElement>().preferredWidth = 96f;
+        }
+
+        private void RefreshFilterColors()
+        {
+            int[] values = { -1, (int)ModuleCategory.Trigger, (int)ModuleCategory.Effect, (int)ModuleCategory.Modifier, (int)ModuleCategory.Universal };
+            for (int i = 0; i < _filtersBar.childCount && i < values.Length; i++)
+            {
+                var img = _filtersBar.GetChild(i).GetComponent<Image>();
+                if (img != null) img.color = (_activeFilter == values[i]) ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal;
+            }
         }
 
         private void RebuildList()
         {
-            if (_list == null) return;
-            _list.Clear();
-
-            if (_activeTab == Tab.Modules)
-                RebuildModuleList();
-            else
-                RebuildSkillList();
+            for (int i = _list.childCount - 1; i >= 0; i--) Destroy(_list.GetChild(i).gameObject);
+            if (_activeTab == Tab.Modules) RebuildModuleList();
+            else RebuildSkillList();
         }
 
         private void RebuildModuleList()
@@ -165,7 +156,7 @@ namespace XianTu
             var allModules = Resources.LoadAll<ModuleDef>("Modules");
             if (allModules == null || allModules.Length == 0)
             {
-                _list.Add(EmptyLabel("暂无模块数据"));
+                EmptyLabel("暂无模块数据");
                 UpdateCount(0);
                 return;
             }
@@ -186,94 +177,20 @@ namespace XianTu
             });
 
             foreach (var m in filtered)
-                _list.Add(BuildModuleCard(m));
+                BuildModuleCard(m);
 
             UpdateCount(filtered.Count);
         }
 
-        private VisualElement BuildModuleCard(ModuleDef m)
+        private void BuildModuleCard(ModuleDef m)
         {
-            var card = new VisualElement();
-            card.AddToClassList("cx-card");
-            card.style.flexDirection = FlexDirection.Row;
-            card.style.alignItems = Align.FlexStart;
-            card.style.marginBottom = 4;
-            card.style.paddingTop = 8; card.style.paddingBottom = 8;
-            card.style.paddingLeft = 10; card.style.paddingRight = 10;
-            card.style.backgroundColor = new Color(0.09f, 0.1f, 0.14f, 0.9f);
-            SetBorder(card, 1, CategoryColor(m.category, 0.5f), 6);
-
-            // Left: category badge + rarity
-            var badge = new VisualElement();
-            badge.style.width = 48;
-            badge.style.height = 48;
-            badge.style.marginRight = 10;
-            badge.style.backgroundColor = CategoryColor(m.category, 0.25f);
-            badge.style.alignItems = Align.Center;
-            badge.style.justifyContent = Justify.Center;
-            SetBorder(badge, 1, CategoryColor(m.category, 0.6f), 8);
-
-            var glyph = new Label(CategoryGlyph(m.category));
-            glyph.style.fontSize = 22;
-            glyph.style.color = CategoryColor(m.category, 1f);
-            glyph.style.unityTextAlign = TextAnchor.MiddleCenter;
-            badge.Add(glyph);
-            card.Add(badge);
-
-            // Right: info
-            var info = new VisualElement();
-            info.style.flexGrow = 1;
-
-            var nameRow = new VisualElement();
-            nameRow.style.flexDirection = FlexDirection.Row;
-            nameRow.style.alignItems = Align.Center;
-            nameRow.style.marginBottom = 2;
-
-            var nameLabel = new Label(m.displayName);
-            nameLabel.style.fontSize = 15;
-            nameLabel.style.color = RarityColor(m.rarity);
-            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            nameLabel.style.marginRight = 8;
-            nameRow.Add(nameLabel);
-
-            var catTag = new Label(CategoryName(m.category));
-            catTag.style.fontSize = 10;
-            catTag.style.color = CategoryColor(m.category, 0.8f);
-            catTag.style.backgroundColor = CategoryColor(m.category, 0.15f);
-            catTag.style.paddingLeft = 5; catTag.style.paddingRight = 5;
-            catTag.style.paddingTop = 1; catTag.style.paddingBottom = 1;
-            SetBorder(catTag, 1, CategoryColor(m.category, 0.3f), 3);
-            nameRow.Add(catTag);
-
-            var rarityTag = new Label(RarityName(m.rarity));
-            rarityTag.style.fontSize = 10;
-            rarityTag.style.color = RarityColor(m.rarity);
-            rarityTag.style.marginLeft = 4;
-            nameRow.Add(rarityTag);
-
-            info.Add(nameRow);
-
+            var accent = CategoryColor(m.category, 1f);
+            string extra = (m.category == ModuleCategory.Trigger || m.category == ModuleCategory.Universal) ? $"消费模型: {m.consumeKind}" : null;
             string desc = !string.IsNullOrEmpty(m.uiDescription) ? m.uiDescription
-                        : !string.IsNullOrEmpty(m.description) ? m.description
-                        : "（无描述）";
-            var descLabel = new Label(desc);
-            descLabel.style.fontSize = 12;
-            descLabel.style.color = new Color(0.7f, 0.72f, 0.78f);
-            descLabel.style.whiteSpace = WhiteSpace.Normal;
-            descLabel.style.marginBottom = 3;
-            info.Add(descLabel);
-
-            // Extra info: consumeKind for triggers, effectRole for effects
-            if (m.category == ModuleCategory.Trigger || m.category == ModuleCategory.Universal)
-            {
-                var ckLabel = new Label($"消费模型: {m.consumeKind}");
-                ckLabel.style.fontSize = 10;
-                ckLabel.style.color = new Color(0.55f, 0.6f, 0.7f);
-                info.Add(ckLabel);
-            }
-
-            card.Add(info);
-            return card;
+                        : !string.IsNullOrEmpty(m.description) ? m.description : "（无描述）";
+            string nameLine = $"<b><color=#{Hex(RarityColor(m.rarity))}>{m.displayName}</color></b>  " +
+                              $"<size=75%><color=#{Hex(CategoryColor(m.category, 0.9f))}>{CategoryName(m.category)} · {RarityName(m.rarity)}</color></size>";
+            BuildEntryCard(CategoryGlyph(m.category), accent, nameLine, desc, extra);
         }
 
         private void RebuildSkillList()
@@ -293,87 +210,61 @@ namespace XianTu
 
             if (allSkills == null || allSkills.Length == 0)
             {
-                _list.Add(EmptyLabel("暂无技能数据"));
+                EmptyLabel("暂无技能数据");
                 UpdateCount(0);
                 return;
             }
 
             Array.Sort(allSkills, (a, b) => string.Compare(a.skillName, b.skillName, StringComparison.Ordinal));
-
             foreach (var s in allSkills)
-                _list.Add(BuildSkillCard(s));
-
+            {
+                string nameLine = $"<b><color=#{Hex(RarityColor(s.rarity))}>{s.skillName}</color></b>  " +
+                                  $"<size=75%><color=#a6bee6>{s.skillType}</color></size>";
+                string desc = !string.IsNullOrEmpty(s.description) ? s.description : "（无描述）";
+                string extra = $"CD: {s.cooldown:F1}s  |  伤害倍率: {s.baseDamage:F1}";
+                BuildEntryCard("⚡", new Color(0.7f, 0.85f, 1f), nameLine, desc, extra);
+            }
             UpdateCount(allSkills.Length);
         }
 
-        private VisualElement BuildSkillCard(SkillData s)
+        /// <summary>通用条目卡：左徽章 + 右信息（名称富文本 / 描述 / 附加）。固定高度。</summary>
+        private void BuildEntryCard(string glyph, Color accent, string nameLine, string desc, string extra)
         {
-            var card = new VisualElement();
-            card.style.flexDirection = FlexDirection.Row;
-            card.style.alignItems = Align.FlexStart;
-            card.style.marginBottom = 4;
-            card.style.paddingTop = 8; card.style.paddingBottom = 8;
-            card.style.paddingLeft = 10; card.style.paddingRight = 10;
-            card.style.backgroundColor = new Color(0.09f, 0.1f, 0.14f, 0.9f);
-            SetBorder(card, 1, new Color(0.4f, 0.55f, 0.7f, 0.4f), 6);
+            var rowGo = new GameObject("Entry", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            var row = (RectTransform)rowGo.transform;
+            row.SetParent(_list, false);
+            rowGo.GetComponent<Image>().color = new Color(0.09f, 0.1f, 0.14f, 0.9f);
+            var le = rowGo.GetComponent<LayoutElement>(); le.preferredHeight = 84f; le.minHeight = 84f;
+            UGuiKit.AddHLayout(row, 10f, new RectOffset(10, 10, 8, 8), TextAnchor.MiddleLeft, false, true);
+            rowGo.GetComponent<HorizontalLayoutGroup>().childForceExpandHeight = true;
 
-            var badge = new VisualElement();
-            badge.style.width = 48;
-            badge.style.height = 48;
-            badge.style.marginRight = 10;
-            badge.style.backgroundColor = new Color(0.15f, 0.2f, 0.3f, 0.6f);
-            badge.style.alignItems = Align.Center;
-            badge.style.justifyContent = Justify.Center;
-            SetBorder(badge, 1, new Color(0.4f, 0.55f, 0.8f, 0.5f), 8);
+            // 徽章格
+            var cellGo = new GameObject("BadgeCell", typeof(RectTransform), typeof(LayoutElement));
+            var cell = (RectTransform)cellGo.transform; cell.SetParent(row, false);
+            cellGo.GetComponent<LayoutElement>().preferredWidth = 56f; cellGo.GetComponent<LayoutElement>().minWidth = 56f;
+            var badge = UGuiKit.CreateBox(cell, new Color(accent.r, accent.g, accent.b, 0.25f), new Vector2(48f, 48f));
+            var brt = (RectTransform)badge.transform; brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f); brt.anchoredPosition = Vector2.zero;
+            var g = UGuiKit.CreateText(brt, glyph, 22, accent, TextAlignmentOptions.Center, FontStyles.Bold);
+            var grt = (RectTransform)g.transform; grt.anchorMin = Vector2.zero; grt.anchorMax = Vector2.one; grt.offsetMin = Vector2.zero; grt.offsetMax = Vector2.zero;
 
-            var glyph = new Label("⚡");
-            glyph.style.fontSize = 22;
-            glyph.style.color = new Color(0.7f, 0.85f, 1f);
-            glyph.style.unityTextAlign = TextAnchor.MiddleCenter;
-            badge.Add(glyph);
-            card.Add(badge);
+            // 信息列
+            var infoGo = new GameObject("Info", typeof(RectTransform), typeof(LayoutElement));
+            var info = (RectTransform)infoGo.transform; info.SetParent(row, false);
+            infoGo.GetComponent<LayoutElement>().flexibleWidth = 1f; infoGo.GetComponent<LayoutElement>().preferredWidth = 700f;
+            var iv = infoGo.AddComponent<VerticalLayoutGroup>();
+            iv.spacing = 2f; iv.childControlWidth = true; iv.childForceExpandWidth = true; iv.childControlHeight = true; iv.childForceExpandHeight = false;
+            iv.childAlignment = TextAnchor.UpperLeft;
 
-            var info = new VisualElement();
-            info.style.flexGrow = 1;
-
-            var nameRow = new VisualElement();
-            nameRow.style.flexDirection = FlexDirection.Row;
-            nameRow.style.alignItems = Align.Center;
-            nameRow.style.marginBottom = 2;
-
-            var nameLabel = new Label(s.skillName);
-            nameLabel.style.fontSize = 15;
-            nameLabel.style.color = RarityColor(s.rarity);
-            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            nameLabel.style.marginRight = 8;
-            nameRow.Add(nameLabel);
-
-            var typeTag = new Label(s.skillType.ToString());
-            typeTag.style.fontSize = 10;
-            typeTag.style.color = new Color(0.65f, 0.75f, 0.9f);
-            typeTag.style.backgroundColor = new Color(0.2f, 0.25f, 0.35f, 0.5f);
-            typeTag.style.paddingLeft = 5; typeTag.style.paddingRight = 5;
-            typeTag.style.paddingTop = 1; typeTag.style.paddingBottom = 1;
-            SetBorder(typeTag, 1, new Color(0.35f, 0.4f, 0.55f, 0.4f), 3);
-            nameRow.Add(typeTag);
-            info.Add(nameRow);
-
-            string desc = !string.IsNullOrEmpty(s.description) ? s.description : "（无描述）";
-            var descLabel = new Label(desc);
-            descLabel.style.fontSize = 12;
-            descLabel.style.color = new Color(0.7f, 0.72f, 0.78f);
-            descLabel.style.whiteSpace = WhiteSpace.Normal;
-            descLabel.style.marginBottom = 3;
-            info.Add(descLabel);
-
-            var statsStr = $"CD: {s.cooldown:F1}s  |  伤害倍率: {s.baseDamage:F1}";
-            var statsLabel = new Label(statsStr);
-            statsLabel.style.fontSize = 10;
-            statsLabel.style.color = new Color(0.55f, 0.6f, 0.7f);
-            info.Add(statsLabel);
-
-            card.Add(info);
-            return card;
+            var nameLbl = UGuiKit.CreateText(info, nameLine, 15, UGuiKit.TextMain, TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(nameLbl, 22f);
+            var descLbl = UGuiKit.CreateText(info, desc, 12, new Color(0.7f, 0.72f, 0.78f), TextAlignmentOptions.TopLeft);
+            descLbl.enableWordWrapping = true; descLbl.overflowMode = TextOverflowModes.Ellipsis;
+            var dle = descLbl.gameObject.AddComponent<LayoutElement>(); dle.flexibleHeight = 1f; dle.minHeight = 20f;
+            if (!string.IsNullOrEmpty(extra))
+            {
+                var ex = UGuiKit.CreateText(info, extra, 11, new Color(0.55f, 0.6f, 0.7f), TextAlignmentOptions.Left);
+                UGuiKit.SetHeight(ex, 16f);
+            }
         }
 
         private void UpdateCount(int count)
@@ -381,16 +272,13 @@ namespace XianTu
             if (_countLabel != null) _countLabel.text = $"共 {count} 条";
         }
 
-        private static Label EmptyLabel(string text)
+        private void EmptyLabel(string text)
         {
-            var l = new Label(text);
-            l.AddToClassList("cx-empty");
-            l.style.fontSize = 14;
-            l.style.color = new Color(0.5f, 0.52f, 0.58f);
-            l.style.unityTextAlign = TextAnchor.MiddleCenter;
-            l.style.marginTop = 40;
-            return l;
+            var l = UGuiKit.CreateText(_list, text, 14, new Color(0.5f, 0.52f, 0.58f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(l, 60f);
         }
+
+        private static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
 
         private static string CategoryName(ModuleCategory cat) => cat switch
         {
@@ -438,15 +326,5 @@ namespace XianTu
             ItemRarity.Tian => "天",
             _ => "?"
         };
-
-        private static void SetBorder(VisualElement e, float width, Color color, float radius)
-        {
-            e.style.borderTopWidth = width; e.style.borderBottomWidth = width;
-            e.style.borderLeftWidth = width; e.style.borderRightWidth = width;
-            e.style.borderTopColor = color; e.style.borderBottomColor = color;
-            e.style.borderLeftColor = color; e.style.borderRightColor = color;
-            e.style.borderTopLeftRadius = radius; e.style.borderTopRightRadius = radius;
-            e.style.borderBottomLeftRadius = radius; e.style.borderBottomRightRadius = radius;
-        }
     }
 }

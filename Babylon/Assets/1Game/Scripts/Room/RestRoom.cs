@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -82,13 +83,15 @@ namespace XianTu
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
+            var text = textGo.AddComponent<TextMeshProUGUI>();
             text.text = "按 [F] 沐浴灵泉";
             text.fontSize = 18;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.color = new Color(0.5f, 0.9f, 1f);
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.alignment = TextAlignmentOptions.Center;
+            text.enableWordWrapping = false;
+            text.overflowMode = TextOverflowModes.Overflow;
+            text.raycastTarget = false;
             _hintCanvas.AddComponent<BillboardUI>();
             _hintCanvas.SetActive(false);
 

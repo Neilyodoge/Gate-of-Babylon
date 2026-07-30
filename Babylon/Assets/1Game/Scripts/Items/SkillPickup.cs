@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using TMPro;
 
 namespace XianTu
 {
@@ -146,16 +147,17 @@ namespace XianTu
             textRt.anchorMax = Vector2.one;
             textRt.offsetMin = new Vector2(8, 4);
             textRt.offsetMax = new Vector2(-8, -4);
-            var text = textGo.AddComponent<Text>();
+            var text = textGo.AddComponent<TextMeshProUGUI>();
 
             string qName = _combat.GetSkillInSlot(0)?.skillName ?? "空";
             string eName = _combat.GetSkillInSlot(1)?.skillName ?? "空";
             string rName = _combat.GetSkillInSlot(2)?.skillName ?? "空";
             text.text = $"[Q]{qName}  [E]{eName}  [R]{rName}  [Esc]取消";
             text.fontSize = 22;
-            text.font = UIBuiltins.LegacyFont;
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.color = new Color(1f, 0.8f, 0.3f, 1f);
-            text.alignment = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignmentOptions.Center;
+            text.raycastTarget = false;
 
             canvasGo.AddComponent<BillboardUI>().lerpFactor = 0.5f;
             _slotChoiceUI = canvasGo;

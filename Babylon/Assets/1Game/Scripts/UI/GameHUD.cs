@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
+using TMPro;
 
 namespace XianTu
 {
@@ -17,53 +18,53 @@ namespace XianTu
         [SerializeField] private Slider hpSlider;
         [SerializeField] private Image hpFillImage;       // 血条填充（用于变色）
         [SerializeField] private Image hpDamageFill;      // 受伤延迟条（红色）
-        [SerializeField] private Text hpText;
+        [SerializeField] private TextMeshProUGUI hpText;
 
         [Header("境界信息")]
-        [SerializeField] private Text realmText;
-        [SerializeField] private Text levelText;
+        [SerializeField] private TextMeshProUGUI realmText;
+        [SerializeField] private TextMeshProUGUI levelText;
 
         [Header("技能CD")]
         [SerializeField] private Image skillQCooldownFill;
-        [SerializeField] private Text skillQCooldownText;
+        [SerializeField] private TextMeshProUGUI skillQCooldownText;
         [SerializeField] private Image skillQIcon;
 
         [SerializeField] private Image skillECooldownFill;
-        [SerializeField] private Text skillECooldownText;
+        [SerializeField] private TextMeshProUGUI skillECooldownText;
         [SerializeField] private Image skillEIcon;
 
         [SerializeField] private Image skillRCooldownFill;
-        [SerializeField] private Text skillRCooldownText;
+        [SerializeField] private TextMeshProUGUI skillRCooldownText;
         [SerializeField] private Image skillRIcon;
 
         [Header("闪避CD")]
         [SerializeField] private Image dashCooldownFill;
-        [SerializeField] private Text dashCooldownText;
+        [SerializeField] private TextMeshProUGUI dashCooldownText;
 
         [Header("连招指示器")]
         [SerializeField] private Image[] comboIndicators;  // 3个点
 
         [Header("敌人计数")]
-        [SerializeField] private Text enemyCountText;
+        [SerializeField] private TextMeshProUGUI enemyCountText;
         [SerializeField] private Image enemyCountIcon;
 
         [Header("资源显示")]
-        [SerializeField] private Text shardCountText;
+        [SerializeField] private TextMeshProUGUI shardCountText;
 
         [Header("提示信息")]
-        [SerializeField] private Text messageText;
+        [SerializeField] private TextMeshProUGUI messageText;
         private float _messageTimer;
 
         [Header("死亡面板")]
         [SerializeField] private GameObject deathPanel;
-        [SerializeField] private Text deathTitleText;
-        [SerializeField] private Text deathSubText;
+        [SerializeField] private TextMeshProUGUI deathTitleText;
+        [SerializeField] private TextMeshProUGUI deathSubText;
         [SerializeField] private Button restartButton;
 
         [Header("通关面板")]
         [SerializeField] private GameObject winPanel;
-        [SerializeField] private Text winTitleText;
-        [SerializeField] private Text winSubText;
+        [SerializeField] private TextMeshProUGUI winTitleText;
+        [SerializeField] private TextMeshProUGUI winSubText;
         [SerializeField] private Button winRestartButton;
 
         // 血条动画

@@ -67,7 +67,7 @@ namespace XianTu
 
         /// <summary>
         /// v3：在 SpawnCurrentRoom 之前强制覆盖下一间房间的类型。
-        /// 通常由 RoomChoiceUI 调用：玩家选了某张卡 → 写回 _levelRooms 对应槽位。
+        /// 由 TreeMapUI 分叉图导航调用：玩家在全图上选定下一节点 → 写回 _levelRooms 对应槽位。
         /// </summary>
         public void OverrideNextRoomType(RoomType type)
         {
@@ -367,7 +367,8 @@ namespace XianTu
             var floors = MapProviders.Current.GetFloors();
             if (floors == null || floors.Count == 0)
             {
-                Debug.LogWarning("[GameManager] 地图未就绪，回退固定布局");
+                // V0.4.5：LevelDesign provider 现只提供「分叉导航图」（逐间弹全图），
+                // 线性房间脚手架统一用 fixedLayout（每境 12 间）；房型由玩家在全图上的选择覆盖。
                 GenerateLevelLayout();
                 return;
             }
@@ -607,19 +608,15 @@ namespace XianTu
         }
 
         /// <summary>
-        /// v3 第 12 章：进入下一房间前的路径决策。
-        /// 优先级：TreeMap UI（走格子，依赖 LevelDesignDirector.CurrentMap）
-        ///       → RoomChoiceUI（3 选 1 卡片，TreeMap 没就绪时的退化方案）
-        ///       → 直接进入（useTreeMapFlow 关闭 或 下一间是 Boss）。
+        /// V0.4.5：进入下一房间前的路径决策 —— 统一走单一 STS 全图（TreeMapUI）。
+        /// 优先级：TreeMap 分叉图导航（依赖 LevelDesignDirector.CurrentMap）
+        ///       → 直接进入（useTreeMapFlow 关闭 或 下一间是 Boss / 无候选节点）。
         /// </summary>
         private void EnterNextRoomWithChoice()
         {
             Debug.Log($"<color=cyan>[TreeMapFlow] EnterNextRoomWithChoice  useTreeMapFlow={useTreeMapFlow}  realm={_currentLevel}  roomIdx={_currentRoomInLevel}</color>");
-            if (useTreeMapFlow)
-            {
-                if (TryShowTreeMapNavigation()) return;
-                if (TryShowRoomChoice()) return;
-            }
+            // V0.4.5：导航统一为单一 STS 全图（TreeMapUI）。已移除 RoomChoiceUI 三选一退化分支。
+            if (useTreeMapFlow && TryShowTreeMapNavigation()) return;
             SpawnCurrentRoom();
         }
 
@@ -644,111 +641,6 @@ namespace XianTu
                 SpawnCurrentRoom();
             });
         }
-
-        /// <summary>展示 3 选 1 房间卡片。返回 false 表示当前情境不适合展示（例如下一房间是 Boss）。</summary>
-        private bool TryShowRoomChoice()
-        {
-            if (_levelRooms == null || _currentLevel >= _levelRooms.Count)
-            {
-                Debug.Log("<color=yellow>[TreeMapFlow] 跳过：_levelRooms 为空或越界</color>");
-                return false;
-            }
-            var layer = _levelRooms[_currentLevel];
-            if (_currentRoomInLevel < 0 || _currentRoomInLevel >= layer.Count)
-            {
-                Debug.Log($"<color=yellow>[TreeMapFlow] 跳过：roomIdx={_currentRoomInLevel} 越出 layer({layer.Count})</color>");
-                return false;
-            }
-
-            var currentSlot = layer[_currentRoomInLevel];
-            if (currentSlot == RoomType.Boss)
-            {
-                Debug.Log("<color=yellow>[TreeMapFlow] 跳过：下一间是 Boss 房</color>");
-                return false;
-            }
-
-            var candidates = BuildRoomCandidates(currentSlot);
-            if (candidates == null || candidates.Length < 2)
-            {
-                Debug.Log("<color=yellow>[TreeMapFlow] 跳过：候选 < 2</color>");
-                return false;
-            }
-
-            Debug.Log($"<color=cyan>[TreeMapFlow] ★ 弹出 {candidates.Length} 选 1 房间卡片</color>");
-            LevelDesign.RoomChoiceUI.Show(candidates, picked =>
-            {
-                Debug.Log($"<color=cyan>[TreeMapFlow] 玩家选定：{picked}</color>");
-                OverrideNextRoomType(picked);
-                SpawnCurrentRoom();
-            });
-            return true;
-        }
-
-        /// <summary>构建 3 张候选卡片：包括"默认"那张 + 2 张异类</summary>
-        private LevelDesign.RoomChoiceUI.Candidate[] BuildRoomCandidates(RoomType defaultType)
-        {
-            // 在深层后，候选池可以增加"宝箱 / 升级 / 休息"权重
-            var pool = new System.Collections.Generic.List<RoomType>
-            {
-                RoomType.Battle,
-                RoomType.Shop,
-                RoomType.Treasure,
-                RoomType.Rest,
-                RoomType.Upgrade
-            };
-            // 把默认槽位也加入（这样玩家有"按设计走" 的选项）
-            pool.Add(defaultType);
-
-            // 去重 + 洗牌
-            var distinct = new System.Collections.Generic.HashSet<RoomType>(pool);
-            var shuffled = new System.Collections.Generic.List<RoomType>(distinct);
-            for (int i = shuffled.Count - 1; i > 0; i--)
-            {
-                int j = UnityEngine.Random.Range(0, i + 1);
-                (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
-            }
-
-            // 取前 3
-            int n = Mathf.Min(3, shuffled.Count);
-            var arr = new LevelDesign.RoomChoiceUI.Candidate[n];
-            for (int i = 0; i < n; i++)
-            {
-                var t = shuffled[i];
-                arr[i] = new LevelDesign.RoomChoiceUI.Candidate
-                {
-                    type = t,
-                    title = TypeTitle(t),
-                    tooltip = TypeTooltip(t)
-                };
-            }
-            return arr;
-        }
-
-        private static string TypeTitle(RoomType t) => t switch
-        {
-            RoomType.Battle => "战斗",
-            RoomType.Elite => "精英",
-            RoomType.Event => "事件",
-            RoomType.Shop => "商店",
-            RoomType.Rest => "休息",
-            RoomType.Treasure => "宝藏",
-            RoomType.Boss => "Boss",
-            RoomType.Upgrade => "悟道",
-            _ => "未知"
-        };
-
-        private static string TypeTooltip(RoomType t) => t switch
-        {
-            RoomType.Battle => "战斗 + 拾取模块 / 资源",
-            RoomType.Elite => "精英怪 — 强化敌人 + 保底稀有模块掉落",
-            RoomType.Event => "叙事事件 — 选择驱动的随机奖励/代价",
-            RoomType.Shop => "用本局货币购买技能 / 模块",
-            RoomType.Rest => "灵泉静修，回复生命",
-            RoomType.Treasure => "开启宝箱，获得稀有奖励",
-            RoomType.Boss => "层 Boss，挑战极限",
-            RoomType.Upgrade => "拜访功法宗师，强化已有功法",
-            _ => ""
-        };
 
         /// <summary>
         /// V0.4：当前层通关后，生成传送门进入下一层；最终层则弹通关结算面板。
@@ -808,6 +700,8 @@ namespace XianTu
                 {
                     _currentLevel++;
                     _currentRoomInLevel = 0;
+                    // V0.4.5：换境重生成该境分叉图并复位起点，保证新境每间都能弹全图。
+                    MapProviders.Current.OnEnterRealm(_currentLevel);
                     Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
                     SpawnCurrentRoom();
                 });
@@ -816,6 +710,7 @@ namespace XianTu
             {
                 _currentLevel++;
                 _currentRoomInLevel = 0;
+                MapProviders.Current.OnEnterRealm(_currentLevel);
                 SpawnCurrentRoom();
             }
         }

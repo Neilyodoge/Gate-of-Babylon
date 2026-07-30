@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -118,12 +119,13 @@ namespace XianTu
             textRt.anchorMax = Vector2.one;
             textRt.offsetMin = Vector2.zero;
             textRt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
+            var text = textGo.AddComponent<TextMeshProUGUI>();
             text.text = "按 [F] 继续前进";
             text.fontSize = 16;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.color = new Color(0.5f, 0.9f, 1f);
-            text.alignment = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignmentOptions.Center;
+            text.raycastTarget = false;
 
             _promptUI = canvasGo;
 

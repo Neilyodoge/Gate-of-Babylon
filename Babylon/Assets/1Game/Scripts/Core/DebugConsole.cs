@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
+using TMPro;
 
 namespace XianTu
 {
@@ -16,7 +17,7 @@ namespace XianTu
         private bool _isOpen;
         private GameObject _panelGo;
         private Canvas _canvas;
-        private Text _statusText;
+        private TextMeshProUGUI _statusText;
         private ScrollRect _scrollRect;
         private RectTransform _contentRT;
         private GameObject _toggleBtnGo;  // 屏幕角落的开关按钮
@@ -32,12 +33,12 @@ namespace XianTu
         private float _originalSpeed;   // 原始移速
         // 日志
         private List<string> _logMessages = new();
-        private Text _logText;
+        private TextMeshProUGUI _logText;
         private const int MAX_LOG_LINES = 200;
 
         // 打包可见日志面板（捕获 Application.logMessageReceived）
         private GameObject _logPanelGo;
-        private Text _logPanelText;
+        private TextMeshProUGUI _logPanelText;
         private bool _logPanelOpen;
 
         private void Awake()
@@ -511,17 +512,16 @@ namespace XianTu
             textRT.anchorMax = Vector2.one;
             textRT.offsetMin = Vector2.zero;
             textRT.offsetMax = Vector2.zero;
-            var txt = textGo.AddComponent<Text>();
+            var txt = textGo.AddComponent<TextMeshProUGUI>();
             txt.text = "Debug";
             txt.fontSize = 13;
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) txt.font = UGuiKit.CjkFont;
             txt.color = new Color(1f, 0.85f, 0.3f, 0.8f);
-            txt.fontStyle = FontStyle.Bold;
-            txt.alignment = TextAnchor.MiddleCenter;
+            txt.fontStyle = FontStyles.Bold;
+            txt.alignment = TextAlignmentOptions.Center;
             txt.raycastTarget = false;
-            var outline = textGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.7f);
-            outline.effectDistance = new Vector2(1, -1);
+            txt.outlineColor = new Color(0, 0, 0, 0.7f);
+            txt.outlineWidth = 0.2f;
         }
 
         private void CreateUI()
@@ -558,8 +558,8 @@ namespace XianTu
             var statusGo = CreateLabel(_panelGo.transform, "Status", "",
                 new Vector2(0, 1), new Vector2(1, 1), new Vector2(5, -35), new Vector2(-5, -130),
                 11, new Color(0.7f, 0.9f, 0.7f), FontStyle.Normal);
-            _statusText = statusGo.GetComponent<Text>();
-            _statusText.alignment = TextAnchor.UpperLeft;
+            _statusText = statusGo.GetComponent<TextMeshProUGUI>();
+            _statusText.alignment = TextAlignmentOptions.TopLeft;
 
             // 分隔线
             CreateSeparator(_panelGo.transform, 0.87f);
@@ -643,9 +643,9 @@ namespace XianTu
             var logGo = CreateLabel(_panelGo.transform, "Log", "",
                 new Vector2(0, 0), new Vector2(1, 0.08f), new Vector2(5, 2), new Vector2(-5, -2),
                 10, new Color(0.6f, 0.6f, 0.6f, 0.8f), FontStyle.Normal);
-            _logText = logGo.GetComponent<Text>();
-            _logText.alignment = TextAnchor.LowerLeft;
-            _logText.supportRichText = true;
+            _logText = logGo.GetComponent<TextMeshProUGUI>();
+            _logText.alignment = TextAlignmentOptions.BottomLeft;
+            _logText.richText = true;
 
             RefreshStatus();
         }
@@ -663,19 +663,19 @@ namespace XianTu
             rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin;
             rt.offsetMax = offsetMax;
-            var txt = go.AddComponent<Text>();
+            var txt = go.AddComponent<TextMeshProUGUI>();
             txt.text = text;
             txt.fontSize = fontSize;
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) txt.font = UGuiKit.CjkFont;
             txt.color = color;
-            txt.fontStyle = style;
-            txt.alignment = TextAnchor.MiddleCenter;
-            txt.supportRichText = true;
+            txt.fontStyle = style == FontStyle.Bold ? FontStyles.Bold : FontStyles.Normal;
+            txt.alignment = TextAlignmentOptions.Center;
+            txt.richText = true;
             txt.raycastTarget = false;
-            txt.horizontalOverflow = HorizontalWrapMode.Overflow;
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.8f);
-            outline.effectDistance = new Vector2(1, -1);
+            txt.enableWordWrapping = false;
+            txt.overflowMode = TextOverflowModes.Overflow;
+            txt.outlineColor = new Color(0, 0, 0, 0.8f);
+            txt.outlineWidth = 0.2f;
             return go;
         }
 
@@ -708,17 +708,16 @@ namespace XianTu
             textRT.anchorMax = Vector2.one;
             textRT.offsetMin = new Vector2(8, 0);
             textRT.offsetMax = new Vector2(-8, 0);
-            var txt = textGo.AddComponent<Text>();
+            var txt = textGo.AddComponent<TextMeshProUGUI>();
             txt.text = label;
             txt.fontSize = 14;
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) txt.font = UGuiKit.CjkFont;
             txt.color = Color.white;
-            txt.fontStyle = FontStyle.Bold;
-            txt.alignment = TextAnchor.MiddleCenter;
+            txt.fontStyle = FontStyles.Bold;
+            txt.alignment = TextAlignmentOptions.Center;
             txt.raycastTarget = false;
-            var outline = textGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.7f);
-            outline.effectDistance = new Vector2(1, -1);
+            txt.outlineColor = new Color(0, 0, 0, 0.7f);
+            txt.outlineWidth = 0.2f;
         }
 
         private void CreateSectionHeader(Transform parent, string title)
@@ -729,13 +728,13 @@ namespace XianTu
             le.preferredHeight = 22;
             le.minHeight = 22;
 
-            var txt = go.AddComponent<Text>();
+            var txt = go.AddComponent<TextMeshProUGUI>();
             txt.text = title;
             txt.fontSize = 12;
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) txt.font = UGuiKit.CjkFont;
             txt.color = new Color(0.8f, 0.7f, 0.5f, 0.9f);
-            txt.fontStyle = FontStyle.Bold;
-            txt.alignment = TextAnchor.MiddleLeft;
+            txt.fontStyle = FontStyles.Bold;
+            txt.alignment = TextAlignmentOptions.Left;
             txt.raycastTarget = false;
         }
 
@@ -860,11 +859,11 @@ namespace XianTu
             trt.anchorMax = new Vector2(1, 1);
             trt.offsetMin = new Vector2(8, -24);
             trt.offsetMax = new Vector2(-8, -4);
-            var ttxt = titleGo.AddComponent<Text>();
+            var ttxt = titleGo.AddComponent<TextMeshProUGUI>();
             ttxt.text = "═══ 运行日志（最近 40 行）═══";
-            ttxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) ttxt.font = UGuiKit.CjkFont;
             ttxt.fontSize = 13;
-            ttxt.fontStyle = FontStyle.Bold;
+            ttxt.fontStyle = FontStyles.Bold;
             ttxt.color = new Color(1f, 0.85f, 0.3f);
             ttxt.raycastTarget = false;
 
@@ -875,15 +874,15 @@ namespace XianTu
             ltrt.anchorMax = Vector2.one;
             ltrt.offsetMin = new Vector2(8, 8);
             ltrt.offsetMax = new Vector2(-8, -28);
-            _logPanelText = txtGo.AddComponent<Text>();
-            _logPanelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _logPanelText = txtGo.AddComponent<TextMeshProUGUI>();
+            if (UGuiKit.CjkFont != null) _logPanelText.font = UGuiKit.CjkFont;
             _logPanelText.fontSize = 12;
             _logPanelText.color = Color.white;
-            _logPanelText.alignment = TextAnchor.LowerLeft;
-            _logPanelText.supportRichText = true;
+            _logPanelText.alignment = TextAlignmentOptions.BottomLeft;
+            _logPanelText.richText = true;
             _logPanelText.raycastTarget = false;
-            _logPanelText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _logPanelText.verticalOverflow = VerticalWrapMode.Truncate;
+            _logPanelText.enableWordWrapping = true;
+            _logPanelText.overflowMode = TextOverflowModes.Truncate;
         }
 
         private void RefreshLogPanel()

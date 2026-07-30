@@ -6,6 +6,48 @@
 
 ---
 
+## V0.4.6 · UI 方案统一为 uGUI + TMP（2026-07-29）
+
+**目标**：全项目 UI 从「UITK + uGUI + IMGUI 三套混用」收敛到**单一 uGUI + TextMeshPro**，统一中文字体与视觉，消除 IMGUI 运行期面板与旧 `UnityEngine.UI.Text`（□□□ 中文缺字）。
+
+**基建**
+- 新增 `UI/UGuiKit.cs`：代码化构建库（Overlay Canvas / 遮罩 / 面板 / 文本 / 按钮 / 滑条 / 开关 / 滚动 / 卡片 / 网格 / 属性卡 / 分节标题 + 主题色常量）。所有文本统一走动态中文 TMP 字体 `Resources/Fonts/NotoSansSC SDF`（菜单「仙途秘境/UI/生成中文 TMP 字体资产」生成），并导入 TMP Essential Resources 修复 `TMP_Settings.instance` 为 null。
+
+**UITK → uGUI+TMP（面板重写，删除 UIDocument/VisualElement）**
+- MainMenu（试点，已验证）、PauseMenu、SettingsUI、RewardPickUI、SkillSelectUI、SaveSlotSelectUI、BuildBackpackUI、PlayerInfoPanel、CodexUITK、ShopRoom、UpgradeRoom、StoryEventUI、BossDialogueUI、ExtractResultPanel、RiftEquipUI、RiftRewardUI、BuffBarUITK、TreeMapUI（连线改用旋转 Image 细条）。
+
+**IMGUI（OnGUI）→ uGUI+TMP**
+- RunHUD、RiftChamber、FormationPlatform（阵法台）、ScripturePavilion（藏经阁）。运行期已无 `OnGUI`（仅剩 Editor 窗口 `ToolSearchWindow`/`ConfigDashboard` 保留 IMGUI，合理）。
+
+**旧 `UnityEngine.UI.Text` → TMP（约 20 文件）**
+- HUD/世界 UI：GameHUD、Demo1Setup（HUD 构建器）、SkillBarUI（拖拽/悬停提示）、ProcBarsHUD、ModuleChainProcOverlay、ModuleAssemblyUI（装配台）、DamagePopup、EnemyHealthBar、Minimap、NpcHeadCard、WorldPromptPanel、SkillPickup、DebugConsole。
+- 房间/交互：VillageHub、PrepRoom、TreasureRoom、RestRoom、RoomExitTrigger。
+- 怪物/战斗飘字：EnemyBoss、EnemyElite、PlayerCombat（链触发提示）。
+- 统一映射：`Text`→`TextMeshProUGUI`、`TextAnchor`→`TextAlignmentOptions`、`FontStyle`→`FontStyles`、`horizontalOverflow/verticalOverflow`→`enableWordWrapping/overflowMode`、`UnityEngine.UI.Outline`（TMP 不支持）→ TMP 内建 `outlineColor/outlineWidth`、`supportRichText`→`richText`、`Resources.GetBuiltinResource<Font>`/`UIBuiltins.LegacyFont`→`UGuiKit.CjkFont`。装配台/DebugConsole 的 `CreateText` 辅助保留旧 `FontStyle/TextAnchor` 形参、内部映射，避免改动数十处调用点。
+
+**收尾**：Unity 编译 0 错误（`PrepRoom._skillSelected` 为既有无害 warning）。待清理：`Resources/UI/*.uxml/.uss` 与 `AvatarSelectPanelSettings.asset` 等旧 UITK 资产（已无 `.cs` 消费者，安全删除留待下一波）。
+
+---
+
+## V0.4.5 · 地图统一为单一 STS 分叉全图（2026-07-29）
+
+**目标**：接入 silverua [杀戮尖塔地图](https://github.com/silverua/slay-the-spire-map-in-unity) 的生成思路，并修复「第一次进入是全图、之后每间变三选一」的双地图 bug。
+
+**bug 根因**：`Map_Structure_Config.MaxFloor=1` 让旧 `TreeMapGenerator` 退化成「起点→Boss」2 节点图 → 首次导航弹一次全图后 `CurrentNode` 即到 Boss（无后继），此后每间都回退到 `RoomChoiceUI` 三选一；而真正的 12 间房走的是 GameManager 另一套 `_levelRooms`，两套进度完全脱节。
+
+**做法（option A：移植生成算法，不引入 DOTween/uGUI/精灵栈）**：
+
+| 文件 | 变更 |
+|------|------|
+| `LevelDesign/Map/TreeMap.cs` | 重写 `TreeMapGenerator.Generate`：移植 silverua 的固定列宽 grid + 多条起点→Boss 列随机游走路径 + 分叉汇合；产出仍是现有 `TreeMap/TreeNode`（`Floors`+`Next`）。深度=每境房间数（`MaxNodes`），宽度固定 4 列。新增 `EnsureLayerConnectivity` / `AssignRoomTypes`（保底精英/商店/事件 + 权重） |
+| `Core/Level/LevelDesignMapProvider.cs` | `TryShowNavigation` 每境按 `ActID = 当前境+1` 惰性 `BeginAct` 重生成分叉图，使其 `CurrentNode` 推进与 GameManager 房间推进锁步；`GetFloors()` 返回 `null`（分叉图不再充当线性脚手架，避免把 12 层误当 12 个境），线性 12 间脚手架交回 `GameManager.fixedLayout`，房型由玩家在全图上的选择覆盖 |
+| `Core/GameManager.cs` | `EnterNextRoomWithChoice` 去掉 `RoomChoiceUI` 三选一回退，统一走单一全图；删除 `TryShowRoomChoice`/`BuildRoomCandidates`/`TypeTitle`/`TypeTooltip` |
+| `LevelDesign/UI/RoomChoiceUI.cs` + `Resources/UI/RoomChoiceUI.uxml/.uss` | **删除** |
+
+沿用现有 UITK `TreeMapUI` 表现（左起点→右 Boss、Painter2D 连线、点击/数字键选点）。**零新依赖**，Unity 编译 0 错误。
+
+---
+
 ## V0.4.4 · 去修仙化清理 · R4（2026-07-29）
 
 **目标**：GDD 已确认去修仙化，物理删除过期的「职业 / 化身 / 局内灵物」逻辑与资产（承 R1/R2/R3）。经确认：**保留单一主角档案**（不硬编码主角），洞府素材（CaveMaterial）与 `ItemRarity` 共享枚举**不属于灵物范畴，保留**。Unity 编译 0 错误。

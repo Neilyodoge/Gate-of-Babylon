@@ -1,13 +1,14 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// 设置面板（v0.6 改 UI Toolkit）—— 音频 / 画质 / 控制。
+    /// 设置面板（V0.4.6 改 uGUI+TMP）—— 音频 / 画质 / 控制。
     ///
-    /// 结构 Resources/UI/SettingsUI.uxml，样式 SettingsUI.uss，复用 AvatarSelectPanelSettings。
+    /// UI 用 UGuiKit 代码化构建（Canvas sortingOrder=140，可从暂停/主菜单上方打开）。
     /// 音量绑定 <see cref="AudioConfig"/>；画质/全屏用 Unity API；控制为只读键位提示。
     /// 设置用 PlayerPrefs 持久化（关闭时保存）。
     /// </summary>
@@ -31,10 +32,9 @@ namespace XianTu
         private bool _fullscreen;
         private AudioConfig _audioConfig;
 
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private VisualElement _tabsBar;
-        private ScrollView _content;
+        private GameObject _root;
+        private RectTransform _tabsBar;
+        private RectTransform _content;   // scroll content
         private readonly Button[] _tabButtons = new Button[3];
 
         public static void Show()
@@ -44,7 +44,7 @@ namespace XianTu
             _instance._visible = true;
             _instance.LoadValues();
             _instance.RebuildAll();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void Hide()
@@ -52,7 +52,7 @@ namespace XianTu
             if (_instance == null) return;
             _instance._visible = false;
             _instance.SaveValues();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
         }
 
         private static void EnsureInstance()
@@ -98,39 +98,40 @@ namespace XianTu
             _audioConfig.uiVolume = _ui;
         }
 
-        // ========== UITK 构建 ==========
+        // ========== uGUI 构建 ==========
 
         private void Awake()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/SettingsUI");
+            var canvas = UGuiKit.CreateOverlayCanvas("SettingsCanvas", 140, transform);
+            _root = canvas.gameObject;
+            UGuiKit.CreateScrim(_root.transform);
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 14f;   // 可从暂停/主菜单上方打开
-            ChineseFontHelper.Apply(_doc.rootVisualElement);
+            var panel = UGuiKit.CreatePanel(_root.transform, "Panel", new Vector2(760f, 640f), UGuiKit.Panel);
+            UGuiKit.AddVLayout(panel, 12f, new RectOffset(24, 24, 20, 20), TextAnchor.UpperCenter);
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
-            // 样式经 UXML <Style src> 随 VisualTreeAsset 引用加载（避免 Resources 名称索引偶发空规则缓存）。
+            // 标题行
+            var header = UGuiKit.CreateRow(panel, 12f, 48f);
+            header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
+            var title = UGuiKit.CreateText(header, "设 置", 34, UGuiKit.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            title.GetComponent<LayoutElement>(); UGuiKit.SetHeight(title, 44f); title.GetComponent<LayoutElement>().preferredWidth = 380f;
+            var note = UGuiKit.CreateText(header, "设置自动保存", 18, UGuiKit.TextDim, TextAlignmentOptions.Right);
+            UGuiKit.SetHeight(note, 44f); note.GetComponent<LayoutElement>().preferredWidth = 200f;
+            var close = UGuiKit.CreateButton(header, "✕", Hide, UGuiKit.BtnNormal, 26, new Vector2(48f, 44f));
+            UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 44f); close.GetComponent<LayoutElement>().preferredWidth = 48f;
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _tabsBar = root.Q<VisualElement>("tabs");
-            _content = root.Q<ScrollView>("content");
-            if (_content != null)
-            {
-                _content.mode = ScrollViewMode.Vertical;
-                _content.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
-            }
-            var note = root.Q<Label>("note");
-            if (note != null) note.text = "设置自动保存";
-            var close = root.Q<Button>("close");
-            if (close != null) close.clicked += Hide;
-
+            // 标签栏
+            _tabsBar = UGuiKit.CreateRow(panel, 10f, 44f);
+            _tabsBar.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
             BuildTabs();
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+
+            // 内容滚动
+            var scrollContent = UGuiKit.CreateScroll(panel, "Content", out _, 10f, new RectOffset(6, 6, 6, 6));
+            _content = scrollContent;
+            var scrollRoot = (RectTransform)scrollContent.parent;
+            UGuiKit.SetHeight(scrollRoot, 440f);
+            scrollRoot.gameObject.GetComponent<LayoutElement>().flexibleHeight = 1f;
+
+            _root.SetActive(false);
         }
 
         private void Update()
@@ -142,15 +143,12 @@ namespace XianTu
 
         private void BuildTabs()
         {
-            if (_tabsBar == null) return;
-            _tabsBar.Clear();
             string[] labels = { "音频", "画质", "控制" };
             for (int i = 0; i < labels.Length; i++)
             {
                 int idx = i;
-                var b = new Button(() => { _tabIndex = idx; RebuildAll(); }) { text = labels[i] };
-                b.AddToClassList("st-tab");
-                _tabsBar.Add(b);
+                var b = UGuiKit.CreateButton(_tabsBar, labels[i], () => { _tabIndex = idx; RebuildAll(); }, UGuiKit.BtnNormal, 22, new Vector2(120f, 40f));
+                UGuiKit.SetHeight(b.GetComponent<RectTransform>(), 40f); b.GetComponent<LayoutElement>().preferredWidth = 120f;
                 _tabButtons[i] = b;
             }
         }
@@ -159,10 +157,11 @@ namespace XianTu
         {
             for (int i = 0; i < _tabButtons.Length; i++)
             {
-                if (_tabButtons[i] != null) _tabButtons[i].EnableInClassList("st-tab--active", i == _tabIndex);
+                var img = _tabButtons[i] != null ? _tabButtons[i].targetGraphic as Image : null;
+                if (img != null) img.color = (i == _tabIndex) ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal;
             }
             if (_content == null) return;
-            _content.Clear();
+            for (int i = _content.childCount - 1; i >= 0; i--) Destroy(_content.GetChild(i).gameObject);
             switch (_tabIndex)
             {
                 case 0: BuildAudio(); break;
@@ -175,63 +174,56 @@ namespace XianTu
 
         private void BuildAudio()
         {
-            _content.Add(VolumeRow("主音量", _master, v => { _master = v; ApplyAudio(); }));
-            _content.Add(VolumeRow("音效 (SFX)", _sfx, v => { _sfx = v; ApplyAudio(); }));
-            _content.Add(VolumeRow("背景音乐 (BGM)", _bgm, v => { _bgm = v; ApplyAudio(); }));
-            _content.Add(VolumeRow("界面 (UI)", _ui, v => { _ui = v; ApplyAudio(); }));
-            _content.Add(Hint("Demo2 音频资源尚未完整接入，部分音效暂未生效。"));
+            VolumeRow("主音量", _master, v => { _master = v; ApplyAudio(); });
+            VolumeRow("音效 (SFX)", _sfx, v => { _sfx = v; ApplyAudio(); });
+            VolumeRow("背景音乐 (BGM)", _bgm, v => { _bgm = v; ApplyAudio(); });
+            VolumeRow("界面 (UI)", _ui, v => { _ui = v; ApplyAudio(); });
+            Hint("Demo2 音频资源尚未完整接入，部分音效暂未生效。");
         }
 
-        private VisualElement VolumeRow(string label, float val, System.Action<float> onChange)
+        private void VolumeRow(string label, float val, System.Action<float> onChange)
         {
-            var row = new VisualElement();
-            row.AddToClassList("st-row");
-            var l = new Label(label);
-            l.AddToClassList("st-label");
-            row.Add(l);
-            var slider = new Slider(0f, 1f) { value = val };
-            slider.AddToClassList("st-slider");
-            var pct = new Label($"{val * 100f:F0}%");
-            pct.AddToClassList("st-pct");
-            slider.RegisterValueChangedCallback(e =>
+            var row = UGuiKit.CreateRow(_content, 12f, 38f);
+            var hl = row.gameObject.GetComponent<HorizontalLayoutGroup>();
+            hl.childControlWidth = false; hl.childAlignment = TextAnchor.MiddleLeft;
+
+            var l = UGuiKit.CreateText(row, label, 22, UGuiKit.TextMain, TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(l, 34f); l.GetComponent<LayoutElement>().preferredWidth = 200f;
+
+            var pct = UGuiKit.CreateText(row, $"{val * 100f:F0}%", 20, UGuiKit.TextDim, TextAlignmentOptions.Right);
+            var slider = UGuiKit.CreateSlider(row, val, v =>
             {
-                onChange(e.newValue);
-                pct.text = $"{e.newValue * 100f:F0}%";
-            });
-            row.Add(slider);
-            row.Add(pct);
-            return row;
+                onChange(v);
+                if (pct != null) pct.text = $"{v * 100f:F0}%";
+            }, 340f, 16f);
+            UGuiKit.SetHeight(slider, 34f); slider.GetComponent<LayoutElement>().preferredWidth = 340f;
+            UGuiKit.SetHeight(pct, 34f); pct.GetComponent<LayoutElement>().preferredWidth = 70f;
         }
 
         // ========== 画质 ==========
 
         private void BuildGraphics()
         {
-            _content.Add(Section("画质等级"));
-            var chipRow = new VisualElement();
-            chipRow.AddToClassList("st-chiprow");
+            Section("画质等级");
+            var chipRow = UGuiKit.CreateRow(_content, 8f, 44f);
+            var hl = chipRow.gameObject.GetComponent<HorizontalLayoutGroup>();
+            hl.childControlWidth = false; hl.childAlignment = TextAnchor.MiddleLeft;
             string[] names = QualitySettings.names;
             for (int i = 0; i < names.Length; i++)
             {
                 int qi = i;
-                var b = new Button(() => { _qualityIdx = qi; QualitySettings.SetQualityLevel(qi, true); RebuildAll(); }) { text = names[i] };
-                b.AddToClassList("st-chip");
-                if (_qualityIdx == i) b.AddToClassList("st-chip--active");
-                chipRow.Add(b);
+                var b = UGuiKit.CreateButton(chipRow, names[i], () => { _qualityIdx = qi; QualitySettings.SetQualityLevel(qi, true); RebuildAll(); },
+                    _qualityIdx == i ? UGuiKit.BtnPrimary : UGuiKit.BtnNormal, 20, new Vector2(120f, 40f));
+                UGuiKit.SetHeight(b.GetComponent<RectTransform>(), 40f); b.GetComponent<LayoutElement>().preferredWidth = 120f;
             }
-            _content.Add(chipRow);
 
-            _content.Add(Section("窗口模式"));
-            var fs = new Toggle("全屏显示") { value = _fullscreen };
-            fs.AddToClassList("st-toggle");
-            fs.RegisterValueChangedCallback(e => { _fullscreen = e.newValue; Screen.fullScreen = e.newValue; });
-            _content.Add(fs);
+            Section("窗口模式");
+            var t = UGuiKit.CreateToggle(_content, "全屏显示", _fullscreen, v => { _fullscreen = v; Screen.fullScreen = v; }, 22);
+            UGuiKit.SetHeight(t, 30f);
 
-            _content.Add(Section("当前分辨率"));
-            var res = new Label($"{Screen.currentResolution.width} × {Screen.currentResolution.height} @ {Screen.currentResolution.refreshRateRatio.value:F0} Hz");
-            res.AddToClassList("st-label");
-            res.style.width = StyleKeyword.Auto;
-            _content.Add(res);
+            Section("当前分辨率");
+            var res = UGuiKit.CreateText(_content, $"{Screen.currentResolution.width} × {Screen.currentResolution.height} @ {Screen.currentResolution.refreshRateRatio.value:F0} Hz", 20, UGuiKit.TextDim, TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(res, 30f);
         }
 
         // ========== 控制 ==========
@@ -253,36 +245,33 @@ namespace XianTu
 
         private void BuildControls()
         {
-            _content.Add(Section("按键提示（暂不支持自定义键位）"));
+            Section("按键提示（暂不支持自定义键位）");
             foreach (var (label, keys) in _bindings)
             {
-                var row = new VisualElement();
-                row.AddToClassList("st-keyrow");
-                var l = new Label(label);
-                l.AddToClassList("st-keyname");
-                row.Add(l);
-                var k = new Label(keys);
-                k.AddToClassList("st-keyval");
-                row.Add(k);
-                _content.Add(row);
+                var row = UGuiKit.CreateRow(_content, 12f, 32f);
+                var hl = row.gameObject.GetComponent<HorizontalLayoutGroup>();
+                hl.childControlWidth = false; hl.childAlignment = TextAnchor.MiddleLeft;
+                var l = UGuiKit.CreateText(row, label, 20, UGuiKit.TextMain, TextAlignmentOptions.Left);
+                UGuiKit.SetHeight(l, 28f); l.GetComponent<LayoutElement>().preferredWidth = 260f;
+                var k = UGuiKit.CreateText(row, keys, 20, UGuiKit.Gold, TextAlignmentOptions.Left);
+                UGuiKit.SetHeight(k, 28f); k.GetComponent<LayoutElement>().preferredWidth = 360f;
             }
-            _content.Add(Hint("未来计划接入 InputSystem 的 PlayerInput rebind。"));
+            Hint("未来计划接入 InputSystem 的 PlayerInput rebind。");
         }
 
         // ========== 小工具 ==========
 
-        private static Label Section(string text)
+        private void Section(string text)
         {
-            var l = new Label(text);
-            l.AddToClassList("st-section");
-            return l;
+            var l = UGuiKit.CreateText(_content, text, 22, UGuiKit.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(l, 34f);
         }
 
-        private static Label Hint(string text)
+        private void Hint(string text)
         {
-            var l = new Label(text);
-            l.AddToClassList("st-hint");
-            return l;
+            var l = UGuiKit.CreateText(_content, text, 18, UGuiKit.TextDim, TextAlignmentOptions.Left);
+            l.enableWordWrapping = true;
+            UGuiKit.SetHeight(l, 44f);
         }
     }
 }

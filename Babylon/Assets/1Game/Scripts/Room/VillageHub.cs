@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -145,18 +146,18 @@ namespace XianTu
             trt.anchorMax = Vector2.one;
             trt.offsetMin = Vector2.zero;
             trt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<Text>();
+            var text = textGo.AddComponent<TextMeshProUGUI>();
             text.text = content;
             text.fontSize = fontSize;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.color = color;
-            text.fontStyle = FontStyle.Bold;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-
-            var outline = textGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.8f);
-            outline.effectDistance = new Vector2(1.2f, -1.2f);
+            text.fontStyle = FontStyles.Bold;
+            text.alignment = TextAlignmentOptions.Center;
+            text.enableWordWrapping = false;
+            text.overflowMode = TextOverflowModes.Overflow;
+            text.raycastTarget = false;
+            text.outlineColor = new Color(0, 0, 0, 0.8f);
+            text.outlineWidth = 0.2f;
         }
     }
 

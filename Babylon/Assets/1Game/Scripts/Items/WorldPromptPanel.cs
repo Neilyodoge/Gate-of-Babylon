@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -19,7 +20,7 @@ namespace XianTu
     {
         public GameObject root;
         public Image holdFill;
-        public Text promptText;
+        public TextMeshProUGUI promptText;
     }
 
     /// <summary>
@@ -51,16 +52,15 @@ namespace XianTu
             // 标题（带描边）
             var title = AddText(canvasGo.transform, "Title", new Vector2(0, 0.68f), new Vector2(1, 1f), 28, d.titleColor, true);
             title.text = d.title;
-            var ol = title.gameObject.AddComponent<Outline>();
-            ol.effectColor = new Color(0, 0, 0, 0.9f);
-            ol.effectDistance = new Vector2(1.5f, -1.5f);
+            title.outlineColor = new Color(0, 0, 0, 0.9f);
+            title.outlineWidth = 0.2f;
 
             // 副行（效果 / 类型）—— 可选
             if (!string.IsNullOrEmpty(d.subLine))
             {
                 var sub = AddText(canvasGo.transform, "Sub", new Vector2(0, 0.52f), new Vector2(1, 0.68f), 16, d.subColor, false);
                 sub.text = d.subLine;
-                sub.supportRichText = true;
+                sub.richText = true;
             }
 
             // 描述 —— 可选
@@ -89,7 +89,7 @@ namespace XianTu
             return new WorldPromptHandle { root = canvasGo, holdFill = holdFill, promptText = prompt };
         }
 
-        private static Text AddText(Transform parent, string name, Vector2 aMin, Vector2 aMax,
+        private static TextMeshProUGUI AddText(Transform parent, string name, Vector2 aMin, Vector2 aMax,
             int fontSize, Color color, bool bold)
         {
             var go = new GameObject(name);
@@ -99,12 +99,13 @@ namespace XianTu
             rt.anchorMax = aMax;
             rt.offsetMin = new Vector2(8, 0);
             rt.offsetMax = new Vector2(-8, 0);
-            var t = go.AddComponent<Text>();
-            t.font = UIBuiltins.LegacyFont;
+            var t = go.AddComponent<TextMeshProUGUI>();
+            if (UGuiKit.CjkFont != null) t.font = UGuiKit.CjkFont;
             t.fontSize = fontSize;
             t.color = color;
-            t.alignment = TextAnchor.MiddleCenter;
-            if (bold) t.fontStyle = FontStyle.Bold;
+            t.alignment = TextAlignmentOptions.Center;
+            t.raycastTarget = false;
+            if (bold) t.fontStyle = FontStyles.Bold;
             return t;
         }
 

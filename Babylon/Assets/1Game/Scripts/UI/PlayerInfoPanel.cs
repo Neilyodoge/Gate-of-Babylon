@@ -1,13 +1,13 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// V0.3.0 信息面板 —— 展示玩家基础属性、成长属性、当前模板信息。
-    /// C 键切换显示/隐藏（局内外均可），主菜单暂停菜单可按钮调起。
-    /// UITK 程序化构建，无需额外 uxml/uss 资产。
+    /// V0.3.0 信息面板（V0.4.6 改 uGUI+TMP）—— 展示玩家基础属性、成长信息、当前增强链。
+    /// C 键切换显示/隐藏（局内外均可），主菜单/暂停菜单可按钮调起。
     /// </summary>
     public class PlayerInfoPanel : MonoBehaviour
     {
@@ -15,14 +15,13 @@ namespace XianTu
         public static bool IsVisible => _instance != null && _instance._visible;
 
         private bool _visible;
-        private UIDocument _doc;
-        private VisualElement _overlay;
+        private GameObject _root;
 
-        private Label _templateName;
-        private Label _templateDesc;
-        private VisualElement _statsContainer;
-        private VisualElement _growthContainer;
-        private VisualElement _chainContainer;
+        private TextMeshProUGUI _templateName;
+        private RectTransform _content;        // scroll content
+        private RectTransform _statsContainer;
+        private RectTransform _growthContainer;
+        private RectTransform _chainContainer;
 
         public static void Ensure()
         {
@@ -38,14 +37,14 @@ namespace XianTu
             if (_instance._visible) return;
             _instance._visible = true;
             _instance.Refresh();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void Hide()
         {
             if (_instance == null || !_instance._visible) return;
             _instance._visible = false;
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
         }
 
         public static void Toggle()
@@ -56,159 +55,93 @@ namespace XianTu
         private void Awake()
         {
             _instance = this;
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.sortingOrder = 11f;
-
-            var root = _doc.rootVisualElement;
-            Build(root);
-            ChineseFontHelper.Apply(root);
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            Build();
+            if (_root != null) _root.SetActive(false);
         }
 
-        private void Build(VisualElement root)
+        private void Build()
         {
-            _overlay = new VisualElement { name = "info-overlay" };
-            _overlay.style.position = Position.Absolute;
-            _overlay.style.left = 0; _overlay.style.right = 0;
-            _overlay.style.top = 0; _overlay.style.bottom = 0;
-            _overlay.style.backgroundColor = new Color(0.03f, 0.04f, 0.07f, 0.92f);
-            _overlay.style.alignItems = Align.Center;
-            _overlay.style.justifyContent = Justify.Center;
-            root.Add(_overlay);
+            var canvas = UGuiKit.CreateOverlayCanvas("PlayerInfoCanvas", 120, transform);
+            _root = canvas.gameObject;
+            UGuiKit.CreateScrim(_root.transform, new Color(0.03f, 0.04f, 0.07f, 0.92f));
 
-            var panel = new VisualElement();
-            panel.style.width = 680;
-            panel.style.maxHeight = Length.Percent(85f);
-            panel.style.backgroundColor = new Color(0.08f, 0.09f, 0.13f, 0.98f);
-            SetBorder(panel, 2, new Color(0.4f, 0.55f, 0.8f, 0.7f), 12);
-            panel.style.paddingTop = 20; panel.style.paddingBottom = 20;
-            panel.style.paddingLeft = 28; panel.style.paddingRight = 28;
-            _overlay.Add(panel);
+            var panel = UGuiKit.CreatePanel(_root.transform, "Panel", new Vector2(700f, 760f), new Color(0.08f, 0.09f, 0.13f, 0.98f));
+            UGuiKit.AddVLayout(panel, 10f, new RectOffset(28, 28, 20, 20), TextAnchor.UpperCenter);
 
-            // Title
-            var titleRow = new VisualElement();
-            titleRow.style.flexDirection = FlexDirection.Row;
-            titleRow.style.justifyContent = Justify.SpaceBetween;
-            titleRow.style.alignItems = Align.Center;
-            titleRow.style.marginBottom = 16;
-            panel.Add(titleRow);
+            // 标题行
+            var header = UGuiKit.CreateRow(panel, 10f, 40f);
+            header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
+            var title = UGuiKit.CreateText(header, "角色信息", 28, new Color(0.92f, 0.9f, 0.82f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 40f); title.GetComponent<LayoutElement>().preferredWidth = 560f;
+            var close = UGuiKit.CreateButton(header, "✕", Hide, UGuiKit.BtnNormal, 20, new Vector2(40f, 40f));
+            UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 40f); close.GetComponent<LayoutElement>().preferredWidth = 40f;
 
-            var title = new Label("角色信息");
-            title.style.fontSize = 28;
-            title.style.color = new Color(0.92f, 0.9f, 0.82f);
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            titleRow.Add(title);
+            // 内容滚动
+            _content = UGuiKit.CreateScroll(panel, "Content", out _, 8f, new RectOffset(6, 6, 6, 6));
+            var scrollRoot = (RectTransform)_content.parent;
+            var le = UGuiKit.SetHeight(scrollRoot, 620f); le.flexibleHeight = 1f;
 
-            var closeBtn = new Button(Hide) { text = "✕" };
-            closeBtn.style.fontSize = 20;
-            closeBtn.style.width = 36; closeBtn.style.height = 36;
-            closeBtn.style.borderTopLeftRadius = 18; closeBtn.style.borderTopRightRadius = 18;
-            closeBtn.style.borderBottomLeftRadius = 18; closeBtn.style.borderBottomRightRadius = 18;
-            titleRow.Add(closeBtn);
+            _templateName = UGuiKit.CreateText(_content, "冒险者", 20, new Color(0.9f, 0.85f, 0.6f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(_templateName, 28f);
 
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
-            scroll.style.flexGrow = 1;
-            panel.Add(scroll);
+            UGuiKit.CreateSectionTitle(_content, "基础属性");
+            _statsContainer = UGuiKit.CreateGrid(_content, new Vector2(150f, 54f), new Vector2(8f, 8f), 4);
 
-            // Template section
-            _templateName = new Label();
-            _templateName.style.fontSize = 20;
-            _templateName.style.color = new Color(0.7f, 0.85f, 1f);
-            _templateName.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _templateName.style.marginBottom = 4;
-            scroll.Add(_templateName);
+            UGuiKit.CreateSectionTitle(_content, "成长信息");
+            _growthContainer = UGuiKit.CreateGrid(_content, new Vector2(150f, 54f), new Vector2(8f, 8f), 4);
 
-            _templateDesc = new Label();
-            _templateDesc.style.fontSize = 13;
-            _templateDesc.style.color = new Color(0.65f, 0.68f, 0.75f);
-            _templateDesc.style.whiteSpace = WhiteSpace.Normal;
-            _templateDesc.style.marginBottom = 14;
-            scroll.Add(_templateDesc);
+            UGuiKit.CreateSectionTitle(_content, "当前增强链");
+            _chainContainer = new GameObject("Chains", typeof(RectTransform)).GetComponent<RectTransform>();
+            _chainContainer.SetParent(_content, false);
+            var cv = _chainContainer.gameObject.AddComponent<VerticalLayoutGroup>();
+            cv.spacing = 6f; cv.childControlWidth = true; cv.childForceExpandWidth = true; cv.childControlHeight = true; cv.childForceExpandHeight = false;
 
-            // Stats section
-            scroll.Add(SectionTitle("基础属性"));
-            _statsContainer = new VisualElement();
-            _statsContainer.style.marginBottom = 16;
-            scroll.Add(_statsContainer);
-
-            // Growth section
-            scroll.Add(SectionTitle("成长信息"));
-            _growthContainer = new VisualElement();
-            _growthContainer.style.marginBottom = 16;
-            scroll.Add(_growthContainer);
-
-            // Chain section
-            scroll.Add(SectionTitle("当前增强链"));
-            _chainContainer = new VisualElement();
-            scroll.Add(_chainContainer);
-
-            // Hotkey hint
-            var hint = new Label("按 Tab 或点击 ✕ 关闭");
-            hint.style.fontSize = 11;
-            hint.style.color = new Color(0.5f, 0.52f, 0.58f);
-            hint.style.unityTextAlign = TextAnchor.MiddleCenter;
-            hint.style.marginTop = 12;
-            panel.Add(hint);
+            var hint = UGuiKit.CreateText(panel, "按 Tab 或点击 ✕ 关闭", 12, new Color(0.5f, 0.52f, 0.58f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(hint, 20f);
         }
 
         private void Refresh()
         {
-            RefreshTemplate();
             RefreshStats();
             RefreshGrowth();
             RefreshChains();
         }
 
-        private void RefreshTemplate()
+        private void ClearGrid(RectTransform grid)
         {
-            _templateName.text = "冒险者";
-            _templateDesc.text = "";
-            _templateName.style.color = new StyleColor(new Color(0.9f, 0.85f, 0.6f));
+            for (int i = grid.childCount - 1; i >= 0; i--) Destroy(grid.GetChild(i).gameObject);
         }
 
         private void RefreshStats()
         {
-            _statsContainer.Clear();
+            ClearGrid(_statsContainer);
             var player = PlayerController.Instance;
             if (player == null)
             {
-                _statsContainer.Add(StatLabel("（未进入关卡，属性数据暂不可用）", new Color(0.6f, 0.6f, 0.65f)));
+                var l = UGuiKit.CreateText(_statsContainer, "（未进入关卡，属性数据暂不可用）", 13, new Color(0.6f, 0.6f, 0.65f), TextAlignmentOptions.Left);
                 return;
             }
 
             var s = player.Stats;
-            var grid = new VisualElement();
-            grid.style.flexDirection = FlexDirection.Row;
-            grid.style.flexWrap = Wrap.Wrap;
-            _statsContainer.Add(grid);
-
-            grid.Add(StatCard("生命值", $"{Mathf.CeilToInt(s.currentHp)} / {Mathf.CeilToInt(s.maxHp)}", HPColor(s)));
-            grid.Add(StatCard("攻击力", $"{s.attackDamage:F1}", new Color(1f, 0.7f, 0.4f)));
-            grid.Add(StatCard("攻击速度", $"{s.attackSpeed * 100f:F0}%", new Color(0.9f, 0.85f, 0.5f)));
-            grid.Add(StatCard("暴击率", $"{s.critRate * 100f:F1}%", new Color(1f, 0.5f, 0.5f)));
-            grid.Add(StatCard("暴击伤害", $"{s.critDamage * 100f:F0}%", new Color(1f, 0.6f, 0.6f)));
-            grid.Add(StatCard("移动速度", $"{s.moveSpeed:F1}", new Color(0.5f, 0.85f, 1f)));
-            grid.Add(StatCard("防御力", $"{s.defense:F1}", new Color(0.6f, 0.8f, 0.6f)));
-            grid.Add(StatCard("减伤比例", $"{s.damageReduction * 100f:F0}%", new Color(0.65f, 0.75f, 0.55f)));
+            UGuiKit.CreateStatCard(_statsContainer, "生命值", $"{Mathf.CeilToInt(s.currentHp)} / {Mathf.CeilToInt(s.maxHp)}", HPColor(s));
+            UGuiKit.CreateStatCard(_statsContainer, "攻击力", $"{s.attackDamage:F1}", new Color(1f, 0.7f, 0.4f));
+            UGuiKit.CreateStatCard(_statsContainer, "攻击速度", $"{s.attackSpeed * 100f:F0}%", new Color(0.9f, 0.85f, 0.5f));
+            UGuiKit.CreateStatCard(_statsContainer, "暴击率", $"{s.critRate * 100f:F1}%", new Color(1f, 0.5f, 0.5f));
+            UGuiKit.CreateStatCard(_statsContainer, "暴击伤害", $"{s.critDamage * 100f:F0}%", new Color(1f, 0.6f, 0.6f));
+            UGuiKit.CreateStatCard(_statsContainer, "移动速度", $"{s.moveSpeed:F1}", new Color(0.5f, 0.85f, 1f));
+            UGuiKit.CreateStatCard(_statsContainer, "防御力", $"{s.defense:F1}", new Color(0.6f, 0.8f, 0.6f));
+            UGuiKit.CreateStatCard(_statsContainer, "减伤比例", $"{s.damageReduction * 100f:F0}%", new Color(0.65f, 0.75f, 0.55f));
         }
 
         private void RefreshGrowth()
         {
-            _growthContainer.Clear();
-            var grid = new VisualElement();
-            grid.style.flexDirection = FlexDirection.Row;
-            grid.style.flexWrap = Wrap.Wrap;
-            _growthContainer.Add(grid);
+            ClearGrid(_growthContainer);
 
             var insight = InsightSystem.Instance;
             if (insight != null)
             {
-                grid.Add(StatCard("本局经验", $"{insight.RunInsight}", new Color(0.78f, 0.68f, 1f)));
-                grid.Add(StatCard("永久经验", $"{insight.PermanentInsight}", new Color(0.65f, 0.55f, 0.95f)));
+                UGuiKit.CreateStatCard(_growthContainer, "本局经验", $"{insight.RunInsight}", new Color(0.78f, 0.68f, 1f));
+                UGuiKit.CreateStatCard(_growthContainer, "永久经验", $"{insight.PermanentInsight}", new Color(0.65f, 0.55f, 0.95f));
             }
 
             if (FeatureFlags.EnableCaveMeta)
@@ -216,47 +149,47 @@ namespace XianTu
                 var cult = CultivationSystem.Instance;
                 if (cult != null)
                 {
-                    grid.Add(StatCard("等级", cult.CurrentRealmName, new Color(0.7f, 0.85f, 1f)));
-                    grid.Add(StatCard("历练", $"{cult.RunTempering}", new Color(0.6f, 0.8f, 0.9f)));
+                    UGuiKit.CreateStatCard(_growthContainer, "等级", cult.CurrentRealmName, new Color(0.7f, 0.85f, 1f));
+                    UGuiKit.CreateStatCard(_growthContainer, "历练", $"{cult.RunTempering}", new Color(0.6f, 0.8f, 0.9f));
                 }
             }
 
             var gm = GameManager.Instance;
             if (gm != null)
             {
-                grid.Add(StatCard("当前层", gm.CurrentRealmName, new Color(0.8f, 0.9f, 0.7f)));
+                UGuiKit.CreateStatCard(_growthContainer, "当前层", gm.CurrentRealmName, new Color(0.8f, 0.9f, 0.7f));
                 float elapsed = gm.RunElapsedSeconds;
                 if (elapsed > 0f)
                 {
                     int m = (int)(elapsed / 60f);
                     int sec = (int)(elapsed % 60f);
-                    grid.Add(StatCard("探索时长", $"{m:D2}:{sec:D2}", new Color(0.7f, 0.8f, 0.7f)));
+                    UGuiKit.CreateStatCard(_growthContainer, "探索时长", $"{m:D2}:{sec:D2}", new Color(0.7f, 0.8f, 0.7f));
                 }
             }
 
             var hooks = LevelDesign.PlayerStateHooks.Instance;
             if (hooks != null)
             {
-                grid.Add(StatCard("击杀数", $"{hooks.KillCount}", new Color(0.95f, 0.55f, 0.45f)));
-                grid.Add(StatCard("意志", $"{hooks.Daoxin} ({hooks.DaoxinState})", DaoxinColor(hooks.Daoxin)));
+                UGuiKit.CreateStatCard(_growthContainer, "击杀数", $"{hooks.KillCount}", new Color(0.95f, 0.55f, 0.45f));
+                UGuiKit.CreateStatCard(_growthContainer, "意志", $"{hooks.Daoxin} ({hooks.DaoxinState})", DaoxinColor(hooks.Daoxin));
             }
         }
 
         private void RefreshChains()
         {
-            _chainContainer.Clear();
+            for (int i = _chainContainer.childCount - 1; i >= 0; i--) Destroy(_chainContainer.GetChild(i).gameObject);
 
             var player = PlayerController.Instance;
             if (player == null)
             {
-                _chainContainer.Add(StatLabel("（未进入关卡）", new Color(0.6f, 0.6f, 0.65f)));
+                UGuiKit.CreateText(_chainContainer, "（未进入关卡）", 13, new Color(0.6f, 0.6f, 0.65f), TextAlignmentOptions.Left);
                 return;
             }
 
             var mgr = player.GetComponent<ModuleSlotManager>();
             if (mgr == null)
             {
-                _chainContainer.Add(StatLabel("（模块系统未初始化）", new Color(0.6f, 0.6f, 0.65f)));
+                UGuiKit.CreateText(_chainContainer, "（模块系统未初始化）", 13, new Color(0.6f, 0.6f, 0.65f), TextAlignmentOptions.Left);
                 return;
             }
 
@@ -265,49 +198,26 @@ namespace XianTu
             for (int i = 0; i < 3; i++)
             {
                 var chain = mgr.GetChain(i);
-                var row = new VisualElement();
-                row.style.flexDirection = FlexDirection.Row;
-                row.style.alignItems = Align.Center;
-                row.style.marginBottom = 6;
-                row.style.paddingTop = 6; row.style.paddingBottom = 6;
-                row.style.paddingLeft = 10; row.style.paddingRight = 10;
-                row.style.backgroundColor = new Color(0.1f, 0.11f, 0.15f, 0.9f);
-                SetBorder(row, 1, new Color(0.3f, 0.35f, 0.45f, 0.6f), 6);
+                var rowGo = new GameObject("Row", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+                var row = (RectTransform)rowGo.transform;
+                row.SetParent(_chainContainer, false);
+                rowGo.GetComponent<Image>().color = new Color(0.1f, 0.11f, 0.15f, 0.9f);
+                var le = rowGo.GetComponent<LayoutElement>(); le.preferredHeight = 40f; le.minHeight = 40f;
+                var hl = UGuiKit.AddHLayout(row, 10f, new RectOffset(10, 10, 6, 6), TextAnchor.MiddleLeft);
 
-                var keyLabel = new Label(slotKeys[i]);
-                keyLabel.style.fontSize = 18;
-                keyLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-                keyLabel.style.color = new Color(0.9f, 0.85f, 0.5f);
-                keyLabel.style.width = 30;
-                row.Add(keyLabel);
+                var keyLabel = UGuiKit.CreateText(row, slotKeys[i], 18, new Color(0.9f, 0.85f, 0.5f), TextAlignmentOptions.Left, FontStyles.Bold);
+                UGuiKit.SetHeight(keyLabel, 28f); keyLabel.GetComponent<LayoutElement>().preferredWidth = 26f;
 
                 var skill = combat != null ? combat.GetSkillInSlot(i) : null;
-                var skillLabel = new Label(skill != null ? skill.skillName : "（空）");
-                skillLabel.style.fontSize = 14;
-                skillLabel.style.color = skill != null ? new StyleColor(new Color(0.85f, 0.88f, 0.95f)) : new StyleColor(new Color(0.5f, 0.5f, 0.55f));
-                skillLabel.style.width = 120;
-                row.Add(skillLabel);
+                var skillLabel = UGuiKit.CreateText(row, skill != null ? skill.skillName : "（空）", 14,
+                    skill != null ? new Color(0.85f, 0.88f, 0.95f) : new Color(0.5f, 0.5f, 0.55f), TextAlignmentOptions.Left);
+                UGuiKit.SetHeight(skillLabel, 28f); skillLabel.GetComponent<LayoutElement>().preferredWidth = 120f;
 
-                if (chain != null && (chain.trigger != null || chain.effect != null))
-                {
-                    var chainStr = BuildChainStr(chain);
-                    var chainLabel = new Label(chainStr);
-                    chainLabel.style.fontSize = 12;
-                    chainLabel.style.color = new Color(0.7f, 0.75f, 0.85f);
-                    chainLabel.style.whiteSpace = WhiteSpace.Normal;
-                    chainLabel.style.flexGrow = 1;
-                    row.Add(chainLabel);
-                }
-                else
-                {
-                    var empty = new Label("未装配增强链");
-                    empty.style.fontSize = 12;
-                    empty.style.color = new Color(0.45f, 0.47f, 0.52f);
-                    empty.style.flexGrow = 1;
-                    row.Add(empty);
-                }
-
-                _chainContainer.Add(row);
+                string chainStr = (chain != null && (chain.trigger != null || chain.effect != null)) ? BuildChainStr(chain) : "未装配增强链";
+                var chainLabel = UGuiKit.CreateText(row, chainStr, 12,
+                    (chain != null && (chain.trigger != null || chain.effect != null)) ? new Color(0.7f, 0.75f, 0.85f) : new Color(0.45f, 0.47f, 0.52f),
+                    TextAlignmentOptions.Left);
+                UGuiKit.SetHeight(chainLabel, 28f); var cle = chainLabel.GetComponent<LayoutElement>(); cle.flexibleWidth = 1f; cle.preferredWidth = 380f;
             }
         }
 
@@ -339,70 +249,6 @@ namespace XianTu
 
         // ==================== Helpers ====================
 
-        private static VisualElement SectionTitle(string text)
-        {
-            var container = new VisualElement();
-            container.style.flexDirection = FlexDirection.Row;
-            container.style.alignItems = Align.Center;
-            container.style.marginTop = 8;
-            container.style.marginBottom = 8;
-
-            var line1 = new VisualElement();
-            line1.style.height = 1;
-            line1.style.flexGrow = 1;
-            line1.style.backgroundColor = new Color(0.35f, 0.4f, 0.5f, 0.5f);
-            container.Add(line1);
-
-            var label = new Label($"  {text}  ");
-            label.style.fontSize = 15;
-            label.style.color = new Color(0.75f, 0.8f, 0.9f);
-            label.style.unityFontStyleAndWeight = FontStyle.Bold;
-            container.Add(label);
-
-            var line2 = new VisualElement();
-            line2.style.height = 1;
-            line2.style.flexGrow = 1;
-            line2.style.backgroundColor = new Color(0.35f, 0.4f, 0.5f, 0.5f);
-            container.Add(line2);
-
-            return container;
-        }
-
-        private static VisualElement StatCard(string label, string value, Color color)
-        {
-            var card = new VisualElement();
-            card.style.width = 140;
-            card.style.marginRight = 8;
-            card.style.marginBottom = 8;
-            card.style.paddingTop = 8; card.style.paddingBottom = 8;
-            card.style.paddingLeft = 10; card.style.paddingRight = 10;
-            card.style.backgroundColor = new Color(0.1f, 0.11f, 0.15f, 0.85f);
-            SetBorder(card, 1, new Color(color.r, color.g, color.b, 0.35f), 6);
-
-            var labelEl = new Label(label);
-            labelEl.style.fontSize = 11;
-            labelEl.style.color = new Color(0.6f, 0.62f, 0.68f);
-            labelEl.style.marginBottom = 3;
-            card.Add(labelEl);
-
-            var valueEl = new Label(value);
-            valueEl.style.fontSize = 17;
-            valueEl.style.color = new StyleColor(color);
-            valueEl.style.unityFontStyleAndWeight = FontStyle.Bold;
-            card.Add(valueEl);
-
-            return card;
-        }
-
-        private static Label StatLabel(string text, Color color)
-        {
-            var l = new Label(text);
-            l.style.fontSize = 13;
-            l.style.color = new StyleColor(color);
-            l.style.marginBottom = 6;
-            return l;
-        }
-
         private static Color HPColor(CombatStats s)
         {
             float ratio = s.maxHp > 0 ? s.currentHp / s.maxHp : 0;
@@ -417,16 +263,6 @@ namespace XianTu
             if (dx >= 50) return new Color(0.85f, 0.88f, 0.9f);
             if (dx >= 20) return new Color(1f, 0.69f, 0.38f);
             return new Color(1f, 0.33f, 0.38f);
-        }
-
-        private static void SetBorder(VisualElement e, float width, Color color, float radius)
-        {
-            e.style.borderTopWidth = width; e.style.borderBottomWidth = width;
-            e.style.borderLeftWidth = width; e.style.borderRightWidth = width;
-            e.style.borderTopColor = color; e.style.borderBottomColor = color;
-            e.style.borderLeftColor = color; e.style.borderRightColor = color;
-            e.style.borderTopLeftRadius = radius; e.style.borderTopRightRadius = radius;
-            e.style.borderBottomLeftRadius = radius; e.style.borderBottomRightRadius = radius;
         }
     }
 }

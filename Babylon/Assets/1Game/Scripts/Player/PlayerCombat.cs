@@ -1171,12 +1171,12 @@ namespace XianTu
             rt.anchoredPosition = new Vector2(0, 120);
             rt.sizeDelta = new Vector2(500, 60);
 
-            var text = go.AddComponent<UnityEngine.UI.Text>();
+            var text = go.AddComponent<TMPro.TextMeshProUGUI>();
             text.text = $"★ {chainName} ★";
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.fontSize = 28;
-            text.fontStyle = FontStyle.Bold;
-            text.alignment = TextAnchor.MiddleCenter;
+            text.fontStyle = TMPro.FontStyles.Bold;
+            text.alignment = TMPro.TextAlignmentOptions.Center;
             text.raycastTarget = false;
 
             Color c = element switch
@@ -1188,10 +1188,8 @@ namespace XianTu
                 _ => new Color(0f, 1f, 0.8f)
             };
             text.color = c;
-
-            var outline = go.AddComponent<UnityEngine.UI.Outline>();
-            outline.effectColor = new Color(0, 0, 0, 0.9f);
-            outline.effectDistance = new Vector2(2, -2);
+            text.outlineColor = new Color(0, 0, 0, 0.9f);
+            text.outlineWidth = 0.2f;
 
             Destroy(go, 1.5f);
         }

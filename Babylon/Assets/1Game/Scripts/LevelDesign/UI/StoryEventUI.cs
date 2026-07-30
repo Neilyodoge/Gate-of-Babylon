@@ -1,13 +1,14 @@
 using System;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu.LevelDesign
 {
     /// <summary>
-    /// GDD §12.2.3 事件 UI（v0.6 改 UI Toolkit）。
+    /// GDD §12.2.3 事件 UI（V0.4.6 改 uGUI+TMP）。
     /// 使用：StoryEventUI.Show(row, opt =&gt; { ... }); 玩家点选项 → 回调 → 自动关闭。
-    /// 结构 Resources/UI/StoryEventUI.uxml，样式同名 uss。对外保持 Show/HideImmediate/IsVisible。
+    /// 对外保持 Show/HideImmediate/IsVisible。
     /// </summary>
     public class StoryEventUI : MonoBehaviour
     {
@@ -20,11 +21,10 @@ namespace XianTu.LevelDesign
         private CursorLockMode _prevLock;
         private bool _prevVisible;
 
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private Label _title;
-        private Label _body;
-        private VisualElement _options;
+        private GameObject _root;
+        private TextMeshProUGUI _title;
+        private TextMeshProUGUI _body;
+        private RectTransform _options;
 
         public static void Show(StoryEventRow row, Action<EventOption> onSelected)
         {
@@ -50,14 +50,14 @@ namespace XianTu.LevelDesign
             UnityEngine.Cursor.visible = true;
 
             _instance.Rebuild();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void HideImmediate()
         {
             if (_instance == null) return;
             _instance._visible = false;
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
         }
 
         private static void EnsureInstance()
@@ -70,24 +70,28 @@ namespace XianTu.LevelDesign
 
         private void Awake()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/StoryEventUI");
+            var canvas = XianTu.UGuiKit.CreateOverlayCanvas("StoryEventUI", 124, transform);
+            _root = canvas.gameObject;
+            XianTu.UGuiKit.CreateScrim(_root.transform, new Color(0.02f, 0.02f, 0.04f, 0.9f));
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 10f;
-            XianTu.ChineseFontHelper.Apply(_doc.rootVisualElement);
+            var panel = XianTu.UGuiKit.CreatePanel(_root.transform, "Panel", new Vector2(720f, 10f), XianTu.UGuiKit.Panel);
+            var fit = panel.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            XianTu.UGuiKit.AddVLayout(panel, 14f, new RectOffset(32, 32, 26, 26), TextAnchor.UpperCenter);
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            _title = XianTu.UGuiKit.CreateText(panel, "", 26, XianTu.UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            XianTu.UGuiKit.SetHeight(_title, 36f);
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _title = root.Q<Label>("title");
-            _body = root.Q<Label>("body");
-            _options = root.Q<VisualElement>("options");
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            _body = XianTu.UGuiKit.CreateText(panel, "", 16, new Color(0.82f, 0.84f, 0.9f), TextAlignmentOptions.TopLeft);
+            _body.enableWordWrapping = true;
+            var ble = _body.gameObject.AddComponent<LayoutElement>(); ble.minHeight = 80f; ble.preferredHeight = 120f;
+
+            _options = new GameObject("Options", typeof(RectTransform)).GetComponent<RectTransform>();
+            _options.SetParent(panel, false);
+            var ov = _options.gameObject.AddComponent<VerticalLayoutGroup>();
+            ov.spacing = 8f; ov.childControlWidth = true; ov.childForceExpandWidth = true; ov.childControlHeight = true; ov.childForceExpandHeight = false;
+
+            _root.SetActive(false);
         }
 
         private void Rebuild()
@@ -98,15 +102,14 @@ namespace XianTu.LevelDesign
 
             if (_options != null)
             {
-                _options.Clear();
+                for (int i = _options.childCount - 1; i >= 0; i--) Destroy(_options.GetChild(i).gameObject);
                 foreach (var opt in _row.Options)
                 {
                     if (opt == null || string.IsNullOrEmpty(opt.Text)) continue;
                     var captured = opt;
-                    var b = new Button(() => OnPick(captured)) { text = BuildOptionLabel(opt) };
-                    b.AddToClassList("se-opt");
-                    b.enableRichText = true;
-                    _options.Add(b);
+                    var btn = XianTu.UGuiKit.CreateButton(_options, BuildOptionLabel(opt), () => OnPick(captured), out var lbl, XianTu.UGuiKit.BtnNormal, 16, new Vector2(640f, 48f));
+                    lbl.alignment = TextAlignmentOptions.Left;
+                    XianTu.UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 48f);
                 }
             }
         }
@@ -114,7 +117,7 @@ namespace XianTu.LevelDesign
         private void OnPick(EventOption opt)
         {
             _visible = false;
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            if (_root != null) _root.SetActive(false);
             UnityEngine.Cursor.lockState = _prevLock;
             UnityEngine.Cursor.visible = _prevVisible;
             _onSelected?.Invoke(opt);

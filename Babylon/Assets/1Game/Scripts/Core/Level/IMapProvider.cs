@@ -22,6 +22,10 @@ namespace XianTu
         /// <summary>整局开始：生成本局地图 / 拓扑。</summary>
         void StartRun();
 
+        /// <summary>V0.4.5：进入某境（realm，0-based）时重生成该区域地图并复位到起点，
+        /// 保证换境后分叉图 CurrentNode 与房间推进重新锁步（否则会沿用上一境用尽的地图）。</summary>
+        void OnEnterRealm(int realm);
+
         /// <summary>
         /// 返回按层组织的房间类型；<c>null</c> 表示地图未就绪，
         /// 由调用方回退到固定布局。

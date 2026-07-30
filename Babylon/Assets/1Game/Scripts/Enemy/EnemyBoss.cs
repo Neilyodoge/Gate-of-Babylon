@@ -134,13 +134,15 @@ namespace XianTu
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<UnityEngine.UI.Text>();
+            var text = textGo.AddComponent<TMPro.TextMeshProUGUI>();
             text.text = "★ 守关妖兽 ★";
             text.fontSize = 24;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.color = new Color(1f, 0.4f, 0.1f);
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.alignment = TMPro.TextAlignmentOptions.Center;
+            text.enableWordWrapping = false;
+            text.overflowMode = TMPro.TextOverflowModes.Overflow;
+            text.raycastTarget = false;
 
             _nameTag = canvas;
         }

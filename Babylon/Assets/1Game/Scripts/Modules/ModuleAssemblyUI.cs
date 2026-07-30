@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using TMPro;
 
 namespace XianTu
 {
@@ -28,13 +29,13 @@ namespace XianTu
         private ModuleDragHandle _dragHandle;
         private GameObject _ghost;
         private RectTransform _ghostRT;
-        private Text _ghostLabel;
+        private TextMeshProUGUI _ghostLabel;
         private Image _ghostBg;
 
         // ---------- 提示 toast ----------
         private GameObject _toastGo;
         private Image _toastBg;
-        private Text _toast;
+        private TextMeshProUGUI _toast;
         private float _toastTimer;
         private Color _toastColor = Color.white;
 
@@ -46,48 +47,48 @@ namespace XianTu
             public Image bg;
             public Image iconBg;
             public Image iconImg;
-            public Text iconGlyph;
-            public Text name;
-            public Text tag;
+            public TextMeshProUGUI iconGlyph;
+            public TextMeshProUGUI name;
+            public TextMeshProUGUI tag;
             public Button btn;
             public ModuleDragHandle drag;
         }
         private readonly List<InvItem> _invItems = new();
         private RectTransform _invContent;
         private RectTransform _invViewport;
-        private Text _invCountLabel;
-        private Text _invEmptyLabel;
+        private TextMeshProUGUI _invCountLabel;
+        private TextMeshProUGUI _invEmptyLabel;
 
         // ---------- 筛选页签 ----------
-        private readonly List<(Button btn, Image bg, Text label, int value)> _tabs = new();
+        private readonly List<(Button btn, Image bg, TextMeshProUGUI label, int value)> _tabs = new();
 
         // ---------- 链列（竖式） ----------
         private readonly Image[] _colBorder = new Image[3];
         private readonly Image[] _colBg = new Image[3];
-        private readonly Text[] _colHeader = new Text[3];
-        private readonly Text[] _chainBoxTitle = new Text[3];
-        private readonly Text[] _chainPreview = new Text[3];
+        private readonly TextMeshProUGUI[] _colHeader = new TextMeshProUGUI[3];
+        private readonly TextMeshProUGUI[] _chainBoxTitle = new TextMeshProUGUI[3];
+        private readonly TextMeshProUGUI[] _chainPreview = new TextMeshProUGUI[3];
         private readonly Image[,] _slotBorder = new Image[3, 4];
         private readonly Image[,] _slotIconBg = new Image[3, 4];
         private readonly Image[,] _slotIconImg = new Image[3, 4];
-        private readonly Text[,] _slotIconGlyph = new Text[3, 4];
-        private readonly Text[,] _slotLabel = new Text[3, 4];
-        private readonly Text[,] _slotHint = new Text[3, 4];
+        private readonly TextMeshProUGUI[,] _slotIconGlyph = new TextMeshProUGUI[3, 4];
+        private readonly TextMeshProUGUI[,] _slotLabel = new TextMeshProUGUI[3, 4];
+        private readonly TextMeshProUGUI[,] _slotHint = new TextMeshProUGUI[3, 4];
         private readonly GameObject[,] _slotRemove = new GameObject[3, 4];
-        private readonly Text[] _modeBadge = new Text[3];
-        private readonly Text[] _roleBadge = new Text[3];
+        private readonly TextMeshProUGUI[] _modeBadge = new TextMeshProUGUI[3];
+        private readonly TextMeshProUGUI[] _roleBadge = new TextMeshProUGUI[3];
         private readonly Image[] _statusBarBg = new Image[3];
-        private readonly Text[] _statusBar = new Text[3];
+        private readonly TextMeshProUGUI[] _statusBar = new TextMeshProUGUI[3];
 
         // ---------- 详情 ----------
         private Image _descIconBg;
         private Image _descIconImg;
-        private Text _descIconGlyph;
-        private Text _descTitle;
-        private Text _descTags;
-        private Text _descBody;
+        private TextMeshProUGUI _descIconGlyph;
+        private TextMeshProUGUI _descTitle;
+        private TextMeshProUGUI _descTags;
+        private TextMeshProUGUI _descBody;
         private Button _discardBtn;
-        private Text _discardLabel;
+        private TextMeshProUGUI _discardLabel;
 
         // ---------- 颜色常量 ----------
         private static readonly Color CTrigger = new Color(0.26f, 0.66f, 1f);
@@ -219,7 +220,7 @@ namespace XianTu
             {
                 bool active = _filter == value;
                 bg.color = active ? new Color(0.30f, 0.42f, 0.62f, 1f) : new Color(0.16f, 0.17f, 0.24f, 0.9f);
-                label.fontStyle = active ? FontStyle.Bold : FontStyle.Normal;
+                label.fontStyle = active ? FontStyles.Bold : FontStyles.Normal;
                 label.color = active ? Color.white : new Color(0.7f, 0.72f, 0.8f);
             }
         }
@@ -369,14 +370,14 @@ namespace XianTu
                         SetIconTile(_slotIconBg[s, p], _slotIconImg[s, p], _slotIconGlyph[s, p], m);
                         _slotIconBg[s, p].gameObject.SetActive(true);
                         _slotLabel[s, p].text = FormatModuleName(m);
-                        _slotLabel[s, p].fontStyle = FontStyle.Bold;
+                        _slotLabel[s, p].fontStyle = FontStyles.Bold;
                         _slotHint[s, p].text = "";
                     }
                     else
                     {
                         _slotIconBg[s, p].gameObject.SetActive(false);
                         _slotLabel[s, p].text = $"<color=#6a6d7b>{posNames[p]}</color>";
-                        _slotLabel[s, p].fontStyle = FontStyle.Normal;
+                        _slotLabel[s, p].fontStyle = FontStyles.Normal;
                         _slotHint[s, p].text = canPlace ? "<color=#7eff8a>↓ 放到这里</color>"
                             : (p <= 1 ? "<color=#4a4d5b>点击/拖拽装配</color>" : "<color=#4a4d5b>可选·改造</color>");
                     }
@@ -632,7 +633,7 @@ namespace XianTu
             _ghostBg.color = new Color(0.1f, 0.1f, 0.15f, 0.9f);
             AddOutline(_ghost, new Color(0.4f, 0.7f, 1f, 0.7f));
             _ghostLabel = CreateText(_ghost.transform, "L", "",
-                Vector2.zero, Vector2.one, 14, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft).GetComponent<Text>();
+                Vector2.zero, Vector2.one, 14, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft).GetComponent<TextMeshProUGUI>();
             _ghost.transform.SetAsLastSibling();
         }
 
@@ -723,7 +724,7 @@ namespace XianTu
             _toastBg = _toastGo.GetComponent<Image>();
             _toastBg.raycastTarget = false;
             _toast = CreateText(_toastGo.transform, "T", "",
-                Vector2.zero, Vector2.one, 15, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter).GetComponent<Text>();
+                Vector2.zero, Vector2.one, 15, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter).GetComponent<TextMeshProUGUI>();
             _toast.color = new Color(1f, 1f, 1f, 0f);
             _toastGo.SetActive(false);
 
@@ -744,7 +745,7 @@ namespace XianTu
             CreateText(panel.transform, "BagTitle", "模块背包",
                 new Vector2(0.04f, 0.955f), new Vector2(0.6f, 0.998f), 16, new Color(0.8f, 0.9f, 1f), FontStyle.Bold, TextAnchor.MiddleLeft);
             _invCountLabel = CreateText(panel.transform, "BagCount", "数量：0",
-                new Vector2(0.55f, 0.955f), new Vector2(0.965f, 0.998f), 13, new Color(0.6f, 0.66f, 0.8f), FontStyle.Normal, TextAnchor.MiddleRight).GetComponent<Text>();
+                new Vector2(0.55f, 0.955f), new Vector2(0.965f, 0.998f), 13, new Color(0.6f, 0.66f, 0.8f), FontStyle.Normal, TextAnchor.MiddleRight).GetComponent<TextMeshProUGUI>();
 
             // 筛选页签
             string[] tabNames = { "全部", "触发", "效果", "改造", "万能" };
@@ -758,7 +759,7 @@ namespace XianTu
                     new Vector2(x0, 0.905f), new Vector2(x1, 0.948f), new Color(0.16f, 0.17f, 0.24f, 0.9f));
                 var btn = tab.AddComponent<Button>();
                 var label = CreateText(tab.transform, "L", tabNames[i],
-                    Vector2.zero, Vector2.one, 12, Color.white).GetComponent<Text>();
+                    Vector2.zero, Vector2.one, 12, Color.white).GetComponent<TextMeshProUGUI>();
                 int val = tabVals[i];
                 btn.onClick.AddListener(() => SetFilter(val));
                 _tabs.Add((btn, tab.GetComponent<Image>(), label, val));
@@ -791,7 +792,7 @@ namespace XianTu
 
             _invEmptyLabel = CreateText(viewport.transform, "Empty",
                 "背包为空\n用 Debug「发放全部模块」\n或在关卡中拾取\n（已装槽位可拖回此处卸下）",
-                new Vector2(0.05f, 0.35f), new Vector2(0.95f, 0.65f), 13, new Color(0.5f, 0.53f, 0.62f)).GetComponent<Text>();
+                new Vector2(0.05f, 0.35f), new Vector2(0.95f, 0.65f), 13, new Color(0.5f, 0.53f, 0.62f)).GetComponent<TextMeshProUGUI>();
             _invEmptyLabel.gameObject.SetActive(false);
         }
 
@@ -823,12 +824,12 @@ namespace XianTu
             var iimg = iconImg.AddComponent<Image>();
             iimg.raycastTarget = false; iimg.preserveAspect = true; iimg.enabled = false;
             var glyph = CreateText(iconBg.transform, "Glyph", "",
-                Vector2.zero, Vector2.one, 26, Color.white, FontStyle.Bold).GetComponent<Text>();
+                Vector2.zero, Vector2.one, 26, Color.white, FontStyle.Bold).GetComponent<TextMeshProUGUI>();
 
             var name = CreateText(go.transform, "Name", "",
-                new Vector2(0.02f, 0.18f), new Vector2(0.98f, 0.36f), 12, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter).GetComponent<Text>();
+                new Vector2(0.02f, 0.18f), new Vector2(0.98f, 0.36f), 12, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter).GetComponent<TextMeshProUGUI>();
             var tag = CreateText(go.transform, "Tag", "",
-                new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.18f), 10, new Color(0.7f, 0.72f, 0.8f), FontStyle.Normal, TextAnchor.MiddleCenter).GetComponent<Text>();
+                new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.18f), 10, new Color(0.7f, 0.72f, 0.8f), FontStyle.Normal, TextAnchor.MiddleCenter).GetComponent<TextMeshProUGUI>();
 
             _invItems.Add(new InvItem
             {
@@ -876,18 +877,18 @@ namespace XianTu
                 new Vector2(0.03f, 0.935f), new Vector2(0.17f, 0.99f), keyColors[s] * new Color(1f, 1f, 1f, 0.9f));
             CreateText(keyCircle.transform, "K", SlotKeyNames[s], Vector2.zero, Vector2.one, 18, Color.black, FontStyle.Bold);
             _colHeader[s] = CreateText(col.transform, "Header", "",
-                new Vector2(0.19f, 0.935f), new Vector2(0.98f, 0.99f), 13, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft).GetComponent<Text>();
+                new Vector2(0.19f, 0.935f), new Vector2(0.98f, 0.99f), 13, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft).GetComponent<TextMeshProUGUI>();
 
             // 全息链状态框
             var box = CreatePanel(col.transform, "ChainBox",
                 new Vector2(0.03f, 0.70f), new Vector2(0.97f, 0.925f), new Color(0.06f, 0.07f, 0.12f, 0.9f));
             box.GetComponent<Image>().raycastTarget = false;
             _chainBoxTitle[s] = CreateText(box.transform, "BoxTitle", "",
-                new Vector2(0.04f, 0.66f), new Vector2(0.97f, 0.97f), 12, new Color(0.85f, 0.88f, 0.95f), FontStyle.Bold, TextAnchor.UpperLeft).GetComponent<Text>();
-            _chainBoxTitle[s].horizontalOverflow = HorizontalWrapMode.Wrap;
+                new Vector2(0.04f, 0.66f), new Vector2(0.97f, 0.97f), 12, new Color(0.85f, 0.88f, 0.95f), FontStyle.Bold, TextAnchor.UpperLeft).GetComponent<TextMeshProUGUI>();
+            _chainBoxTitle[s].enableWordWrapping = true;
             var pv = CreateText(box.transform, "BoxPreview", "",
-                new Vector2(0.04f, 0.03f), new Vector2(0.97f, 0.64f), 11, new Color(0.82f, 0.92f, 0.85f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<Text>();
-            pv.horizontalOverflow = HorizontalWrapMode.Wrap;
+                new Vector2(0.04f, 0.03f), new Vector2(0.97f, 0.64f), 11, new Color(0.82f, 0.92f, 0.85f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<TextMeshProUGUI>();
+            pv.enableWordWrapping = true;
             _chainPreview[s] = pv;
 
             // 4 竖槽
@@ -905,9 +906,9 @@ namespace XianTu
 
             // 底部角标
             _modeBadge[s] = CreateText(col.transform, "Mode", "",
-                new Vector2(0.03f, 0.205f), new Vector2(0.5f, 0.265f), 11, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft).GetComponent<Text>();
+                new Vector2(0.03f, 0.205f), new Vector2(0.5f, 0.265f), 11, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft).GetComponent<TextMeshProUGUI>();
             _roleBadge[s] = CreateText(col.transform, "Role", "",
-                new Vector2(0.5f, 0.205f), new Vector2(0.97f, 0.265f), 11, Color.white, FontStyle.Bold, TextAnchor.MiddleRight).GetComponent<Text>();
+                new Vector2(0.5f, 0.205f), new Vector2(0.97f, 0.265f), 11, Color.white, FontStyle.Bold, TextAnchor.MiddleRight).GetComponent<TextMeshProUGUI>();
 
             // 状态条
             var statusBg = CreatePanel(col.transform, "Status",
@@ -915,7 +916,7 @@ namespace XianTu
             statusBg.GetComponent<Image>().raycastTarget = false;
             _statusBarBg[s] = statusBg.GetComponent<Image>();
             _statusBar[s] = CreateText(statusBg.transform, "L", "",
-                Vector2.zero, Vector2.one, 14, Color.white, FontStyle.Bold).GetComponent<Text>();
+                Vector2.zero, Vector2.one, 14, Color.white, FontStyle.Bold).GetComponent<TextMeshProUGUI>();
         }
 
         private void BuildSlot(Transform col, int s, int p, float y0, float y1, string posName)
@@ -955,16 +956,16 @@ namespace XianTu
             iimg.raycastTarget = false; iimg.preserveAspect = true; iimg.enabled = false;
             _slotIconImg[s, p] = iimg;
             _slotIconGlyph[s, p] = CreateText(iconBg.transform, "Glyph", "",
-                Vector2.zero, Vector2.one, 16, Color.white, FontStyle.Bold).GetComponent<Text>();
+                Vector2.zero, Vector2.one, 16, Color.white, FontStyle.Bold).GetComponent<TextMeshProUGUI>();
             iconBg.SetActive(false);
 
             // 名称 + 提示
             var label = CreateText(inner.transform, "Label", posName,
                 new Vector2(0.27f, 0.42f), new Vector2(0.86f, 0.95f), 13, Color.white, FontStyle.Normal, TextAnchor.LowerLeft);
-            label.GetComponent<Text>().horizontalOverflow = HorizontalWrapMode.Wrap;
-            _slotLabel[s, p] = label.GetComponent<Text>();
+            label.GetComponent<TextMeshProUGUI>().enableWordWrapping = true;
+            _slotLabel[s, p] = label.GetComponent<TextMeshProUGUI>();
             _slotHint[s, p] = CreateText(inner.transform, "Hint", "",
-                new Vector2(0.27f, 0.05f), new Vector2(0.97f, 0.42f), 10, new Color(0.5f, 0.53f, 0.62f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<Text>();
+                new Vector2(0.27f, 0.05f), new Vector2(0.97f, 0.42f), 10, new Color(0.5f, 0.53f, 0.62f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<TextMeshProUGUI>();
 
             // 卸下 ✕
             var rm = CreatePanel(border.transform, "Remove",
@@ -998,21 +999,21 @@ namespace XianTu
             _descIconImg = iconImg.AddComponent<Image>();
             _descIconImg.raycastTarget = false; _descIconImg.preserveAspect = true; _descIconImg.enabled = false;
             _descIconGlyph = CreateText(iconBg.transform, "Glyph", "",
-                Vector2.zero, Vector2.one, 30, Color.white, FontStyle.Bold).GetComponent<Text>();
+                Vector2.zero, Vector2.one, 30, Color.white, FontStyle.Bold).GetComponent<TextMeshProUGUI>();
             iconBg.SetActive(false);
 
             _descTitle = CreateText(panel.transform, "Name", "<color=#9fb3d0>模块详情</color>",
-                new Vector2(0.37f, 0.88f), new Vector2(0.96f, 0.95f), 16, Color.white, FontStyle.Bold, TextAnchor.LowerLeft).GetComponent<Text>();
+                new Vector2(0.37f, 0.88f), new Vector2(0.96f, 0.95f), 16, Color.white, FontStyle.Bold, TextAnchor.LowerLeft).GetComponent<TextMeshProUGUI>();
             _descTags = CreateText(panel.transform, "Tags", "",
-                new Vector2(0.37f, 0.79f), new Vector2(0.96f, 0.87f), 12, new Color(0.8f, 0.82f, 0.9f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<Text>();
+                new Vector2(0.37f, 0.79f), new Vector2(0.96f, 0.87f), 12, new Color(0.8f, 0.82f, 0.9f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<TextMeshProUGUI>();
 
             var bodyPanel = CreatePanel(panel.transform, "BodyBg",
                 new Vector2(0.05f, 0.55f), new Vector2(0.96f, 0.76f), new Color(0.05f, 0.06f, 0.1f, 0.8f));
             bodyPanel.GetComponent<Image>().raycastTarget = false;
             _descBody = CreateText(bodyPanel.transform, "Body", "",
-                new Vector2(0.04f, 0.04f), new Vector2(0.97f, 0.96f), 12, new Color(0.78f, 0.82f, 0.9f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<Text>();
-            _descBody.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _descBody.verticalOverflow = VerticalWrapMode.Truncate;
+                new Vector2(0.04f, 0.04f), new Vector2(0.97f, 0.96f), 12, new Color(0.78f, 0.82f, 0.9f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<TextMeshProUGUI>();
+            _descBody.enableWordWrapping = true;
+            _descBody.overflowMode = TextOverflowModes.Truncate;
 
             // 帮助说明
             CreateText(panel.transform, "HelpTitle", "帮助说明",
@@ -1035,12 +1036,12 @@ namespace XianTu
                 new Vector2(0.05f, 0.025f), new Vector2(0.96f, 0.10f), new Color(0.45f, 0.16f, 0.16f, 0.95f));
             _discardBtn = discardGo.AddComponent<Button>();
             _discardBtn.onClick.AddListener(DiscardSelected);
-            _discardLabel = CreateText(discardGo.transform, "L", "丢弃选中模块", Vector2.zero, Vector2.one, 14, new Color(1f, 0.7f, 0.7f), FontStyle.Bold).GetComponent<Text>();
+            _discardLabel = CreateText(discardGo.transform, "L", "丢弃选中模块", Vector2.zero, Vector2.one, 14, new Color(1f, 0.7f, 0.7f), FontStyle.Bold).GetComponent<TextMeshProUGUI>();
         }
 
         // ==================== 图标块 ====================
 
-        private static void SetIconTile(Image bg, Image img, Text glyph, ModuleDef m)
+        private static void SetIconTile(Image bg, Image img, TextMeshProUGUI glyph, ModuleDef m)
         {
             if (bg != null)
                 bg.color = CategoryColor(m.category) * new Color(1f, 1f, 1f, 0.22f) + new Color(0.08f, 0.09f, 0.13f, 0.92f);
@@ -1488,19 +1489,34 @@ namespace XianTu
             var rt = go.AddComponent<RectTransform>();
             rt.anchorMin = aMin; rt.anchorMax = aMax;
             rt.offsetMin = new Vector2(4, 2); rt.offsetMax = new Vector2(-4, -2);
-            var t = go.AddComponent<Text>();
+            var t = go.AddComponent<TextMeshProUGUI>();
             t.text = text;
             t.fontSize = fontSize;
-            t.font = UIBuiltins.LegacyFont;
-            t.alignment = anchor;
+            if (UGuiKit.CjkFont != null) t.font = UGuiKit.CjkFont;
+            t.alignment = ToTMPAlign(anchor);
             t.color = color;
-            t.fontStyle = style;
-            t.supportRichText = true;
+            t.fontStyle = style == FontStyle.Bold ? FontStyles.Bold : FontStyles.Normal;
+            t.richText = true;
             t.raycastTarget = false;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
-            t.verticalOverflow = VerticalWrapMode.Overflow;
+            t.enableWordWrapping = false;
+            t.overflowMode = TextOverflowModes.Overflow;
             return go;
         }
+
+        /// <summary>把旧 TextAnchor 映射到 TMP 的 TextAlignmentOptions（保持各调用点旧签名不变）。</summary>
+        private static TextAlignmentOptions ToTMPAlign(TextAnchor a) => a switch
+        {
+            TextAnchor.UpperLeft => TextAlignmentOptions.TopLeft,
+            TextAnchor.UpperCenter => TextAlignmentOptions.Top,
+            TextAnchor.UpperRight => TextAlignmentOptions.TopRight,
+            TextAnchor.MiddleLeft => TextAlignmentOptions.Left,
+            TextAnchor.MiddleCenter => TextAlignmentOptions.Center,
+            TextAnchor.MiddleRight => TextAlignmentOptions.Right,
+            TextAnchor.LowerLeft => TextAlignmentOptions.BottomLeft,
+            TextAnchor.LowerCenter => TextAlignmentOptions.Bottom,
+            TextAnchor.LowerRight => TextAlignmentOptions.BottomRight,
+            _ => TextAlignmentOptions.Center,
+        };
     }
 
     /// <summary>挂在背包卡片 / 链槽位上，转发拖拽事件给 ModuleAssemblyUI。</summary>

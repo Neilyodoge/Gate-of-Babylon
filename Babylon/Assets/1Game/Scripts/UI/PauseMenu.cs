@@ -1,15 +1,16 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// 暂停菜单（v0.6 改 UI Toolkit）—— ESC 打开 / 关闭。
+    /// 暂停菜单（V0.4.6 改 uGUI+TMP）—— ESC 打开 / 关闭。
     ///
-    /// 结构 Resources/UI/PauseMenu.uxml，样式 PauseMenu.uss，复用 AvatarSelectPanelSettings。
-    /// 按 ESC 时检查是否有其他 UI 在前台（选化身 / 机缘 / 图鉴 / 设置），有则不响应。
-    /// 暂停时 Time.timeScale=0；确认对话框（返回主菜单 / 退出）也走 UITK。
+    /// UI 用 UGuiKit 代码化构建（Canvas sortingOrder=110）。
+    /// 按 ESC 时检查是否有其他 UI 在前台（角色信息 / 图鉴 / 设置 / 模块装配），有则不响应。
+    /// 暂停时 Time.timeScale=0；确认对话框（返回主菜单 / 退出）为内嵌子层。
     /// </summary>
     public class PauseMenu : MonoBehaviour
     {
@@ -21,10 +22,9 @@ namespace XianTu
         private CursorLockMode _previousCursorLock;
         private bool _previousCursorVisible;
 
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private VisualElement _confirm;
-        private Label _confirmMsg;
+        private GameObject _root;
+        private GameObject _confirm;
+        private TextMeshProUGUI _confirmMsg;
         private System.Action _confirmAction;
 
         public static void Ensure()
@@ -54,7 +54,7 @@ namespace XianTu
             UnityEngine.Cursor.visible = true;
 
             _instance.HideConfirm();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void Hide()
@@ -68,7 +68,7 @@ namespace XianTu
             UnityEngine.Cursor.lockState = _instance._previousCursorLock;
             UnityEngine.Cursor.visible = _instance._previousCursorVisible;
 
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
         }
 
         public static void Toggle()
@@ -77,62 +77,75 @@ namespace XianTu
             else Show();
         }
 
-        // ========== UITK 构建 ==========
+        // ========== uGUI 构建 ==========
 
         private void Awake()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/PauseMenu");
+            var canvas = UGuiKit.CreateOverlayCanvas("PauseMenuCanvas", 110, transform);
+            _root = canvas.gameObject;
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 10f;
-            ChineseFontHelper.Apply(_doc.rootVisualElement);
+            UGuiKit.CreateScrim(_root.transform);
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
-            // 样式经 UXML <Style src> 加载（避免 Resources 空规则缓存坑）
+            var panel = UGuiKit.CreatePanel(_root.transform, "Panel", new Vector2(460f, 10f), UGuiKit.Panel);
+            var fit = panel.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            UGuiKit.AddVLayout(panel, 12f, new RectOffset(28, 28, 28, 28), TextAnchor.UpperCenter);
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _confirm = root.Q<VisualElement>("confirm");
-            _confirmMsg = root.Q<Label>("confirm-msg");
+            var title = UGuiKit.CreateText(panel, "已 暂 停", 40, UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 56f);
 
-            Wire(root, "resume", Hide);
-            Wire(root, "info", () => { Hide(); PlayerInfoPanel.Show(); });
-            Wire(root, "codex", () => { Hide(); CodexUITK.Show(); });
-            Wire(root, "settings", () => SettingsUI.Show());
-            Wire(root, "tomain", () => AskConfirm("返回主菜单将丢失本局进度，确定吗？",
-                () => { Hide(); MainMenu.ReturnToMainMenu(); }));
-            Wire(root, "quit", () => AskConfirm("确定要退出游戏吗？", QuitGame));
+            MakeBtn(panel, "继续游戏", Hide, UGuiKit.BtnPrimary);
+            MakeBtn(panel, "角色信息", () => { Hide(); PlayerInfoPanel.Show(); }, UGuiKit.BtnNormal);
+            MakeBtn(panel, "图鉴", () => { Hide(); CodexUITK.Show(); }, UGuiKit.BtnNormal);
+            MakeBtn(panel, "设置", () => SettingsUI.Show(), UGuiKit.BtnNormal);
+            MakeBtn(panel, "返回主菜单", () => AskConfirm("返回主菜单将丢失本局进度，确定吗？",
+                () => { Hide(); MainMenu.ReturnToMainMenu(); }), UGuiKit.BtnNormal);
+            MakeBtn(panel, "退出游戏", () => AskConfirm("确定要退出游戏吗？", QuitGame), UGuiKit.BtnWarn);
 
-            var ok = root.Q<Button>("confirm-ok");
-            if (ok != null) ok.clicked += () => { var a = _confirmAction; HideConfirm(); a?.Invoke(); };
-            var cancel = root.Q<Button>("confirm-cancel");
-            if (cancel != null) cancel.clicked += HideConfirm;
+            BuildConfirm();
 
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
-            HideConfirm();
+            _root.SetActive(false);
         }
 
-        private static void Wire(VisualElement root, string name, System.Action action)
+        private void MakeBtn(RectTransform parent, string text, UnityEngine.Events.UnityAction onClick, Color color)
         {
-            var b = root.Q<Button>(name);
-            if (b != null) b.clicked += action;
+            var btn = UGuiKit.CreateButton(parent.transform, text, onClick, color, 28, new Vector2(404f, 52f));
+            UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 52f);
+        }
+
+        private void BuildConfirm()
+        {
+            _confirm = UGuiKit.CreateStretch(_root.transform, "Confirm").gameObject;
+            UGuiKit.CreateScrim(_confirm.transform, new Color(0f, 0f, 0f, 0.6f));
+
+            var panel = UGuiKit.CreatePanel(_confirm.transform, "ConfirmPanel", new Vector2(480f, 220f), UGuiKit.Panel);
+            UGuiKit.AddVLayout(panel, 18f, new RectOffset(28, 28, 28, 28), TextAnchor.MiddleCenter);
+
+            _confirmMsg = UGuiKit.CreateText(panel, "", 24, UGuiKit.TextMain, TextAlignmentOptions.Center);
+            _confirmMsg.enableWordWrapping = true;
+            UGuiKit.SetHeight(_confirmMsg, 90f);
+
+            var row = UGuiKit.CreateRow(panel, 20f, 52f);
+            row.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+            var ok = UGuiKit.CreateButton(row.transform, "确定", () => { var a = _confirmAction; HideConfirm(); a?.Invoke(); }, UGuiKit.BtnWarn, 26, new Vector2(180f, 52f));
+            UGuiKit.SetHeight(ok.GetComponent<RectTransform>(), 52f); ok.GetComponent<LayoutElement>().preferredWidth = 180f;
+            var cancel = UGuiKit.CreateButton(row.transform, "取消", HideConfirm, UGuiKit.BtnNormal, 26, new Vector2(180f, 52f));
+            UGuiKit.SetHeight(cancel.GetComponent<RectTransform>(), 52f); cancel.GetComponent<LayoutElement>().preferredWidth = 180f;
+
+            _confirm.SetActive(false);
         }
 
         private void AskConfirm(string message, System.Action onConfirm)
         {
             _confirmAction = onConfirm;
             if (_confirmMsg != null) _confirmMsg.text = message;
-            if (_confirm != null) _confirm.style.display = DisplayStyle.Flex;
+            if (_confirm != null) _confirm.SetActive(true);
         }
 
         private void HideConfirm()
         {
             _confirmAction = null;
-            if (_confirm != null) _confirm.style.display = DisplayStyle.None;
+            if (_confirm != null) _confirm.SetActive(false);
         }
 
         private static void QuitGame()
@@ -154,7 +167,7 @@ namespace XianTu
             bool esc = kb != null && kb.escapeKey.wasPressedThisFrame;
 
             // 确认框打开时，ESC 先关确认框
-            if (_visible && _confirm != null && _confirm.style.display == DisplayStyle.Flex)
+            if (_visible && _confirm != null && _confirm.activeSelf)
             {
                 if (esc) HideConfirm();
                 return;

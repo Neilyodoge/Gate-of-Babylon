@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using TMPro;
 
 namespace XianTu
 {
@@ -51,12 +52,13 @@ namespace XianTu
                 var labelRt = labelGo.AddComponent<RectTransform>();
                 labelRt.anchoredPosition = Vector2.zero;
                 labelRt.sizeDelta = new Vector2(20, 20);
-                var label = labelGo.AddComponent<Text>();
+                var label = labelGo.AddComponent<TextMeshProUGUI>();
                 label.text = GetRoomSymbol(roomLayout[i]);
                 label.fontSize = 10;
-                label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (UGuiKit.CjkFont != null) label.font = UGuiKit.CjkFont;
                 label.color = Color.white;
-                label.alignment = TextAnchor.MiddleCenter;
+                label.alignment = TextAlignmentOptions.Center;
+                label.raycastTarget = false;
 
                 _roomIcons.Add((img, i, roomLayout[i]));
 

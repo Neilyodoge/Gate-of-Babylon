@@ -1,19 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// 局内 HUD（v0.5）—— 右侧常驻 UI，显示收集素材与状态信息。
-    ///
-    /// 拾取时弹一条飘字（监听 CaveMaterialPickedUp 事件）。
+    /// 局内 HUD（V0.4.6 改 uGUI+TMP）—— 常驻 UI：顶部经验条 / 等级历练、右上角意志因果寿元、居中拾取飘字。
+    /// 拾取/经验时弹一条飘字（监听 InsightChanged）。所有元素逐帧更新文本与可见性。
     /// </summary>
     public class RunHUD : MonoBehaviour
     {
         private static RunHUD _instance;
         public static RunHUD Instance => _instance;
 
-        // 拾取飘字队列
         private struct PickupToast
         {
             public string text;
@@ -23,12 +23,16 @@ namespace XianTu
         private readonly List<PickupToast> _toasts = new();
         private const float ToastDuration = 2.5f;
 
-        private GUIStyle _bgStyle;
-        private GUIStyle _titleStyle;
-        private GUIStyle _itemStyle;
-        private GUIStyle _hintStyle;
-        private GUIStyle _toastStyle;
-        private bool _stylesReady;
+        // uGUI 元素
+        private GameObject _root;
+        private GameObject _insightBar;
+        private TextMeshProUGUI _insightLabel;
+        private TextMeshProUGUI _cultLabel;
+        private GameObject _moralPanel;
+        private TextMeshProUGUI _daoxinLabel, _karmaLabel, _lifespanLabel;
+        private RectTransform _toastRoot;
+        private readonly List<TextMeshProUGUI> _toastPool = new();
+        private const int ToastPoolMax = 8;
 
         public static void Ensure()
         {
@@ -40,6 +44,8 @@ namespace XianTu
             }
         }
 
+        private void Awake() => BuildUI();
+
         private void OnEnable()
         {
             GameEvents.Subscribe<GameEvents.InsightChanged>(OnInsightChanged);
@@ -50,7 +56,69 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.InsightChanged>(OnInsightChanged);
         }
 
-        // 经验飘字降噪：连续 InsightChanged 在 1.5s 窗口内合并，且每 5 次 Delta 才弹一次
+        // ========== 构建 UI ==========
+
+        private void BuildUI()
+        {
+            var canvas = UGuiKit.CreateOverlayCanvas("RunHUD", 45, transform);
+            _root = canvas.gameObject;
+            var ray = _root.GetComponent<GraphicRaycaster>();
+            if (ray != null) Destroy(ray); // HUD 不交互
+
+            // 顶部经验条
+            _insightBar = new GameObject("InsightBar", typeof(RectTransform), typeof(Image)).GetComponent<Image>().gameObject;
+            var ibrt = (RectTransform)_insightBar.transform;
+            ibrt.SetParent(_root.transform, false);
+            ibrt.anchorMin = new Vector2(0.5f, 1f); ibrt.anchorMax = new Vector2(0.5f, 1f); ibrt.pivot = new Vector2(0.5f, 1f);
+            ibrt.anchoredPosition = new Vector2(0f, -12f); ibrt.sizeDelta = new Vector2(280f, 16f);
+            _insightBar.GetComponent<Image>().color = new Color(0.78f, 0.68f, 1f, 0.95f);
+            _insightBar.GetComponent<Image>().raycastTarget = false;
+            _insightLabel = UGuiKit.CreateText(ibrt, "", 12, Color.white, TextAlignmentOptions.Center);
+            var ilrt = (RectTransform)_insightLabel.transform; ilrt.anchorMin = Vector2.zero; ilrt.anchorMax = Vector2.one; ilrt.offsetMin = Vector2.zero; ilrt.offsetMax = Vector2.zero;
+
+            // 等级历练
+            _cultLabel = UGuiKit.CreateText(_root.transform, "", 12, new Color(0.7f, 0.85f, 1f), TextAlignmentOptions.Center);
+            var crt = (RectTransform)_cultLabel.transform;
+            crt.anchorMin = new Vector2(0.5f, 1f); crt.anchorMax = new Vector2(0.5f, 1f); crt.pivot = new Vector2(0.5f, 1f);
+            crt.anchoredPosition = new Vector2(0f, -34f); crt.sizeDelta = new Vector2(320f, 18f);
+
+            // 右上角道心/因果/寿元
+            _moralPanel = new GameObject("MoralPanel", typeof(RectTransform), typeof(Image)).GetComponent<Image>().gameObject;
+            var mrt = (RectTransform)_moralPanel.transform;
+            mrt.SetParent(_root.transform, false);
+            mrt.anchorMin = new Vector2(1f, 1f); mrt.anchorMax = new Vector2(1f, 1f); mrt.pivot = new Vector2(1f, 1f);
+            mrt.anchoredPosition = new Vector2(-12f, -115f); mrt.sizeDelta = new Vector2(168f, 74f);
+            _moralPanel.GetComponent<Image>().color = new Color(0.05f, 0.08f, 0.12f, 0.78f);
+            _moralPanel.GetComponent<Image>().raycastTarget = false;
+            var mv = _moralPanel.AddComponent<VerticalLayoutGroup>();
+            mv.padding = new RectOffset(8, 8, 5, 5); mv.spacing = 2f;
+            mv.childControlWidth = true; mv.childForceExpandWidth = true; mv.childControlHeight = true; mv.childForceExpandHeight = false;
+            _daoxinLabel = UGuiKit.CreateText(mrt, "", 12, Color.white, TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(_daoxinLabel, 18f);
+            _karmaLabel = UGuiKit.CreateText(mrt, "", 12, Color.white, TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(_karmaLabel, 18f);
+            _lifespanLabel = UGuiKit.CreateText(mrt, "", 12, Color.white, TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(_lifespanLabel, 18f);
+
+            // 飘字区
+            _toastRoot = new GameObject("Toasts", typeof(RectTransform)).GetComponent<RectTransform>();
+            _toastRoot.SetParent(_root.transform, false);
+            _toastRoot.anchorMin = new Vector2(0.5f, 1f); _toastRoot.anchorMax = new Vector2(0.5f, 1f); _toastRoot.pivot = new Vector2(0.5f, 1f);
+            _toastRoot.anchoredPosition = new Vector2(0f, -80f); _toastRoot.sizeDelta = new Vector2(360f, 200f);
+            var tv = _toastRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+            tv.spacing = 0f; tv.childAlignment = TextAnchor.UpperCenter;
+            tv.childControlWidth = true; tv.childForceExpandWidth = true; tv.childControlHeight = true; tv.childForceExpandHeight = false;
+            for (int i = 0; i < ToastPoolMax; i++)
+            {
+                var l = UGuiKit.CreateText(_toastRoot, "", 14, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+                UGuiKit.SetHeight(l, 22f);
+                l.gameObject.SetActive(false);
+                _toastPool.Add(l);
+            }
+        }
+
+        // ========== 经验飘字降噪 ==========
+
         private int _insightAccumDelta;
         private int _insightAccumCount;
         private int _insightLatestValue;
@@ -60,17 +128,13 @@ namespace XianTu
 
         private void OnInsightChanged(GameEvents.InsightChanged evt)
         {
-            // 累计当前批次
             _insightAccumDelta += evt.Delta;
             _insightAccumCount++;
             _insightLatestValue = evt.NewRunInsight;
             _insightFlushTimer = InsightFlushWindow;
 
-            // 达到 InsightFlushCount 次合并 → 弹一条
             if (_insightAccumCount >= InsightFlushCount)
-            {
                 FlushInsightToast();
-            }
         }
 
         private void FlushInsightToast()
@@ -90,7 +154,7 @@ namespace XianTu
             _insightFlushTimer = 0f;
         }
 
-        // V0.4：移除了 CaveMaterial 拾取、撤离成功/中断 toast（搜打撤系统已移除）
+        // ========== 逐帧更新 ==========
 
         private void Update()
         {
@@ -102,178 +166,88 @@ namespace XianTu
                 else _toasts[i] = t;
             }
 
-            // 经验累计窗口超时 → Flush（避免少量增量永远不弹）
             if (_insightAccumCount > 0)
             {
                 _insightFlushTimer -= Time.deltaTime;
                 if (_insightFlushTimer <= 0f) FlushInsightToast();
             }
 
+            bool show = !MainMenu.IsVisible;
+            if (_root != null && _root.activeSelf != show) _root.SetActive(show);
+            if (!show) return;
+
+            RefreshInsightBar();
+            RefreshCultivation();
+            RefreshMoral();
+            RefreshToasts();
         }
 
-        private void EnsureStyles()
+        private void RefreshInsightBar()
         {
-            if (_stylesReady) return;
-
-            _bgStyle = new GUIStyle(GUI.skin.box);
-            var bgTex = new Texture2D(1, 1);
-            bgTex.SetPixel(0, 0, new Color(0.05f, 0.08f, 0.12f, 0.78f));
-            bgTex.Apply();
-            _bgStyle.normal.background = bgTex;
-
-            _titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, richText = true };
-            _titleStyle.normal.textColor = new Color(0.85f, 0.92f, 1f);
-
-            _itemStyle = new GUIStyle(GUI.skin.label) { fontSize = 12, richText = true };
-            _itemStyle.normal.textColor = new Color(0.78f, 0.85f, 0.92f);
-
-            _hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 11, richText = true, wordWrap = true };
-            _hintStyle.normal.textColor = new Color(0.55f, 0.65f, 0.75f);
-
-            _toastStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, richText = true, alignment = TextAnchor.MiddleCenter };
-
-            _stylesReady = true;
+            var insight = InsightSystem.Instance;
+            bool show = insight != null && insight.RunInsight > 0;
+            if (_insightBar.activeSelf != show) _insightBar.SetActive(show);
+            if (show) _insightLabel.text = $"本局经验 {insight.RunInsight}";
         }
 
-        private void OnGUI()
+        private void RefreshCultivation()
         {
-            if (MainMenu.IsVisible) return;   // 主菜单(UITK)时不画游戏内 HUD
-            EnsureStyles();
-
-            DrawPickupToasts();
-            DrawInsightBar();
-            DrawMoralStatus();
-            // V.03（Q7）：局外 meta 暂缓时不显示角色等级 / 历练 HUD
-            if (FeatureFlags.EnableCaveMeta)
-            {
-                DrawCultivationStatus();
-            }
-        }
-
-        // ========== 角色状态：意志 / 因果 / 寿元（v0.5.5，右上角）==========
-
-        private void DrawMoralStatus()
-        {
-            var h = XianTu.LevelDesign.PlayerStateHooks.Instance;
-
-            const float W = 168f;
-            float x = Screen.width - W - 12f;
-            float y = 115f;
-            const float lineH = 20f;
-
-            // 行数：意志常显；因果债≠0 显；寿元≠100 显
-            int lines = 1;
-            bool showKarma = h.KarmaDebt != 0;
-            bool showLifespan = h.Lifespan != 100;
-            if (showKarma) lines++;
-            if (showLifespan) lines++;
-
-            var panel = new Rect(x, y, W, lines * lineH + 10f);
-            GUI.Box(panel, "", _bgStyle);
-
-            var style = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 12, alignment = TextAnchor.MiddleLeft, richText = true
-            };
-
-            float ly = y + 5f;
-
-            // —— 意志 ——
-            string dxHex = h.Daoxin >= 80 ? "6cc0ff" : h.Daoxin >= 50 ? "d8e0e8" : h.Daoxin >= 20 ? "ffb060" : "ff5560";
-            GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH),
-                $"<color=#{dxHex}>意志 · {h.DaoxinState} {h.Daoxin}</color>", style);
-            ly += lineH;
-
-            // —— 因果 ——
-            if (showKarma)
-            {
-                string kHex = h.KarmaDebt > 0 ? "ff8866" : "8fd08f";
-                string kLabel = h.KarmaDebt > 0 ? $"恶业 +{h.KarmaDebt}" : $"善缘 {h.KarmaDebt}";
-                GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH), $"<color=#{kHex}>{kLabel}</color>", style);
-                ly += lineH;
-            }
-
-            // —— 寿元 ——
-            if (showLifespan)
-            {
-                string lHex = h.Lifespan < 30 ? "ffaa66" : "c8d0d8";
-                GUI.Label(new Rect(x + 8f, ly, W - 12f, lineH), $"<color=#{lHex}>寿元 {h.Lifespan} 年</color>", style);
-            }
-        }
-
-        // ========== 角色等级 + 历练 ==========
-
-        private void DrawCultivationStatus()
-        {
+            bool show = FeatureFlags.EnableCaveMeta && CultivationSystem.Instance != null;
+            if (_cultLabel.gameObject.activeSelf != show) _cultLabel.gameObject.SetActive(show);
+            if (!show) return;
             var cult = CultivationSystem.Instance;
-
-            const float W = 280f;
-            float x = (Screen.width - W) * 0.5f;
-            float y = 34f;  // 经验条（y=12,H=16）正下方
-
-            // —— 角色等级 + 品质 + 本局历练 ——
             int realm = cult.CurrentRealm;
             int quality = cult.GetRealmQuality(realm);
             string qStr = (quality >= 0 && quality < CultivationSystem.QualityNames.Length)
                 ? "·" + CultivationSystem.QualityNames[quality] : "";
-            var labelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 12, alignment = TextAnchor.MiddleCenter, richText = true
-            };
-            labelStyle.normal.textColor = new Color(0.7f, 0.85f, 1f);
-            GUI.Label(new Rect(x, y, W, 18f),
-                $"<color=#b0d0ff>等级 · {cult.CurrentRealmName}{qStr}</color>　历练 {cult.RunTempering}", labelStyle);
+            _cultLabel.text = $"等级 · {cult.CurrentRealmName}{qStr}　历练 {cult.RunTempering}";
         }
 
-        // ========== 顶部经验条 ==========
-
-        private void DrawInsightBar()
+        private void RefreshMoral()
         {
-            var insight = InsightSystem.Instance;
-            if (insight.RunInsight <= 0) return;  // 还没积累过
+            var h = XianTu.LevelDesign.PlayerStateHooks.Instance;
+            bool show = h != null;
+            if (_moralPanel.activeSelf != show) _moralPanel.SetActive(show);
+            if (!show) return;
 
-            const float W = 280f, H = 16f;
-            float x = (Screen.width - W) * 0.5f;
-            float y = 12f;
+            _daoxinLabel.color = h.Daoxin >= 80 ? new Color(0.42f, 0.75f, 1f)
+                : h.Daoxin >= 50 ? new Color(0.85f, 0.88f, 0.9f)
+                : h.Daoxin >= 20 ? new Color(1f, 0.69f, 0.38f) : new Color(1f, 0.33f, 0.38f);
+            _daoxinLabel.text = $"意志 · {h.DaoxinState} {h.Daoxin}";
 
-            var bgRect = new Rect(x, y, W, H);
-            var prev = GUI.color;
-            GUI.color = new Color(0.08f, 0.06f, 0.14f, 0.85f);
-            GUI.DrawTexture(bgRect, Texture2D.whiteTexture);
-
-            // 经验为纯积累资源。条满表示有积累，文字显示累计值。
-            GUI.color = new Color(0.78f, 0.68f, 1f, 0.95f);
-            GUI.DrawTexture(new Rect(x, y, W, H), Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            var style = new GUIStyle(GUI.skin.label)
+            bool showKarma = h.KarmaDebt != 0;
+            _karmaLabel.gameObject.SetActive(showKarma);
+            if (showKarma)
             {
-                fontSize = 12,
-                alignment = TextAnchor.MiddleCenter,
-                richText = true
-            };
-            style.normal.textColor = Color.white;
-            GUI.Label(bgRect, $"本局经验 {insight.RunInsight}", style);
+                _karmaLabel.color = h.KarmaDebt > 0 ? new Color(1f, 0.53f, 0.4f) : new Color(0.56f, 0.82f, 0.56f);
+                _karmaLabel.text = h.KarmaDebt > 0 ? $"恶业 +{h.KarmaDebt}" : $"善缘 {h.KarmaDebt}";
+            }
+
+            bool showLifespan = h.Lifespan != 100;
+            _lifespanLabel.gameObject.SetActive(showLifespan);
+            if (showLifespan)
+            {
+                _lifespanLabel.color = h.Lifespan < 30 ? new Color(1f, 0.67f, 0.4f) : new Color(0.78f, 0.81f, 0.85f);
+                _lifespanLabel.text = $"寿元 {h.Lifespan} 年";
+            }
         }
 
-        private void DrawPickupToasts()
+        private void RefreshToasts()
         {
-            const float W = 360f;
-            const float startY = 80f;
-            const float lineH = 22f;
-
-            for (int i = 0; i < _toasts.Count; i++)
+            for (int i = 0; i < _toastPool.Count; i++)
             {
-                var t = _toasts[i];
-                float alpha = Mathf.Clamp01(t.remaining / ToastDuration);
-                var col = t.color;
-                col.a = alpha;
-
-                var rect = new Rect((Screen.width - W) * 0.5f, startY + i * lineH, W, lineH);
-                var prev = GUI.color;
-                GUI.color = col;
-                GUI.Label(rect, t.text, _toastStyle);
-                GUI.color = prev;
+                if (i < _toasts.Count)
+                {
+                    var t = _toasts[i];
+                    var c = t.color; c.a = Mathf.Clamp01(t.remaining / ToastDuration);
+                    _toastPool[i].gameObject.SetActive(true);
+                    _toastPool[i].text = t.text;
+                    _toastPool[i].color = c;
+                }
+                else if (_toastPool[i].gameObject.activeSelf)
+                {
+                    _toastPool[i].gameObject.SetActive(false);
+                }
             }
         }
     }

@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using TMPro;
 
 namespace XianTu
 {
@@ -92,89 +95,132 @@ namespace XianTu
                 orbitSpeed: 120f, verticalBob: 0.2f);
         }
 
-        protected override void OpenPanel() => _panelOpen = true;
-        public override void ClosePanel() => _panelOpen = false;
-
-        // ============================== UI ==============================
-
-        private void OnGUI()
+        protected override void OpenPanel()
         {
-            if (!_panelOpen) return;
+            _panelOpen = true;
+            EnsurePanel();
+            RefreshPanel();
+            if (_ui != null) _ui.SetActive(true);
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+        }
 
-            const float W = 660f, H = 460f;
-            var rect = new Rect((Screen.width - W) * 0.5f, (Screen.height - H) * 0.5f, W, H);
-            GUI.Box(rect, "");
+        public override void ClosePanel()
+        {
+            _panelOpen = false;
+            if (_ui != null) _ui.SetActive(false);
+        }
 
-            GUILayout.BeginArea(rect);
-            GUILayout.Space(12);
+        // ============================== UI（uGUI+TMP） ==============================
 
-            var titleStyle = new GUIStyle(GUI.skin.label)
+        private GameObject _ui;
+        private TextMeshProUGUI _infoLabel;
+        private GameObject _currentRow;
+        private TextMeshProUGUI _currentLabel;
+        private RectTransform _listContainer;
+
+        private void EnsurePanel()
+        {
+            if (_ui != null) return;
+
+            var canvas = UGuiKit.CreateOverlayCanvas("FormationPlatformUI", 118);
+            _ui = canvas.gameObject;
+            UGuiKit.CreateScrim(_ui.transform, new Color(0.05f, 0.02f, 0.06f, 0.9f));
+
+            var panel = UGuiKit.CreatePanel(_ui.transform, "Panel", new Vector2(700f, 520f), UGuiKit.Panel);
+            UGuiKit.AddVLayout(panel, 8f, new RectOffset(24, 24, 18, 18), TextAnchor.UpperCenter);
+
+            var title = UGuiKit.CreateText(panel, "🪶 阵法台 · 出梦前布置房间增益", 20, ModuleColor, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 30f);
+            _infoLabel = UGuiKit.CreateText(panel, "", 13, new Color(0.75f, 0.78f, 0.85f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(_infoLabel, 22f);
+
+            // 已布置行（可撤销）
+            _currentRow = UGuiKit.CreateRow(panel, 10f, 30f).gameObject;
+            _currentRow.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+            _currentRow.GetComponent<HorizontalLayoutGroup>().childControlWidth = true;
+            _currentLabel = UGuiKit.CreateText(_currentRow.transform, "", 13, new Color(1f, 0.87f, 0.93f), TextAlignmentOptions.Right);
+            UGuiKit.SetHeight(_currentLabel, 26f); _currentLabel.GetComponent<LayoutElement>().preferredWidth = 420f;
+            var cancelBtn = UGuiKit.CreateButton(_currentRow.transform, "撤销布置", () =>
             {
-                fontSize = 20, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold
-            };
-            titleStyle.normal.textColor = ModuleColor;
-            GUILayout.Label("🪶 阵法台 · 出梦前布置房间增益", titleStyle);
+                SaveSystem.Instance.Data.pendingFormationBuffId = "";
+                SaveSystem.Instance.Save();
+                RefreshPanel();
+            }, UGuiKit.BtnNormal, 13, new Vector2(140f, 26f));
+            UGuiKit.SetHeight(cancelBtn.GetComponent<RectTransform>(), 26f); cancelBtn.GetComponent<LayoutElement>().preferredWidth = 140f;
 
+            var listHeader = UGuiKit.CreateText(panel, "可选阵法：", 13, UGuiKit.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(listHeader, 22f);
+
+            _listContainer = UGuiKit.CreateScroll(panel, "List", out _, 6f, new RectOffset(6, 6, 6, 6));
+            var scrollRoot = (RectTransform)_listContainer.parent;
+            var le = UGuiKit.SetHeight(scrollRoot, 300f); le.flexibleHeight = 1f;
+
+            var closeBtn = UGuiKit.CreateButton(panel, "关闭 [ESC]", ClosePanel, new Color(0.25f, 0.25f, 0.3f, 0.9f), 15, new Vector2(180f, 34f));
+            UGuiKit.SetHeight(closeBtn.GetComponent<RectTransform>(), 34f);
+
+            _ui.SetActive(false);
+        }
+
+        private void RefreshPanel()
+        {
+            if (_ui == null) return;
             int sigils = SaveSystem.Instance.GetCaveItemCount(SigilMaterial);
             int qi = CaveEconomy.Instance.Qi;
-            GUILayout.Label($"持有 阵法符 ×{sigils}  ·  灵气 {qi}  ·  消耗：阵法符 ×1 + 灵气 {QiCost}",
-                new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12 });
-            GUILayout.Space(6);
+            _infoLabel.text = $"持有 阵法符 ×{sigils}  ·  灵气 {qi}  ·  消耗：阵法符 ×1 + 灵气 {QiCost}";
 
             var save = SaveSystem.Instance.Data;
             string current = save.pendingFormationBuffId;
-            if (!string.IsNullOrEmpty(current))
+            bool hasCurrent = !string.IsNullOrEmpty(current);
+            _currentRow.SetActive(hasCurrent);
+            if (hasCurrent)
             {
                 var entry = FormationLibrary.GetById(current);
-                string desc = entry != null ? entry.displayName : current;
-                GUILayout.Label($"<color=#ffdfee>★ 已布置：{desc}（入秘境时自动激活）</color>",
-                    new GUIStyle(GUI.skin.label) { richText = true, alignment = TextAnchor.MiddleCenter, fontSize = 13 });
-                GUILayout.Space(4);
-                if (GUILayout.Button("撤销布置（不退还符 / 灵气）", GUILayout.Height(24)))
-                {
-                    save.pendingFormationBuffId = "";
-                    SaveSystem.Instance.Save();
-                }
-                GUILayout.Space(8);
+                _currentLabel.text = $"★ 已布置：{(entry != null ? entry.displayName : current)}（入秘境时自动激活）";
             }
 
-            GUILayout.Label("可选阵法：", new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
-
+            for (int i = _listContainer.childCount - 1; i >= 0; i--) Destroy(_listContainer.GetChild(i).gameObject);
             foreach (var entry in FormationLibrary.AllFormations)
-            {
-                DrawFormationRow(entry, sigils, qi);
-            }
-
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("关闭 [ESC]", GUILayout.Height(28))) ClosePanel();
-            GUILayout.EndArea();
-
-            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
-                ClosePanel();
+                BuildFormationRow(entry, sigils, qi);
         }
 
-        private void DrawFormationRow(FormationEntry entry, int sigils, int qi)
+        private void BuildFormationRow(FormationEntry entry, int sigils, int qi)
         {
-            GUILayout.BeginHorizontal(GUI.skin.box);
+            var rowGo = new GameObject("Row", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            var row = (RectTransform)rowGo.transform;
+            row.SetParent(_listContainer, false);
+            rowGo.GetComponent<Image>().color = new Color(0.10f, 0.10f, 0.16f, 1f);
+            var le = rowGo.GetComponent<LayoutElement>(); le.preferredHeight = 60f; le.minHeight = 60f;
+            UGuiKit.AddHLayout(row, 10f, new RectOffset(12, 12, 6, 6), TextAnchor.MiddleLeft, cChildW: true);
 
-            var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, richText = true };
-            nameStyle.normal.textColor = entry.displayColor;
-            GUILayout.Label(entry.displayName, nameStyle, GUILayout.Width(120));
+            var name = UGuiKit.CreateText(row, entry.displayName, 14, entry.displayColor, TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(name, 48f); name.GetComponent<LayoutElement>().preferredWidth = 120f;
 
-            GUILayout.Label(entry.description, new GUIStyle(GUI.skin.label) { wordWrap = true, richText = true },
-                GUILayout.Width(380));
+            var desc = UGuiKit.CreateText(row, entry.description, 12, new Color(0.75f, 0.77f, 0.83f), TextAlignmentOptions.Left);
+            desc.enableWordWrapping = true;
+            UGuiKit.SetHeight(desc, 48f); var dle = desc.GetComponent<LayoutElement>(); dle.flexibleWidth = 1f; dle.preferredWidth = 380f;
 
             bool canAfford = sigils >= 1 && qi >= QiCost;
             bool current = SaveSystem.Instance.Data.pendingFormationBuffId == entry.id;
-            GUI.enabled = canAfford && !current;
-            string btn = current ? "已布置" : (canAfford ? "布置" : "材料不足");
-            if (GUILayout.Button(btn, GUILayout.Width(80), GUILayout.Height(28)))
-            {
-                TryDeploy(entry);
-            }
-            GUI.enabled = true;
+            string btnText = current ? "已布置" : (canAfford ? "布置" : "材料不足");
+            var captured = entry;
+            var btn = UGuiKit.CreateButton(row, btnText, () => { TryDeploy(captured); RefreshPanel(); }, UGuiKit.BtnPrimary, 13, new Vector2(90f, 30f));
+            UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 30f); btn.GetComponent<LayoutElement>().preferredWidth = 90f;
+            btn.interactable = canAfford && !current;
+        }
 
-            GUILayout.EndHorizontal();
+        protected override void Update()
+        {
+            base.Update();
+            if (!_panelOpen) return;
+            var kb = Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame) ClosePanel();
+        }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            if (_ui != null) Destroy(_ui);
         }
 
         // ============================== 逻辑 ==============================

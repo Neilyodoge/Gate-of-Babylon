@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -72,7 +73,7 @@ namespace XianTu
             else
                 labelText = cfg.displayName;
 
-            CreateText(canvasGo.transform, "Text", labelText, 22, cfg.themeColor, FontStyle.Bold);
+            CreateText(canvasGo.transform, "Text", labelText, 22, cfg.themeColor, FontStyles.Bold);
 
             canvasGo.AddComponent<BillboardUI>();
             _nameCanvas = canvasGo;
@@ -107,7 +108,7 @@ namespace XianTu
             bgImg.raycastTarget = false;
 
             string hint = string.IsNullOrEmpty(cfg.hintText) ? "按 [F] 互动" : cfg.hintText;
-            CreateText(canvasGo.transform, "Text", hint, 18, Color.white, FontStyle.Bold);
+            CreateText(canvasGo.transform, "Text", hint, 18, Color.white, FontStyles.Bold);
 
             canvasGo.AddComponent<BillboardUI>();
             _hintCanvas = canvasGo;
@@ -133,7 +134,7 @@ namespace XianTu
             var t = _nameCanvas.transform.Find("Text");
             if (t != null)
             {
-                var txt = t.GetComponent<Text>();
+                var txt = t.GetComponent<TextMeshProUGUI>();
                 if (txt != null) txt.text = newName;
             }
         }
@@ -144,14 +145,14 @@ namespace XianTu
             var t = _hintCanvas.transform.Find("Text");
             if (t != null)
             {
-                var txt = t.GetComponent<Text>();
+                var txt = t.GetComponent<TextMeshProUGUI>();
                 if (txt != null) txt.text = newHint;
             }
         }
 
         // ============= helper =============
 
-        private static void CreateText(Transform parent, string name, string content, int fontSize, Color color, FontStyle style)
+        private static void CreateText(Transform parent, string name, string content, int fontSize, Color color, FontStyles style)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -161,20 +162,19 @@ namespace XianTu
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
 
-            var text = go.AddComponent<Text>();
+            var text = go.AddComponent<TextMeshProUGUI>();
             text.text = content;
             text.fontSize = fontSize;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.color = color;
             text.fontStyle = style;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.alignment = TextAlignmentOptions.Center;
+            text.enableWordWrapping = false;
+            text.overflowMode = TextOverflowModes.Overflow;
             text.raycastTarget = false;
 
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = new Color(0f, 0f, 0f, 0.9f);
-            outline.effectDistance = new Vector2(1.2f, -1.2f);
+            text.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+            text.outlineWidth = 0.2f;
         }
     }
 }

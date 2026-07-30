@@ -1,19 +1,20 @@
 using System;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// V0.4.1 存档槽位选择面板。
+    /// V0.4.1 存档槽位选择面板（V0.4.6 改 uGUI+TMP）。
     /// 「开始游戏」→ 显示 3 个存档槽（已有/新建），选中后创建或覆盖存档并进入游戏。
     /// 「继续游戏」→ 加载最近槽位直接进入。
     /// </summary>
     public class SaveSlotSelectUI : MonoBehaviour
     {
         private static SaveSlotSelectUI _instance;
-        private UIDocument _doc;
-        private VisualElement _overlay;
+        private GameObject _root;
+        private RectTransform _center;
         private Action _onSlotSelected;
 
         public static void Show(Action onSlotSelected)
@@ -21,13 +22,13 @@ namespace XianTu
             EnsureInstance();
             _instance._onSlotSelected = onSlotSelected;
             _instance.Refresh();
-            _instance._overlay.style.display = DisplayStyle.Flex;
+            _instance._root.SetActive(true);
         }
 
         public static void Hide()
         {
-            if (_instance != null && _instance._overlay != null)
-                _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance != null && _instance._root != null)
+                _instance._root.SetActive(false);
         }
 
         private static void EnsureInstance()
@@ -41,38 +42,37 @@ namespace XianTu
 
         private void Build()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.sortingOrder = 12f;
+            var canvas = UGuiKit.CreateOverlayCanvas("SaveSlotCanvas", 132, transform);
+            _root = canvas.gameObject;
+            UGuiKit.CreateScrim(_root.transform, new Color(0.02f, 0.03f, 0.06f, 0.95f));
 
-            var root = _doc.rootVisualElement;
-            _overlay = new VisualElement { name = "save-select-overlay" };
-            SetFull(_overlay);
-            _overlay.style.backgroundColor = new Color(0.02f, 0.03f, 0.06f, 0.95f);
-            _overlay.style.alignItems = Align.Center;
-            _overlay.style.justifyContent = Justify.Center;
-            _overlay.style.display = DisplayStyle.None;
-            root.Add(_overlay);
+            _center = UGuiKit.CreatePanel(_root.transform, "Center", new Vector2(1000f, 10f), new Color(0, 0, 0, 0));
+            var fit = _center.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var v = UGuiKit.AddVLayout(_center, 12f, new RectOffset(0, 0, 0, 0), TextAnchor.UpperCenter, false, false);
+            v.childControlWidth = false;
 
-            ChineseFontHelper.Apply(root);
+            _root.SetActive(false);
+        }
+
+        private void ClearCenter()
+        {
+            for (int i = _center.childCount - 1; i >= 0; i--) Destroy(_center.GetChild(i).gameObject);
         }
 
         private void Refresh()
         {
-            _overlay.Clear();
+            ClearCenter();
 
-            var title = new Label("选择存档");
-            title.style.fontSize = 36;
-            title.style.color = new Color(0.95f, 0.90f, 0.75f);
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.marginBottom = 24;
-            _overlay.Add(title);
+            var title = UGuiKit.CreateText(_center, "选择存档", 36, new Color(0.95f, 0.90f, 0.75f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 50f);
 
-            var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.justifyContent = Justify.Center;
-            _overlay.Add(row);
+            var spacer = new GameObject("Spacer", typeof(RectTransform), typeof(LayoutElement));
+            spacer.transform.SetParent(_center, false);
+            spacer.GetComponent<LayoutElement>().preferredHeight = 12f;
+
+            var row = UGuiKit.CreateCardRow(_center, 24f);
 
             for (int i = 0; i < SaveSystem.MaxSlots; i++)
             {
@@ -80,72 +80,37 @@ namespace XianTu
                 bool exists = SaveSystem.Instance.SlotExists(slot);
                 string summary = SaveSystem.Instance.GetSlotSummary(slot);
 
-                var card = new VisualElement();
-                card.style.width = 260;
-                card.style.marginLeft = 12;
-                card.style.marginRight = 12;
-                card.style.paddingTop = 20;
-                card.style.paddingBottom = 20;
-                card.style.paddingLeft = 20;
-                card.style.paddingRight = 20;
-                card.style.backgroundColor = exists
-                    ? new Color(0.12f, 0.14f, 0.20f, 1f)
-                    : new Color(0.08f, 0.09f, 0.13f, 1f);
-                SetBorder(card, 2, exists
-                    ? new Color(0.4f, 0.6f, 1f, 0.7f)
-                    : new Color(0.3f, 0.3f, 0.35f, 0.5f), 10);
+                var accent = exists ? new Color(0.4f, 0.6f, 1f, 0.7f) : new Color(0.3f, 0.3f, 0.35f, 0.5f);
+                var card = UGuiKit.CreateCard(row, new Vector2(280f, 280f), accent);
 
-                var slotLabel = new Label($"存档 {slot + 1}");
-                slotLabel.style.fontSize = 20;
-                slotLabel.style.color = exists
-                    ? new Color(0.7f, 0.85f, 1f)
-                    : new Color(0.5f, 0.5f, 0.55f);
-                slotLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-                slotLabel.style.marginBottom = 10;
-                card.Add(slotLabel);
+                var slotLabel = UGuiKit.CreateText(card, $"存档 {slot + 1}", 20,
+                    exists ? new Color(0.7f, 0.85f, 1f) : new Color(0.5f, 0.5f, 0.55f), TextAlignmentOptions.Center, FontStyles.Bold);
+                UGuiKit.SetHeight(slotLabel, 28f);
 
-                var infoLabel = new Label(summary);
-                infoLabel.style.fontSize = 13;
-                infoLabel.style.color = new Color(0.65f, 0.68f, 0.75f);
-                infoLabel.style.whiteSpace = WhiteSpace.Normal;
-                infoLabel.style.marginBottom = 16;
-                card.Add(infoLabel);
+                var info = UGuiKit.CreateText(card, summary, 13, new Color(0.65f, 0.68f, 0.75f), TextAlignmentOptions.Top);
+                info.enableWordWrapping = true;
+                var ile = info.gameObject.AddComponent<LayoutElement>(); ile.flexibleHeight = 1f; ile.minHeight = 60f;
 
                 if (exists)
                 {
-                    var loadBtn = new Button(() => OnLoadSlot(slot))
-                    { text = "继续此存档" };
-                    StyleBtn(loadBtn, new Color(0.3f, 0.5f, 0.8f, 0.9f));
-                    card.Add(loadBtn);
-
-                    var overwriteBtn = new Button(() => OnOverwriteSlot(slot))
-                    { text = "覆盖存档" };
-                    StyleBtn(overwriteBtn, new Color(0.6f, 0.3f, 0.2f, 0.8f));
-                    overwriteBtn.style.marginTop = 8;
-                    card.Add(overwriteBtn);
+                    var loadBtn = UGuiKit.CreateButton(card, "继续此存档", () => OnLoadSlot(slot), new Color(0.3f, 0.5f, 0.8f, 0.95f), 15, new Vector2(240f, 38f));
+                    UGuiKit.SetHeight(loadBtn.GetComponent<RectTransform>(), 38f);
+                    var owBtn = UGuiKit.CreateButton(card, "覆盖存档", () => OnOverwriteSlot(slot), new Color(0.6f, 0.3f, 0.2f, 0.9f), 15, new Vector2(240f, 38f));
+                    UGuiKit.SetHeight(owBtn.GetComponent<RectTransform>(), 38f);
                 }
                 else
                 {
-                    var newBtn = new Button(() => OnNewSlot(slot))
-                    { text = "创建新存档" };
-                    StyleBtn(newBtn, new Color(0.25f, 0.6f, 0.35f, 0.9f));
-                    card.Add(newBtn);
+                    var newBtn = UGuiKit.CreateButton(card, "创建新存档", () => OnNewSlot(slot), new Color(0.25f, 0.6f, 0.35f, 0.95f), 15, new Vector2(240f, 38f));
+                    UGuiKit.SetHeight(newBtn.GetComponent<RectTransform>(), 38f);
                 }
-
-                row.Add(card);
             }
 
-            var cancelBtn = new Button(Hide) { text = "返回" };
-            cancelBtn.style.marginTop = 24;
-            cancelBtn.style.width = 160;
-            cancelBtn.style.height = 38;
-            cancelBtn.style.fontSize = 16;
-            cancelBtn.style.backgroundColor = new Color(0.25f, 0.25f, 0.3f, 0.8f);
-            cancelBtn.style.color = new Color(0.7f, 0.7f, 0.75f);
-            SetBorder(cancelBtn, 1, new Color(0.4f, 0.4f, 0.45f), 6);
-            _overlay.Add(cancelBtn);
+            var spacer2 = new GameObject("Spacer2", typeof(RectTransform), typeof(LayoutElement));
+            spacer2.transform.SetParent(_center, false);
+            spacer2.GetComponent<LayoutElement>().preferredHeight = 16f;
 
-            ChineseFontHelper.Apply(_overlay);
+            var cancelBtn = UGuiKit.CreateButton(_center, "返回", Hide, new Color(0.25f, 0.25f, 0.3f, 0.9f), 16, new Vector2(180f, 40f));
+            UGuiKit.SetHeight(cancelBtn.GetComponent<RectTransform>(), 40f);
         }
 
         private void OnNewSlot(int slot)
@@ -169,62 +134,30 @@ namespace XianTu
 
         private void ShowOverwriteConfirm(int slot)
         {
-            _overlay.Clear();
+            ClearCenter();
 
-            var msg = new Label($"确定要覆盖存档 {slot + 1} 吗？\n之前的所有数据将被删除！");
-            msg.style.fontSize = 20;
-            msg.style.color = new Color(1f, 0.7f, 0.5f);
-            msg.style.whiteSpace = WhiteSpace.Normal;
-            msg.style.unityTextAlign = TextAnchor.MiddleCenter;
-            msg.style.marginBottom = 24;
-            _overlay.Add(msg);
+            var msg = UGuiKit.CreateText(_center, $"确定要覆盖存档 {slot + 1} 吗？\n之前的所有数据将被删除！", 20, new Color(1f, 0.7f, 0.5f), TextAlignmentOptions.Center);
+            msg.enableWordWrapping = true;
+            UGuiKit.SetHeight(msg, 80f);
 
-            var btnRow = new VisualElement();
-            btnRow.style.flexDirection = FlexDirection.Row;
-            _overlay.Add(btnRow);
+            var spacer = new GameObject("Spacer", typeof(RectTransform), typeof(LayoutElement));
+            spacer.transform.SetParent(_center, false);
+            spacer.GetComponent<LayoutElement>().preferredHeight = 12f;
 
-            var yesBtn = new Button(() =>
+            var btnRow = UGuiKit.CreateRow(_center, 20f, 42f);
+            btnRow.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+
+            var yes = UGuiKit.CreateButton(btnRow, "确认覆盖", () =>
             {
                 SaveSystem.Instance.DeleteSlot(slot);
                 SaveSystem.Instance.CreateSlot(slot);
                 Hide();
                 _onSlotSelected?.Invoke();
-            }) { text = "确认覆盖" };
-            StyleBtn(yesBtn, new Color(0.7f, 0.3f, 0.2f, 0.9f));
-            yesBtn.style.marginRight = 16;
-            btnRow.Add(yesBtn);
+            }, new Color(0.7f, 0.3f, 0.2f, 0.95f), 16, new Vector2(180f, 42f));
+            UGuiKit.SetHeight(yes.GetComponent<RectTransform>(), 42f); yes.GetComponent<LayoutElement>().preferredWidth = 180f;
 
-            var noBtn = new Button(Refresh) { text = "取消" };
-            StyleBtn(noBtn, new Color(0.25f, 0.25f, 0.3f, 0.8f));
-            btnRow.Add(noBtn);
-
-            ChineseFontHelper.Apply(_overlay);
-        }
-
-        private static void StyleBtn(Button btn, Color bg)
-        {
-            btn.style.height = 36;
-            btn.style.fontSize = 15;
-            btn.style.backgroundColor = bg;
-            btn.style.color = Color.white;
-            SetBorder(btn, 1, new Color(bg.r + 0.15f, bg.g + 0.15f, bg.b + 0.15f, 0.8f), 6);
-        }
-
-        private static void SetFull(VisualElement e)
-        {
-            e.style.position = Position.Absolute;
-            e.style.left = 0; e.style.right = 0;
-            e.style.top = 0; e.style.bottom = 0;
-        }
-
-        private static void SetBorder(VisualElement e, float w, Color c, float r)
-        {
-            e.style.borderTopWidth = w; e.style.borderBottomWidth = w;
-            e.style.borderLeftWidth = w; e.style.borderRightWidth = w;
-            e.style.borderTopColor = c; e.style.borderBottomColor = c;
-            e.style.borderLeftColor = c; e.style.borderRightColor = c;
-            e.style.borderTopLeftRadius = r; e.style.borderTopRightRadius = r;
-            e.style.borderBottomLeftRadius = r; e.style.borderBottomRightRadius = r;
+            var no = UGuiKit.CreateButton(btnRow, "取消", Refresh, new Color(0.25f, 0.25f, 0.3f, 0.9f), 16, new Vector2(180f, 42f));
+            UGuiKit.SetHeight(no.GetComponent<RectTransform>(), 42f); no.GetComponent<LayoutElement>().preferredWidth = 180f;
         }
     }
 }

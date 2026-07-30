@@ -84,6 +84,10 @@ namespace XianTu.LevelDesign
     /// </summary>
     public static class TreeMapGenerator
     {
+        // V0.4.5：改为 Slay the Spire 式分层分叉生成（移植自 silverua/slay-the-spire-map-in-unity
+        // 的 MapGenerator 思路：固定列宽 grid + 多条从起点到 Boss 的列随机游走路径 + 汇合分叉）。
+        // 产出仍是现有 TreeMap/TreeNode 结构（Floors + Next），供 TreeMapUI 渲染、GameManager 导航消费。
+        // 深度 = 本区房间数（MinNodes/MaxNodes 现语义 = 起点→Boss 的层深）；宽度取固定列数更贴近 STS。
         public static TreeMap Generate(int actID, int? seed = null)
         {
             if (seed.HasValue) Random.InitState(seed.Value);
@@ -100,75 +104,151 @@ namespace XianTu.LevelDesign
             }
             if (structure == null)
             {
-                Debug.LogWarning($"[TreeMap] 找不到 ActID={actID} 的 Map_Structure_Config，使用兜底 4 层");
+                Debug.LogWarning($"[TreeMap] 找不到 ActID={actID} 的 Map_Structure_Config，使用兜底");
                 return GenerateFallback(actID);
             }
 
-            var map = new TreeMap { ActID = actID, MaxFloor = Mathf.Max(2, structure.MaxFloor) };
+            int depth = Mathf.Clamp(Mathf.Max(structure.MaxNodes, 4), 4, 20);   // 层深 = 房间数
+            const int width = 4;                                                 // 每层最大分叉列数
 
-            // 收集房间池（按类型分组）
+            var map = new TreeMap { ActID = actID, MaxFloor = depth };
             var roomPool = BuildRoomPool(structure.RoomPoolID);
 
-            // 第 0 层：起点（找一个起点配置；如果没有就空置）
-            var startNode = new TreeNode
+            // 起点层（单节点，作为第一间可玩房间）与 Boss 层（单节点）
+            var startNode = new TreeNode { Floor = 0, IndexInFloor = 0, RoomType = LevelRoomType.Battle };
+            var bossNode = new TreeNode { Floor = depth - 1, IndexInFloor = 0, RoomType = LevelRoomType.Boss };
+
+            int interiorLo = 1, interiorHi = depth - 2;   // 中间可分叉层区间 [lo, hi]
+            var grid = new Dictionary<int, Dictionary<int, TreeNode>>();
+            var edges = new HashSet<(int, int, int, int)>();
+
+            TreeNode GetOrCreate(int r, int c)
             {
-                Floor = 0,
-                IndexInFloor = 0,
-                RoomType = LevelRoomType.Start,
-                RoomConfigID = PickRoomConfig(roomPool, LevelRoomType.Start)
-            };
-            map.Floors.Add(new List<TreeNode> { startNode });
-
-            // 中间层
-            int eliteRemaining = Random.Range(structure.EliteMinCount, Mathf.Max(structure.EliteMinCount, structure.EliteMaxCount) + 1);
-            int eventRemaining = structure.EventMinCount;
-            int shopRemaining = structure.ShopMinCount;
-            int middleFloorCount = map.MaxFloor - 2;
-            int totalMiddleNodes = 0;
-
-            for (int floor = 1; floor <= middleFloorCount; floor++)
-            {
-                int nodeCount = Random.Range(structure.MinNodes, structure.MaxNodes + 1);
-                nodeCount = Mathf.Max(1, nodeCount);
-                var layer = new List<TreeNode>();
-                bool prevFloorHadElite = floor > 1 && AnyOfType(map.Floors[floor - 1], LevelRoomType.Elite);
-
-                for (int i = 0; i < nodeCount; i++)
+                if (r <= 0) return startNode;
+                if (r >= depth - 1) return bossNode;
+                if (!grid.TryGetValue(r, out var row)) { row = new Dictionary<int, TreeNode>(); grid[r] = row; }
+                if (!row.TryGetValue(c, out var node))
                 {
-                    var type = PickRoomType(structure, ref eliteRemaining, ref eventRemaining, ref shopRemaining,
-                                            middleFloorCount - floor, prevFloorHadElite);
-                    var node = new TreeNode
-                    {
-                        Floor = floor,
-                        IndexInFloor = i,
-                        RoomType = type,
-                        RoomConfigID = PickRoomConfig(roomPool, type)
-                    };
-                    layer.Add(node);
-                    totalMiddleNodes++;
+                    node = new TreeNode { Floor = r, IndexInFloor = c, RoomType = LevelRoomType.Battle };
+                    row[c] = node;
                 }
-                map.Floors.Add(layer);
+                return node;
             }
 
-            // Boss 层
-            var bossNode = new TreeNode
+            void Connect(TreeNode a, TreeNode b)
             {
-                Floor = map.MaxFloor - 1,
-                IndexInFloor = 0,
-                RoomType = LevelRoomType.Boss,
-                RoomConfigID = PickRoomConfig(roomPool, LevelRoomType.Boss)
-            };
+                var key = (a.Floor, a.IndexInFloor, b.Floor, b.IndexInFloor);
+                if (!edges.Add(key)) return;
+                if (!a.Next.Contains(b)) a.Next.Add(b);
+            }
+
+            if (interiorHi < interiorLo)
+            {
+                Connect(startNode, bossNode);
+            }
+            else
+            {
+                int numPaths = Mathf.Clamp(width, 3, 5) + 1;   // 略多于宽度 → 汇合 + 分叉
+                for (int p = 0; p < numPaths; p++)
+                {
+                    int col = Random.Range(0, width);
+                    TreeNode prev = startNode;
+                    for (int r = interiorLo; r <= interiorHi; r++)
+                    {
+                        col = Mathf.Clamp(col + Random.Range(-1, 2), 0, width - 1);   // 列随机游走
+                        var node = GetOrCreate(r, col);
+                        Connect(prev, node);
+                        prev = node;
+                    }
+                    Connect(prev, bossNode);
+                }
+            }
+
+            // 组装 Floors：起点 → 各中间层（按列排序、重排 IndexInFloor） → Boss
+            map.Floors.Add(new List<TreeNode> { startNode });
+            for (int r = interiorLo; r <= interiorHi; r++)
+            {
+                var list = new List<TreeNode>();
+                if (grid.TryGetValue(r, out var row))
+                {
+                    var cols = new List<int>(row.Keys);
+                    cols.Sort();
+                    for (int i = 0; i < cols.Count; i++)
+                    {
+                        var node = row[cols[i]];
+                        node.IndexInFloor = i;
+                        list.Add(node);
+                    }
+                }
+                if (list.Count == 0)
+                    list.Add(new TreeNode { Floor = r, IndexInFloor = 0, RoomType = LevelRoomType.Battle });
+                map.Floors.Add(list);
+            }
             map.Floors.Add(new List<TreeNode> { bossNode });
 
-            // 连线：每个节点至少 1 入 1 出，跨层不超过 1
-            ConnectFloors(map);
+            // 补断层，保证相邻层至少 1 入 1 出（filler 层或路径缺口兜底）
+            EnsureLayerConnectivity(map);
 
-            // 初始化为起点
+            // 分配房型（保底精英/商店/事件 + 权重）
+            AssignRoomTypes(map, structure, roomPool);
+
             map.CurrentNode = startNode;
             startNode.Visited = true;
 
-            Debug.Log($"[TreeMap] Act {actID} 生成完成：{map.MaxFloor} 层 / {1 + totalMiddleNodes + 1} 节点");
+            int total = 0; foreach (var l in map.Floors) total += l.Count;
+            Debug.Log($"[TreeMap] Act {actID} STS 生成：{depth} 层 / {total} 节点");
             return map;
+        }
+
+        /// <summary>补断层：确保相邻层每个节点至少 1 出边、每个下层节点至少 1 入边。</summary>
+        private static void EnsureLayerConnectivity(TreeMap map)
+        {
+            for (int f = 0; f < map.Floors.Count - 1; f++)
+            {
+                var from = map.Floors[f];
+                var to = map.Floors[f + 1];
+                if (from.Count == 0 || to.Count == 0) continue;
+
+                foreach (var n in from)
+                    if (n.Next.Count == 0)
+                        n.Next.Add(to[Mathf.Clamp(n.IndexInFloor, 0, to.Count - 1)]);
+
+                foreach (var t in to)
+                {
+                    bool hasIn = false;
+                    foreach (var n in from) if (n.Next.Contains(t)) { hasIn = true; break; }
+                    if (!hasIn)
+                    {
+                        var src = from[Mathf.Clamp(t.IndexInFloor, 0, from.Count - 1)];
+                        if (!src.Next.Contains(t)) src.Next.Add(t);
+                    }
+                }
+            }
+        }
+
+        /// <summary>按结构表分配房型：起点=战斗、末层=Boss，中间层按保底数量 + 常规/特殊权重。</summary>
+        private static void AssignRoomTypes(TreeMap map, MapStructureRow s,
+                                            Dictionary<LevelRoomType, List<RoomSocketRow>> roomPool)
+        {
+            int eliteRem = Random.Range(s.EliteMinCount, Mathf.Max(s.EliteMinCount, s.EliteMaxCount) + 1);
+            int eventRem = s.EventMinCount;
+            int shopRem = s.ShopMinCount;
+            int interiorLayers = map.Floors.Count - 2;
+
+            for (int f = 1; f <= interiorLayers; f++)
+            {
+                var layer = map.Floors[f];
+                bool prevElite = AnyOfType(map.Floors[f - 1], LevelRoomType.Elite);
+                foreach (var node in layer)
+                {
+                    var type = PickRoomType(s, ref eliteRem, ref eventRem, ref shopRem, interiorLayers - f, prevElite);
+                    node.RoomType = type;
+                    node.RoomConfigID = PickRoomConfig(roomPool, type);
+                }
+            }
+
+            if (map.StartNode != null) map.StartNode.RoomConfigID = PickRoomConfig(roomPool, LevelRoomType.Battle);
+            if (map.BossNode != null) map.BossNode.RoomConfigID = PickRoomConfig(roomPool, LevelRoomType.Boss);
         }
 
         private static TreeMap GenerateFallback(int actID)

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -12,7 +13,7 @@ namespace XianTu
         private GameObject _roomVisuals;
         private GameObject _chest;
         private GameObject _hintCanvas;
-        private Text _hintText;
+        private TextMeshProUGUI _hintText;
         private bool _opened;
 
         public float RoomWidth => 18f;
@@ -115,13 +116,15 @@ namespace XianTu
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            _hintText = textGo.AddComponent<Text>();
+            _hintText = textGo.AddComponent<TextMeshProUGUI>();
             _hintText.text = "按 [F] 开启宝箱";
             _hintText.fontSize = 18;
-            _hintText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) _hintText.font = UGuiKit.CjkFont;
             _hintText.color = new Color(1f, 0.85f, 0.3f);
-            _hintText.alignment = TextAnchor.MiddleCenter;
-            _hintText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _hintText.alignment = TextAlignmentOptions.Center;
+            _hintText.enableWordWrapping = false;
+            _hintText.overflowMode = TextOverflowModes.Overflow;
+            _hintText.raycastTarget = false;
             _hintCanvas.AddComponent<BillboardUI>();
             _hintCanvas.SetActive(false); // 等玩家进入触发器路由激活时再显示
 

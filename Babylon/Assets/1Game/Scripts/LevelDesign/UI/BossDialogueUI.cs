@@ -1,11 +1,12 @@
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu.LevelDesign
 {
     /// <summary>
-    /// Boss 出场对白播报 UI（v0.6 改 UI Toolkit）——屏幕下方滑入式古风字幕，自动逐行播放。
-    /// 结构 Resources/UI/BossDialogueUI.uxml，样式同名 uss。横幅不阻挡输入（pickingMode=Ignore）。
+    /// Boss 出场对白播报 UI（V0.4.6 改 uGUI+TMP）——屏幕下方古风字幕，自动逐行播放。
+    /// 横幅不阻挡输入（Canvas 不含 GraphicRaycaster 拦截 / raycastTarget=false）。
     /// 对外保持 Show(phaseName, lines, dur) / HideImmediate。
     /// </summary>
     public class BossDialogueUI : MonoBehaviour
@@ -19,10 +20,9 @@ namespace XianTu.LevelDesign
         private float _lineDuration = 3.0f;
         private bool _visible;
 
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private Label _speaker;
-        private Label _line;
+        private GameObject _root;
+        private TextMeshProUGUI _speaker;
+        private TextMeshProUGUI _line;
 
         public static void Show(string phaseName, string[] lines, float lineDuration = 3f)
         {
@@ -37,14 +37,14 @@ namespace XianTu.LevelDesign
             _instance._lineStartTime = Time.unscaledTime;
             _instance._visible = true;
             _instance.RefreshLine();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void HideImmediate()
         {
             if (_instance == null) return;
             _instance._visible = false;
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
         }
 
         private static void EnsureInstance()
@@ -57,27 +57,34 @@ namespace XianTu.LevelDesign
 
         private void Awake()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/BossDialogueUI");
+            var canvas = XianTu.UGuiKit.CreateOverlayCanvas("BossDialogueUI", 60, transform);
+            _root = canvas.gameObject;
+            // 不阻挡输入：移除 GraphicRaycaster
+            var ray = _root.GetComponent<GraphicRaycaster>();
+            if (ray != null) Destroy(ray);
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 10f;
-            XianTu.ChineseFontHelper.Apply(_doc.rootVisualElement);
+            // 底部横幅
+            var banner = new GameObject("Banner", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            var brt = (RectTransform)banner.transform;
+            brt.SetParent(_root.transform, false);
+            brt.anchorMin = new Vector2(0.5f, 0f); brt.anchorMax = new Vector2(0.5f, 0f);
+            brt.pivot = new Vector2(0.5f, 0f);
+            brt.anchoredPosition = new Vector2(0f, 120f);
+            brt.sizeDelta = new Vector2(1100f, 120f);
+            banner.color = new Color(0.03f, 0.03f, 0.05f, 0.72f);
+            banner.raycastTarget = false;
+            var bv = banner.gameObject.AddComponent<VerticalLayoutGroup>();
+            bv.padding = new RectOffset(24, 24, 12, 12); bv.spacing = 6f;
+            bv.childControlWidth = true; bv.childForceExpandWidth = true; bv.childControlHeight = true; bv.childForceExpandHeight = false;
+            bv.childAlignment = TextAnchor.MiddleCenter;
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            _speaker = XianTu.UGuiKit.CreateText(brt, "", 22, XianTu.UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            XianTu.UGuiKit.SetHeight(_speaker, 30f);
+            _line = XianTu.UGuiKit.CreateText(brt, "", 20, new Color(0.9f, 0.9f, 0.95f), TextAlignmentOptions.Center);
+            _line.enableWordWrapping = true;
+            XianTu.UGuiKit.SetHeight(_line, 56f);
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _speaker = root.Q<Label>("speaker");
-            _line = root.Q<Label>("line");
-            if (_overlay != null)
-            {
-                _overlay.pickingMode = PickingMode.Ignore;
-                _overlay.style.display = DisplayStyle.None;
-            }
+            _root.SetActive(false);
         }
 
         private void Update()

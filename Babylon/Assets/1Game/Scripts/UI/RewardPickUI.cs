@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// V0.4.1 三选一奖励面板。
+    /// V0.4.1 三选一奖励面板（V0.4.6 改 uGUI+TMP）。
     /// 战斗/精英/事件房清场后弹出，展示 3 张同类卡牌（全技能 或 全模块）。
     /// 玩家必须选择一张或点「跳过」后才可进入下一关。
     /// 技能栏满时自动弹出替换确认，被替换技能按稀有度折算货币。
@@ -14,23 +15,20 @@ namespace XianTu
     public class RewardPickUI : MonoBehaviour
     {
         private static RewardPickUI _instance;
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private VisualElement _cardsRow;
-        private Label _titleLabel;
-        private Label _subtitleLabel;
-        private Button _skipBtn;
-        private VisualElement _replaceOverlay;
-        private Label _replaceInfo;
-        private Button _replaceYes;
-        private Button _replaceNo;
+
+        private GameObject _root;
+        private RectTransform _cardsRow;
+        private TextMeshProUGUI _titleLabel;
+        private TextMeshProUGUI _subtitleLabel;
+
+        private GameObject _replaceRoot;
+        private RectTransform _replaceContent;
 
         private Action _onDone;
         private SkillData[] _skillCandidates;
         private ModuleDef[] _moduleCandidates;
         private bool _isSkillReward;
         private SkillData _pendingReplaceSkill;
-        private int _pendingReplaceSlot = -1;
 
         /// <summary>
         /// 判定是否触发奖励并弹出 UI。
@@ -48,7 +46,6 @@ namespace XianTu
                 return;
             }
 
-            // 决定出技能还是模块（50/50，但如果某池为空则只出另一种）
             bool canSkill = skillPool != null && skillPool.Length > 0;
             bool canModule = modulePool != null && modulePool.Length > 0;
             if (!canSkill && !canModule)
@@ -79,16 +76,16 @@ namespace XianTu
                 _instance.PopulateModules(_instance._moduleCandidates);
             }
 
-            _instance._overlay.style.display = DisplayStyle.Flex;
-            _instance._replaceOverlay.style.display = DisplayStyle.None;
+            _instance._root.SetActive(true);
+            _instance._replaceRoot.SetActive(false);
             UnityEngine.Cursor.lockState = CursorLockMode.None;
             UnityEngine.Cursor.visible = true;
         }
 
         public static void ForceHide()
         {
-            if (_instance != null && _instance._overlay != null)
-                _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance != null && _instance._root != null)
+                _instance._root.SetActive(false);
         }
 
         // ==================== 随机选取 ====================
@@ -136,165 +133,123 @@ namespace XianTu
 
         private void Build()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.sortingOrder = 20f;
+            var canvas = UGuiKit.CreateOverlayCanvas("RewardPickCanvas", 130, transform);
+            _root = canvas.gameObject;
+            UGuiKit.CreateScrim(_root.transform, new Color(0.02f, 0.03f, 0.06f, 0.92f));
 
-            var root = _doc.rootVisualElement;
+            var center = UGuiKit.CreatePanel(_root.transform, "Center", new Vector2(1000f, 10f), new Color(0, 0, 0, 0));
+            var fit = center.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            UGuiKit.AddVLayout(center, 8f, new RectOffset(0, 0, 0, 0), TextAnchor.UpperCenter, false, false);
+            center.gameObject.GetComponent<VerticalLayoutGroup>().childControlWidth = false;
 
-            // 主遮罩
-            _overlay = new VisualElement { name = "reward-overlay" };
-            SetFull(_overlay);
-            _overlay.style.backgroundColor = new Color(0.02f, 0.03f, 0.06f, 0.92f);
-            _overlay.style.alignItems = Align.Center;
-            _overlay.style.justifyContent = Justify.Center;
-            _overlay.style.display = DisplayStyle.None;
-            root.Add(_overlay);
+            _titleLabel = UGuiKit.CreateText(center, "战利品", 34, UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(_titleLabel, 46f);
+            _subtitleLabel = UGuiKit.CreateText(center, "选择一项奖励，或跳过", 16, UGuiKit.TextDim, TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(_subtitleLabel, 26f);
 
-            _titleLabel = new Label("战利品");
-            _titleLabel.style.fontSize = 32;
-            _titleLabel.style.color = new Color(1f, 0.92f, 0.55f);
-            _titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _titleLabel.style.marginBottom = 4;
-            _overlay.Add(_titleLabel);
+            var spacer = new GameObject("Spacer", typeof(RectTransform), typeof(LayoutElement));
+            spacer.transform.SetParent(center, false);
+            spacer.GetComponent<LayoutElement>().preferredHeight = 16f;
 
-            _subtitleLabel = new Label("选择一项奖励，或跳过");
-            _subtitleLabel.style.fontSize = 14;
-            _subtitleLabel.style.color = new Color(0.6f, 0.63f, 0.7f);
-            _subtitleLabel.style.marginBottom = 20;
-            _overlay.Add(_subtitleLabel);
+            _cardsRow = UGuiKit.CreateCardRow(center, 24f);
 
-            _cardsRow = new VisualElement { name = "cards" };
-            _cardsRow.style.flexDirection = FlexDirection.Row;
-            _cardsRow.style.justifyContent = Justify.Center;
-            _overlay.Add(_cardsRow);
+            var spacer2 = new GameObject("Spacer2", typeof(RectTransform), typeof(LayoutElement));
+            spacer2.transform.SetParent(center, false);
+            spacer2.GetComponent<LayoutElement>().preferredHeight = 20f;
 
-            _skipBtn = new Button(OnSkip) { text = "跳  过" };
-            _skipBtn.style.marginTop = 24;
-            _skipBtn.style.width = 160;
-            _skipBtn.style.height = 40;
-            _skipBtn.style.fontSize = 18;
-            _skipBtn.style.backgroundColor = new Color(0.25f, 0.25f, 0.3f, 0.8f);
-            _skipBtn.style.color = new Color(0.7f, 0.7f, 0.75f);
-            SetBorder(_skipBtn, 1, new Color(0.4f, 0.4f, 0.45f), 8);
-            _overlay.Add(_skipBtn);
+            var skip = UGuiKit.CreateButton(center, "跳  过", OnSkip, new Color(0.25f, 0.25f, 0.3f, 0.9f), 18, new Vector2(180f, 44f));
+            UGuiKit.SetHeight(skip.GetComponent<RectTransform>(), 44f);
 
-            // 替换确认遮罩（叠在主遮罩上）
-            _replaceOverlay = new VisualElement { name = "replace-overlay" };
-            SetFull(_replaceOverlay);
-            _replaceOverlay.style.backgroundColor = new Color(0.02f, 0.02f, 0.05f, 0.95f);
-            _replaceOverlay.style.alignItems = Align.Center;
-            _replaceOverlay.style.justifyContent = Justify.Center;
-            _replaceOverlay.style.display = DisplayStyle.None;
-            root.Add(_replaceOverlay);
+            BuildReplaceRoot();
+        }
 
-            _replaceInfo = new Label();
-            _replaceInfo.style.fontSize = 18;
-            _replaceInfo.style.color = Color.white;
-            _replaceInfo.style.whiteSpace = WhiteSpace.Normal;
-            _replaceInfo.style.maxWidth = 500;
-            _replaceInfo.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _replaceInfo.style.marginBottom = 20;
-            _replaceOverlay.Add(_replaceInfo);
-
-            var btnRow = new VisualElement();
-            btnRow.style.flexDirection = FlexDirection.Row;
-            _replaceOverlay.Add(btnRow);
-
-            _replaceYes = new Button(OnReplaceYes) { text = "确认替换" };
-            _replaceYes.style.width = 140;
-            _replaceYes.style.height = 38;
-            _replaceYes.style.fontSize = 16;
-            _replaceYes.style.marginRight = 16;
-            _replaceYes.style.backgroundColor = new Color(0.7f, 0.35f, 0.2f, 0.9f);
-            _replaceYes.style.color = Color.white;
-            SetBorder(_replaceYes, 1, new Color(0.9f, 0.5f, 0.3f), 6);
-            btnRow.Add(_replaceYes);
-
-            _replaceNo = new Button(OnReplaceNo) { text = "取消" };
-            _replaceNo.style.width = 140;
-            _replaceNo.style.height = 38;
-            _replaceNo.style.fontSize = 16;
-            _replaceNo.style.backgroundColor = new Color(0.25f, 0.25f, 0.3f, 0.8f);
-            _replaceNo.style.color = new Color(0.7f, 0.7f, 0.75f);
-            SetBorder(_replaceNo, 1, new Color(0.4f, 0.4f, 0.45f), 6);
-            btnRow.Add(_replaceNo);
-
-            ChineseFontHelper.Apply(root);
+        private void BuildReplaceRoot()
+        {
+            _replaceRoot = UGuiKit.CreateStretch(_root.transform, "ReplaceRoot").gameObject;
+            UGuiKit.CreateScrim(_replaceRoot.transform, new Color(0.02f, 0.02f, 0.05f, 0.95f));
+            var holder = UGuiKit.CreatePanel(_replaceRoot.transform, "Holder", new Vector2(920f, 10f), new Color(0, 0, 0, 0));
+            var fit = holder.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            UGuiKit.AddVLayout(holder, 12f, new RectOffset(0, 0, 0, 0), TextAnchor.MiddleCenter, false, false);
+            holder.gameObject.GetComponent<VerticalLayoutGroup>().childControlWidth = false;
+            _replaceContent = holder;
+            _replaceRoot.SetActive(false);
         }
 
         // ==================== 填充卡牌 ====================
 
+        private void ClearRow()
+        {
+            for (int i = _cardsRow.childCount - 1; i >= 0; i--) Destroy(_cardsRow.GetChild(i).gameObject);
+        }
+
         private void PopulateSkills(SkillData[] skills)
         {
-            _cardsRow.Clear();
+            ClearRow();
             _titleLabel.text = "技能奖励";
             _subtitleLabel.text = "选择一个技能装备（已满则需替换）";
             foreach (var s in skills)
             {
                 if (s == null) continue;
-                _cardsRow.Add(BuildSkillCard(s));
+                BuildSkillCard(s);
             }
         }
 
         private void PopulateModules(ModuleDef[] modules)
         {
-            _cardsRow.Clear();
+            ClearRow();
             _titleLabel.text = "模块奖励";
             _subtitleLabel.text = "选择一个模块装备到增强链";
             foreach (var m in modules)
             {
                 if (m == null) continue;
-                _cardsRow.Add(BuildModuleCard(m));
+                BuildModuleCard(m);
             }
         }
 
-        private VisualElement BuildSkillCard(SkillData skill)
+        private void BuildSkillCard(SkillData skill)
         {
-            var card = MakeCardBase();
             var tc = SkillTypeColor(skill.skillType);
-            SetBorder(card, 2, new Color(tc.r, tc.g, tc.b, 0.85f), 10);
+            var card = UGuiKit.CreateCard(_cardsRow, new Vector2(240f, 320f), tc);
 
-            AddLabel(card, skill.skillName, 22, tc, FontStyle.Bold, 6);
-            AddLabel(card, $"{SkillTypeName(skill.skillType)} · {RarityName(skill.rarity)}", 12, new Color(0.55f, 0.58f, 0.65f), FontStyle.Normal, 8);
+            var name = UGuiKit.CreateText(card, skill.skillName, 22, tc, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(name, 30f);
+            var type = UGuiKit.CreateText(card, $"{SkillTypeName(skill.skillType)} · {RarityName(skill.rarity)}", 12, new Color(0.55f, 0.58f, 0.65f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(type, 20f);
 
-            if (!string.IsNullOrEmpty(skill.description))
-            {
-                var desc = AddLabel(card, skill.description, 13, new Color(0.72f, 0.74f, 0.80f), FontStyle.Normal, 10);
-                desc.style.whiteSpace = WhiteSpace.Normal;
-            }
+            var desc = UGuiKit.CreateText(card, string.IsNullOrEmpty(skill.description) ? "" : skill.description, 13, new Color(0.72f, 0.74f, 0.80f), TextAlignmentOptions.Top);
+            desc.enableWordWrapping = true;
+            var dle = desc.gameObject.AddComponent<LayoutElement>(); dle.flexibleHeight = 1f; dle.minHeight = 40f;
 
-            AddLabel(card, $"伤害: {skill.baseDamage:F0}  |  CD: {skill.cooldown:F1}s", 12, new Color(0.78f, 0.80f, 0.85f), FontStyle.Normal, 2);
+            var stat = UGuiKit.CreateText(card, $"伤害 {skill.baseDamage:F0}  |  CD {skill.cooldown:F1}s", 12, new Color(0.78f, 0.80f, 0.85f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(stat, 20f);
 
-            var pick = new Button(() => OnPickSkill(skill)) { text = "选择" };
-            StylePickButton(pick, tc);
-            card.Add(pick);
-
-            return card;
+            var pick = UGuiKit.CreateButton(card, "选择", () => OnPickSkill(skill), CardBtnColor(tc), 16, new Vector2(200f, 38f));
+            UGuiKit.SetHeight(pick.GetComponent<RectTransform>(), 38f);
         }
 
-        private VisualElement BuildModuleCard(ModuleDef mod)
+        private void BuildModuleCard(ModuleDef mod)
         {
-            var card = MakeCardBase();
             var rc = RarityColor(mod.rarity);
-            SetBorder(card, 2, new Color(rc.r, rc.g, rc.b, 0.85f), 10);
+            var card = UGuiKit.CreateCard(_cardsRow, new Vector2(240f, 320f), rc);
 
-            AddLabel(card, mod.displayName, 22, rc, FontStyle.Bold, 6);
-            AddLabel(card, $"{CategoryName(mod.category)} · {RarityName(mod.rarity)}", 12, new Color(0.55f, 0.58f, 0.65f), FontStyle.Normal, 8);
+            var name = UGuiKit.CreateText(card, mod.displayName, 22, rc, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(name, 30f);
+            var cat = UGuiKit.CreateText(card, $"{CategoryName(mod.category)} · {RarityName(mod.rarity)}", 12, new Color(0.55f, 0.58f, 0.65f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(cat, 20f);
 
-            if (!string.IsNullOrEmpty(mod.description))
-            {
-                var desc = AddLabel(card, mod.description, 13, new Color(0.72f, 0.74f, 0.80f), FontStyle.Normal, 10);
-                desc.style.whiteSpace = WhiteSpace.Normal;
-            }
+            var desc = UGuiKit.CreateText(card, string.IsNullOrEmpty(mod.description) ? "" : mod.description, 13, new Color(0.72f, 0.74f, 0.80f), TextAlignmentOptions.Top);
+            desc.enableWordWrapping = true;
+            var dle = desc.gameObject.AddComponent<LayoutElement>(); dle.flexibleHeight = 1f; dle.minHeight = 60f;
 
-            var pick = new Button(() => OnPickModule(mod)) { text = "选择" };
-            StylePickButton(pick, rc);
-            card.Add(pick);
-
-            return card;
+            var pick = UGuiKit.CreateButton(card, "选择", () => OnPickModule(mod), CardBtnColor(rc), 16, new Vector2(200f, 38f));
+            UGuiKit.SetHeight(pick.GetComponent<RectTransform>(), 38f);
         }
+
+        private static Color CardBtnColor(Color accent) => new Color(accent.r * 0.4f, accent.g * 0.4f, accent.b * 0.4f, 0.95f);
 
         // ==================== 选取回调 ====================
 
@@ -313,7 +268,6 @@ namespace XianTu
             }
             else
             {
-                // 技能栏满，弹替换确认
                 ShowReplaceConfirm(skill);
             }
         }
@@ -321,66 +275,31 @@ namespace XianTu
         private void ShowReplaceConfirm(SkillData newSkill)
         {
             _pendingReplaceSkill = newSkill;
-            _replaceOverlay.style.display = DisplayStyle.Flex;
+            _replaceRoot.SetActive(true);
 
-            // 构建替换选择行
-            _replaceOverlay.Clear();
+            for (int i = _replaceContent.childCount - 1; i >= 0; i--) Destroy(_replaceContent.GetChild(i).gameObject);
 
-            var title = new Label("技能栏已满 —— 选择一个槽位替换");
-            title.style.fontSize = 22;
-            title.style.color = new Color(1f, 0.85f, 0.4f);
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.marginBottom = 8;
-            _replaceOverlay.Add(title);
+            var title = UGuiKit.CreateText(_replaceContent, "技能栏已满 —— 选择一个槽位替换", 22, new Color(1f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 34f);
+            var newInfo = UGuiKit.CreateText(_replaceContent, $"新技能：{newSkill.skillName}（{RarityName(newSkill.rarity)}）", 16, new Color(0.5f, 1f, 0.7f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(newInfo, 26f);
 
-            var newInfo = new Label($"新技能：{newSkill.skillName}（{RarityName(newSkill.rarity)}）");
-            newInfo.style.fontSize = 16;
-            newInfo.style.color = new Color(0.5f, 1f, 0.7f);
-            newInfo.style.marginBottom = 16;
-            _replaceOverlay.Add(newInfo);
-
+            var slotRow = UGuiKit.CreateCardRow(_replaceContent, 16f);
             var combat = PlayerController.Instance?.GetComponent<PlayerCombat>();
             string[] slotNames = { "Q", "E", "R" };
-            var slotRow = new VisualElement();
-            slotRow.style.flexDirection = FlexDirection.Row;
-            slotRow.style.justifyContent = Justify.Center;
-            _replaceOverlay.Add(slotRow);
-
             for (int i = 0; i < 3; i++)
             {
                 var sk = combat?.GetSkillInSlot(i);
                 if (sk == null) continue;
-
                 int slot = i;
                 int refundShards = PlayerResources.GetDecomposeShards(sk.rarity);
-
-                var btn = new Button(() => ConfirmReplace(slot))
-                {
-                    text = $"替换 [{slotNames[slot]}] {sk.skillName}\n→ 折算 ✦{refundShards}"
-                };
-                btn.style.width = 200;
-                btn.style.height = 70;
-                btn.style.fontSize = 14;
-                btn.style.marginLeft = 8;
-                btn.style.marginRight = 8;
-                btn.style.backgroundColor = new Color(0.15f, 0.15f, 0.22f, 0.9f);
-                btn.style.color = Color.white;
-                btn.style.whiteSpace = WhiteSpace.Normal;
-                SetBorder(btn, 1, RarityColor(sk.rarity), 8);
-                slotRow.Add(btn);
+                var btn = UGuiKit.CreateButton(slotRow, $"替换 [{slotNames[slot]}] {sk.skillName}\n→ 折算 ✦{refundShards}",
+                    () => ConfirmReplace(slot), new Color(0.15f, 0.15f, 0.22f, 0.95f), 14, new Vector2(200f, 70f));
+                UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 70f);
             }
 
-            var cancelBtn = new Button(OnReplaceNo) { text = "取消替换" };
-            cancelBtn.style.marginTop = 16;
-            cancelBtn.style.width = 160;
-            cancelBtn.style.height = 38;
-            cancelBtn.style.fontSize = 16;
-            cancelBtn.style.backgroundColor = new Color(0.25f, 0.25f, 0.3f, 0.8f);
-            cancelBtn.style.color = new Color(0.7f, 0.7f, 0.75f);
-            SetBorder(cancelBtn, 1, new Color(0.4f, 0.4f, 0.45f), 6);
-            _replaceOverlay.Add(cancelBtn);
-
-            ChineseFontHelper.Apply(_replaceOverlay);
+            var cancelBtn = UGuiKit.CreateButton(_replaceContent, "取消替换", OnReplaceNo, new Color(0.25f, 0.25f, 0.3f, 0.9f), 16, new Vector2(180f, 40f));
+            UGuiKit.SetHeight(cancelBtn.GetComponent<RectTransform>(), 40f);
         }
 
         private void ConfirmReplace(int slot)
@@ -394,11 +313,7 @@ namespace XianTu
             int refund = oldSkill != null ? PlayerResources.GetDecomposeShards(oldSkill.rarity) : 0;
 
             combat.EquipSkillToSlot(_pendingReplaceSkill, slot);
-            GameEvents.Publish(new GameEvents.SkillEquipped
-            {
-                Skill = _pendingReplaceSkill,
-                SlotIndex = slot
-            });
+            GameEvents.Publish(new GameEvents.SkillEquipped { Skill = _pendingReplaceSkill, SlotIndex = slot });
 
             if (refund > 0 && PlayerResources.Instance != null)
             {
@@ -408,20 +323,14 @@ namespace XianTu
 
             Debug.Log($"<color=#66ff99>[RewardPick] 替换装备 {_pendingReplaceSkill.skillName} → 槽位 {slot}</color>");
             _pendingReplaceSkill = null;
-            _replaceOverlay.style.display = DisplayStyle.None;
+            _replaceRoot.SetActive(false);
             Close();
-        }
-
-        private void OnReplaceYes()
-        {
-            if (_pendingReplaceSlot >= 0)
-                ConfirmReplace(_pendingReplaceSlot);
         }
 
         private void OnReplaceNo()
         {
             _pendingReplaceSkill = null;
-            _replaceOverlay.style.display = DisplayStyle.None;
+            _replaceRoot.SetActive(false);
         }
 
         private void OnPickModule(ModuleDef mod)
@@ -429,16 +338,12 @@ namespace XianTu
             var player = PlayerController.Instance;
             if (player == null) { Close(); return; }
 
-            // 直接装备到 ModuleSlotManager —— 找到第一个空链槽或有空位的链
             var slots = player.GetComponent<ModuleSlotManager>();
             if (slots != null)
             {
                 bool equipped = TryAutoEquipModule(slots, mod);
                 if (!equipped)
-                {
-                    // 无法自动装配，通知玩家打开装配 UI 手动处理
                     Debug.Log($"<color=#ffcc33>[RewardPick] 获得模块 {mod.displayName}，请打开装配界面 [M] 手动装配</color>");
-                }
             }
 
             Debug.Log($"<color=#66ff99>[RewardPick] 选择模块 {mod.displayName}（{mod.category}）</color>");
@@ -502,66 +407,14 @@ namespace XianTu
 
         private void Close()
         {
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
-            if (_replaceOverlay != null) _replaceOverlay.style.display = DisplayStyle.None;
+            if (_root != null) _root.SetActive(false);
+            if (_replaceRoot != null) _replaceRoot.SetActive(false);
             var cb = _onDone;
             _onDone = null;
             cb?.Invoke();
         }
 
-        // ==================== 样式工具 ====================
-
-        private static VisualElement MakeCardBase()
-        {
-            var card = new VisualElement();
-            card.style.width = 230;
-            card.style.marginLeft = 12;
-            card.style.marginRight = 12;
-            card.style.paddingTop = 16;
-            card.style.paddingBottom = 16;
-            card.style.paddingLeft = 18;
-            card.style.paddingRight = 18;
-            card.style.backgroundColor = new Color(0.10f, 0.12f, 0.17f, 1f);
-            return card;
-        }
-
-        private static Label AddLabel(VisualElement parent, string text, int fontSize, Color color, FontStyle style, float marginBottom)
-        {
-            var l = new Label(text);
-            l.style.fontSize = fontSize;
-            l.style.color = color;
-            l.style.unityFontStyleAndWeight = style;
-            l.style.marginBottom = marginBottom;
-            parent.Add(l);
-            return l;
-        }
-
-        private static void StylePickButton(Button btn, Color accent)
-        {
-            btn.style.marginTop = 14;
-            btn.style.height = 36;
-            btn.style.fontSize = 16;
-            btn.style.backgroundColor = new Color(accent.r * 0.4f, accent.g * 0.4f, accent.b * 0.4f, 0.9f);
-            btn.style.color = Color.white;
-            SetBorder(btn, 1, accent, 6);
-        }
-
-        private static void SetFull(VisualElement e)
-        {
-            e.style.position = Position.Absolute;
-            e.style.left = 0; e.style.right = 0;
-            e.style.top = 0; e.style.bottom = 0;
-        }
-
-        private static void SetBorder(VisualElement e, float w, Color c, float r)
-        {
-            e.style.borderTopWidth = w; e.style.borderBottomWidth = w;
-            e.style.borderLeftWidth = w; e.style.borderRightWidth = w;
-            e.style.borderTopColor = c; e.style.borderBottomColor = c;
-            e.style.borderLeftColor = c; e.style.borderRightColor = c;
-            e.style.borderTopLeftRadius = r; e.style.borderTopRightRadius = r;
-            e.style.borderBottomLeftRadius = r; e.style.borderBottomRightRadius = r;
-        }
+        // ==================== 颜色 / 名称 ====================
 
         private static Color SkillTypeColor(SkillType t) => t switch
         {

@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// V0.4 技能三选一面板（准备房间用）。
+    /// V0.4 技能三选一面板（准备房间用，V0.4.6 改 uGUI+TMP）。
     /// 从技能池中随机抽取 3 个最低品质技能供玩家选择一个装备到 Q 槽位。
-    /// UITK 程序化构建，无需 uxml/uss。
     /// </summary>
     public class SkillSelectUI : MonoBehaviour
     {
         private static SkillSelectUI _instance;
-        private UIDocument _doc;
-        private VisualElement _overlay;
+        private GameObject _root;
+        private RectTransform _cardsRow;
         private Action<SkillData> _onPicked;
 
         /// <summary>
@@ -40,13 +40,13 @@ namespace XianTu
             }
             _instance._onPicked = onPicked;
             _instance.Populate(PickRandom(candidates, 3));
-            _instance._overlay.style.display = DisplayStyle.Flex;
+            _instance._root.SetActive(true);
         }
 
         public static void Hide()
         {
-            if (_instance != null && _instance._overlay != null)
-                _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance != null && _instance._root != null)
+                _instance._root.SetActive(false);
         }
 
         private static List<SkillData> FilterLowestRarity(SkillData[] pool)
@@ -80,117 +80,65 @@ namespace XianTu
 
         private void Build()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.sortingOrder = 15f;
+            var canvas = UGuiKit.CreateOverlayCanvas("SkillSelectCanvas", 130, transform);
+            _root = canvas.gameObject;
+            UGuiKit.CreateScrim(_root.transform, new Color(0.03f, 0.04f, 0.07f, 0.92f));
 
-            var root = _doc.rootVisualElement;
-            _overlay = new VisualElement { name = "skill-select-overlay" };
-            _overlay.style.position = Position.Absolute;
-            _overlay.style.left = 0; _overlay.style.right = 0;
-            _overlay.style.top = 0; _overlay.style.bottom = 0;
-            _overlay.style.backgroundColor = new Color(0.03f, 0.04f, 0.07f, 0.92f);
-            _overlay.style.alignItems = Align.Center;
-            _overlay.style.justifyContent = Justify.Center;
-            root.Add(_overlay);
+            var center = UGuiKit.CreatePanel(_root.transform, "Center", new Vector2(1000f, 10f), new Color(0, 0, 0, 0));
+            var fit = center.gameObject.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var v = UGuiKit.AddVLayout(center, 8f, new RectOffset(0, 0, 0, 0), TextAnchor.UpperCenter, false, false);
+            v.childControlWidth = false;
 
-            var title = new Label("选择初始技能");
-            title.style.fontSize = 36;
-            title.style.color = new Color(0.95f, 0.90f, 0.75f);
-            title.style.marginBottom = 6;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _overlay.Add(title);
+            var title = UGuiKit.CreateText(center, "选择初始技能", 36, new Color(0.95f, 0.90f, 0.75f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 48f);
+            var subtitle = UGuiKit.CreateText(center, "从下方选择一个技能装备到 Q 槽位，开始你的冒险", 15, new Color(0.65f, 0.68f, 0.75f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(subtitle, 24f);
 
-            var subtitle = new Label("从下方选择一个技能装备到 Q 槽位，开始你的冒险");
-            subtitle.style.fontSize = 15;
-            subtitle.style.color = new Color(0.65f, 0.68f, 0.75f);
-            subtitle.style.marginBottom = 24;
-            _overlay.Add(subtitle);
+            var spacer = new GameObject("Spacer", typeof(RectTransform), typeof(LayoutElement));
+            spacer.transform.SetParent(center, false);
+            spacer.GetComponent<LayoutElement>().preferredHeight = 20f;
 
-            var row = new VisualElement { name = "cards" };
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.flexWrap = Wrap.Wrap;
-            row.style.justifyContent = Justify.Center;
-            _overlay.Add(row);
+            _cardsRow = UGuiKit.CreateCardRow(center, 24f);
 
-            ChineseFontHelper.Apply(root);
+            _root.SetActive(false);
         }
 
         private void Populate(List<SkillData> skills)
         {
-            var row = _overlay.Q<VisualElement>("cards");
-            row.Clear();
+            for (int i = _cardsRow.childCount - 1; i >= 0; i--) Destroy(_cardsRow.GetChild(i).gameObject);
             foreach (var skill in skills)
             {
                 if (skill == null) continue;
-                row.Add(BuildCard(skill));
+                BuildCard(skill);
             }
         }
 
-        private VisualElement BuildCard(SkillData skill)
+        private void BuildCard(SkillData skill)
         {
-            var card = new VisualElement();
-            card.style.width = 220;
-            card.style.marginLeft = 12; card.style.marginRight = 12;
-            card.style.marginBottom = 12;
-            card.style.paddingTop = 16; card.style.paddingBottom = 16;
-            card.style.paddingLeft = 18; card.style.paddingRight = 18;
-            card.style.backgroundColor = new Color(0.10f, 0.12f, 0.17f, 1f);
+            var tc = SkillTypeColor(skill.skillType);
+            var card = UGuiKit.CreateCard(_cardsRow, new Vector2(230f, 320f), tc);
 
-            var typeColor = SkillTypeColor(skill.skillType);
-            SetBorder(card, 2, new Color(typeColor.r, typeColor.g, typeColor.b, 0.85f), 10);
+            var name = UGuiKit.CreateText(card, skill.skillName, 22, tc, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(name, 30f);
+            var type = UGuiKit.CreateText(card, SkillTypeName(skill.skillType), 12, new Color(0.55f, 0.58f, 0.65f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(type, 20f);
 
-            var nameLabel = new Label(skill.skillName);
-            nameLabel.style.fontSize = 22;
-            nameLabel.style.color = typeColor;
-            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            nameLabel.style.marginBottom = 6;
-            card.Add(nameLabel);
+            var desc = UGuiKit.CreateText(card, string.IsNullOrEmpty(skill.description) ? "" : skill.description, 13, new Color(0.72f, 0.74f, 0.80f), TextAlignmentOptions.Top);
+            desc.enableWordWrapping = true;
+            var dle = desc.gameObject.AddComponent<LayoutElement>(); dle.flexibleHeight = 1f; dle.minHeight = 40f;
 
-            var typeLabel = new Label(SkillTypeName(skill.skillType));
-            typeLabel.style.fontSize = 12;
-            typeLabel.style.color = new Color(0.55f, 0.58f, 0.65f);
-            typeLabel.style.marginBottom = 8;
-            card.Add(typeLabel);
+            var stat = UGuiKit.CreateText(card, $"伤害 {skill.baseDamage:F0}  |  冷却 {skill.cooldown:F1}s", 12, new Color(0.78f, 0.80f, 0.85f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(stat, 20f);
 
-            if (!string.IsNullOrEmpty(skill.description))
-            {
-                var desc = new Label(skill.description);
-                desc.style.fontSize = 13;
-                desc.style.color = new Color(0.72f, 0.74f, 0.80f);
-                desc.style.whiteSpace = WhiteSpace.Normal;
-                desc.style.marginBottom = 10;
-                card.Add(desc);
-            }
-
-            card.Add(StatLine($"伤害: {skill.baseDamage:F0}"));
-            card.Add(StatLine($"冷却: {skill.cooldown:F1}s"));
-
-            var pick = new Button(() => Confirm(skill)) { text = "选择" };
-            pick.style.marginTop = 14;
-            pick.style.height = 36;
-            pick.style.fontSize = 16;
-            pick.style.backgroundColor = new Color(typeColor.r * 0.4f, typeColor.g * 0.4f, typeColor.b * 0.4f, 0.9f);
-            pick.style.color = Color.white;
-            SetBorder(pick, 1, typeColor, 6);
-            card.Add(pick);
-
-            return card;
-        }
-
-        private static Label StatLine(string text)
-        {
-            var l = new Label(text);
-            l.style.fontSize = 12;
-            l.style.color = new Color(0.78f, 0.80f, 0.85f);
-            l.style.marginBottom = 2;
-            return l;
+            var pick = UGuiKit.CreateButton(card, "选择", () => Confirm(skill), new Color(tc.r * 0.4f, tc.g * 0.4f, tc.b * 0.4f, 0.95f), 16, new Vector2(190f, 38f));
+            UGuiKit.SetHeight(pick.GetComponent<RectTransform>(), 38f);
         }
 
         private void Confirm(SkillData skill)
         {
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            if (_root != null) _root.SetActive(false);
             var cb = _onPicked;
             _onPicked = null;
             cb?.Invoke(skill);
@@ -219,15 +167,5 @@ namespace XianTu
             SkillType.Zone => "持续区域",
             _ => "技能",
         };
-
-        private static void SetBorder(VisualElement e, float width, Color color, float radius)
-        {
-            e.style.borderTopWidth = width; e.style.borderBottomWidth = width;
-            e.style.borderLeftWidth = width; e.style.borderRightWidth = width;
-            e.style.borderTopColor = color; e.style.borderBottomColor = color;
-            e.style.borderLeftColor = color; e.style.borderRightColor = color;
-            e.style.borderTopLeftRadius = radius; e.style.borderTopRightRadius = radius;
-            e.style.borderBottomLeftRadius = radius; e.style.borderBottomRightRadius = radius;
-        }
     }
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -15,9 +16,9 @@ namespace XianTu
     {
         private RectTransform[] _skillSlots;
         private GameObject[] _overlays = new GameObject[3];
-        private Text[] _overlayTexts = new Text[3];
+        private TextMeshProUGUI[] _overlayTexts = new TextMeshProUGUI[3];
         private Image[] _overlayBgs = new Image[3];
-        private Text[] _chainLabels = new Text[3];
+        private TextMeshProUGUI[] _chainLabels = new TextMeshProUGUI[3];
         private float _pulseTimer;
 
         private static readonly string[] SlotKeys = { "Q", "E", "R" };
@@ -52,17 +53,16 @@ namespace XianTu
                 trt.anchorMax = new Vector2(1, 1);
                 trt.offsetMin = Vector2.zero;
                 trt.offsetMax = Vector2.zero;
-                var text = textGo.AddComponent<Text>();
+                var text = textGo.AddComponent<TextMeshProUGUI>();
                 text.fontSize = 11;
-                text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                text.alignment = TextAnchor.MiddleCenter;
-                text.fontStyle = FontStyle.Bold;
+                if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
+                text.alignment = TextAlignmentOptions.Center;
+                text.fontStyle = FontStyles.Bold;
                 text.raycastTarget = false;
                 text.color = Color.white;
-                text.supportRichText = true;
-                var outline = textGo.AddComponent<Outline>();
-                outline.effectColor = new Color(0, 0, 0, 0.9f);
-                outline.effectDistance = new Vector2(1, -1);
+                text.richText = true;
+                text.outlineColor = new Color(0, 0, 0, 0.9f);
+                text.outlineWidth = 0.2f;
                 _overlayTexts[i] = text;
 
                 _overlays[i] = go;
@@ -73,7 +73,7 @@ namespace XianTu
                 {
                     var labelTf = parent.Find($"ChainLabel_{i}");
                     if (labelTf != null)
-                        _chainLabels[i] = labelTf.GetComponent<Text>();
+                        _chainLabels[i] = labelTf.GetComponent<TextMeshProUGUI>();
                 }
             }
         }

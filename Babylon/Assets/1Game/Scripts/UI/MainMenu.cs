@@ -1,14 +1,16 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
+using TMPro;
 
 namespace XianTu
 {
     /// <summary>
-    /// 主菜单（v0.6 改 UI Toolkit）—— 启动入口 + 返回主菜单。
+    /// 主菜单（V0.4.6 改 uGUI+TMP）—— 启动入口 + 返回主菜单。
     ///
-    /// 结构 Resources/UI/MainMenu.uxml，样式 MainMenu.uss，复用 AvatarSelectPanelSettings
-    /// （UIDocument.sortingOrder=0，弹层 10~14 在其上方）。
+    /// UI 用 UGuiKit 代码化构建：屏幕空间 Overlay Canvas（sortingOrder=100），
+    /// 全屏遮罩 + 居中标题/副标题/按钮列 + 底部存档信息/版本号。
+    /// 中文由动态 TMP 字体 Resources/Fonts/"NotoSansSC SDF" 支撑。
     /// 启动流程见 Demo1Setup / GameManager：boot 时 ShowOnBoot 显示并暂停。
     /// </summary>
     public class MainMenu : MonoBehaviour
@@ -21,10 +23,10 @@ namespace XianTu
         private CursorLockMode _previousCursorLock;
         private bool _previousCursorVisible;
 
-        private UIDocument _doc;
-        private VisualElement _overlay;
+        private GameObject _root;          // Canvas 根，整体显隐
         private Button _continueBtn;
-        private Label _saveInfo;
+        private TextMeshProUGUI _continueLabel;
+        private TextMeshProUGUI _saveInfo;
 
         public static void Ensure()
         {
@@ -57,7 +59,7 @@ namespace XianTu
             UnityEngine.Cursor.visible = true;
 
             _instance.RefreshDynamic();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void Hide()
@@ -71,7 +73,7 @@ namespace XianTu
             UnityEngine.Cursor.lockState = _instance._previousCursorLock;
             UnityEngine.Cursor.visible = _instance._previousCursorVisible;
 
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
         }
 
         public static void ReturnToMainMenu()
@@ -130,36 +132,81 @@ namespace XianTu
             return false;
         }
 
-        // ========== UITK ==========
+        // ========== uGUI 构建 ==========
 
         private void Awake()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/MainMenu");
+            var canvas = UGuiKit.CreateOverlayCanvas("MainMenuCanvas", 100, transform);
+            _root = canvas.gameObject;
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 0f;   // 主菜单在最底层，弹层在其上
-            ChineseFontHelper.Apply(_doc.rootVisualElement);
+            // 全屏遮罩
+            UGuiKit.CreateScrim(_root.transform);
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
-            // 样式经 UXML <Style src> 加载（避免 Resources 空规则缓存坑）
+            // 居中内容列
+            var center = UGuiKit.CreatePanel(_root.transform, "Center", new Vector2(480f, 10f), new Color(0, 0, 0, 0));
+            var vfit = center.gameObject.AddComponent<ContentSizeFitter>();
+            vfit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            UGuiKit.AddVLayout(center, 14f, new RectOffset(0, 0, 0, 0), TextAnchor.UpperCenter);
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _continueBtn = root.Q<Button>("continue");
-            _saveInfo = root.Q<Label>("saveinfo");
+            var title = UGuiKit.CreateText(center, "仙 途 秘 境", 64, UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            SetPreferredHeight(title, 80f);
 
-            Wire(root, "start", StartWithTemplate);
-            Wire(root, "continue", ContinueGame);
-            Wire(root, "info", () => PlayerInfoPanel.Show());
-            Wire(root, "codex", () => CodexUITK.Show());
-            Wire(root, "settings", () => SettingsUI.Show());
-            Wire(root, "quit", QuitGame);
+            var subtitle = UGuiKit.CreateText(center, "闯秘境修仙 · 搜打撤 · 洞府养成", 22, UGuiKit.TextDim);
+            SetPreferredHeight(subtitle, 34f);
 
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            AddSpacer(center, 12f);
+
+            MakeMenuButton(center, "进入基地", StartWithTemplate, UGuiKit.BtnPrimary);
+            _continueBtn = MakeMenuButton(center, "继续修行", ContinueGame, UGuiKit.BtnNormal, out _continueLabel);
+            MakeMenuButton(center, "角色信息", () => PlayerInfoPanel.Show(), UGuiKit.BtnNormal);
+            MakeMenuButton(center, "图鉴", () => CodexUITK.Show(), UGuiKit.BtnNormal);
+            MakeMenuButton(center, "设置", () => SettingsUI.Show(), UGuiKit.BtnNormal);
+            MakeMenuButton(center, "退出游戏", QuitGame, UGuiKit.BtnWarn);
+
+            // 底部存档信息
+            _saveInfo = UGuiKit.CreateText(_root.transform, "", 20, UGuiKit.TextDim);
+            var srt = (RectTransform)_saveInfo.transform;
+            srt.anchorMin = new Vector2(0.5f, 0f); srt.anchorMax = new Vector2(0.5f, 0f);
+            srt.pivot = new Vector2(0.5f, 0f);
+            srt.anchoredPosition = new Vector2(0f, 64f);
+            srt.sizeDelta = new Vector2(900f, 30f);
+
+            // 版本号
+            var version = UGuiKit.CreateText(_root.transform, "V0.4.6 · 2026-07", 18, new Color(0.5f, 0.53f, 0.6f, 1f), TextAlignmentOptions.BottomRight);
+            var vrt = (RectTransform)version.transform;
+            vrt.anchorMin = new Vector2(1f, 0f); vrt.anchorMax = new Vector2(1f, 0f);
+            vrt.pivot = new Vector2(1f, 0f);
+            vrt.anchoredPosition = new Vector2(-24f, 20f);
+            vrt.sizeDelta = new Vector2(320f, 26f);
+
+            _root.SetActive(false);
+        }
+
+        private Button MakeMenuButton(RectTransform parent, string text, UnityEngine.Events.UnityAction onClick, Color color)
+            => MakeMenuButton(parent, text, onClick, color, out _);
+
+        private Button MakeMenuButton(RectTransform parent, string text, UnityEngine.Events.UnityAction onClick, Color color, out TextMeshProUGUI label)
+        {
+            var btn = UGuiKit.CreateButton(parent.transform, text, onClick, out label, color, 30, new Vector2(440f, 56f));
+            SetPreferredHeight(btn.GetComponent<RectTransform>(), 56f);
+            return btn;
+        }
+
+        private static void SetPreferredHeight(Component c, float h)
+        {
+            var le = c.gameObject.GetComponent<LayoutElement>();
+            if (le == null) le = c.gameObject.AddComponent<LayoutElement>();
+            le.preferredHeight = h;
+            le.minHeight = h;
+        }
+
+        private static void SetPreferredHeight(RectTransform rt, float h) => SetPreferredHeight((Component)rt, h);
+
+        private static void AddSpacer(RectTransform parent, float h)
+        {
+            var go = new GameObject("Spacer", typeof(RectTransform), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+            go.GetComponent<LayoutElement>().preferredHeight = h;
         }
 
         /// <summary>V0.4.1：点击「开始游戏」弹出存档选择面板。</summary>
@@ -171,20 +218,14 @@ namespace XianTu
             });
         }
 
-        private static void Wire(VisualElement root, string name, System.Action action)
-        {
-            var b = root.Q<Button>(name);
-            if (b != null) b.clicked += action;
-        }
-
         private void RefreshDynamic()
         {
             bool hasSave = HasSave();
             if (_continueBtn != null)
-            {
-                _continueBtn.SetEnabled(hasSave);
-                _continueBtn.text = hasSave ? "继续冒险" : "继续冒险（无存档）";
-            }
+                UGuiKit.SetButtonEnabled(_continueBtn, hasSave, UGuiKit.BtnNormal);
+            if (_continueLabel != null)
+                _continueLabel.text = hasSave ? "继续冒险" : "继续冒险（无存档）";
+
             if (_saveInfo != null)
             {
                 if (hasSave && SaveSystem.Instance.HasActiveSlot)
@@ -195,7 +236,7 @@ namespace XianTu
                 }
                 else if (hasSave)
                 {
-                    _saveInfo.text = "已有存档 — 点击「开始游戏」选择存档";
+                    _saveInfo.text = "已有存档 — 点击「进入基地」选择存档";
                 }
                 else _saveInfo.text = "";
             }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -10,7 +11,6 @@ namespace XianTu
     public class DamagePopup : MonoBehaviour
     {
         [SerializeField] private Canvas canvas;
-        [SerializeField] private Font font;
 
         private const int MAX_POPUPS = 20;
         private readonly PopupData[] _popups = new PopupData[MAX_POPUPS];
@@ -19,7 +19,7 @@ namespace XianTu
         private class PopupData
         {
             public GameObject Go;
-            public Text Text;
+            public TextMeshProUGUI Text;
             public RectTransform Rt;
             public Vector3 WorldPos;
             public float Timer;
@@ -38,17 +38,17 @@ namespace XianTu
                 go.transform.SetParent(transform, false);
                 var rt = go.AddComponent<RectTransform>();
                 rt.sizeDelta = new Vector2(120, 40);
-                var text = go.AddComponent<Text>();
-                text.font = font != null ? font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                text.alignment = TextAnchor.MiddleCenter;
-                text.horizontalOverflow = HorizontalWrapMode.Overflow;
-                text.verticalOverflow = VerticalWrapMode.Overflow;
+                var text = go.AddComponent<TextMeshProUGUI>();
+                if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
+                text.alignment = TextAlignmentOptions.Center;
+                text.enableWordWrapping = false;
+                text.overflowMode = TextOverflowModes.Overflow;
                 text.raycastTarget = false;
+                text.fontStyle = FontStyles.Bold;
 
-                // 描边效果
-                var outline = go.AddComponent<Outline>();
-                outline.effectColor = new Color(0, 0, 0, 0.8f);
-                outline.effectDistance = new Vector2(1.5f, -1.5f);
+                // 描边效果（TMP 内建描边，避免 UnityEngine.UI.Outline 不支持 TMP）
+                text.outlineColor = new Color(0, 0, 0, 0.9f);
+                text.outlineWidth = 0.2f;
 
                 go.SetActive(false);
 

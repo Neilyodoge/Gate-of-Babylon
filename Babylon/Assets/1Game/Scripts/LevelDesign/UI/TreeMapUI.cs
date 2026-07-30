@@ -1,15 +1,16 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
+using TMPro;
 
 namespace XianTu.LevelDesign
 {
     /// <summary>
-    /// GDD §12.2.1 树状关卡图 UI（v0.6 改 UI Toolkit）。
-    /// 节点横向铺开（左起点 → 右 Boss），连线用 Painter2D 自绘，点击/数字键选择下一节点。
-    /// 结构 Resources/UI/TreeMapUI.uxml，样式同名 uss。对外保持 Show/HideImmediate/IsVisible。
+    /// GDD §12.2.1 树状关卡图 UI（V0.4.6 改 uGUI+TMP）。
+    /// 节点横向铺开（左起点 → 右 Boss），连线用旋转 Image 线段绘制，点击/数字键选择下一节点。
+    /// 对外保持 Show/HideImmediate/IsVisible。
     /// readOnly=false：选择模式（推进 CurrentNode + 回调）；readOnly=true：查看模式（仅 ESC 关闭）。
     /// </summary>
     public class TreeMapUI : MonoBehaviour
@@ -24,18 +25,18 @@ namespace XianTu.LevelDesign
         private CursorLockMode _prevLock;
         private bool _prevVisible;
 
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private Label _title;
-        private Label _sub;
-        private VisualElement _mapArea;
-        private VisualElement _lines;
-        private Label _legend3;
-        private Label _legend4;
+        private GameObject _root;
+        private TextMeshProUGUI _title;
+        private TextMeshProUGUI _sub;
+        private RectTransform _mapArea;
+        private RectTransform _linesLayer;
+        private TextMeshProUGUI _legend3;
+        private TextMeshProUGUI _legend4;
 
-        private readonly Dictionary<TreeNode, VisualElement> _nodeEls = new();
-        private readonly Dictionary<TreeNode, Label> _hotkeyEls = new();
+        private readonly Dictionary<TreeNode, RectTransform> _nodeEls = new();
+        private readonly Dictionary<TreeNode, RectTransform> _hotkeyEls = new();
         private readonly Dictionary<TreeNode, Vector2> _nodePos = new();
+        private readonly List<(TreeNode from, TreeNode to, RectTransform seg, Image img)> _segs = new();
 
         private const float NodeSize = 56f;
         private const float PadLeft = 70f;
@@ -58,14 +59,14 @@ namespace XianTu.LevelDesign
             UnityEngine.Cursor.visible = true;
 
             _instance.Rebuild();
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.Flex;
+            if (_instance._root != null) _instance._root.SetActive(true);
         }
 
         public static void HideImmediate()
         {
             if (_instance == null) return;
             _instance._visible = false;
-            if (_instance._overlay != null) _instance._overlay.style.display = DisplayStyle.None;
+            if (_instance._root != null) _instance._root.SetActive(false);
             if (!_instance._readOnly)
             {
                 UnityEngine.Cursor.lockState = _instance._prevLock;
@@ -83,48 +84,54 @@ namespace XianTu.LevelDesign
 
         private void Awake()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/TreeMapUI");
+            var canvas = XianTu.UGuiKit.CreateOverlayCanvas("TreeMapUI", 120, transform);
+            _root = canvas.gameObject;
+            XianTu.UGuiKit.CreateScrim(_root.transform, new Color(0.03f, 0.04f, 0.07f, 0.95f));
 
-            _doc = gameObject.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 11f;
-            XianTu.ChineseFontHelper.Apply(_doc.rootVisualElement);
+            var panel = XianTu.UGuiKit.CreateStretch(_root.transform, "Panel");
+            panel.offsetMin = new Vector2(40f, 40f); panel.offsetMax = new Vector2(-40f, -40f);
+            var pv = panel.gameObject.AddComponent<VerticalLayoutGroup>();
+            pv.spacing = 6f; pv.padding = new RectOffset(10, 10, 10, 10);
+            pv.childControlWidth = true; pv.childForceExpandWidth = true; pv.childControlHeight = true; pv.childForceExpandHeight = false;
+            pv.childAlignment = TextAnchor.UpperCenter;
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            _title = XianTu.UGuiKit.CreateText(panel, "", 26, XianTu.UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            XianTu.UGuiKit.SetHeight(_title, 36f);
+            _sub = XianTu.UGuiKit.CreateText(panel, "", 14, new Color(0.65f, 0.68f, 0.75f), TextAlignmentOptions.Center);
+            XianTu.UGuiKit.SetHeight(_sub, 22f);
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _title = root.Q<Label>("title");
-            _sub = root.Q<Label>("sub");
-            _mapArea = root.Q<VisualElement>("mapArea");
-            _lines = root.Q<VisualElement>("lines");
-            _legend3 = root.Q<Label>("legend3");
-            _legend4 = root.Q<Label>("legend4");
+            // 地图区（占据剩余空间）
+            var mapGo = new GameObject("MapArea", typeof(RectTransform), typeof(LayoutElement));
+            _mapArea = (RectTransform)mapGo.transform;
+            _mapArea.SetParent(panel, false);
+            var mle = mapGo.GetComponent<LayoutElement>(); mle.flexibleHeight = 1f; mle.minHeight = 300f;
 
-            if (_lines != null)
-            {
-                _lines.pickingMode = PickingMode.Ignore;
-                _lines.generateVisualContent += OnDrawLines;
-            }
-            if (_mapArea != null)
-                _mapArea.RegisterCallback<GeometryChangedEvent>(_ => LayoutMap());
+            _linesLayer = new GameObject("Lines", typeof(RectTransform)).GetComponent<RectTransform>();
+            _linesLayer.SetParent(_mapArea, false);
+            _linesLayer.anchorMin = Vector2.zero; _linesLayer.anchorMax = Vector2.one; _linesLayer.offsetMin = Vector2.zero; _linesLayer.offsetMax = Vector2.zero;
 
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            var legendRow = XianTu.UGuiKit.CreateRow(panel, 30f, 24f);
+            legendRow.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+            legendRow.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
+            _legend3 = XianTu.UGuiKit.CreateText(legendRow, "", 14, new Color(0.7f, 0.78f, 0.9f), TextAlignmentOptions.Center);
+            XianTu.UGuiKit.SetHeight(_legend3, 22f); _legend3.GetComponent<LayoutElement>().preferredWidth = 300f;
+            _legend4 = XianTu.UGuiKit.CreateText(legendRow, "", 14, new Color(0.7f, 0.78f, 0.9f), TextAlignmentOptions.Center);
+            XianTu.UGuiKit.SetHeight(_legend4, 22f); _legend4.GetComponent<LayoutElement>().preferredWidth = 400f;
+
+            _root.SetActive(false);
         }
 
         private void Rebuild()
         {
             if (_map == null || _mapArea == null) return;
 
-            // 清掉旧节点/热键（保留 lines 层）
-            foreach (var kv in _nodeEls) kv.Value.RemoveFromHierarchy();
-            foreach (var kv in _hotkeyEls) kv.Value.RemoveFromHierarchy();
+            foreach (var kv in _nodeEls) if (kv.Value != null) Destroy(kv.Value.gameObject);
+            foreach (var kv in _hotkeyEls) if (kv.Value != null) Destroy(kv.Value.gameObject);
+            foreach (var s in _segs) if (s.seg != null) Destroy(s.seg.gameObject);
             _nodeEls.Clear();
             _hotkeyEls.Clear();
             _nodePos.Clear();
+            _segs.Clear();
 
             if (_title != null) _title.text = $"· 仙山舆图 · 第 {_map.ActID} 境 ·";
             if (_sub != null)
@@ -134,8 +141,23 @@ namespace XianTu.LevelDesign
             }
             RefreshLegend();
 
-            // 候选（仅选择模式可点）
             var candidates = (!_readOnly && _map.CurrentNode != null) ? _map.CurrentNode.Next : null;
+
+            // 线段（放在 lines 层，位于节点之下）
+            foreach (var layer in _map.Floors)
+                foreach (var n in layer)
+                    foreach (var next in n.Next)
+                    {
+                        bool active = n == _map.CurrentNode;
+                        var segGo = new GameObject("Seg", typeof(RectTransform), typeof(Image));
+                        var seg = (RectTransform)segGo.transform;
+                        seg.SetParent(_linesLayer, false);
+                        seg.anchorMin = new Vector2(0f, 1f); seg.anchorMax = new Vector2(0f, 1f); seg.pivot = new Vector2(0f, 0.5f);
+                        var img = segGo.GetComponent<Image>();
+                        img.raycastTarget = false;
+                        img.color = active ? new Color(1f, 0.85f, 0.4f, 0.95f) : new Color(0.4f, 0.4f, 0.5f, 0.6f);
+                        _segs.Add((n, next, seg, img));
+                    }
 
             foreach (var layer in _map.Floors)
             {
@@ -150,49 +172,57 @@ namespace XianTu.LevelDesign
                         fill = new Color(fill.r * 0.4f, fill.g * 0.4f, fill.b * 0.4f, 1f);
                     if (isCurrent) fill = new Color(1f, 0.9f, 0.5f);
 
-                    var node = new VisualElement();
-                    node.AddToClassList("tm-node");
-                    if (isCurrent) node.AddToClassList("tm-node--current");
-                    else if (isCandidate) node.AddToClassList("tm-node--candidate");
-                    node.style.backgroundColor = fill;
+                    var nodeGo = new GameObject("Node", typeof(RectTransform), typeof(Image));
+                    var node = (RectTransform)nodeGo.transform;
+                    node.SetParent(_mapArea, false);
+                    node.anchorMin = new Vector2(0f, 1f); node.anchorMax = new Vector2(0f, 1f); node.pivot = new Vector2(0.5f, 0.5f);
+                    node.sizeDelta = new Vector2(NodeSize, NodeSize);
+                    nodeGo.GetComponent<Image>().color = fill;
 
-                    var icon = new Label(n.Icon);
-                    icon.AddToClassList("tm-node-icon");
-                    icon.style.color = isCurrent ? Color.black : Color.white;
-                    node.Add(icon);
+                    if (isCurrent || isCandidate)
+                    {
+                        var ol = nodeGo.AddComponent<Outline>();
+                        ol.effectColor = isCurrent ? new Color(1f, 0.95f, 0.6f, 1f) : new Color(0.5f, 0.8f, 1f, 0.9f);
+                        ol.effectDistance = new Vector2(2f, 2f);
+                    }
+
+                    var icon = XianTu.UGuiKit.CreateText(node, n.Icon, 24, isCurrent ? Color.black : Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+                    var irt = (RectTransform)icon.transform; irt.anchorMin = Vector2.zero; irt.anchorMax = Vector2.one; irt.offsetMin = Vector2.zero; irt.offsetMax = Vector2.zero;
 
                     if (isCandidate)
                     {
+                        var btn = nodeGo.AddComponent<Button>();
+                        btn.targetGraphic = nodeGo.GetComponent<Image>();
                         var captured = n;
-                        node.RegisterCallback<ClickEvent>(_ => PickNode(captured));
+                        btn.onClick.AddListener(() => PickNode(captured));
                     }
 
-                    _mapArea.Add(node);
                     _nodeEls[n] = node;
                 }
             }
 
-            // 候选热键标签（按 CurrentNode.Next 顺序，与数字键一致）
             if (candidates != null)
             {
                 for (int i = 0; i < candidates.Count; i++)
                 {
-                    var hot = new Label($"[{i + 1}]");
-                    hot.AddToClassList("tm-hot");
-                    _mapArea.Add(hot);
-                    _hotkeyEls[candidates[i]] = hot;
+                    var hotGo = new GameObject("Hot", typeof(RectTransform));
+                    var hrt = (RectTransform)hotGo.transform;
+                    hrt.SetParent(_mapArea, false);
+                    hrt.anchorMin = new Vector2(0f, 1f); hrt.anchorMax = new Vector2(0f, 1f); hrt.pivot = new Vector2(0.5f, 0.5f);
+                    hrt.sizeDelta = new Vector2(40f, 20f);
+                    var hot = XianTu.UGuiKit.CreateText(hrt, $"[{i + 1}]", 14, XianTu.UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+                    var ort = (RectTransform)hot.transform; ort.anchorMin = Vector2.zero; ort.anchorMax = Vector2.one; ort.offsetMin = Vector2.zero; ort.offsetMax = Vector2.zero;
+                    _hotkeyEls[candidates[i]] = hrt;
                 }
             }
-
-            LayoutMap();
         }
 
         private void LayoutMap()
         {
             if (_map == null || _mapArea == null) return;
-            float w = _mapArea.resolvedStyle.width;
-            float h = _mapArea.resolvedStyle.height;
-            if (w <= 1f || h <= 1f) return;   // 布局尚未就绪，等 GeometryChangedEvent
+            float w = _mapArea.rect.width;
+            float h = _mapArea.rect.height;
+            if (w <= 1f || h <= 1f) return;
 
             float floorGap = Mathf.Max(120f, (w - PadLeft * 2f) / Mathf.Max(1, _map.MaxFloor - 1));
 
@@ -205,19 +235,27 @@ namespace XianTu.LevelDesign
                     Vector2 p = NodePos(w, h, floorGap, layer.Count, f, i);
                     _nodePos[n] = p;
                     if (_nodeEls.TryGetValue(n, out var el))
-                    {
-                        el.style.left = p.x - NodeSize * 0.5f;
-                        el.style.top = p.y - NodeSize * 0.5f;
-                    }
+                        el.anchoredPosition = new Vector2(p.x, -p.y);
                     if (_hotkeyEls.TryGetValue(n, out var hot))
-                    {
-                        hot.style.left = p.x - 20f;
-                        hot.style.top = p.y + NodeSize * 0.5f + 4f;
-                    }
+                        hot.anchoredPosition = new Vector2(p.x, -(p.y + NodeSize * 0.5f + 14f));
                 }
             }
 
-            if (_lines != null) _lines.MarkDirtyRepaint();
+            // 更新线段位置/旋转/长度
+            foreach (var s in _segs)
+            {
+                if (s.seg == null) continue;
+                if (!_nodePos.TryGetValue(s.from, out var from) || !_nodePos.TryGetValue(s.to, out var to)) { s.seg.gameObject.SetActive(false); continue; }
+                s.seg.gameObject.SetActive(true);
+                bool active = s.from == _map.CurrentNode;
+                Vector2 a = new Vector2(from.x, -from.y);
+                Vector2 b = new Vector2(to.x, -to.y);
+                Vector2 dir = b - a;
+                float dist = dir.magnitude;
+                s.seg.anchoredPosition = a;
+                s.seg.sizeDelta = new Vector2(dist, active ? 3f : 2f);
+                s.seg.localEulerAngles = new Vector3(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+            }
         }
 
         private Vector2 NodePos(float w, float h, float floorGap, int layerCount, int floor, int idx)
@@ -231,34 +269,12 @@ namespace XianTu.LevelDesign
             return new Vector2(x, y);
         }
 
-        private void OnDrawLines(MeshGenerationContext ctx)
-        {
-            if (_map == null || _nodePos.Count == 0) return;
-            var p = ctx.painter2D;
-
-            foreach (var layer in _map.Floors)
-            {
-                foreach (var n in layer)
-                {
-                    if (!_nodePos.TryGetValue(n, out var from)) continue;
-                    bool active = n == _map.CurrentNode;
-                    foreach (var next in n.Next)
-                    {
-                        if (!_nodePos.TryGetValue(next, out var to)) continue;
-                        p.strokeColor = active ? new Color(1f, 0.85f, 0.4f, 0.95f) : new Color(0.4f, 0.4f, 0.5f, 0.6f);
-                        p.lineWidth = active ? 3f : 2f;
-                        p.BeginPath();
-                        p.MoveTo(from);
-                        p.LineTo(to);
-                        p.Stroke();
-                    }
-                }
-            }
-        }
-
         private void Update()
         {
             if (!_visible || _map == null) return;
+
+            LayoutMap();   // 每帧重排，兼容分辨率变化（节点数少，开销可忽略）
+
             var kb = Keyboard.current;
             if (kb == null) return;
 
@@ -285,7 +301,7 @@ namespace XianTu.LevelDesign
         private void PickNode(TreeNode node)
         {
             _visible = false;
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            if (_root != null) _root.SetActive(false);
             UnityEngine.Cursor.lockState = _prevLock;
             UnityEngine.Cursor.visible = _prevVisible;
             _map.CurrentNode = node;

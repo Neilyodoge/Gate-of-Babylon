@@ -1,13 +1,14 @@
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using TMPro;
 using System.Collections.Generic;
 
 namespace XianTu
 {
     /// <summary>
-    /// 商店房间 —— 完整的商店UI系统
-    /// 进入房间后自动弹出商店面板，展示随机商品（技能 + 模块）
-    /// 用碎片购买技能/模块
+    /// 商店房间 —— 完整的商店UI系统（V0.4.6 UI 改 uGUI+TMP）。
+    /// 进入房间后靠近商人按 F 弹出商店面板，展示随机商品（技能 + 模块），用碎片购买。
     /// </summary>
     public class ShopRoom : MonoBehaviour, IInteractable
     {
@@ -24,17 +25,17 @@ namespace XianTu
         public bool IsInteractionAvailable => _playerInRange && !_shopOpen;
         public bool IsRoutedActive { get; set; }
 
-        // 商店UI（UITK）
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private Label _shardsLabel;
-        private VisualElement _cardsRow;
+        // 商店UI（uGUI+TMP）
+        private GameObject _shopUI;          // Canvas 根
+        private TextMeshProUGUI _shardsLabel;
+        private RectTransform _cardsGrid;
         private readonly List<ShopSlot> _shopSlots = new();
-        private VisualElement _tooltipEl;
-        private Label _tooltipTitle;
-        private Label _tooltipBody;
+        private GameObject _tooltip;
+        private TextMeshProUGUI _tooltipTitle;
+        private TextMeshProUGUI _tooltipBody;
         private bool _shopOpen;
         private Button _refreshBtn;
+        private TextMeshProUGUI _refreshLabel;
         private int _refreshCount;
         private const int RefreshBaseCost = 20;
 
@@ -44,18 +45,17 @@ namespace XianTu
             public ModuleDef module;
             public int price;
             public bool sold;
-            public VisualElement cardEl;
-            public Label priceLabel;
+            public GameObject cardEl;
+            public TextMeshProUGUI priceLabel;
             public Button buyBtn;
-            public Label buyLabel;
+            public TextMeshProUGUI buyLabel;
         }
 
         public float RoomWidth => 20f;
         public float RoomDepth => 20f;
 
-        // 交互状态
         private bool _playerInRange;
-        private NpcHeadCard _headCard; // 统一头顶 UI（v0.3.3）
+        private NpcHeadCard _headCard;
 
         public void Initialize(int roomIndex, SkillData[] skillPool = null, ModuleDef[] modulePool = null)
         {
@@ -65,7 +65,6 @@ namespace XianTu
             BuildRoom();
             CreateShopUI();
 
-            // 监听资源变化刷新余额显示
             GameEvents.Subscribe<GameEvents.ResourceChanged>(OnResourceChanged);
         }
 
@@ -74,7 +73,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
             InteractionRouter.Unregister(this);
             if (_roomVisuals != null) Destroy(_roomVisuals);
-            if (_doc != null) Destroy(_doc.gameObject);
+            if (_shopUI != null) Destroy(_shopUI);
         }
 
         private void OnResourceChanged(GameEvents.ResourceChanged evt)
@@ -89,7 +88,6 @@ namespace XianTu
         {
             _roomVisuals = RoomBuilder.Build(transform, 20f, 20f, _roomIndex);
 
-            // 商店装饰：中央柜台
             var counter = GameObject.CreatePrimitive(PrimitiveType.Cube);
             counter.name = "ShopCounter";
             counter.transform.SetParent(transform);
@@ -103,12 +101,11 @@ namespace XianTu
                 rend.material = mat;
             }
 
-            // 商人NPC
             var npc = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             npc.name = "Shopkeeper";
             npc.transform.SetParent(transform);
             npc.transform.localPosition = new Vector3(0, 1f, 3.5f);
-            _shopkeeperTransform = npc.transform; // 给 InteractionRouter 用作距离锚点
+            _shopkeeperTransform = npc.transform;
             var npcCol = npc.GetComponent<Collider>();
             if (npcCol != null) Destroy(npcCol);
             var npcRend = npc.GetComponent<Renderer>();
@@ -119,7 +116,6 @@ namespace XianTu
                 npcRend.material = mat;
             }
 
-            // 统一 NPC 头顶卡片（金色主题 · 商人）
             _headCard = NpcHeadCard.Attach(npc.transform, new NpcHeadCard.Config
             {
                 displayName = "散修商人",
@@ -131,7 +127,6 @@ namespace XianTu
                 showLongRangeMarker = true
             });
 
-            // 商人交互触发器（靠近按F打开商店）
             var shopTriggerGo = new GameObject("ShopInteractTrigger");
             shopTriggerGo.transform.SetParent(npc.transform);
             shopTriggerGo.transform.localPosition = Vector3.zero;
@@ -145,7 +140,6 @@ namespace XianTu
             var interactTrigger = shopTriggerGo.AddComponent<ShopInteractTrigger>();
             interactTrigger.Initialize(this);
 
-            // 出口触发器
             CreateExitTrigger();
         }
 
@@ -168,7 +162,6 @@ namespace XianTu
                 GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
             });
 
-            // 出口视觉标记
             var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pillar.name = "ExitPillar";
             pillar.transform.SetParent(exitGo.transform);
@@ -193,56 +186,61 @@ namespace XianTu
             }
         }
 
-        // ==================== 商店UI ====================
+        // ==================== 商店UI（uGUI+TMP） ====================
 
         private void CreateShopUI()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/ShopRoom");
+            var canvas = UGuiKit.CreateOverlayCanvas("ShopUI", 118);
+            _shopUI = canvas.gameObject;
+            UGuiKit.CreateScrim(_shopUI.transform, new Color(0.02f, 0.03f, 0.06f, 0.9f));
 
-            var go = new GameObject("ShopUITK");
-            _doc = go.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 10f;
-            ChineseFontHelper.Apply(_doc.rootVisualElement);
+            var panel = UGuiKit.CreatePanel(_shopUI.transform, "Panel", new Vector2(920f, 680f), UGuiKit.Panel);
+            UGuiKit.AddVLayout(panel, 10f, new RectOffset(24, 24, 18, 18), TextAnchor.UpperCenter);
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            // 标题行
+            var header = UGuiKit.CreateRow(panel, 12f, 44f);
+            header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
+            var title = UGuiKit.CreateText(header, "散修商店", 28, new Color(1f, 0.82f, 0.35f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 40f); title.GetComponent<LayoutElement>().preferredWidth = 300f;
+            _shardsLabel = UGuiKit.CreateText(header, "✦ 碎片：0", 20, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(_shardsLabel, 40f); _shardsLabel.GetComponent<LayoutElement>().preferredWidth = 240f;
+            _refreshBtn = UGuiKit.CreateButton(header, "🔄 刷新", OnRefreshClicked, out _refreshLabel, UGuiKit.BtnNormal, 16, new Vector2(200f, 40f));
+            UGuiKit.SetHeight(_refreshBtn.GetComponent<RectTransform>(), 40f); _refreshBtn.GetComponent<LayoutElement>().preferredWidth = 200f;
+            var close = UGuiKit.CreateButton(header, "✕", CloseShop, UGuiKit.BtnNormal, 20, new Vector2(44f, 40f));
+            UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 40f); close.GetComponent<LayoutElement>().preferredWidth = 44f;
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _shardsLabel = root.Q<Label>("shards");
-            _cardsRow = root.Q<VisualElement>("cards");
-            _tooltipEl = root.Q<VisualElement>("tooltip");
-            _tooltipTitle = root.Q<Label>("tt-title");
-            _tooltipBody = root.Q<Label>("tt-body");
-            var close = root.Q<Button>("close");
-            if (close != null) close.clicked += CloseShop;
+            // 商品网格（7 个：4 列）
+            _cardsGrid = UGuiKit.CreateGrid(panel, new Vector2(200f, 300f), new Vector2(12f, 12f), 4);
+            UGuiKit.SetHeight(_cardsGrid, 620f);
 
-            // V0.4.1：刷新按钮
-            var refresh = root.Q<Button>("refresh");
-            if (refresh != null)
-            {
-                refresh.clicked += OnRefreshClicked;
-                _refreshBtn = refresh;
-            }
+            // 底部悬停提示
+            _tooltip = new GameObject("Tooltip", typeof(RectTransform), typeof(Image)).GetComponent<Image>().gameObject;
+            var trt = (RectTransform)_tooltip.transform;
+            trt.SetParent(panel, false);
+            _tooltip.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.09f, 0.95f);
+            var tle = _tooltip.AddComponent<LayoutElement>(); tle.preferredHeight = 84f; tle.minHeight = 84f;
+            var tv = _tooltip.AddComponent<VerticalLayoutGroup>();
+            tv.padding = new RectOffset(14, 14, 8, 8); tv.spacing = 4f;
+            tv.childControlWidth = true; tv.childForceExpandWidth = true; tv.childControlHeight = true; tv.childForceExpandHeight = false;
+            _tooltipTitle = UGuiKit.CreateText(trt, "", 16, UGuiKit.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(_tooltipTitle, 22f);
+            _tooltipBody = UGuiKit.CreateText(trt, "", 13, new Color(0.75f, 0.78f, 0.85f), TextAlignmentOptions.TopLeft);
+            _tooltipBody.enableWordWrapping = true;
+            var ble = _tooltipBody.gameObject.AddComponent<LayoutElement>(); ble.flexibleHeight = 1f; ble.minHeight = 40f;
 
             GenerateShopItems();
             HideItemTooltip();
             UpdateRefreshButton();
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            _shopUI.SetActive(false);
         }
 
         private void GenerateShopItems()
         {
-            if (_cardsRow == null) return;
-            _cardsRow.Clear();
+            if (_cardsGrid == null) return;
+            for (int i = _cardsGrid.childCount - 1; i >= 0; i--) Destroy(_cardsGrid.GetChild(i).gameObject);
             _shopSlots.Clear();
 
             int slotIdx = 0;
-
-            // V0.4.1：2 个技能 + 5 个模块 = 7 个商品
             int skillSlots = 2;
             int moduleSlots = 5;
 
@@ -271,7 +269,6 @@ namespace XianTu
 
         private static int GetFloorRarityBias()
         {
-            // V0.4.2 解耦：统一走 IMapProvider，不再直接触碰 LevelDesignDirector / ConfigDatabase。
             int currentLevel = GameManager.Instance != null ? GameManager.Instance.CurrentLevel : 0;
             return MapProviders.Current.GetRarityBias(currentLevel);
         }
@@ -303,8 +300,7 @@ namespace XianTu
             Color rc = RarityColor(mod.rarity);
             string brief = $"{ModuleCategoryName(mod.category)}\n{mod.description}";
             if (brief.Length > 40) brief = brief.Substring(0, 40) + "…";
-            var card = NewCard(rc, "▣", mod.displayName, $"模块·{ModuleCategoryName(mod.category)}", brief, slot, index);
-            _cardsRow.Add(card);
+            NewCard(rc, "▣", mod.displayName, $"模块·{ModuleCategoryName(mod.category)}", brief, slot, index);
             return slot;
         }
 
@@ -315,39 +311,41 @@ namespace XianTu
             string brief = skill.skillType == SkillType.Heal
                 ? $"治疗 {skill.healAmount}\nCD {skill.cooldown}s"
                 : $"伤害 {skill.baseDamage}\nCD {skill.cooldown}s";
-            var card = NewCard(rc, "技", skill.skillName, $"技能·{SkillTypeName(skill.skillType)}", brief, slot, index);
-            _cardsRow.Add(card);
+            NewCard(rc, "技", skill.skillName, $"技能·{SkillTypeName(skill.skillType)}", brief, slot, index);
             return slot;
         }
 
-        /// <summary>构建一张商品卡（共用：色条/图标/名称/副标/简效/价格/购买/悬停）。</summary>
-        private VisualElement NewCard(Color rarityColor, string iconSymbol, string name, string sub, string brief, ShopSlot slot, int index)
+        /// <summary>构建一张商品卡（色框/图标/名称/副标/简效/价格/购买/悬停）。</summary>
+        private void NewCard(Color rarityColor, string iconSymbol, string name, string sub, string brief, ShopSlot slot, int index)
         {
-            var card = new VisualElement();
-            card.AddToClassList("shop-card");
+            var card = UGuiKit.CreateCard(_cardsGrid, new Vector2(200f, 300f), rarityColor);
 
-            var bar = new VisualElement(); bar.AddToClassList("shop-rarity-bar"); bar.style.backgroundColor = rarityColor; card.Add(bar);
+            var iconL = UGuiKit.CreateText(card, iconSymbol, 30, rarityColor, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(iconL, 40f);
+            var nameL = UGuiKit.CreateText(card, name, 17, rarityColor, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(nameL, 24f);
+            var subL = UGuiKit.CreateText(card, sub, 12, new Color(0.6f, 0.63f, 0.7f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(subL, 18f);
+            var effL = UGuiKit.CreateText(card, brief, 12, new Color(0.72f, 0.74f, 0.8f), TextAlignmentOptions.Top);
+            effL.enableWordWrapping = true;
+            var ele = effL.gameObject.AddComponent<LayoutElement>(); ele.flexibleHeight = 1f; ele.minHeight = 40f;
 
-            var icon = new VisualElement(); icon.AddToClassList("shop-icon"); icon.style.backgroundColor = rarityColor * 0.5f;
-            var iconL = new Label(iconSymbol); iconL.AddToClassList("shop-icon-label"); iconL.style.color = rarityColor; icon.Add(iconL); card.Add(icon);
+            slot.priceLabel = UGuiKit.CreateText(card, $"✦ {slot.price}", 16, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(slot.priceLabel, 22f);
 
-            var nameL = new Label(name); nameL.AddToClassList("shop-name"); nameL.style.color = rarityColor; card.Add(nameL);
-            var subL = new Label(sub); subL.AddToClassList("shop-rarity"); card.Add(subL);
-            var effL = new Label(brief); effL.AddToClassList("shop-effect"); card.Add(effL);
+            slot.buyBtn = UGuiKit.CreateButton(card, "购 买", () => OnBuyClicked(index), out slot.buyLabel, new Color(rarityColor.r * 0.35f, rarityColor.g * 0.35f, rarityColor.b * 0.35f, 0.95f), 15, new Vector2(160f, 36f));
+            UGuiKit.SetHeight(slot.buyBtn.GetComponent<RectTransform>(), 36f);
 
-            slot.priceLabel = new Label($"✦ {slot.price}"); slot.priceLabel.AddToClassList("shop-price"); card.Add(slot.priceLabel);
-
-            slot.buyBtn = new Button(() => OnBuyClicked(index)) { text = "" };
-            slot.buyBtn.AddToClassList("shop-buy");
-            slot.buyLabel = new Label("购 买"); slot.buyBtn.Add(slot.buyLabel);
-            card.Add(slot.buyBtn);
+            slot.cardEl = card.parent.gameObject; // Card 外框
 
             int idx = index;
-            card.RegisterCallback<PointerEnterEvent>(_ => ShowItemTooltip(idx));
-            card.RegisterCallback<PointerLeaveEvent>(_ => HideItemTooltip());
-
-            slot.cardEl = card;
-            return card;
+            var trig = slot.cardEl.AddComponent<EventTrigger>();
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => ShowItemTooltip(idx));
+            trig.triggers.Add(enter);
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => HideItemTooltip());
+            trig.triggers.Add(exit);
         }
 
         private static string RarityName(ItemRarity r) => r switch
@@ -375,9 +373,10 @@ namespace XianTu
         private void ApplySold(ShopSlot slot)
         {
             slot.sold = true;
-            slot.cardEl?.AddToClassList("shop-card--sold");
             if (slot.buyLabel != null) slot.buyLabel.text = "已售出";
-            if (slot.buyBtn != null) slot.buyBtn.SetEnabled(false);
+            if (slot.buyBtn != null) UGuiKit.SetButtonEnabled(slot.buyBtn, false);
+            var img = slot.cardEl != null ? slot.cardEl.GetComponent<Image>() : null;
+            if (img != null) img.color = new Color(0.3f, 0.3f, 0.32f, 0.6f);
         }
 
         private void OnBuyClicked(int slotIndex)
@@ -403,11 +402,7 @@ namespace XianTu
                         if (emptySlot >= 0)
                         {
                             combat.EquipSkillToSlot(slot.skill, emptySlot);
-                            GameEvents.Publish(new GameEvents.SkillEquipped
-                            {
-                                Skill = slot.skill,
-                                SlotIndex = emptySlot
-                            });
+                            GameEvents.Publish(new GameEvents.SkillEquipped { Skill = slot.skill, SlotIndex = emptySlot });
                         }
                         else
                         {
@@ -421,7 +416,6 @@ namespace XianTu
             }
             else if (slot.module != null)
             {
-                // V0.4.1：直接装备到增强链（无背包），装不下则提示打开装配 UI
                 if (PlayerController.Instance != null)
                 {
                     var mgr = PlayerController.Instance.GetComponent<ModuleSlotManager>();
@@ -453,11 +447,7 @@ namespace XianTu
             {
                 if (slot.sold) continue;
                 bool canAfford = PlayerResources.Instance != null && PlayerResources.Instance.HasShards(slot.price);
-                if (slot.buyBtn != null)
-                {
-                    slot.buyBtn.SetEnabled(canAfford);
-                    slot.buyBtn.EnableInClassList("shop-buy--poor", !canAfford);
-                }
+                if (slot.buyBtn != null) slot.buyBtn.interactable = canAfford;
                 if (slot.buyLabel != null) slot.buyLabel.text = canAfford ? "购 买" : "碎片不足";
             }
         }
@@ -467,13 +457,13 @@ namespace XianTu
         private void ShowItemTooltip(int slotIndex)
         {
             if (slotIndex < 0 || slotIndex >= _shopSlots.Count) return;
-            if (_tooltipEl == null || _tooltipTitle == null || _tooltipBody == null) return;
+            if (_tooltip == null || _tooltipTitle == null || _tooltipBody == null) return;
             var slot = _shopSlots[slotIndex];
 
             if (slot.skill != null)
             {
                 _tooltipTitle.text = $"{slot.skill.skillName}（{RarityName(slot.skill.rarity)} · 技能）";
-                _tooltipTitle.style.color = RarityColor(slot.skill.rarity);
+                _tooltipTitle.color = RarityColor(slot.skill.rarity);
                 string eff = slot.skill.skillType == SkillType.Heal
                     ? $"类型：{SkillTypeName(slot.skill.skillType)}　治疗：{slot.skill.healAmount} (+{slot.skill.healScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s"
                     : $"类型：{SkillTypeName(slot.skill.skillType)}　伤害：{slot.skill.baseDamage} (+{slot.skill.damageScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s";
@@ -482,16 +472,16 @@ namespace XianTu
             else if (slot.module != null)
             {
                 _tooltipTitle.text = $"{slot.module.displayName}（{RarityName(slot.module.rarity)} · {ModuleCategoryName(slot.module.category)}）";
-                _tooltipTitle.style.color = RarityColor(slot.module.rarity);
+                _tooltipTitle.color = RarityColor(slot.module.rarity);
                 _tooltipBody.text = $"{slot.module.description}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 碎片")}";
             }
             else return;
-            _tooltipEl.style.visibility = Visibility.Visible;
+            _tooltip.SetActive(true);
         }
 
         private void HideItemTooltip()
         {
-            if (_tooltipEl != null) _tooltipEl.style.visibility = Visibility.Hidden;
+            if (_tooltip != null) _tooltip.SetActive(false);
         }
 
         // ==================== 开关商店 ====================
@@ -499,7 +489,7 @@ namespace XianTu
         public void OpenShop()
         {
             _shopOpen = true;
-            if (_overlay != null) _overlay.style.display = DisplayStyle.Flex;
+            if (_shopUI != null) _shopUI.SetActive(true);
             RefreshShardsDisplay();
             RefreshAllCards();
             UpdateRefreshButton();
@@ -511,7 +501,7 @@ namespace XianTu
         public void CloseShop()
         {
             _shopOpen = false;
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            if (_shopUI != null) _shopUI.SetActive(false);
             HideItemTooltip();
         }
 
@@ -539,21 +529,19 @@ namespace XianTu
         {
             if (_refreshBtn == null) return;
             int cost = GetRefreshCost();
-            _refreshBtn.text = $"🔄 刷新商品（✦{cost}）";
+            if (_refreshLabel != null) _refreshLabel.text = $"🔄 刷新（✦{cost}）";
             bool canAfford = PlayerResources.Instance != null && PlayerResources.Instance.HasShards(cost);
-            _refreshBtn.SetEnabled(canAfford);
+            _refreshBtn.interactable = canAfford;
         }
 
         private void Update()
         {
-            // 同步交互提示：被路由器选中时才显示「按 F 交易」提示
             if (_headCard != null)
             {
                 bool wantHint = _playerInRange && !_shopOpen && IsRoutedActive;
                 _headCard.SetHintVisible(wantHint);
             }
 
-            // 仅在被路由器选中时响应 F（避免与拾取物等其他交互体重叠时同时触发）
             if (_playerInRange && !_shopOpen && IsRoutedActive)
             {
                 var kb = UnityEngine.InputSystem.Keyboard.current;
@@ -561,7 +549,6 @@ namespace XianTu
                     OpenShop();
             }
 
-            // Esc 关闭商店
             if (_shopOpen)
             {
                 var kb = UnityEngine.InputSystem.Keyboard.current;
@@ -570,23 +557,18 @@ namespace XianTu
             }
         }
 
-        /// <summary>玩家进入商人范围</summary>
         public void OnPlayerEnterRange()
         {
             _playerInRange = true;
             InteractionRouter.Register(this);
-            // 实际是否显示提示由 Update 中 IsRoutedActive 决定
         }
 
-        /// <summary>玩家离开商人范围</summary>
         public void OnPlayerExitRange()
         {
             _playerInRange = false;
             InteractionRouter.Unregister(this);
             if (_headCard != null) _headCard.SetHintVisible(false);
         }
-
-        // ==================== 工具方法 ====================
 
         private string GetRaritySymbol(ItemRarity rarity)
         {
@@ -614,10 +596,6 @@ namespace XianTu
         }
 
         private void OnTriggerEnter(Collider other) => TryEnter(other);
-
-        // 兜底：商人 NPC 在 (0,1,3.5) r=3，与玩家出生位 (0,0.1,0) 距离 ≈3.5m 处于临界，
-        // 若未来 NPC 位置调整或 r 变大，会出现 TeleportPlayer 出生即在 trigger 内的死局；
-        // 跟其他 TriggerBridge / ChestTrigger 保持一致的 Stay 兜底，结构性安全。
         private void OnTriggerStay(Collider other) => TryEnter(other);
 
         private void OnTriggerExit(Collider other)

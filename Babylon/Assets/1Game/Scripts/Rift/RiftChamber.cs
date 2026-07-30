@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -38,6 +40,11 @@ namespace XianTu
         private float _spawnTimer;
         private readonly List<GameObject> _alive = new();
 
+        // 计时 HUD（uGUI+TMP）
+        private GameObject _hud;
+        private TextMeshProUGUI _hudTitle;
+        private TextMeshProUGUI _hudProgress;
+
         public void Initialize(int tier, Action<float> onSuccess)
         {
             _tier = Mathf.Max(1, tier);
@@ -48,6 +55,7 @@ namespace XianTu
             _dmgMul = 1f + (_tier - 1) * 0.3f;
 
             BuildArena();
+            BuildHud();
             _startTime = Time.time;
             _spawnTimer = 0f;
 
@@ -67,6 +75,8 @@ namespace XianTu
         private void Update()
         {
             if (_complete) return;
+
+            UpdateHud();
 
             // 清理已销毁引用
             _alive.RemoveAll(e => e == null);
@@ -180,40 +190,44 @@ namespace XianTu
         {
             GameEvents.Unsubscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
             if (_roomVisuals != null) Destroy(_roomVisuals);
+            if (_hud != null) Destroy(_hud);
         }
 
-        // ==================== 简易 HUD ====================
+        // ==================== 计时 HUD（uGUI+TMP） ====================
 
-        private GUIStyle _style;
-        private void OnGUI()
+        private void BuildHud()
         {
-            if (_complete) return;
+            var canvas = UGuiKit.CreateOverlayCanvas("RiftChamberHUD", 46);
+            _hud = canvas.gameObject;
+            var ray = _hud.GetComponent<GraphicRaycaster>();
+            if (ray != null) Destroy(ray);
 
-            if (_style == null)
-            {
-                _style = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 22,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleCenter
-                };
-            }
+            var box = new GameObject("Box", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            var brt = (RectTransform)box.transform;
+            brt.SetParent(_hud.transform, false);
+            brt.anchorMin = new Vector2(0.5f, 1f); brt.anchorMax = new Vector2(0.5f, 1f); brt.pivot = new Vector2(0.5f, 1f);
+            brt.anchoredPosition = new Vector2(0f, -12f); brt.sizeDelta = new Vector2(360f, 70f);
+            box.color = new Color(0f, 0f, 0f, 0.55f);
+            box.raycastTarget = false;
+            var v = box.gameObject.AddComponent<VerticalLayoutGroup>();
+            v.padding = new RectOffset(6, 6, 6, 6); v.spacing = 2f;
+            v.childControlWidth = true; v.childForceExpandWidth = true; v.childControlHeight = true; v.childForceExpandHeight = false;
+            v.childAlignment = TextAnchor.MiddleCenter;
 
+            _hudTitle = UGuiKit.CreateText(brt, "", 22, new Color(1f, 0.9f, 0.5f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(_hudTitle, 30f);
+            _hudProgress = UGuiKit.CreateText(brt, "", 22, new Color(0.7f, 0.9f, 1f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(_hudProgress, 28f);
+        }
+
+        private void UpdateHud()
+        {
+            if (_hud == null) return;
             float elapsed = Time.time - _startTime;
             string timeStr = $"{Mathf.FloorToInt(elapsed / 60f):00}:{Mathf.FloorToInt(elapsed % 60f):00}";
-
-            float w = 360f, h = 70f;
-            var rect = new Rect((Screen.width - w) / 2f, 12f, w, h);
-            GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            _style.normal.textColor = new Color(1f, 0.9f, 0.5f);
-            GUI.Label(new Rect(rect.x, rect.y + 6, rect.width, 30), $"大秘境 · 第 {_tier} 层    {timeStr}", _style);
-
-            _style.normal.textColor = _bossPhase ? new Color(1f, 0.4f, 0.4f) : new Color(0.7f, 0.9f, 1f);
-            string progress = _bossPhase ? "★ 击杀 Boss ★" : $"进度 {_killCount} / {_targetKills}";
-            GUI.Label(new Rect(rect.x, rect.y + 36, rect.width, 28), progress, _style);
+            _hudTitle.text = $"大秘境 · 第 {_tier} 层    {timeStr}";
+            _hudProgress.color = _bossPhase ? new Color(1f, 0.4f, 0.4f) : new Color(0.7f, 0.9f, 1f);
+            _hudProgress.text = _bossPhase ? "★ 击杀 Boss ★" : $"进度 {_killCount} / {_targetKills}";
         }
     }
 }

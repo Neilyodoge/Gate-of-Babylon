@@ -1,19 +1,20 @@
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using UnityEngine.Events;
+using TMPro;
 using System.Collections.Generic;
 
 namespace XianTu
 {
     /// <summary>
-    /// 技能升级房间 —— 花费灵力碎片升级已装备的功法
-    /// 进入房间靠近修炼台按F打开升级面板
-    /// 每个技能可升级：伤害+15%、CD-10%、充能+1层（三选一）
+    /// 技能升级房间（V0.4.6 UI 改 uGUI+TMP）—— 花费灵力碎片升级已装备的功法。
+    /// 进入房间靠近修炼台按F打开升级面板。每个技能可升级：伤害+15%、CD-10%、充能+1层。
     /// </summary>
     public class UpgradeRoom : MonoBehaviour, IInteractable
     {
         private int _roomIndex;
         private GameObject _roomVisuals;
-        private Transform _masterTransform; // 升级宗师 NPC，用作距离锚点
+        private Transform _masterTransform;
 
         // ===== IInteractable：参与统一 F 交互路由 =====
         public Vector3 InteractionWorldPos =>
@@ -22,31 +23,26 @@ namespace XianTu
         public bool IsInteractionAvailable => _playerInRange && !_panelOpen;
         public bool IsRoutedActive { get; set; }
 
-        // 升级UI（UITK）
-        private UIDocument _doc;
-        private VisualElement _overlay;
-        private Label _shardsLabel;
-        private VisualElement _cardsRow;
+        // 升级UI（uGUI+TMP）
+        private GameObject _upgradeUI;
+        private TextMeshProUGUI _shardsLabel;
+        private RectTransform _cardsRow;
         private bool _panelOpen;
 
-        // 交互
         private bool _playerInRange;
-        private NpcHeadCard _headCard; // 统一头顶 UI（v0.3.3）
+        private NpcHeadCard _headCard;
 
-        // 技能升级追踪（运行时，每个槽位的升级次数）
         private int[] _upgradeCount = new int[3]; // Q=0, E=1, R=2
-
-        // 升级卡片
         private readonly List<UpgradeCard> _cards = new();
 
         private class UpgradeCard
         {
             public int slotIndex;
-            public Label skillNameLabel;
-            public Label skillInfoLabel;
+            public TextMeshProUGUI skillNameLabel;
+            public TextMeshProUGUI skillInfoLabel;
             public Button dmgBtn, cdBtn, chargeBtn;
-            public Label dmgPrice, cdPrice, chargePrice;
-            public Label chargeLabel;
+            public TextMeshProUGUI dmgPrice, cdPrice, chargePrice;
+            public TextMeshProUGUI chargeLabel;
         }
 
         public float RoomWidth => 20f;
@@ -66,7 +62,7 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
             InteractionRouter.Unregister(this);
             if (_roomVisuals != null) Destroy(_roomVisuals);
-            if (_doc != null) Destroy(_doc.gameObject);
+            if (_upgradeUI != null) Destroy(_upgradeUI);
         }
 
         private void OnResourceChanged(GameEvents.ResourceChanged evt)
@@ -81,7 +77,6 @@ namespace XianTu
         {
             _roomVisuals = RoomBuilder.Build(transform, 20f, 20f, _roomIndex);
 
-            // 修炼台（中央平台）
             var platform = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             platform.name = "UpgradePlatform";
             platform.transform.SetParent(transform);
@@ -97,7 +92,6 @@ namespace XianTu
                 platRend.material = mat;
             }
 
-            // 修炼台NPC（道人）
             var npc = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             npc.name = "UpgradeMaster";
             npc.transform.SetParent(transform);
@@ -113,7 +107,6 @@ namespace XianTu
                 npcRend.material = mat;
             }
 
-            // 统一 NPC 头顶卡片（绿色主题 · 功法修炼）
             _headCard = NpcHeadCard.Attach(npc.transform, new NpcHeadCard.Config
             {
                 displayName = "功法宗师",
@@ -125,7 +118,6 @@ namespace XianTu
                 showLongRangeMarker = true
             });
 
-            // 交互触发器
             var triggerGo = new GameObject("UpgradeInteractTrigger");
             triggerGo.transform.SetParent(npc.transform);
             triggerGo.transform.localPosition = Vector3.zero;
@@ -139,7 +131,6 @@ namespace XianTu
             var interactTrigger = triggerGo.AddComponent<UpgradeInteractTrigger>();
             interactTrigger.Initialize(this);
 
-            // 出口触发器
             CreateExitTrigger();
         }
 
@@ -162,7 +153,6 @@ namespace XianTu
                 GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = _roomIndex });
             });
 
-            // 出口视觉标记
             var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pillar.name = "ExitPillar";
             pillar.transform.SetParent(exitGo.transform);
@@ -187,39 +177,37 @@ namespace XianTu
             }
         }
 
-
-        // ==================== 升级UI ====================
+        // ==================== 升级UI（uGUI+TMP） ====================
 
         private void CreateUpgradeUI()
         {
-            var panelSettings = Resources.Load<PanelSettings>("UI/AvatarSelectPanelSettings");
-            var tree = Resources.Load<VisualTreeAsset>("UI/UpgradeRoom");
+            var canvas = UGuiKit.CreateOverlayCanvas("UpgradeUI", 118);
+            _upgradeUI = canvas.gameObject;
+            UGuiKit.CreateScrim(_upgradeUI.transform, new Color(0.02f, 0.04f, 0.03f, 0.9f));
 
-            var go = new GameObject("UpgradeUITK");
-            _doc = go.AddComponent<UIDocument>();
-            _doc.panelSettings = panelSettings;
-            _doc.visualTreeAsset = tree;
-            _doc.sortingOrder = 10f;
-            ChineseFontHelper.Apply(_doc.rootVisualElement);
+            var panel = UGuiKit.CreatePanel(_upgradeUI.transform, "Panel", new Vector2(820f, 620f), UGuiKit.Panel);
+            UGuiKit.AddVLayout(panel, 12f, new RectOffset(24, 24, 18, 18), TextAnchor.UpperCenter);
 
-            var root = _doc.rootVisualElement;
-            if (root == null) return;
-            if (root.childCount == 0 && tree != null) tree.CloneTree(root);
+            var header = UGuiKit.CreateRow(panel, 12f, 44f);
+            header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
+            var title = UGuiKit.CreateText(header, "功法修炼", 28, new Color(0.4f, 1f, 0.55f), TextAlignmentOptions.Left, FontStyles.Bold);
+            UGuiKit.SetHeight(title, 40f); title.GetComponent<LayoutElement>().preferredWidth = 360f;
+            _shardsLabel = UGuiKit.CreateText(header, "✦ 灵力碎片：0", 20, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Right);
+            UGuiKit.SetHeight(_shardsLabel, 40f); _shardsLabel.GetComponent<LayoutElement>().preferredWidth = 300f;
+            var close = UGuiKit.CreateButton(header, "✕", ClosePanel, UGuiKit.BtnNormal, 20, new Vector2(44f, 40f));
+            UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 40f); close.GetComponent<LayoutElement>().preferredWidth = 44f;
 
-            _overlay = root.Q<VisualElement>("overlay");
-            _shardsLabel = root.Q<Label>("shards");
-            _cardsRow = root.Q<VisualElement>("cards");
-            var close = root.Q<Button>("close");
-            if (close != null) close.clicked += ClosePanel;
+            _cardsRow = UGuiKit.CreateCardRow(panel, 18f);
+            UGuiKit.SetHeight(_cardsRow, 500f);
 
             GenerateSkillCards();
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            _upgradeUI.SetActive(false);
         }
 
         private void GenerateSkillCards()
         {
             if (_cardsRow == null) return;
-            _cardsRow.Clear();
+            for (int i = _cardsRow.childCount - 1; i >= 0; i--) Destroy(_cardsRow.GetChild(i).gameObject);
             _cards.Clear();
             string[] slotNames = { "Q", "E", "R" };
             var combat = PlayerController.Instance != null
@@ -235,8 +223,6 @@ namespace XianTu
         private UpgradeCard BuildCard(int slotIndex, string slotName, SkillData skill)
         {
             var card = new UpgradeCard { slotIndex = slotIndex };
-            var cardEl = new VisualElement();
-            cardEl.AddToClassList("up-card");
 
             Color slotColor = slotIndex switch
             {
@@ -245,68 +231,65 @@ namespace XianTu
                 2 => new Color(0.8f, 0.3f, 0.8f),
                 _ => Color.white
             };
-            var slot = new Label($"【{slotName}】");
-            slot.AddToClassList("up-slot");
-            slot.style.color = slotColor;
-            cardEl.Add(slot);
 
-            card.skillNameLabel = new Label(skill != null ? skill.skillName : "— 未装备 —");
-            card.skillNameLabel.AddToClassList("up-skill");
-            if (skill == null) card.skillNameLabel.style.color = new Color(0.45f, 0.45f, 0.45f);
-            cardEl.Add(card.skillNameLabel);
+            var content = UGuiKit.CreateCard(_cardsRow, new Vector2(250f, 480f), slotColor);
 
-            card.skillInfoLabel = new Label();
-            card.skillInfoLabel.AddToClassList("up-info");
-            cardEl.Add(card.skillInfoLabel);
+            var slot = UGuiKit.CreateText(content, $"【{slotName}】", 22, slotColor, TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(slot, 30f);
+
+            card.skillNameLabel = UGuiKit.CreateText(content, skill != null ? skill.skillName : "— 未装备 —", 18,
+                skill != null ? UGuiKit.TextMain : new Color(0.45f, 0.45f, 0.45f), TextAlignmentOptions.Center, FontStyles.Bold);
+            UGuiKit.SetHeight(card.skillNameLabel, 26f);
+
+            card.skillInfoLabel = UGuiKit.CreateText(content, "", 13, new Color(0.7f, 0.72f, 0.78f), TextAlignmentOptions.Center);
+            UGuiKit.SetHeight(card.skillInfoLabel, 44f);
 
             if (skill == null)
             {
-                var empty = new Label("装备功法后\n可在此升级");
-                empty.AddToClassList("up-empty");
-                cardEl.Add(empty);
-                _cardsRow.Add(cardEl);
+                var empty = UGuiKit.CreateText(content, "装备功法后\n可在此升级", 14, new Color(0.5f, 0.5f, 0.55f), TextAlignmentOptions.Center);
+                var ele = empty.gameObject.AddComponent<LayoutElement>(); ele.flexibleHeight = 1f; ele.minHeight = 60f;
                 return card;
             }
 
             int s = slotIndex;
-            (card.dmgBtn, _, card.dmgPrice) = MakeUpgradeButton(cardEl, "⚔ 伤害 +15%", new Color(0.5f, 0.25f, 0.2f, 0.95f), () => OnUpgradeDamage(s));
-            (card.cdBtn, _, card.cdPrice) = MakeUpgradeButton(cardEl, "⏱ CD -10%", new Color(0.2f, 0.35f, 0.5f, 0.95f), () => OnUpgradeCooldown(s));
-            (card.chargeBtn, card.chargeLabel, card.chargePrice) = MakeUpgradeButton(cardEl, "⚡ 充能 +1层", new Color(0.2f, 0.45f, 0.3f, 0.95f), () => OnUpgradeCharge(s));
+            (card.dmgBtn, _, card.dmgPrice) = MakeUpgradeButton(content, "⚔ 伤害 +15%", new Color(0.5f, 0.25f, 0.2f, 0.95f), () => OnUpgradeDamage(s));
+            (card.cdBtn, _, card.cdPrice) = MakeUpgradeButton(content, "⏱ CD -10%", new Color(0.2f, 0.35f, 0.5f, 0.95f), () => OnUpgradeCooldown(s));
+            (card.chargeBtn, card.chargeLabel, card.chargePrice) = MakeUpgradeButton(content, "⚡ 充能 +1层", new Color(0.2f, 0.45f, 0.3f, 0.95f), () => OnUpgradeCharge(s));
 
-            _cardsRow.Add(cardEl);
             return card;
         }
 
-        private (Button, Label, Label) MakeUpgradeButton(VisualElement parent, string label, Color bg, System.Action onClick)
+        private (Button, TextMeshProUGUI, TextMeshProUGUI) MakeUpgradeButton(RectTransform parent, string label, Color bg, UnityAction onClick)
         {
-            var btn = new Button(onClick) { text = "" };
-            btn.AddToClassList("up-btn");
-            btn.style.backgroundColor = bg;
-            var nameL = new Label(label);
-            nameL.AddToClassList("up-btn__label");
-            btn.Add(nameL);
-            var priceL = new Label();
-            priceL.AddToClassList("up-btn__price");
-            btn.Add(priceL);
-            parent.Add(btn);
+            var go = new GameObject("UpBtn", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            go.GetComponent<Image>().color = bg;
+            var le = go.GetComponent<LayoutElement>(); le.preferredHeight = 48f; le.minHeight = 48f;
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = go.GetComponent<Image>();
+            if (onClick != null) btn.onClick.AddListener(onClick);
+
+            var hl = UGuiKit.AddHLayout(rt, 8f, new RectOffset(12, 12, 4, 4), TextAnchor.MiddleLeft);
+            var nameL = UGuiKit.CreateText(rt, label, 14, UGuiKit.TextMain, TextAlignmentOptions.Left);
+            UGuiKit.SetHeight(nameL, 40f); var nle = nameL.GetComponent<LayoutElement>(); nle.flexibleWidth = 1f; nle.preferredWidth = 140f;
+            var priceL = UGuiKit.CreateText(rt, "", 13, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Right);
+            UGuiKit.SetHeight(priceL, 40f); priceL.GetComponent<LayoutElement>().preferredWidth = 64f;
             return (btn, nameL, priceL);
         }
 
         // ==================== 升级逻辑 ====================
 
-        /// <summary>获取升级价格（随升级次数递增）</summary>
         private int GetUpgradePrice(int slotIndex)
         {
             int basePrice = 30;
             int count = _upgradeCount[slotIndex];
-            // 每次升级价格增加50%
             return Mathf.RoundToInt(basePrice * Mathf.Pow(1.5f, count));
         }
 
-        /// <summary>获取充能升级价格（更贵）</summary>
         private int GetChargePriceForSlot(int slotIndex)
         {
-            return GetUpgradePrice(slotIndex) * 2; // 充能升级是普通升级的2倍价格
+            return GetUpgradePrice(slotIndex) * 2;
         }
 
         private void OnUpgradeDamage(int slotIndex)
@@ -319,7 +302,6 @@ namespace XianTu
             var skill = combat.GetSkillInSlot(slotIndex);
             if (skill == null) return;
 
-            // 伤害+15%
             skill.baseDamage *= 1.15f;
             _upgradeCount[slotIndex]++;
 
@@ -337,7 +319,6 @@ namespace XianTu
             var skill = combat.GetSkillInSlot(slotIndex);
             if (skill == null) return;
 
-            // CD-10%（最低1秒）
             skill.cooldown = Mathf.Max(1f, skill.cooldown * 0.9f);
             _upgradeCount[slotIndex]++;
 
@@ -352,7 +333,6 @@ namespace XianTu
             var skill = combat.GetSkillInSlot(slotIndex);
             if (skill == null) return;
 
-            // 检查充能上限
             int currentMax = combat.GetMaxCharges(slotIndex);
             if (currentMax >= 3)
             {
@@ -363,9 +343,7 @@ namespace XianTu
             int price = GetChargePriceForSlot(slotIndex);
             if (!TrySpend(price)) return;
 
-            // 充能+1层
             skill.maxCharges = Mathf.Min(3, skill.maxCharges + 1);
-            // 重新初始化充能
             switch (slotIndex)
             {
                 case 0: combat.EquipSkillQ(skill); break;
@@ -417,19 +395,19 @@ namespace XianTu
 
                 if (card.dmgBtn != null)
                 {
-                    card.dmgBtn.SetEnabled(skill != null && canAfford);
+                    card.dmgBtn.interactable = skill != null && canAfford;
                     if (card.dmgPrice != null) card.dmgPrice.text = $"✦ {price}";
                 }
                 if (card.cdBtn != null)
                 {
-                    card.cdBtn.SetEnabled(skill != null && canAfford);
+                    card.cdBtn.interactable = skill != null && canAfford;
                     if (card.cdPrice != null) card.cdPrice.text = $"✦ {price}";
                 }
                 if (card.chargeBtn != null)
                 {
                     int currentMax = combat != null ? combat.GetMaxCharges(card.slotIndex) : 1;
                     bool atMax = currentMax >= 3;
-                    card.chargeBtn.SetEnabled(skill != null && canAffordCharge && !atMax);
+                    card.chargeBtn.interactable = skill != null && canAffordCharge && !atMax;
                     if (card.chargePrice != null) card.chargePrice.text = atMax ? "已满" : $"✦ {chargePrice}";
                     if (card.chargeLabel != null) card.chargeLabel.text = atMax ? "⚡ 充能已满" : "⚡ 充能 +1层";
                 }
@@ -441,7 +419,7 @@ namespace XianTu
         public void OpenPanel()
         {
             _panelOpen = true;
-            if (_overlay != null) _overlay.style.display = DisplayStyle.Flex;
+            if (_upgradeUI != null) _upgradeUI.SetActive(true);
             RefreshShardsDisplay();
             RefreshAllCards();
             UnityEngine.Cursor.lockState = CursorLockMode.None;
@@ -451,12 +429,11 @@ namespace XianTu
         public void ClosePanel()
         {
             _panelOpen = false;
-            if (_overlay != null) _overlay.style.display = DisplayStyle.None;
+            if (_upgradeUI != null) _upgradeUI.SetActive(false);
         }
 
         private void Update()
         {
-            // 同步交互提示：被路由器选中时才显示「按 F」提示
             if (_headCard != null)
             {
                 bool wantHint = _playerInRange && !_panelOpen && IsRoutedActive;
@@ -490,7 +467,6 @@ namespace XianTu
             InteractionRouter.Unregister(this);
             if (_headCard != null) _headCard.SetHintVisible(false);
         }
-
     }
 
     /// <summary>升级房间交互触发器</summary>
@@ -505,9 +481,6 @@ namespace XianTu
         }
 
         private void OnTriggerEnter(Collider other) => TryEnter(other);
-
-        // 兜底：玩家被 TeleportPlayer 出生在房间中心，NPC 在 (0,1,2) r=3 内，
-        // OnTriggerEnter 不会触发；用 OnTriggerStay 保证 F 交互能注册。
         private void OnTriggerStay(Collider other) => TryEnter(other);
 
         private void OnTriggerExit(Collider other)

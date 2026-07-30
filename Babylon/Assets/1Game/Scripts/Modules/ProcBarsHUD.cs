@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -28,8 +29,8 @@ namespace XianTu
             public Image bg;
             public Image fill;        // 纵向填充
             public Image glow;        // 就绪脉冲外发光
-            public Text keyLabel;     // Q/E/R
-            public Text countLabel;   // 层数/倒计时
+            public TextMeshProUGUI keyLabel;     // Q/E/R
+            public TextMeshProUGUI countLabel;   // 层数/倒计时
         }
         private readonly Bar[] _bars = new Bar[3];
 
@@ -124,16 +125,15 @@ namespace XianTu
                 var crt = countGo.AddComponent<RectTransform>();
                 crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one;
                 crt.offsetMin = Vector2.zero; crt.offsetMax = Vector2.zero;
-                bar.countLabel = countGo.AddComponent<Text>();
-                bar.countLabel.font = UIBuiltins.LegacyFont;
+                bar.countLabel = countGo.AddComponent<TextMeshProUGUI>();
+                if (UGuiKit.CjkFont != null) bar.countLabel.font = UGuiKit.CjkFont;
                 bar.countLabel.fontSize = 14;
-                bar.countLabel.fontStyle = FontStyle.Bold;
-                bar.countLabel.alignment = TextAnchor.MiddleCenter;
+                bar.countLabel.fontStyle = FontStyles.Bold;
+                bar.countLabel.alignment = TextAlignmentOptions.Center;
                 bar.countLabel.raycastTarget = false;
                 bar.countLabel.color = Color.white;
-                var co = countGo.AddComponent<Outline>();
-                co.effectColor = new Color(0, 0, 0, 0.9f);
-                co.effectDistance = new Vector2(1, -1);
+                bar.countLabel.outlineColor = new Color(0, 0, 0, 0.9f);
+                bar.countLabel.outlineWidth = 0.2f;
 
                 // 键名（竖条下方）
                 var keyGo = new GameObject("Key");
@@ -143,17 +143,16 @@ namespace XianTu
                 krt.pivot = new Vector2(0.5f, 1f);
                 krt.anchoredPosition = new Vector2(0, -1f);
                 krt.sizeDelta = new Vector2(BarW + 8f, 16f);
-                bar.keyLabel = keyGo.AddComponent<Text>();
-                bar.keyLabel.font = UIBuiltins.LegacyFont;
+                bar.keyLabel = keyGo.AddComponent<TextMeshProUGUI>();
+                if (UGuiKit.CjkFont != null) bar.keyLabel.font = UGuiKit.CjkFont;
                 bar.keyLabel.fontSize = 13;
-                bar.keyLabel.fontStyle = FontStyle.Bold;
-                bar.keyLabel.alignment = TextAnchor.MiddleCenter;
+                bar.keyLabel.fontStyle = FontStyles.Bold;
+                bar.keyLabel.alignment = TextAlignmentOptions.Center;
                 bar.keyLabel.raycastTarget = false;
                 bar.keyLabel.text = Keys[i];
                 bar.keyLabel.color = KeyColors[i];
-                var ko = keyGo.AddComponent<Outline>();
-                ko.effectColor = new Color(0, 0, 0, 0.9f);
-                ko.effectDistance = new Vector2(1, -1);
+                bar.keyLabel.outlineColor = new Color(0, 0, 0, 0.9f);
+                bar.keyLabel.outlineWidth = 0.2f;
 
                 _bars[i] = bar;
             }
@@ -217,7 +216,7 @@ namespace XianTu
             if (t == null)
             {
                 bar.fill.fillAmount = 0f;
-                bar.keyLabel.fontStyle = FontStyle.Normal;
+                bar.keyLabel.fontStyle = FontStyles.Normal;
                 return;
             }
 
@@ -228,7 +227,7 @@ namespace XianTu
                 bar.fill.fillAmount = Mathf.Clamp01(cd);
                 bar.fill.color = new Color(0.7f, 0.25f, 0.25f, 0.85f);
                 bar.keyLabel.color = new Color(0.6f, 0.4f, 0.4f);
-                bar.keyLabel.fontStyle = FontStyle.Normal;
+                bar.keyLabel.fontStyle = FontStyles.Normal;
                 bar.countLabel.color = new Color(1f, 0.7f, 0.7f);
                 bar.countLabel.text = $"{t.CooldownRemaining:F0}";
                 return;
@@ -249,7 +248,7 @@ namespace XianTu
                 bar.fill.color = new Color(c.r, c.g, c.b, 0.85f + pulse01 * 0.15f);
                 bar.glow.color = new Color(c.r, c.g, c.b, 0.25f + pulse01 * 0.45f);
                 bar.keyLabel.color = Color.Lerp(KeyColorFor(bar), Color.white, pulse01);
-                bar.keyLabel.fontStyle = FontStyle.Bold;
+                bar.keyLabel.fontStyle = FontStyles.Bold;
 
                 if (kind == ConsumeKind.Stacks)
                     bar.countLabel.text = $"<color=#ffffff>{t.CurrentStacks}</color>";
@@ -266,7 +265,7 @@ namespace XianTu
                 bar.fill.fillAmount = 0.5f + pulse01 * 0.2f;
                 bar.fill.color = new Color(elem.r, elem.g, elem.b, a);
                 bar.keyLabel.color = new Color(0.6f, 0.85f, 0.6f);
-                bar.keyLabel.fontStyle = FontStyle.Normal;
+                bar.keyLabel.fontStyle = FontStyles.Normal;
                 bar.countLabel.color = new Color(0.7f, 1f, 0.7f);
                 bar.countLabel.text = "A";
                 return;
@@ -282,7 +281,7 @@ namespace XianTu
             bar.fill.fillAmount = Mathf.Clamp01(progress);
             bar.fill.color = new Color(elem.r * 0.5f, elem.g * 0.5f, elem.b * 0.5f, 0.55f);
             bar.keyLabel.color = new Color(0.55f, 0.58f, 0.66f);
-            bar.keyLabel.fontStyle = FontStyle.Normal;
+            bar.keyLabel.fontStyle = FontStyles.Normal;
             if (t.Threshold > 1 && kind != ConsumeKind.Stacks && progress > 0f)
                 bar.countLabel.text = $"<color=#cccccc>{t.ThresholdProgress}/{t.Threshold}</color>";
         }

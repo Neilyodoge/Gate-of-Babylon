@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace XianTu
 {
@@ -467,7 +468,7 @@ namespace XianTu
             // 血条文字
             var hpText = CreateUIText(hpPanel.transform, "HpText", "100 / 100", 16,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            hpText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+            hpText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
             // 血条文字描边
             var hpTextOutline = hpText.AddComponent<Outline>();
             hpTextOutline.effectColor = new Color(0, 0, 0, 0.8f);
@@ -476,7 +477,7 @@ namespace XianTu
             SetPrivateField(hud, "hpSlider", slider);
             SetPrivateField(hud, "hpFillImage", hpFill.GetComponent<Image>());
             SetPrivateField(hud, "hpDamageFill", hpDamageFill.GetComponent<Image>());
-            SetPrivateField(hud, "hpText", hpText.GetComponent<Text>());
+            SetPrivateField(hud, "hpText", hpText.GetComponent<TextMeshProUGUI>());
 
             // ========== 顶部中央：境界信息 ==========
             var realmPanel = CreateUIImage(canvasGo.transform, "RealmPanel",
@@ -487,10 +488,10 @@ namespace XianTu
             var realmText = CreateUIText(realmPanel.transform, "RealmText", "练气期", 26,
                 new Vector2(0, 0.5f), new Vector2(1, 1),
                 Vector2.zero, Vector2.zero);
-            var realmTxt = realmText.GetComponent<Text>();
-            realmTxt.alignment = TextAnchor.MiddleCenter;
+            var realmTxt = realmText.GetComponent<TextMeshProUGUI>();
+            realmTxt.alignment = TextAlignmentOptions.Center;
             realmTxt.color = new Color(1f, 0.85f, 0.3f);
-            realmTxt.fontStyle = FontStyle.Bold;
+            realmTxt.fontStyle = FontStyles.Bold;
             var realmOutline = realmText.AddComponent<Outline>();
             realmOutline.effectColor = new Color(0, 0, 0, 0.6f);
             realmOutline.effectDistance = new Vector2(1.5f, -1.5f);
@@ -498,8 +499,8 @@ namespace XianTu
             var levelText = CreateUIText(realmPanel.transform, "LevelText", "第 1 层", 16,
                 new Vector2(0, 0), new Vector2(1, 0.5f),
                 Vector2.zero, Vector2.zero);
-            var levelTxt = levelText.GetComponent<Text>();
-            levelTxt.alignment = TextAnchor.MiddleCenter;
+            var levelTxt = levelText.GetComponent<TextMeshProUGUI>();
+            levelTxt.alignment = TextAlignmentOptions.Center;
             levelTxt.color = new Color(0.8f, 0.8f, 0.9f, 0.8f);
 
             SetPrivateField(hud, "realmText", realmTxt);
@@ -515,16 +516,16 @@ namespace XianTu
             var enemyIcon = CreateUIText(enemyPanel.transform, "EnemyIcon", "☠", 22,
                 new Vector2(0, 0), new Vector2(0.25f, 1),
                 Vector2.zero, Vector2.zero);
-            enemyIcon.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            enemyIcon.GetComponent<Text>().color = new Color(1f, 0.4f, 0.4f);
+            enemyIcon.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
+            enemyIcon.GetComponent<TextMeshProUGUI>().color = new Color(1f, 0.4f, 0.4f);
 
             var enemyCountText = CreateUIText(enemyPanel.transform, "EnemyCountText", "0 / 0", 18,
                 new Vector2(0.25f, 0), new Vector2(1, 1),
                 Vector2.zero, Vector2.zero);
-            enemyCountText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            enemyCountText.GetComponent<Text>().color = Color.white;
+            enemyCountText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
+            enemyCountText.GetComponent<TextMeshProUGUI>().color = Color.white;
 
-            SetPrivateField(hud, "enemyCountText", enemyCountText.GetComponent<Text>());
+            SetPrivateField(hud, "enemyCountText", enemyCountText.GetComponent<TextMeshProUGUI>());
 
             // ========== 底部中央：技能栏 + 模块链状态 ==========
             var skillBarContainer = CreateUIImage(canvasGo.transform, "SkillBarContainer",
@@ -593,9 +594,9 @@ namespace XianTu
                 var cdText = CreateUIText(skillSlot.transform, $"SkillCDText_{s}",
                     skillLabels[s], 18,
                     Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-                var cdTxt = cdText.GetComponent<Text>();
-                cdTxt.alignment = TextAnchor.MiddleCenter;
-                cdTxt.fontStyle = FontStyle.Bold;
+                var cdTxt = cdText.GetComponent<TextMeshProUGUI>();
+                cdTxt.alignment = TextAlignmentOptions.Center;
+                cdTxt.fontStyle = FontStyles.Bold;
                 var cdOutline = cdText.AddComponent<Outline>();
                 cdOutline.effectColor = new Color(0, 0, 0, 0.8f);
                 cdOutline.effectDistance = new Vector2(1, -1);
@@ -632,11 +633,11 @@ namespace XianTu
                         new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                         new Vector2(sx - 60, skillY - halfSkill - 18),
                         new Vector2(sx + 60, skillY - halfSkill - 2));
-                    var chainTxt = chainLabel.GetComponent<Text>();
-                    chainTxt.alignment = TextAnchor.MiddleCenter;
+                    var chainTxt = chainLabel.GetComponent<TextMeshProUGUI>();
+                    chainTxt.alignment = TextAlignmentOptions.Center;
                     chainTxt.color = new Color(0.4f, 0.9f, 0.8f, 0.7f);
                     chainTxt.fontSize = 11;
-                    chainTxt.horizontalOverflow = HorizontalWrapMode.Overflow;
+                    chainTxt.enableWordWrapping = false;
                     var chainOutline = chainLabel.AddComponent<Outline>();
                     chainOutline.effectColor = new Color(0, 0, 0, 0.8f);
                     chainOutline.effectDistance = new Vector2(1, -1);
@@ -679,24 +680,24 @@ namespace XianTu
             var shardIcon = CreateUIText(shardPanel.transform, "ShardIcon", "✦", 18,
                 new Vector2(0, 0), new Vector2(0.25f, 1),
                 Vector2.zero, Vector2.zero);
-            shardIcon.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            shardIcon.GetComponent<Text>().color = new Color(0.5f, 0.7f, 1f);
+            shardIcon.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
+            shardIcon.GetComponent<TextMeshProUGUI>().color = new Color(0.5f, 0.7f, 1f);
 
             var shardCountText = CreateUIText(shardPanel.transform, "ShardCountText", "0", 16,
                 new Vector2(0.25f, 0), new Vector2(1, 1),
                 Vector2.zero, Vector2.zero);
-            shardCountText.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
-            shardCountText.GetComponent<Text>().color = new Color(0.5f, 0.8f, 1f);
-            SetPrivateField(hud, "shardCountText", shardCountText.GetComponent<Text>());
+            shardCountText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Left;
+            shardCountText.GetComponent<TextMeshProUGUI>().color = new Color(0.5f, 0.8f, 1f);
+            SetPrivateField(hud, "shardCountText", shardCountText.GetComponent<TextMeshProUGUI>());
 
             // ========== 中央偏下：消息提示 ==========
             var msgText = CreateUIText(canvasGo.transform, "MessageText", "", 20,
                 new Vector2(0.5f, 0.35f), new Vector2(0.5f, 0.35f),
                 new Vector2(-250, -15), new Vector2(250, 15));
-            var msgTxt = msgText.GetComponent<Text>();
-            msgTxt.alignment = TextAnchor.MiddleCenter;
+            var msgTxt = msgText.GetComponent<TextMeshProUGUI>();
+            msgTxt.alignment = TextAlignmentOptions.Center;
             msgTxt.color = Color.white;
-            msgTxt.supportRichText = true;
+            msgTxt.richText = true;
             var msgOutline = msgText.AddComponent<Outline>();
             msgOutline.effectColor = new Color(0, 0, 0, 0.7f);
             msgOutline.effectDistance = new Vector2(1, -1);
@@ -707,8 +708,8 @@ namespace XianTu
             "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  M 模块装配  |  C 角色信息  |  ESC 暂停", 12,
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(-380, 2), new Vector2(380, 14));
-            var hintTxt = controlsHint.GetComponent<Text>();
-            hintTxt.alignment = TextAnchor.MiddleCenter;
+            var hintTxt = controlsHint.GetComponent<TextMeshProUGUI>();
+            hintTxt.alignment = TextAlignmentOptions.Center;
             hintTxt.color = new Color(1, 1, 1, 0.3f);
 
             // ========== 死亡面板 ==========
@@ -750,16 +751,16 @@ namespace XianTu
             var title = CreateUIText(mapPanel.transform, "MapTitle", "地图", 12,
                 new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(2, -18), new Vector2(-2, -2));
-            title.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            title.GetComponent<Text>().color = new Color(0.8f, 0.7f, 0.5f);
+            title.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
+            title.GetComponent<TextMeshProUGUI>().color = new Color(0.8f, 0.7f, 0.5f);
 
             // 图例（小地图下方）
             var legendText = CreateUIText(canvasTransform, "MinimapLegend",
                 "⚔战斗  ⚡精英  ?事件  $商店  ♥休息  ☠Boss", 10,
                 new Vector2(1, 1), new Vector2(1, 1),
                 new Vector2(-220, -72), new Vector2(-20, -57));
-            legendText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            legendText.GetComponent<Text>().color = new Color(0.55f, 0.6f, 0.7f, 0.8f);
+            legendText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
+            legendText.GetComponent<TextMeshProUGUI>().color = new Color(0.55f, 0.6f, 0.7f, 0.8f);
 
             // 注册到GameManager
             if (GameManager.Instance != null)
@@ -779,10 +780,10 @@ namespace XianTu
             var title = CreateUIText(panel.transform, "DeathTitle", "探索失败", 48,
                 new Vector2(0.5f, 0.6f), new Vector2(0.5f, 0.6f),
                 new Vector2(-200, -30), new Vector2(200, 30));
-            var titleTxt = title.GetComponent<Text>();
-            titleTxt.alignment = TextAnchor.MiddleCenter;
+            var titleTxt = title.GetComponent<TextMeshProUGUI>();
+            titleTxt.alignment = TextAlignmentOptions.Center;
             titleTxt.color = new Color(0.9f, 0.2f, 0.2f);
-            titleTxt.fontStyle = FontStyle.Bold;
+            titleTxt.fontStyle = FontStyles.Bold;
             var titleOutline = title.AddComponent<Outline>();
             titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
             titleOutline.effectDistance = new Vector2(2, -2);
@@ -791,8 +792,8 @@ namespace XianTu
             var sub = CreateUIText(panel.transform, "DeathSubText", "", 20,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(-200, -15), new Vector2(200, 15));
-            var subTxt = sub.GetComponent<Text>();
-            subTxt.alignment = TextAnchor.MiddleCenter;
+            var subTxt = sub.GetComponent<TextMeshProUGUI>();
+            subTxt.alignment = TextAlignmentOptions.Center;
             subTxt.color = new Color(0.8f, 0.8f, 0.8f, 0.8f);
 
             // 重新开始按钮
@@ -809,8 +810,8 @@ namespace XianTu
 
             var btnText = CreateUIText(btnGo.transform, "BtnText", "重新入秘境", 18,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            btnText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            btnText.GetComponent<Text>().fontStyle = FontStyle.Bold;
+            btnText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
+            btnText.GetComponent<TextMeshProUGUI>().fontStyle = FontStyles.Bold;
 
             panel.SetActive(false);
 
@@ -833,10 +834,10 @@ namespace XianTu
             var title = CreateUIText(panel.transform, "WinTitle", "✨ 通关成功 ✨", 48,
                 new Vector2(0.5f, 0.6f), new Vector2(0.5f, 0.6f),
                 new Vector2(-250, -30), new Vector2(250, 30));
-            var titleTxt = title.GetComponent<Text>();
-            titleTxt.alignment = TextAnchor.MiddleCenter;
+            var titleTxt = title.GetComponent<TextMeshProUGUI>();
+            titleTxt.alignment = TextAlignmentOptions.Center;
             titleTxt.color = new Color(1f, 0.85f, 0.2f);
-            titleTxt.fontStyle = FontStyle.Bold;
+            titleTxt.fontStyle = FontStyles.Bold;
             var titleOutline = title.AddComponent<Outline>();
             titleOutline.effectColor = new Color(0, 0, 0, 0.8f);
             titleOutline.effectDistance = new Vector2(2, -2);
@@ -845,8 +846,8 @@ namespace XianTu
             var sub = CreateUIText(panel.transform, "WinSubText", "秘境征服，冒险圆满", 22,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(-200, -15), new Vector2(200, 15));
-            var subTxt = sub.GetComponent<Text>();
-            subTxt.alignment = TextAnchor.MiddleCenter;
+            var subTxt = sub.GetComponent<TextMeshProUGUI>();
+            subTxt.alignment = TextAlignmentOptions.Center;
             subTxt.color = new Color(1f, 0.95f, 0.8f, 0.9f);
 
             // 重新开始按钮
@@ -863,9 +864,9 @@ namespace XianTu
 
             var btnText = CreateUIText(btnGo.transform, "BtnText", "再入秘境", 18,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            btnText.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
-            btnText.GetComponent<Text>().fontStyle = FontStyle.Bold;
-            btnText.GetComponent<Text>().color = new Color(0.1f, 0.08f, 0);
+            btnText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
+            btnText.GetComponent<TextMeshProUGUI>().fontStyle = FontStyles.Bold;
+            btnText.GetComponent<TextMeshProUGUI>().color = new Color(0.1f, 0.08f, 0);
 
             panel.SetActive(false);
 
@@ -937,12 +938,13 @@ namespace XianTu
             rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin;
             rt.offsetMax = offsetMax;
-            var t = go.AddComponent<Text>();
+            var t = go.AddComponent<TextMeshProUGUI>();
             t.text = text;
             t.fontSize = fontSize;
-            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (UGuiKit.CjkFont != null) t.font = UGuiKit.CjkFont;
             t.color = Color.white;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            t.enableWordWrapping = false;
+            t.overflowMode = TextOverflowModes.Overflow;
             return go;
         }
 
