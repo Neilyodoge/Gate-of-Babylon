@@ -517,8 +517,10 @@ namespace UnityEngine.Rendering.Universal
                 {
                     using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.Bloom)))
                     {
-if (m_Bloom.bloomMode.value == BloomMode.n)
+                        if (m_Bloom.bloomMode.value == BloomMode.n)
                             SetupnBloom(cmd, GetSource(), m_Materials.uber);
+                        else if (m_Bloom.bloomMode.value == BloomMode.PC)
+                            SetupPCBloom(cmd, GetSource(), m_Materials.uber);
                         else
                             SetupBloom(cmd, GetSource(), m_Materials.uber);
                     }
@@ -1308,6 +1310,136 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
 
 #endregion
 
+#region PC Bloom
+
+        /// <summary>
+        /// PC Bloom：移植自 CasualBloom 的可调二维高斯下采样/上采样金字塔。
+        /// </summary>
+        void SetupPCBloom(CommandBuffer cmd, RTHandle source, Material uberMaterial)
+        {
+            var bloomMaterial = m_Materials.pcBloom;
+            if (bloomMaterial == null)
+                return;
+
+            int downscale = m_Bloom.downscale.value == BloomDownscaleMode.Half ? 1 : 2;
+            int width = Mathf.Max(1, m_Descriptor.width >> downscale);
+            int height = Mathf.Max(1, m_Descriptor.height >> downscale);
+            int maxSize = Mathf.Max(width, height);
+            int iterations = Mathf.FloorToInt(Mathf.Log(maxSize, 2f) - 1);
+            int mipCount = Mathf.Clamp(Mathf.Min(iterations, m_Bloom.maxIterations.value), 1, 4);
+
+            int downKernel = Mathf.Clamp(m_Bloom.pcDownsampleKernelSize.value, 3, 15) | 1;
+            int upKernel = Mathf.Clamp(m_Bloom.pcUpsampleKernelSize.value, 3, 15) | 1;
+            int downRadius = Mathf.Min(downKernel, 15) / 2;
+            int upRadius = Mathf.Min(upKernel, 15) / 2;
+            float threshold = Mathf.GammaToLinearSpace(m_Bloom.threshold.value);
+
+            bloomMaterial.SetVector(ShaderConstants._PCBloomDownsampleParams, new Vector4(
+                downRadius,
+                m_Bloom.pcDownsampleSigma.value,
+                threshold,
+                m_Bloom.clamp.value));
+            bloomMaterial.SetVector(ShaderConstants._PCBloomUpsampleParams, new Vector4(
+                upRadius,
+                m_Bloom.pcUpsampleSigma.value,
+                0f,
+                0f));
+            bloomMaterial.SetVector(ShaderConstants._PCBloomPrefilterParams, new Vector4(
+                m_Bloom.pcLuminanceCompression.value,
+                m_Bloom.pcPrefilterScale.value,
+                0f,
+                0f));
+            CoreUtils.SetKeyword(bloomMaterial, "_KILL_FIREFLY", m_Bloom.killFireflies.value);
+
+            var desc = GetCompatibleDescriptor(width, height, m_DefaultHDRFormat);
+            for (int i = 0; i < mipCount; i++)
+            {
+                RenderingUtils.ReAllocateIfNeeded(ref m_BloomMipDown[i], desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: m_BloomMipDown[i].name);
+                RenderingUtils.ReAllocateIfNeeded(ref m_BloomMipUp[i], desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: m_BloomMipUp[i].name);
+                desc.width = Mathf.Max(1, desc.width >> 1);
+                desc.height = Mathf.Max(1, desc.height >> 1);
+            }
+
+            // Pass 0 combines the hard luminance threshold, first Gaussian filter and first downsample.
+            Blitter.BlitCameraTexture(cmd, source, m_BloomMipDown[0], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, bloomMaterial, 0);
+
+            // Pass 1 applies the configurable NxN Gaussian while building the mip pyramid.
+            RTHandle last = m_BloomMipDown[0];
+            for (int i = 1; i < mipCount; i++)
+            {
+                Blitter.BlitCameraTexture(cmd, last, m_BloomMipDown[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, bloomMaterial, 1);
+                last = m_BloomMipDown[i];
+            }
+
+            // Pass 2 Gaussian-filters both adjacent levels and adds them during progressive upsampling.
+            Vector4 layerWeights = m_Bloom.pcLayerWeights.value;
+            bool firstUpsample = true;
+            for (int i = mipCount - 2; i >= 0; i--)
+            {
+                float currentWeight = GetPCBloomLayerWeight(layerWeights, i);
+                float lowWeight = firstUpsample ? GetPCBloomLayerWeight(layerWeights, i + 1) : 1f;
+                cmd.SetGlobalVector(ShaderConstants._PCBloomCombineParams, new Vector4(currentWeight, lowWeight, 0f, 0f));
+                cmd.SetGlobalTexture(ShaderConstants._PCBloomLowMip, last);
+                cmd.SetGlobalVector(ShaderConstants._PCBloomLowMipTexelSize, new Vector4(
+                    1f / last.rt.width,
+                    1f / last.rt.height,
+                    last.rt.width,
+                    last.rt.height));
+                Blitter.BlitCameraTexture(cmd, m_BloomMipDown[i], m_BloomMipUp[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, bloomMaterial, 2);
+                last = m_BloomMipUp[i];
+                firstUpsample = false;
+            }
+
+            var tint = m_Bloom.tint.value.linear;
+            var luma = ColorUtils.Luminance(tint);
+            tint = luma > 0f ? tint * (1f / luma) : Color.white;
+            float intensity = m_Bloom.intensity.value;
+            if (mipCount == 1)
+                intensity *= layerWeights.x;
+            uberMaterial.SetVector(ShaderConstants._Bloom_Params, new Vector4(intensity, tint.r, tint.g, tint.b));
+            uberMaterial.SetFloat(ShaderConstants._Bloom_RGBM, 0f);
+            cmd.SetGlobalTexture(ShaderConstants._Bloom_Texture, last);
+
+            var dirtTexture = m_Bloom.dirtTexture.value == null ? Texture2D.blackTexture : m_Bloom.dirtTexture.value;
+            float dirtRatio = dirtTexture.width / (float)dirtTexture.height;
+            float screenRatio = m_Descriptor.width / (float)m_Descriptor.height;
+            var dirtScaleOffset = new Vector4(1f, 1f, 0f, 0f);
+            float dirtIntensity = m_Bloom.dirtIntensity.value;
+
+            if (dirtRatio > screenRatio)
+            {
+                dirtScaleOffset.x = screenRatio / dirtRatio;
+                dirtScaleOffset.z = (1f - dirtScaleOffset.x) * 0.5f;
+            }
+            else if (screenRatio > dirtRatio)
+            {
+                dirtScaleOffset.y = dirtRatio / screenRatio;
+                dirtScaleOffset.w = (1f - dirtScaleOffset.y) * 0.5f;
+            }
+
+            uberMaterial.SetVector(ShaderConstants._LensDirt_Params, dirtScaleOffset);
+            uberMaterial.SetFloat(ShaderConstants._LensDirt_Intensity, dirtIntensity);
+            uberMaterial.SetTexture(ShaderConstants._LensDirt_Texture, dirtTexture);
+
+            if (m_Bloom.highQualityFiltering.value)
+                uberMaterial.EnableKeyword(dirtIntensity > 0f ? ShaderKeywordStrings.BloomHQDirt : ShaderKeywordStrings.BloomHQ);
+            else
+                uberMaterial.EnableKeyword(dirtIntensity > 0f ? ShaderKeywordStrings.BloomLQDirt : ShaderKeywordStrings.BloomLQ);
+        }
+
+        static float GetPCBloomLayerWeight(Vector4 weights, int level)
+        {
+            switch (level)
+            {
+                case 0: return weights.x;
+                case 1: return weights.y;
+                case 2: return weights.z;
+                default: return weights.w;
+            }
+        }
+
+#endregion
+
 #region Lens Distortion
 
         void SetupLensDistortion(Material material, bool isSceneView)
@@ -1702,6 +1834,7 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
             public readonly Material paniniProjection;
             public readonly Material bloom;
             public readonly Material nBloom;
+            public readonly Material pcBloom;
             public readonly Material temporalAntialiasing;
             public readonly Material scalingSetup;
             public readonly Material easu;
@@ -1723,6 +1856,7 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
                 paniniProjection = Load(data.shaders.paniniProjectionPS);
                 bloom = Load(data.shaders.bloomPS);
                 nBloom = Load(data.shaders.nBloomPS);
+                pcBloom = Load(data.shaders.pcBloomPS);
                 temporalAntialiasing = Load(data.shaders.temporalAntialiasingPS);
                 scalingSetup = Load(data.shaders.scalingSetupPS);
                 easu = Load(data.shaders.easuPS);
@@ -1756,6 +1890,7 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
                 CoreUtils.Destroy(paniniProjection);
                 CoreUtils.Destroy(bloom);
                 CoreUtils.Destroy(nBloom);
+                CoreUtils.Destroy(pcBloom);
                 CoreUtils.Destroy(temporalAntialiasing);
                 CoreUtils.Destroy(scalingSetup);
                 CoreUtils.Destroy(easu);
@@ -1836,6 +1971,14 @@ if (m_Bloom.bloomMode.value == BloomMode.n)
             public static readonly int _nBloomScatter = Shader.PropertyToID("_Scatter");
             public static readonly int _nBloomClamp = Shader.PropertyToID("_Clamp");
             public static readonly int _nBloomTex = Shader.PropertyToID("_BloomTex");
+
+            // PC Bloom 相关属性ID
+            public static readonly int _PCBloomDownsampleParams = Shader.PropertyToID("_PCBloomDownsampleParams");
+            public static readonly int _PCBloomUpsampleParams = Shader.PropertyToID("_PCBloomUpsampleParams");
+            public static readonly int _PCBloomPrefilterParams = Shader.PropertyToID("_PCBloomPrefilterParams");
+            public static readonly int _PCBloomCombineParams = Shader.PropertyToID("_PCBloomCombineParams");
+            public static readonly int _PCBloomLowMip = Shader.PropertyToID("_PCBloomLowMip");
+            public static readonly int _PCBloomLowMipTexelSize = Shader.PropertyToID("_PCBloomLowMip_TexelSize");
         }
 
 #endregion

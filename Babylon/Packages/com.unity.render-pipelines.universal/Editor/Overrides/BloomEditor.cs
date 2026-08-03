@@ -16,6 +16,13 @@ namespace UnityEditor.Rendering.Universal
         SerializedDataParameter m_HighQualityFiltering;
         SerializedDataParameter m_ThresholdKnee;
         SerializedDataParameter m_KillFireflies;
+        SerializedDataParameter m_PCDownsampleKernelSize;
+        SerializedDataParameter m_PCDownsampleSigma;
+        SerializedDataParameter m_PCUpsampleKernelSize;
+        SerializedDataParameter m_PCUpsampleSigma;
+        SerializedDataParameter m_PCLuminanceCompression;
+        SerializedDataParameter m_PCPrefilterScale;
+        SerializedDataParameter m_PCLayerWeights;
         SerializedDataParameter m_Downsample;
         SerializedDataParameter m_MaxIterations;
         SerializedDataParameter m_DirtTexture;
@@ -34,6 +41,13 @@ namespace UnityEditor.Rendering.Universal
             m_HighQualityFiltering = Unpack(o.Find(x => x.highQualityFiltering));
             m_ThresholdKnee = Unpack(o.Find(x => x.thresholdKnee));
             m_KillFireflies = Unpack(o.Find(x => x.killFireflies));
+            m_PCDownsampleKernelSize = Unpack(o.Find(x => x.pcDownsampleKernelSize));
+            m_PCDownsampleSigma = Unpack(o.Find(x => x.pcDownsampleSigma));
+            m_PCUpsampleKernelSize = Unpack(o.Find(x => x.pcUpsampleKernelSize));
+            m_PCUpsampleSigma = Unpack(o.Find(x => x.pcUpsampleSigma));
+            m_PCLuminanceCompression = Unpack(o.Find(x => x.pcLuminanceCompression));
+            m_PCPrefilterScale = Unpack(o.Find(x => x.pcPrefilterScale));
+            m_PCLayerWeights = Unpack(o.Find(x => x.pcLayerWeights));
             m_Downsample = Unpack(o.Find(x => x.downscale));
             m_MaxIterations = Unpack(o.Find(x => x.maxIterations));
             m_DirtTexture = Unpack(o.Find(x => x.dirtTexture));
@@ -50,7 +64,8 @@ namespace UnityEditor.Rendering.Universal
             // 通用Bloom参数
             PropertyField(m_Threshold);
             PropertyField(m_Intensity);
-            PropertyField(m_Scatter);
+            if (m_BloomMode.value.intValue != (int)BloomMode.PC)
+                PropertyField(m_Scatter);
             PropertyField(m_Tint);
             PropertyField(m_Clamp);
             PropertyField(m_HighQualityFiltering);
@@ -59,11 +74,24 @@ namespace UnityEditor.Rendering.Universal
                 EditorGUILayout.HelpBox("High Quality Bloom isn't supported on GLES2 platforms.", MessageType.Warning);
 
             // nBloom模式专有参数
-if (m_BloomMode.value.intValue == (int)BloomMode.n)
+            if (m_BloomMode.value.intValue == (int)BloomMode.n)
             {
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("nBloom Mode Settings", EditorStyles.boldLabel);
                 PropertyField(m_ThresholdKnee);
+                PropertyField(m_KillFireflies);
+            }
+            else if (m_BloomMode.value.intValue == (int)BloomMode.PC)
+            {
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("PC Mode Settings", EditorStyles.boldLabel);
+                PropertyField(m_PCDownsampleKernelSize);
+                PropertyField(m_PCDownsampleSigma);
+                PropertyField(m_PCUpsampleKernelSize);
+                PropertyField(m_PCUpsampleSigma);
+                PropertyField(m_PCLuminanceCompression);
+                PropertyField(m_PCPrefilterScale);
+                PropertyField(m_PCLayerWeights);
                 PropertyField(m_KillFireflies);
             }
 

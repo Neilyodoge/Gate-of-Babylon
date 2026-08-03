@@ -6,16 +6,16 @@
 
 # Bloom 模块
 
-在 URP 原始 Bloom 基础上扩展了 **BloomMode** 切换，支持两种 Bloom 算法：
+在 URP 原始 Bloom 基础上扩展了 **BloomMode** 切换，支持三种 Bloom 算法：
 
-| 特性 | Default（URP 内置） | n（自定义 nBloom） |
-|------|---------------------|---------------------|
-| 模糊方式 | 逐步高斯模糊（9-tap / 双线性） | **Kawase 模糊**（4-tap box 下采样 + Kawase 上采样） |
-| 阈值处理 | 线性 soft-knee 阈值 | **二次阈值函数**（QuadraticThreshold），过渡更平滑 |
-| 防闪烁 | 无 | **Kill Fireflies**（Karis Average 加权平均），抑制极亮像素造成的闪烁 |
-| 上采样 | 可选双三次插值（High Quality Filtering） | Kawase 滤波上采样，天然平滑 |
-| 编码方式 | RGBM 编码（移动端兼容） | 直接 HDR，不使用 RGBM 编码 |
-| 性能特征 | 标准开销，适合通用场景 | 采样次数更少，适合需要高质量 Bloom 且对性能敏感的场景 |
+| 特性 | Default（URP 内置） | n（自定义 nBloom） | PC（CasualBloom） |
+|------|---------------------|---------------------|------------------|
+| 模糊方式 | 逐步高斯模糊（9-tap / 双线性） | **Kawase 模糊**（4-tap box 下采样 + Kawase 上采样） | 每级可调 N×N **二维高斯卷积** |
+| 阈值处理 | 线性 soft-knee 阈值 | **二次阈值函数**（QuadraticThreshold） | 原版风格的亮度硬阈值 |
+| 防闪烁 | 无 | **Kill Fireflies** | 首次下采样可选 Karis Average |
+| 上采样 | 可选双三次插值 | Kawase 滤波上采样 | 同时高斯过滤相邻 Mip 后相加 |
+| 编码方式 | RGBM 编码（移动端兼容） | 直接 HDR | 直接 HDR |
+| 性能特征 | 标准开销 | 最轻 | 采样开销最高，用于 PC 品质对比 |
 
 ---
 
@@ -185,17 +185,26 @@ return sum * 0.25;
 
 ---
 
+### PC 模式（CasualBloom 二维高斯金字塔）
+
+PC 模式以 [AKGWSB/CasualBloom](https://github.com/AKGWSB/CasualBloom) 的圆对称二维高斯金字塔为主体，并吸收 [DanbaidongRP](https://github.com/danbaidong1111/DanbaidongRP) 的亮度压缩、减法阈值和多尺度美术权重。渲染流程使用 URP 的 RTHandle、Volume、Blitter 和 UberPost，并移除原版对 Bloom 单独执行 ACES 与 Gamma 的流程，避免在线性 HDR 管线中重复色彩变换。
+
+PC 模式提供独立的 `Downsample Kernel Size / Sigma`、`Upsample Kernel Size / Sigma`、`Luminance Compression`、`Prefilter Scale` 与四层 `Layer Weights`。X/Y/Z/W 依次控制近、中、远、超远光晕。卷积核支持 3~15；默认 5×5 路径利用双线性采样将严格的 25 texel 二维高斯打包为 9 taps，因此常规下采样为 9 taps、上采样两层合计 18 taps。其他核尺寸仍使用通用 N×N 二维卷积。
+
+---
+
 ## 使用方式
 
 1. 在 Volume 组件中添加 **Bloom** Override
 2. 在 Inspector 顶部的 **Bloom Mode** 下拉框中选择模式：
    - `Default`：使用 URP 内置 Bloom
    - `n`：使用自定义 nBloom 算法
+   - `PC`：使用 CasualBloom 二维高斯金字塔
 3. 当选择 `n` 模式时，会显示额外的 **nBloom Mode Settings**：
    - **Threshold Knee**：阈值过渡柔和度（0~1）
    - **Kill Fireflies**：是否开启萤火虫抑制（Karis Average 加权平均，编译期关键字，关闭时无性能开销）
 
-两种模式共享以下通用参数：Threshold、Intensity、Scatter、Tint、Clamp、High Quality Filtering、Downscale、Max Iterations、Lens Dirt。
+三种模式共享 Threshold、Intensity、Tint、Clamp、High Quality Filtering、Downscale、Max Iterations 与 Lens Dirt；Scatter 不用于 PC 模式。
 
 ---
 
@@ -205,8 +214,9 @@ return sum * 0.25;
 |------|------|
 | `Runtime/Overrides/Bloom.cs` | Bloom Volume 组件定义，包含 BloomMode 枚举和所有参数 |
 | `Editor/Overrides/BloomEditor.cs` | Bloom Inspector 编辑器，根据模式显示/隐藏参数 |
-| `Runtime/Passes/PostProcessPass.cs` | 后处理渲染 Pass，包含 `SetupBloom`（Default）和 `SetupnBloom`（n）两套渲染流程 |
+| `Runtime/Passes/PostProcessPass.cs` | 后处理渲染 Pass，包含 Default、n、PC 三套渲染流程 |
 | `Shaders/PostProcessing/nBloom.shader` | nBloom 专用 Shader（Prefilter / Downsample / Upsample / Combine） |
+| `Shaders/PostProcessing/PCBloom.shader` | PC Bloom 专用 Shader（可调二维高斯 Prefilter / Downsample / Upsample） |
 | `Runtime/Data/PostProcessData.cs` | 后处理资源数据，引用 nBloom Shader |
 | `Runtime/Data/PostProcessData.asset` | 后处理资源配置 |
 

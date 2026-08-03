@@ -16,6 +16,11 @@ namespace UnityEngine.Rendering.Universal
         /// 自定义nBloom算法（Kawase模糊 + Kill Fireflies）
         /// </summary>
         n = 1,
+
+        /// <summary>
+        /// PC高品质Bloom（CasualBloom二维高斯金字塔）
+        /// </summary>
+        PC = 2,
     }
 
     /// <summary>
@@ -56,10 +61,10 @@ namespace UnityEngine.Rendering.Universal
     public sealed partial class Bloom : VolumeComponent, IPostProcessComponent
     {
         /// <summary>
-        /// Bloom模式选择：Default使用URP内置Bloom，nBloom使用自定义Bloom算法
+        /// Bloom模式选择
         /// </summary>
         [Header("Bloom Mode")]
-        [Tooltip("选择Bloom模式：Default使用URP内置Bloom，nBloom使用自定义Bloom算法（Kawase模糊 + Kill Fireflies）")]
+        [Tooltip("选择Bloom模式：Default为URP内置；n为轻量Kawase；PC为CasualBloom二维高斯金字塔")]
         public BloomModeParameter bloomMode = new BloomModeParameter(BloomMode.Default);
 
         /// <summary>
@@ -115,6 +120,49 @@ namespace UnityEngine.Rendering.Universal
         /// </summary>
         [Tooltip("[nBloom模式] 抑制萤火虫高亮像素")]
         public BoolParameter killFireflies = new BoolParameter(true);
+
+        /// <summary>
+        /// [PC模式] 下采样二维高斯卷积核尺寸。
+        /// </summary>
+        [Header("PC Mode Settings")]
+        [Tooltip("[PC模式] 下采样二维高斯核尺寸；运行时会修正为3~15之间的奇数")]
+        public ClampedIntParameter pcDownsampleKernelSize = new ClampedIntParameter(5, 3, 15);
+
+        /// <summary>
+        /// [PC模式] 下采样二维高斯分布标准差。
+        /// </summary>
+        [Tooltip("[PC模式] 下采样二维高斯分布标准差")]
+        public ClampedFloatParameter pcDownsampleSigma = new ClampedFloatParameter(1f, 0.01f, 10f);
+
+        /// <summary>
+        /// [PC模式] 上采样二维高斯卷积核尺寸。
+        /// </summary>
+        [Tooltip("[PC模式] 上采样二维高斯核尺寸；运行时会修正为3~15之间的奇数")]
+        public ClampedIntParameter pcUpsampleKernelSize = new ClampedIntParameter(5, 3, 15);
+
+        /// <summary>
+        /// [PC模式] 上采样二维高斯分布标准差。
+        /// </summary>
+        [Tooltip("[PC模式] 上采样二维高斯分布标准差")]
+        public ClampedFloatParameter pcUpsampleSigma = new ClampedFloatParameter(1f, 0.01f, 10f);
+
+        /// <summary>
+        /// [PC模式] 在阈值前压缩极亮像素，降低闪烁与局部过曝。
+        /// </summary>
+        [Tooltip("[PC模式] Danbaidong式亮度压缩强度；0表示关闭")]
+        public ClampedFloatParameter pcLuminanceCompression = new ClampedFloatParameter(0.2f, 0f, 1f);
+
+        /// <summary>
+        /// [PC模式] 阈值过滤后的亮度增益。
+        /// </summary>
+        [Tooltip("[PC模式] 阈值过滤后的Bloom亮度增益")]
+        public ClampedFloatParameter pcPrefilterScale = new ClampedFloatParameter(1f, 0f, 5f);
+
+        /// <summary>
+        /// [PC模式] 从高分辨率到低分辨率四层Bloom的独立合成权重。
+        /// </summary>
+        [Tooltip("[PC模式] X/Y/Z/W依次控制近、中、远、超远四层光晕")]
+        public Vector4Parameter pcLayerWeights = new Vector4Parameter(Vector4.one);
 
         /// <summary>
         /// Controls the starting resolution that this effect begins processing.
