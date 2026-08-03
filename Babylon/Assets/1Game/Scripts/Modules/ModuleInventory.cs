@@ -17,6 +17,7 @@ namespace XianTu
         {
             if (module == null) return;
             _modules.Add(module);
+            SaveSystem.Instance.UnlockModule(module);
             GameEvents.Publish(new GameEvents.ModulePickedUp { Module = module });
             Debug.Log($"<color=#00ffcc>模块入包：{module.displayName}（{module.category}）</color>");
         }

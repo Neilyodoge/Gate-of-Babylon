@@ -49,7 +49,7 @@ Babylon/
 
 | 功能 | 说明 |
 |------|------|
-| **Bloom 扩展** | 新增 nBloom 模式：Kawase 模糊、二次阈值函数、Kill Fireflies（Karis Average） |
+| **Bloom 扩展** | 支持 nBloom 轻量 Kawase 模式，以及移植自 DanbaidongRP 的 PC 分层高斯高画质模式 |
 | **Tonemapping 扩展** | 新增 GT / ACESSimple / UE4 三种色调映射算法 |
 
 📖 **详细文档**：[PostProcess_README.md](Babylon/Packages/com.unity.render-pipelines.universal/PostProcess_README.md)

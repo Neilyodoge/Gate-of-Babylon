@@ -102,6 +102,7 @@ namespace XianTu
             if (emptySlot >= 0)
             {
                 _combat.EquipSkillToSlot(skillData, emptySlot);
+                SaveSystem.Instance.UnlockSkill(skillData);
                 Debug.Log($"<color=cyan>装备功法：{skillData.skillName} → {GetSlotKeyName(emptySlot)} 槽</color>");
                 GameEvents.Publish(new GameEvents.SkillEquipped { Skill = skillData, SlotIndex = emptySlot });
                 OnPickedUp();
@@ -168,6 +169,7 @@ namespace XianTu
             if (_combat == null) return;
 
             SkillData oldSkill = _combat.EquipSkillToSlot(skillData, slotIndex);
+            SaveSystem.Instance.UnlockSkill(skillData);
             Debug.Log($"<color=cyan>替换功法：{skillData.skillName} → {GetSlotKeyName(slotIndex)} 槽（替下 {oldSkill?.skillName ?? "空"}）</color>");
             GameEvents.Publish(new GameEvents.SkillEquipped { Skill = skillData, SlotIndex = slotIndex });
 

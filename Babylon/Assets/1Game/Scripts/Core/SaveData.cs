@@ -14,8 +14,8 @@ namespace XianTu
     [Serializable]
     public class SaveDataV1
     {
-        /// <summary>存档格式版本号，未来 schema 变更时支持迁移（v2：阶段C 系精通/突破发点）</summary>
-        public int schemaVersion = 2;
+        /// <summary>存档格式版本号（v3：永久技能/模块解锁 + 移除 Build 带出）。</summary>
+        public int schemaVersion = 3;
 
         /// <summary>洞府素材库存：itemName → 数量（用 itemName 当 id，因为 ItemData 是 SO 无 GUID）</summary>
         public List<ItemCountEntry> caveInventory = new();
@@ -28,6 +28,9 @@ namespace XianTu
 
         /// <summary>已永久解锁的功法 id 列表（从藏经阁拼合古籍残页获得）</summary>
         public List<string> unlockedSkillIds = new();
+
+        /// <summary>局内首次获取后永久解锁的模块 id 列表。</summary>
+        public List<string> unlockedModuleIds = new();
 
         /// <summary>已孵化的灵兽 id 列表</summary>
         public List<string> unlockedBeastIds = new();
@@ -130,13 +133,13 @@ namespace XianTu
         /// <summary>存档创建时间戳</summary>
         public long createdTimestamp = 0;
 
-        // ========== V0.4.1：局外 Build 背包 ==========
+        /// <summary>该槽位累计游玩秒数。</summary>
+        public double totalPlayTimeSeconds = 0;
 
-        /// <summary>
-        /// 局外 Build 背包——存放从局内带出的所有 Build 快照。
-        /// 通关或主动退出时追加一条；在大秘境缓冲区可选择装备其中一套。
-        /// </summary>
-        public List<BuildSnapshot> buildBackpack = new();
+        // ========== V0.4.1 旧 Build 背包墓碑（仅供 v2 → v3 迁移） ==========
+
+        [Obsolete("v3 不再保存或带出 Build；仅在加载旧存档时迁移为永久解锁记录。")]
+        public List<LegacyBuildSnapshot> buildBackpack = new();
     }
 
     /// <summary>链式机缘的"待回访"条目：某个机缘选择会埋下一个 N 局后回访的后续事件。</summary>
@@ -155,5 +158,27 @@ namespace XianTu
     {
         public string itemName;
         public int count;
+    }
+
+    /// <summary>v2 Build 快照兼容结构；迁移完成后不会再写入业务数据。</summary>
+    [Serializable]
+    public class LegacyBuildSnapshot
+    {
+        public string skillQ = "";
+        public string skillE = "";
+        public string skillR = "";
+        public LegacyChainSnapshot chain0 = new();
+        public LegacyChainSnapshot chain1 = new();
+        public LegacyChainSnapshot chain2 = new();
+    }
+
+    /// <summary>v2 模块链快照兼容结构。</summary>
+    [Serializable]
+    public class LegacyChainSnapshot
+    {
+        public string triggerId = "";
+        public string effectId = "";
+        public string modifier0Id = "";
+        public string modifier1Id = "";
     }
 }

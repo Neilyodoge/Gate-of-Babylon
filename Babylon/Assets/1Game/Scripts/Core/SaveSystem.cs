@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -30,6 +31,7 @@ namespace XianTu
 
         private int _activeSlot = -1;
         private SaveDataV1 _data;
+        private float _lastPlaytimeSyncRealtime;
 
         public SaveDataV1 Data => _data;
         public int ActiveSlot => _activeSlot;
@@ -68,6 +70,7 @@ namespace XianTu
             else
             {
                 _data = new SaveDataV1();
+                _lastPlaytimeSyncRealtime = Time.realtimeSinceStartup;
             }
         }
 
@@ -83,7 +86,9 @@ namespace XianTu
             try
             {
                 string json = File.ReadAllText(SlotFilePath(slot));
-                return JsonUtility.FromJson<SaveDataV1>(json);
+                var data = JsonUtility.FromJson<SaveDataV1>(json);
+                NormalizeAndMigrate(data);
+                return data;
             }
             catch { return null; }
         }
@@ -98,8 +103,10 @@ namespace XianTu
             string time = data.lastSaveTimestamp > 0
                 ? DateTimeOffset.FromUnixTimeSeconds(data.lastSaveTimestamp).LocalDateTime.ToString("MM/dd HH:mm")
                 : "未知";
-            int builds = data.buildBackpack?.Count ?? 0;
-            return $"{name}\n通关 {data.totalRunsCompleted}  阵亡 {data.totalDeaths}  Build×{builds}\n{time}";
+            int skillCount = data.unlockedSkillIds?.Count ?? 0;
+            int moduleCount = data.unlockedModuleIds?.Count ?? 0;
+            string playtime = FormatPlaytime(data.totalPlayTimeSeconds);
+            return $"{name}\n等级 {data.cultivationRealm + 1}　通关 {data.totalRunsCompleted}　阵亡 {data.totalDeaths}\n解锁 技能 {skillCount} / 模块 {moduleCount}　游玩 {playtime}\n最后保存 {time}";
         }
 
         // ========== 加载 / 保存 / 创建 / 删除 ==========
@@ -113,6 +120,7 @@ namespace XianTu
                 slotName = string.IsNullOrEmpty(slotName) ? $"冒险者 {slot + 1}" : slotName,
                 createdTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
             };
+            _lastPlaytimeSyncRealtime = Time.realtimeSinceStartup;
             Save();
             PlayerPrefs.SetInt("GoB.LastSaveSlot", slot);
             PlayerPrefs.Save();
@@ -132,11 +140,15 @@ namespace XianTu
                 {
                     string json = File.ReadAllText(path);
                     _data = JsonUtility.FromJson<SaveDataV1>(json) ?? new SaveDataV1();
-                    Debug.Log($"<color=cyan>[SaveSystem] 加载存档槽位 {slot}：{_data.slotName}（Build×{_data.buildBackpack?.Count ?? 0}）</color>");
+                    bool migrated = NormalizeAndMigrate(_data);
+                    Debug.Log($"<color=cyan>[SaveSystem] 加载存档槽位 {slot}：{_data.slotName}（技能 {_data.unlockedSkillIds.Count} / 模块 {_data.unlockedModuleIds.Count}）</color>");
+                    _lastPlaytimeSyncRealtime = Time.realtimeSinceStartup;
+                    if (migrated) Save();
                 }
                 else
                 {
                     _data = new SaveDataV1();
+                    _lastPlaytimeSyncRealtime = Time.realtimeSinceStartup;
                     Debug.Log($"<color=gray>[SaveSystem] 槽位 {slot} 无存档文件，初始化空数据</color>");
                 }
             }
@@ -144,6 +156,7 @@ namespace XianTu
             {
                 Debug.LogError($"[SaveSystem] 加载槽位 {slot} 失败：{e.Message}");
                 _data = new SaveDataV1();
+                _lastPlaytimeSyncRealtime = Time.realtimeSinceStartup;
             }
 
             PlayerPrefs.SetInt("GoB.LastSaveSlot", slot);
@@ -154,6 +167,7 @@ namespace XianTu
         public void Save()
         {
             if (_data == null) _data = new SaveDataV1();
+            NormalizeAndMigrate(_data);
             if (_activeSlot < 0)
             {
                 // 兼容旧代码直接调用 Save() 的情况：自动创建槽位 0
@@ -163,6 +177,7 @@ namespace XianTu
                 Debug.Log("<color=cyan>[SaveSystem] 无活跃槽位，自动使用槽位 0</color>");
             }
 
+            SyncPlaytime();
             _data.lastSaveTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             try
             {
@@ -190,6 +205,7 @@ namespace XianTu
             {
                 _activeSlot = -1;
                 _data = new SaveDataV1();
+                _lastPlaytimeSyncRealtime = Time.realtimeSinceStartup;
             }
         }
 
@@ -201,22 +217,33 @@ namespace XianTu
             Debug.Log($"<color=cyan>[SaveSystem] 自动存档 → 槽位 {_activeSlot}</color>");
         }
 
-        // ========== Build 背包 ==========
+        // ========== 永久解锁 ==========
 
-        /// <summary>保存当前局内 Build 到背包</summary>
-        public void SaveBuildFromCurrentRun()
+        /// <summary>记录技能首次获取；新解锁时立即保存当前槽位。</summary>
+        public bool UnlockSkill(SkillData skill)
         {
-            if (_data == null) return;
-            var snap = BuildSnapshot.CaptureFromPlayer();
-            if (snap.IsEmpty)
-            {
-                Debug.Log("<color=yellow>[SaveSystem] Build 为空，跳过保存</color>");
-                return;
-            }
-            if (_data.buildBackpack == null) _data.buildBackpack = new System.Collections.Generic.List<BuildSnapshot>();
-            _data.buildBackpack.Add(snap);
+            return skill != null && UnlockId(skill.skillName, isSkill: true);
+        }
+
+        /// <summary>记录模块首次获取；新解锁时立即保存当前槽位。</summary>
+        public bool UnlockModule(ModuleDef module)
+        {
+            return module != null && UnlockId(module.moduleId, isSkill: false);
+        }
+
+        private bool UnlockId(string id, bool isSkill)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return false;
+            if (_data == null) _data = new SaveDataV1();
+            NormalizeAndMigrate(_data);
+
+            List<string> ids = isSkill ? _data.unlockedSkillIds : _data.unlockedModuleIds;
+            if (ids.Contains(id)) return false;
+
+            ids.Add(id);
             Save();
-            Debug.Log($"<color=#00ffcc>[SaveSystem] Build 已保存：{snap.buildName}（背包共 {_data.buildBackpack.Count} 套）</color>");
+            Debug.Log($"<color=#66ff99>[永久解锁] {(isSkill ? "技能" : "模块")}：{id}</color>");
+            return true;
         }
 
         // ========== 调试 ==========
@@ -224,6 +251,7 @@ namespace XianTu
         public void ResetAll()
         {
             _data = new SaveDataV1();
+            _lastPlaytimeSyncRealtime = Time.realtimeSinceStartup;
             if (HasActiveSlot) Save();
             Debug.LogWarning("<color=yellow>[SaveSystem] 存档已重置</color>");
         }
@@ -272,6 +300,82 @@ namespace XianTu
         public void Load()
         {
             if (HasActiveSlot) LoadSlot(_activeSlot);
+        }
+
+        private void SyncPlaytime()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (_lastPlaytimeSyncRealtime > 0f && now >= _lastPlaytimeSyncRealtime)
+                _data.totalPlayTimeSeconds += now - _lastPlaytimeSyncRealtime;
+            _lastPlaytimeSyncRealtime = now;
+        }
+
+        private static string FormatPlaytime(double seconds)
+        {
+            var span = TimeSpan.FromSeconds(Math.Max(0, seconds));
+            return span.TotalHours >= 1
+                ? $"{(int)span.TotalHours}时{span.Minutes:00}分"
+                : $"{span.Minutes}分";
+        }
+
+        /// <summary>补齐缺失集合，并将 v2 Build 快照一次性迁移为发现记录。</summary>
+        private static bool NormalizeAndMigrate(SaveDataV1 data)
+        {
+            if (data == null) return false;
+            bool changed = data.schemaVersion < 3;
+
+            data.unlockedSkillIds ??= new List<string>();
+            data.unlockedModuleIds ??= new List<string>();
+            data.caveInventory ??= new List<ItemCountEntry>();
+            data.unlockedTalentIds ??= new List<string>();
+            data.unlockedBeastIds ??= new List<string>();
+
+#pragma warning disable CS0618
+            if (data.buildBackpack != null && data.buildBackpack.Count > 0)
+            {
+                foreach (var build in data.buildBackpack)
+                {
+                    if (build == null) continue;
+                    AddUnique(data.unlockedSkillIds, build.skillQ);
+                    AddUnique(data.unlockedSkillIds, build.skillE);
+                    AddUnique(data.unlockedSkillIds, build.skillR);
+                    MigrateChain(build.chain0, data.unlockedModuleIds);
+                    MigrateChain(build.chain1, data.unlockedModuleIds);
+                    MigrateChain(build.chain2, data.unlockedModuleIds);
+                }
+                data.buildBackpack.Clear();
+                changed = true;
+            }
+#pragma warning restore CS0618
+
+            if (!string.IsNullOrEmpty(data.lastRunLegacyModuleId))
+            {
+                AddUnique(data.unlockedModuleIds, data.lastRunLegacyModuleId);
+                data.lastRunLegacyModuleId = "";
+                changed = true;
+            }
+
+            if (data.schemaVersion != 3)
+            {
+                data.schemaVersion = 3;
+                changed = true;
+            }
+            return changed;
+        }
+
+        private static void MigrateChain(LegacyChainSnapshot chain, List<string> ids)
+        {
+            if (chain == null) return;
+            AddUnique(ids, chain.triggerId);
+            AddUnique(ids, chain.effectId);
+            AddUnique(ids, chain.modifier0Id);
+            AddUnique(ids, chain.modifier1Id);
+        }
+
+        private static void AddUnique(List<string> ids, string id)
+        {
+            if (!string.IsNullOrWhiteSpace(id) && !ids.Contains(id))
+                ids.Add(id);
         }
     }
 }

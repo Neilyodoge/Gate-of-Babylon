@@ -35,6 +35,8 @@ namespace XianTu
                 if (combat != null)
                 {
                     combat.EquipSkillQ(skill);
+                    SaveSystem.Instance.UnlockSkill(skill);
+                    GameEvents.Publish(new GameEvents.SkillEquipped { Skill = skill, SlotIndex = 0 });
                     Debug.Log($"<color=#66d9ff>[PrepRoom] 已装备初始技能：{skill.skillName} → Q 槽位</color>");
                 }
             }

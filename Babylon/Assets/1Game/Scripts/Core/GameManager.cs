@@ -46,9 +46,6 @@ namespace XianTu
         private int _currentRoomInLevel; // 当前层内的房间索引
         private GameObject _currentRoomGo; // 当前房间的 GameObject
         private bool _gameOver;
-        // V0.4.1：本局首个房间生成后再注入遗产模块（首房现改为经地图点选进入）。
-        private bool _pendingLegacyInject;
-
         // V0.2.5：单局时长计时
         private float _runStartTime;
         private float _runElapsedTime;
@@ -114,54 +111,6 @@ namespace XianTu
         /// </summary>
         public static bool EnableWorldDrops = false;
 
-        // ==================== V0.4.1 大秘境集成 ====================
-        /// <summary>是否处于大秘境模式（局外挑战，独立于常规 6 层循环）。</summary>
-        public bool InRift { get; private set; }
-        /// <summary>技能池（供大秘境敌人掉落 / Build 还原等复用）。</summary>
-        public SkillData[] SkillPool => skillPool;
-        /// <summary>模块池。</summary>
-        public ModuleDef[] ModulePool => modulePool;
-        /// <summary>把玩家瞬移到指定位置（供大秘境房间复用）。</summary>
-        public void PlacePlayer(Vector3 pos) => TeleportPlayer(pos);
-
-        /// <summary>进入大秘境：销毁当前房间，交由 RiftManager 构建缓冲区。</summary>
-        public void EnterRift()
-        {
-            if (_currentRoomGo != null) Destroy(_currentRoomGo);
-            CleanupLeftoverPickups();
-            if (Time.timeScale < 0.9f) Time.timeScale = 1f;
-
-            InRift = true;
-            _gameOver = false;
-            RunCombatStats.Reset();
-
-            // 满血进入大秘境
-            if (PlayerController.Instance != null)
-                PlayerController.Instance.Stats.ResetHp();
-
-            // 确保模块系统就绪（EquipChain 需要 ModuleSlotManager）
-            InitModuleSystem();
-
-            // #8：大秘境（局外挑战）不显示常规秘境小地图。
-            if (_minimap != null) _minimap.SetVisible(false);
-
-            RiftManager.Instance.EnterBuffer();
-            Debug.Log("<color=#ff66cc>═══ 进入大秘境 · 缓冲区 ═══</color>");
-        }
-
-        /// <summary>大秘境结束，返回村庄。</summary>
-        public void ExitRiftToVillage()
-        {
-            InRift = false;
-            _gameOver = false;
-
-            // 死亡后返回村庄需复活满血
-            if (PlayerController.Instance != null)
-                PlayerController.Instance.Stats.ResetHp();
-
-            EnterVillageHub();
-        }
-
         /// <summary>
         /// 从普通秘境准备区返回基地。仅准备区出口调用；正式进入地图后不提供此入口。
         /// </summary>
@@ -181,8 +130,10 @@ namespace XianTu
             var player = PlayerController.Instance;
             if (player == null) return;
 
-            if (player.GetComponent<ModuleInventory>() == null)
-                player.gameObject.AddComponent<ModuleInventory>();
+            var inventory = player.GetComponent<ModuleInventory>();
+            if (inventory == null)
+                inventory = player.gameObject.AddComponent<ModuleInventory>();
+            inventory.Clear();
 
             var slots = player.GetComponent<ModuleSlotManager>();
             if (slots == null) slots = player.gameObject.AddComponent<ModuleSlotManager>();
@@ -304,6 +255,9 @@ namespace XianTu
             var slots = player.GetComponent<ModuleSlotManager>();
             if (slots != null) slots.ClearAll();
 
+            var inventory = player.GetComponent<ModuleInventory>();
+            if (inventory != null) inventory.Clear();
+
             if (SkillBarUI.Instance != null) SkillBarUI.Instance.RefreshSkillSlots();
         }
 
@@ -314,7 +268,6 @@ namespace XianTu
             _currentRoomInLevel = 0;
             _flatRoomIndex = 0;
             _gameOver = false;
-            _pendingLegacyInject = true;
             _runStartTime = Time.time;
             RewardPickUI.ResetCategoryCycle();
 
@@ -374,54 +327,8 @@ namespace XianTu
         private void OnPrepRoomComplete()
         {
             Debug.Log("<color=#66ff99>准备完成 · 择路进入第一处秘境</color>");
-            // V0.4.1：首房也经地图点选进入（silverua 全图首层就是起点选择）。
-            // 遗产模块在首房生成后由 SpawnCurrentRoom 注入（_pendingLegacyInject）。
+            // 首房也经地图点选进入（silverua 全图首层就是起点选择）。
             EnterNextRoomWithChoice();
-        }
-
-        /// <summary>
-        /// V0.2.2：遗产系统 — 上一局结束时玩家选择的 1 件遗产模块，
-        /// 在本局首战斗房地面自动生成 ModulePickup，作为"前世记忆"。
-        /// 注入后清空存档字段（一次性使用）。
-        /// </summary>
-        private void TryInjectLegacyModule()
-        {
-            var save = SaveSystem.Instance.Data;
-            if (string.IsNullOrEmpty(save.lastRunLegacyModuleId)) return;
-
-            // 从 modulePool 查找对应模块
-            ModuleDef legacyMod = null;
-            if (modulePool != null)
-            {
-                foreach (var m in modulePool)
-                {
-                    if (m != null && m.moduleId == save.lastRunLegacyModuleId)
-                    {
-                        legacyMod = m;
-                        break;
-                    }
-                }
-            }
-
-            if (legacyMod == null)
-            {
-                Debug.LogWarning($"[遗产] 找不到模块 '{save.lastRunLegacyModuleId}'，跳过注入");
-                save.lastRunLegacyModuleId = "";
-                SaveSystem.Instance.Save();
-                return;
-            }
-
-            // 在玩家附近生成遗产拾取物
-            Vector3 pos = PlayerController.Instance != null
-                ? PlayerController.Instance.transform.position + Vector3.right * 2f
-                : Vector3.right * 2f;
-            ModulePickup.Spawn(legacyMod, pos);
-
-            Debug.Log($"<color=#ffcc33>[遗产] 前世记忆：{legacyMod.displayName}（{legacyMod.category}）已在脚下显现</color>");
-
-            // 清空存档（一次性使用）
-            save.lastRunLegacyModuleId = "";
-            SaveSystem.Instance.Save();
         }
 
         /// <summary>
@@ -544,12 +451,6 @@ namespace XianTu
             // 将玩家传送到房间中心
             TeleportPlayer(spawnPos);
 
-            // V0.4.1：本局首个房间生成完毕 → 注入遗产模块（前世记忆）。
-            if (_pendingLegacyInject)
-            {
-                _pendingLegacyInject = false;
-                TryInjectLegacyModule();
-            }
         }
 
         /// <summary>V0.4.2：打包当局参数供 <see cref="IRoomFactory"/> 生成房间。</summary>
@@ -596,8 +497,6 @@ namespace XianTu
 
         private void OnRoomCleared(GameEvents.RoomCleared evt)
         {
-            // 大秘境自行管理战斗流程，忽略常规 TreeMap 推进
-            if (InRift) return;
             if (_gameOver || _transitioning) return;
             _transitioning = true;
 
@@ -737,21 +636,10 @@ namespace XianTu
                 int matCount = CaveInventory.Instance.TotalPendingCount;
                 CaveInventory.Instance.CommitCurrentRun();
 
-                IReadOnlyList<ModuleDef> legacyModules = null;
-                if (PlayerController.Instance != null)
-                {
-                    var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
-                    if (inv != null && inv.Modules.Count > 0)
-                        legacyModules = inv.Modules;
-                }
-
-                // V0.4.1：通关时保存 Build 到局外背包
-                SaveSystem.Instance.SaveBuildFromCurrentRun();
-
                 string realmName = _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
                 ExtractResultPanel.Show(_currentLevel, realmName,
                     insightRaw, temperingRaw, matCount,
-                    ExtractResultPanel.EndType.Victory, legacyModules,
+                    ExtractResultPanel.EndType.Victory,
                     () =>
                     {
                         EnterVillageHub();
@@ -814,14 +702,6 @@ namespace XianTu
 
         private void OnPlayerDied(GameEvents.PlayerDied evt)
         {
-            // 大秘境死亡：不进行局内结算/存档，交由 RiftManager 处理失败流程
-            if (InRift)
-            {
-                _gameOver = true;
-                RiftManager.Instance.OnPlayerDiedInRift();
-                return;
-            }
-
             _gameOver = true;
             _runElapsedTime = Time.time - _runStartTime;
             Debug.Log($"<color=red>[RunTimer] 死亡时长：{_runElapsedTime / 60f:F1} 分钟（目标 25-40min）</color>");
@@ -841,23 +721,12 @@ namespace XianTu
 
             SaveSystem.Instance.Data.totalDeaths++;
 
-            // V0.4.1：死亡时也保存 Build（玩家可在大秘境使用当前进度的 Build）
-            SaveSystem.Instance.SaveBuildFromCurrentRun();
             SaveSystem.Instance.Save();
 
-            // 收集玩家当前模块背包用于遗产选择
-            IReadOnlyList<ModuleDef> legacyModules = null;
-            if (PlayerController.Instance != null)
-            {
-                var inv = PlayerController.Instance.GetComponent<ModuleInventory>();
-                if (inv != null && inv.Modules.Count > 0)
-                    legacyModules = inv.Modules;
-            }
-
-            // V0.2.2：弹出结算面板（死亡模式 + 遗产选择）
+            // 弹出结算面板；局内技能、模块和增强链在回基地时统一清空。
             ExtractResultPanel.Show(_currentLevel, CurrentRealmName,
                 insightRaw, temperingRaw, matCount,
-                ExtractResultPanel.EndType.Death, legacyModules,
+                ExtractResultPanel.EndType.Death,
                 () =>
                 {
                     EnterVillageHub();

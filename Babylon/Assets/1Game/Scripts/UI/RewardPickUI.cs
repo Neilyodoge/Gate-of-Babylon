@@ -273,6 +273,7 @@ namespace XianTu
             if (empty >= 0)
             {
                 combat.EquipSkillToSlot(skill, empty);
+                SaveSystem.Instance.UnlockSkill(skill);
                 GameEvents.Publish(new GameEvents.SkillEquipped { Skill = skill, SlotIndex = empty });
                 Debug.Log($"<color=#66ff99>[RewardPick] 装备技能 {skill.skillName} → 槽位 {empty}</color>");
                 Close();
@@ -324,6 +325,7 @@ namespace XianTu
             int refund = oldSkill != null ? PlayerResources.GetDecomposeShards(oldSkill.rarity) : 0;
 
             combat.EquipSkillToSlot(_pendingReplaceSkill, slot);
+            SaveSystem.Instance.UnlockSkill(_pendingReplaceSkill);
             GameEvents.Publish(new GameEvents.SkillEquipped { Skill = _pendingReplaceSkill, SlotIndex = slot });
 
             if (refund > 0 && PlayerResources.Instance != null)
@@ -406,8 +408,12 @@ namespace XianTu
 
                 if (modified)
                 {
-                    slots.EquipChain(s, chain);
-                    return true;
+                    if (slots.EquipChain(s, chain))
+                    {
+                        SaveSystem.Instance.UnlockModule(mod);
+                        GameEvents.Publish(new GameEvents.ModulePickedUp { Module = mod });
+                        return true;
+                    }
                 }
             }
             return false;

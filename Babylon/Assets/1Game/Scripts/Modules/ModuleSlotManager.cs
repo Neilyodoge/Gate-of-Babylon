@@ -185,6 +185,8 @@ namespace XianTu
                 IsProc = IsProc(slot),
                 DisplayName = _hasChain[slot] ? _chains[slot].DisplayName : ""
             });
+            if (SkillBarUI.Instance != null)
+                SkillBarUI.Instance.RefreshSkillSlots();
         }
 
         private static string SlotName(int slot) => slot switch

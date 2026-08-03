@@ -101,10 +101,6 @@ namespace XianTu
             DestroyIfExists("CaveEconomy");
             DestroyIfExists("SaveSlotSelectUI");
             DestroyIfExists("RewardPickUI");
-            DestroyIfExists("BuildBackpackUI");
-            DestroyIfExists("RiftManager");
-            DestroyIfExists("RiftEquipUI");
-            DestroyIfExists("RiftRewardUI");
         }
 
         private static void DestroyIfExists(string goName)
@@ -231,8 +227,9 @@ namespace XianTu
                 if (hasSave && SaveSystem.Instance.HasActiveSlot)
                 {
                     var data = SaveSystem.Instance.Data;
-                    int builds = data.buildBackpack?.Count ?? 0;
-                    _saveInfo.text = $"通关 {data.totalRunsCompleted}　·　阵亡 {data.totalDeaths}　·　Build×{builds}";
+                    int skills = data.unlockedSkillIds?.Count ?? 0;
+                    int modules = data.unlockedModuleIds?.Count ?? 0;
+                    _saveInfo.text = $"通关 {data.totalRunsCompleted}　·　阵亡 {data.totalDeaths}　·　解锁技能 {skills} / 模块 {modules}";
                 }
                 else if (hasSave)
                 {

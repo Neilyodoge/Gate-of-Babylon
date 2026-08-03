@@ -8,7 +8,7 @@ using TMPro;
 namespace XianTu
 {
     /// <summary>
-    /// V0.3.3 图鉴（V0.4.6 改 uGUI+TMP）—— 展示已知模块和核心技能的完整目录。
+    /// V0.3.3 图鉴（V0.4.6 改 uGUI+TMP）—— 展示当前存档已发现的模块和核心技能。
     /// 按 Tab 页切换（模块/技能），支持按大类筛选。主菜单和暂停菜单均可打开。
     /// 类名保留 CodexUITK 以兼容既有调用。
     /// </summary>
@@ -162,6 +162,8 @@ namespace XianTu
             }
 
             var filtered = new List<ModuleDef>();
+            var unlocked = new HashSet<string>(SaveSystem.Instance.Data?.unlockedModuleIds ?? new List<string>());
+            int unlockedCount = 0;
             foreach (var m in allModules)
             {
                 if (m == null) continue;
@@ -177,9 +179,20 @@ namespace XianTu
             });
 
             foreach (var m in filtered)
-                BuildModuleCard(m);
+            {
+                if (unlocked.Contains(m.moduleId))
+                {
+                    unlockedCount++;
+                    BuildModuleCard(m);
+                }
+                else
+                {
+                    BuildEntryCard("?", new Color(0.35f, 0.37f, 0.42f),
+                        "<b><color=#777b85>未发现模块</color></b>", "在秘境中首次获得后解锁详情。", null);
+                }
+            }
 
-            UpdateCount(filtered.Count);
+            UpdateCount(unlockedCount, filtered.Count);
         }
 
         private void BuildModuleCard(ModuleDef m)
@@ -216,15 +229,26 @@ namespace XianTu
             }
 
             Array.Sort(allSkills, (a, b) => string.Compare(a.skillName, b.skillName, StringComparison.Ordinal));
+            var unlocked = new HashSet<string>(SaveSystem.Instance.Data?.unlockedSkillIds ?? new List<string>());
+            int unlockedCount = 0;
             foreach (var s in allSkills)
             {
-                string nameLine = $"<b><color=#{Hex(RarityColor(s.rarity))}>{s.skillName}</color></b>  " +
-                                  $"<size=75%><color=#a6bee6>{s.skillType}</color></size>";
-                string desc = !string.IsNullOrEmpty(s.description) ? s.description : "（无描述）";
-                string extra = $"CD: {s.cooldown:F1}s  |  伤害倍率: {s.baseDamage:F1}";
-                BuildEntryCard("⚡", new Color(0.7f, 0.85f, 1f), nameLine, desc, extra);
+                if (unlocked.Contains(s.skillName))
+                {
+                    unlockedCount++;
+                    string nameLine = $"<b><color=#{Hex(RarityColor(s.rarity))}>{s.skillName}</color></b>  " +
+                                      $"<size=75%><color=#a6bee6>{s.skillType}</color></size>";
+                    string desc = !string.IsNullOrEmpty(s.description) ? s.description : "（无描述）";
+                    string extra = $"CD: {s.cooldown:F1}s  |  伤害倍率: {s.baseDamage:F1}";
+                    BuildEntryCard("⚡", new Color(0.7f, 0.85f, 1f), nameLine, desc, extra);
+                }
+                else
+                {
+                    BuildEntryCard("?", new Color(0.35f, 0.37f, 0.42f),
+                        "<b><color=#777b85>未发现技能</color></b>", "在秘境中首次获得后解锁详情。", null);
+                }
             }
-            UpdateCount(allSkills.Length);
+            UpdateCount(unlockedCount, allSkills.Length);
         }
 
         /// <summary>通用条目卡：左徽章 + 右信息（名称富文本 / 描述 / 附加）。固定高度。</summary>
@@ -270,6 +294,11 @@ namespace XianTu
         private void UpdateCount(int count)
         {
             if (_countLabel != null) _countLabel.text = $"共 {count} 条";
+        }
+
+        private void UpdateCount(int unlocked, int total)
+        {
+            if (_countLabel != null) _countLabel.text = $"已发现 {unlocked} / {total}";
         }
 
         private void EmptyLabel(string text)

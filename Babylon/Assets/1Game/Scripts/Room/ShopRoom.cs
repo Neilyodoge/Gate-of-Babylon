@@ -393,6 +393,7 @@ namespace XianTu
 
             if (slot.skill != null)
             {
+                SaveSystem.Instance.UnlockSkill(slot.skill);
                 if (PlayerController.Instance != null)
                 {
                     var combat = PlayerController.Instance.GetComponent<PlayerCombat>();
@@ -416,6 +417,7 @@ namespace XianTu
             }
             else if (slot.module != null)
             {
+                SaveSystem.Instance.UnlockModule(slot.module);
                 if (PlayerController.Instance != null)
                 {
                     var mgr = PlayerController.Instance.GetComponent<ModuleSlotManager>();
@@ -424,11 +426,7 @@ namespace XianTu
                     {
                         equipped = RewardPickUI.TryAutoEquipModule(mgr, slot.module);
                     }
-                    if (equipped)
-                    {
-                        GameEvents.Publish(new GameEvents.ModulePickedUp { Module = slot.module });
-                    }
-                    else
+                    if (!equipped)
                     {
                         var inventory = PlayerController.Instance.GetComponent<ModuleInventory>();
                         if (inventory == null)
