@@ -7,7 +7,7 @@ namespace XianTu
     /// 关卡地图 / 拓扑抽象（解耦切面 · V0.4.2）。
     ///
     /// 设计意图：<see cref="GameManager"/> 与各房间只依赖本接口，不再直接触碰地图实现。
-    /// V0.4.1 起默认实现是 <see cref="SilveruaMapProvider"/>（接入 silverua 杀戮尖塔全图）；
+    /// V0.4.1 起默认实现是 <see cref="EdgarMapProvider"/>（Edgar Grid3D 实体地牢）；
     /// 替换地图系统只需实现一个新的 IMapProvider 并赋给 <see cref="MapProviders.Current"/>，
     /// 游戏流程代码一行不改。
     /// </summary>
@@ -60,7 +60,7 @@ namespace XianTu
 
     /// <summary>
     /// <see cref="IMapProvider"/> 全局访问点（可替换）。
-    /// V0.4.1 起默认使用接入 silverua 杀戮尖塔全图的 <see cref="SilveruaMapProvider"/>；
+    /// V0.4.1 起默认使用 <see cref="EdgarMapProvider"/>；
     /// 替换地图系统时在启动处赋值 <see cref="Current"/> 即可（GameManager.Awake 已显式赋值）。
     /// </summary>
     public static class MapProviders
@@ -69,7 +69,7 @@ namespace XianTu
 
         public static IMapProvider Current
         {
-            get => _current ??= new SilveruaMapProvider();
+            get => _current ??= new EdgarMapProvider();
             set => _current = value;
         }
     }

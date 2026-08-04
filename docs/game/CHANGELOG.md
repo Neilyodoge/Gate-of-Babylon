@@ -6,6 +6,27 @@
 
 ---
 
+## 关卡 A · Edgar PRO Grid3D 实体地牢桥接原型（2026-08-04）
+
+- 确认本地 `Assets/1Game/1Pack/ScriptPackage/Edgar/` 为完整 PRO 包，包含 `DungeonGeneratorGrid3D`、Grid3D 房间模板、门与官方 3D 示例；导入后 Unity 编译 0 error。
+- 新增游戏侧 `Resources/LevelDesign/EdgarGrid3D/` 原型资源：14 房 LevelGraph、3 个房间模板、2 个走廊模板与独立 GeneratorSettings，不在运行时直接依赖官方示例图资产。
+- 新增 `EdgarDungeonRuntime`：按 Seed 生成实体地牢、提取房间落点/尺寸、战斗开始锁门、清场后解锁。
+- 新增默认 `EdgarMapProvider` 并替换 `GameManager` / `MapProviders.Current` 的 silverua 默认注入；Edgar 实体门廊承担导航，不再弹 STS 全图。
+- `RoomSpawnContext` 增加外部几何开关；战斗房落到 Edgar 房间时跳过旧 `RoomBuilder`，保留现有敌人、奖励、Boss 与数值流程。
+- PlayMode 验证：新局生成 14 个实体房间，首战房正确落到生成位置并创建战斗门锁；当前仍为线性传送原型，步行穿门、回头探索、区域分区与双 Boss 待后续完成。
+- silverua/StsMap 暂未物理删除，待 Edgar 区域主流程 Playtest 通过后再清理。
+
+---
+
+## 关卡 A · 生成器依赖清理，等待 Edgar PRO（2026-08-04）
+
+- GitHub 免费 Edgar `v2.1.0` 经实际包内容确认仅包含 `Grid2D`，没有目标所需的 `DungeonGeneratorGrid3D / RoomTemplateSettingsGrid3D / DoorGrid3D`；已移除本地嵌入 Package、`manifest.json` 与 `packages-lock.json` 记录。
+- 物理删除 `Assets/1Game/1Pack/ScriptPackage/DunGen/` 全套代码、编辑器、集成、样例与文档；游戏脚本没有 DunGen 外部引用。
+- 生成器方向确定为 **Edgar PRO Grid3D**。等待用户导入 PRO 包后制作最小实体地牢；在替代流程验证通过前保留 silverua STS 过渡地图，避免当前游戏主流程中断。
+- Unity 重新解析 Packages 后编译 0 error。
+
+---
+
 ## 关卡 A · 区域式地牢目标写入 GDD（2026-08-03）
 
 - GDD §7 将后续关卡目标从固定 6 层 / STS 单 Boss 路线调整为《遗迹 2》式区域 Roguelite；现有 silverua 地图明确为过渡实现，不伪记为已完成。

@@ -25,6 +25,8 @@ namespace XianTu
         public int bossActId;
         /// <summary>事件房通关时回填给 <c>RoomCleared.RoomIndex</c>。</summary>
         public int roomIndex;
+        /// <summary>是否由旧 RoomBuilder 创建房间几何；Edgar 实体房间中应关闭。</summary>
+        public bool buildRoomGeometry;
     }
 
     /// <summary>按类型创建房间的工厂契约。</summary>
@@ -68,7 +70,7 @@ namespace XianTu
             int enemyCount = ctx.baseEnemyCount + ctx.level * ctx.enemyCountPerLevel;
             float hpMul = (1f + ctx.level * ctx.hpScalePerLevel) * ctx.floorScale;
             float dmgMul = (1f + ctx.level * ctx.dmgScalePerLevel) * ctx.floorScale;
-            room.Initialize(ctx.level, enemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize);
+            room.Initialize(ctx.level, enemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry);
             room.SetSkillPool(ctx.skillPool);
             room.SetModulePool(ctx.modulePool);
 
@@ -95,7 +97,7 @@ namespace XianTu
             float hpMul = (1f + ctx.level * ctx.hpScalePerLevel) * ctx.floorScale * eliteHpMul;
             float dmgMul = (1f + ctx.level * ctx.dmgScalePerLevel) * ctx.floorScale * eliteDmgMul;
 
-            room.Initialize(ctx.level, enemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize);
+            room.Initialize(ctx.level, enemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry);
             room.SetSkillPool(ctx.skillPool);
             room.SetModulePool(ctx.modulePool);
             room.SetEliteRoom(true);
@@ -117,7 +119,7 @@ namespace XianTu
             float hpMul = 1f + ctx.level * ctx.hpScalePerLevel;
             float dmgMul = 1f + ctx.level * ctx.dmgScalePerLevel;
             int normalEnemyCount = 2;
-            room.Initialize(ctx.level, normalEnemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize);
+            room.Initialize(ctx.level, normalEnemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry);
             room.SetSkillPool(ctx.skillPool);
             room.SetModulePool(ctx.modulePool);
 

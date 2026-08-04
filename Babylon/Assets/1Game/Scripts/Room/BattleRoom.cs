@@ -41,7 +41,7 @@ namespace XianTu
         /// 初始化房间
         /// </summary>
         public void Initialize(int roomIndex, int enemyCount, float hpMul, float dmgMul,
-            float width = 35f, float depth = 35f)
+            float width = 35f, float depth = 35f, bool buildRoomGeometry = true)
         {
             _roomIndex = roomIndex;
             this.enemyCount = enemyCount;
@@ -53,8 +53,9 @@ namespace XianTu
             // 根据房间大小调整生成半径（留出墙边距）
             spawnRadius = Mathf.Min(width, depth) / 2f - 4f;
 
-            // 构建房间视觉和碰撞体
-            BuildRoom();
+            // Edgar Grid3D 已提供实体房间时，不再叠加旧 RoomBuilder 几何。
+            if (buildRoomGeometry)
+                BuildRoom();
         }
 
         /// <summary>构建房间的地面、墙壁、障碍物</summary>

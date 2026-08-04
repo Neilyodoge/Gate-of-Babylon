@@ -161,9 +161,8 @@ namespace XianTu
             }
             Instance = this;
 
-            // V0.4.1：地图系统换成 silverua 杀戮尖塔全图（节点驱动进度）。
-            // 通过解耦接缝替换 IMapProvider，游戏主循环无需改动。
-            MapProviders.Current = new SilveruaMapProvider();
+            // V0.4.1：Edgar Grid3D 生成实体地牢；独立 STS 地图不再驱动进度。
+            MapProviders.Current = new EdgarMapProvider();
 
             // v3：跨 session 持久化 TreeMapFlow 开关。
             // 首次运行（无键）→ 强制开启（让玩家立刻看到 3 选 1 卡片）；
@@ -171,8 +170,10 @@ namespace XianTu
             if (PlayerPrefs.HasKey(PrefKeyTreeMapFlow))
                 useTreeMapFlow = PlayerPrefs.GetInt(PrefKeyTreeMapFlow) == 1;
             else
-                useTreeMapFlow = true;
-            Debug.Log($"<color=cyan>[GameManager] v3 房间 3 选 1：{(useTreeMapFlow ? "已开启" : "已关闭")}（F12 可切换）</color>");
+                useTreeMapFlow = false;
+            // Edgar 以实体门和走廊导航，不显示独立地图 UI。
+            useTreeMapFlow = false;
+            Debug.Log("<color=cyan>[GameManager] Edgar Grid3D 实体地牢已启用</color>");
         }
 
         private void Start()
@@ -209,6 +210,8 @@ namespace XianTu
         {
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
+            if (MapProviders.Current is EdgarMapProvider edgar)
+                edgar.ClearDungeon();
 
             // 清理上局残留的 root-level 对象（传送门 / 散落拾取物）
             if (LevelTransition.Instance != null)
@@ -428,6 +431,16 @@ namespace XianTu
             CleanupLeftoverPickups();
 
             Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
+            float activeRoomSize = roomSize;
+            bool buildRoomGeometry = true;
+
+            if (MapProviders.Current is EdgarMapProvider edgar
+                && edgar.TryGetCurrentPlacement(out var placement))
+            {
+                spawnPos = placement.SpawnPosition;
+                activeRoomSize = placement.RoomSize;
+                buildRoomGeometry = false;
+            }
 
             // 获取当前层当前房间的类型
             var roomType = _levelRooms[_currentLevel][_currentRoomInLevel];
@@ -446,7 +459,9 @@ namespace XianTu
             Debug.Log($"<color=cyan>【{CurrentRealmName}】房间 {_currentRoomInLevel + 1}/{_levelRooms[_currentLevel].Count} — {roomType}</color>");
 
             // V0.4.2：房间生成委托给 IRoomFactory
-            _currentRoomGo = _roomFactory.Spawn(roomType, BuildRoomContext(spawnPos));
+            _currentRoomGo = _roomFactory.Spawn(
+                roomType,
+                BuildRoomContext(spawnPos, activeRoomSize, buildRoomGeometry));
 
             // 将玩家传送到房间中心
             TeleportPlayer(spawnPos);
@@ -454,14 +469,17 @@ namespace XianTu
         }
 
         /// <summary>V0.4.2：打包当局参数供 <see cref="IRoomFactory"/> 生成房间。</summary>
-        private RoomSpawnContext BuildRoomContext(Vector3 spawnPos)
+        private RoomSpawnContext BuildRoomContext(
+            Vector3 spawnPos,
+            float activeRoomSize,
+            bool buildRoomGeometry)
         {
             return new RoomSpawnContext
             {
                 level = _currentLevel,
                 realmName = CurrentRealmName,
                 spawnPos = spawnPos,
-                roomSize = roomSize,
+                roomSize = activeRoomSize,
                 skillPool = skillPool,
                 modulePool = modulePool,
                 enemyHitVFX = enemyHitVFXPrefab,
@@ -472,6 +490,7 @@ namespace XianTu
                 floorScale = GetCurrentFloorEnemyScale(),
                 bossActId = MapProviders.Current.CurrentActId,
                 roomIndex = _currentRoomInLevel,
+                buildRoomGeometry = buildRoomGeometry,
             };
         }
 
@@ -843,7 +862,9 @@ namespace XianTu
             Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
 
             // V0.4.2：房间生成委托给 IRoomFactory
-            _currentRoomGo = _roomFactory.Spawn(roomType, BuildRoomContext(spawnPos));
+            _currentRoomGo = _roomFactory.Spawn(
+                roomType,
+                BuildRoomContext(spawnPos, roomSize, buildRoomGeometry: true));
 
             // 传送玩家
             TeleportPlayer(spawnPos);
