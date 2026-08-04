@@ -27,6 +27,8 @@ namespace XianTu
         public int roomIndex;
         /// <summary>是否由旧 RoomBuilder 创建房间几何；Edgar 实体房间中应关闭。</summary>
         public bool buildRoomGeometry;
+        /// <summary>Edgar 当前实体房间根节点；用于读取玩家、敌人和 Boss 内容插槽。</summary>
+        public Transform contentRoot;
     }
 
     /// <summary>按类型创建房间的工厂契约。</summary>
@@ -70,7 +72,8 @@ namespace XianTu
             int enemyCount = ctx.baseEnemyCount + ctx.level * ctx.enemyCountPerLevel;
             float hpMul = (1f + ctx.level * ctx.hpScalePerLevel) * ctx.floorScale;
             float dmgMul = (1f + ctx.level * ctx.dmgScalePerLevel) * ctx.floorScale;
-            room.Initialize(ctx.level, enemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry);
+            room.Initialize(ctx.roomIndex, enemyCount, hpMul, dmgMul,
+                ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry, ctx.contentRoot);
             room.SetSkillPool(ctx.skillPool);
             room.SetModulePool(ctx.modulePool);
 
@@ -97,7 +100,8 @@ namespace XianTu
             float hpMul = (1f + ctx.level * ctx.hpScalePerLevel) * ctx.floorScale * eliteHpMul;
             float dmgMul = (1f + ctx.level * ctx.dmgScalePerLevel) * ctx.floorScale * eliteDmgMul;
 
-            room.Initialize(ctx.level, enemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry);
+            room.Initialize(ctx.roomIndex, enemyCount, hpMul, dmgMul,
+                ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry, ctx.contentRoot);
             room.SetSkillPool(ctx.skillPool);
             room.SetModulePool(ctx.modulePool);
             room.SetEliteRoom(true);
@@ -119,7 +123,8 @@ namespace XianTu
             float hpMul = 1f + ctx.level * ctx.hpScalePerLevel;
             float dmgMul = 1f + ctx.level * ctx.dmgScalePerLevel;
             int normalEnemyCount = 2;
-            room.Initialize(ctx.level, normalEnemyCount, hpMul, dmgMul, ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry);
+            room.Initialize(ctx.roomIndex, normalEnemyCount, hpMul, dmgMul,
+                ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry, ctx.contentRoot);
             room.SetSkillPool(ctx.skillPool);
             room.SetModulePool(ctx.modulePool);
 
@@ -129,8 +134,9 @@ namespace XianTu
             Debug.Log($"<color=red>【{ctx.realmName}】★ Boss 房间 ★</color>");
             room.StartBattle();
 
-            Vector3 bossPos = ctx.spawnPos + new Vector3(0, 0, 8f);
-            EnemyBoss.Spawn(bossPos, hpMul, dmgMul, ctx.bossActId);
+            Vector3 bossPos = room.GetBossSpawnPosition();
+            var boss = EnemyBoss.Spawn(bossPos, hpMul, dmgMul, ctx.bossActId);
+            room.RegisterEnemy(boss.gameObject);
             return go;
         }
 

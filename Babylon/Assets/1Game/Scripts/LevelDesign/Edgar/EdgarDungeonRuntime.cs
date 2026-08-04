@@ -12,15 +12,25 @@ namespace XianTu
     {
         private const string LevelGraphPath = "LevelDesign/EdgarGrid3D/PrototypeLevelGraph";
         private const string GeneratorSettingsPath = "LevelDesign/EdgarGrid3D/GeneratorSettings";
+        private const float DungeonScale = 5f;
 
         private readonly List<EdgarRoomPlacement> _rooms = new();
         private DungeonGeneratorGrid3D _generator;
         private GameObject _generatedRoot;
+        private GameObject _triggerRoot;
         private int _activeRoom = -1;
 
         public IReadOnlyList<EdgarRoomPlacement> Rooms => _rooms;
         public int RoomCount => _rooms.Count;
         public bool IsReady => _generatedRoot != null && _rooms.Count > 0;
+        public int ConfiguredRoomCount
+        {
+            get
+            {
+                var graph = Resources.Load<LevelGraph>(LevelGraphPath);
+                return graph != null ? graph.Rooms.Count : 0;
+            }
+        }
 
         public bool Generate(int seed)
         {
@@ -35,8 +45,16 @@ namespace XianTu
             }
 
             _generator = GetComponent<DungeonGeneratorGrid3D>();
+            bool reactivateAfterSetup = false;
             if (_generator == null)
+            {
+                // DungeonGeneratorGrid3D 默认会在 Awake 立即 Generate；运行时添加组件前先停用，
+                // 避免其配置尚未注入时用 null FixedLevelGraphConfig 提前生成。
+                reactivateAfterSetup = gameObject.activeSelf;
+                if (reactivateAfterSetup)
+                    gameObject.SetActive(false);
                 _generator = gameObject.AddComponent<DungeonGeneratorGrid3D>();
+            }
 
             _generator.GenerateOn = GenerateOn.Manually;
             _generator.UseRandomSeed = false;
@@ -57,23 +75,28 @@ namespace XianTu
                 CenterLevel = true,
             };
             _generator.CustomPostProcessingTasks = new List<DungeonGeneratorPostProcessingGrid3D>();
+            if (reactivateAfterSetup)
+                gameObject.SetActive(true);
 
             try
             {
                 var payload = (DungeonGeneratorPayloadGrid3D)_generator.Generate();
                 _generatedRoot = payload.GeneratedLevel.RootGameObject;
                 if (_generatedRoot != null)
+                {
                     _generatedRoot.name = $"EdgarDungeon_Seed{payload.Seed}";
+                    _generatedRoot.transform.localScale = Vector3.one * DungeonScale;
+                }
 
                 BuildRoomOrder(payload.GeneratedLevel.RoomInstances, settings);
-                Debug.Log($"<color=#66ccff>[Edgar] Grid3D 实体地牢生成完成：{_rooms.Count} 个房间，Seed={payload.Seed}</color>");
+                Debug.Log($"<color=#66ccff>[Edgar] Grid3D 实体地牢生成完成：{_rooms.Count} 个房间，Scale={DungeonScale:F1}，Seed={payload.Seed}</color>");
                 return IsReady;
             }
             catch (Exception ex)
             {
-                Debug.LogException(ex);
                 Clear();
-                return false;
+                throw new InvalidOperationException(
+                    $"Edgar Grid3D 生成失败：Seed={seed}。请修复房间模板或生成配置错误，旧房间流程不会接管。", ex);
             }
         }
 
@@ -105,6 +128,9 @@ namespace XianTu
         {
             _rooms.Clear();
             _activeRoom = -1;
+            if (_triggerRoot != null)
+                Destroy(_triggerRoot);
+            _triggerRoot = null;
             if (_generatedRoot != null)
                 Destroy(_generatedRoot);
             _generatedRoot = null;
@@ -128,14 +154,37 @@ namespace XianTu
                     : a.RoomTemplateInstance.transform.position.x.CompareTo(b.RoomTemplateInstance.transform.position.x);
             });
 
+            _triggerRoot = new GameObject("EdgarRoomTriggers");
+            _triggerRoot.transform.SetParent(transform, false);
+
             foreach (var instance in regularRooms)
             {
                 var bounds = GetBounds(instance.RoomTemplateInstance, settings.CellSize);
+                int roomIndex = _rooms.Count;
                 _rooms.Add(new EdgarRoomPlacement(
-                    new Vector3(bounds.center.x, bounds.min.y + 0.1f, bounds.center.z),
+                    new Vector3(
+                        bounds.center.x,
+                        instance.RoomTemplateInstance.transform.position.y + 0.1f,
+                        bounds.center.z),
                     Mathf.Max(8f, Mathf.Min(bounds.size.x, bounds.size.z)),
                     instance));
+                CreateRoomTrigger(roomIndex, bounds);
             }
+        }
+
+        private void CreateRoomTrigger(int roomIndex, Bounds bounds)
+        {
+            var go = new GameObject($"RoomTrigger_{roomIndex:00}");
+            go.transform.SetParent(_triggerRoot.transform, false);
+            go.transform.position = bounds.center;
+
+            var collider = go.AddComponent<BoxCollider>();
+            collider.size = new Vector3(
+                Mathf.Max(2f, bounds.size.x * 0.7f),
+                Mathf.Max(3f, bounds.size.y),
+                Mathf.Max(2f, bounds.size.z * 0.7f));
+
+            go.AddComponent<EdgarRoomTrigger>().Initialize(roomIndex);
         }
 
         private static Bounds GetBounds(GameObject room, Vector3 fallbackSize)

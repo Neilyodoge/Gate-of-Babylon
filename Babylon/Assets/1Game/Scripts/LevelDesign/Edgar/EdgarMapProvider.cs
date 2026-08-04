@@ -10,6 +10,8 @@ namespace XianTu
     /// </summary>
     public sealed class EdgarMapProvider : IMapProvider
     {
+        public const int RequiredBossCount = 2;
+
         private readonly List<IReadOnlyList<RoomType>> _floors = new();
         private EdgarDungeonRuntime _runtime;
         private int _realm;
@@ -42,7 +44,8 @@ namespace XianTu
             _realm = 0;
             _roomIndex = 0;
             LevelDesignDirector.Instance.StartNewRun();
-            GenerateRealm();
+            Runtime.Clear();
+            RebuildFloors(Runtime.ConfiguredRoomCount);
         }
 
         public void OnEnterRealm(int realm)
@@ -50,7 +53,8 @@ namespace XianTu
             _realm = Mathf.Max(0, realm);
             _roomIndex = 0;
             LevelDesignDirector.Instance.BeginAct(_realm + 1);
-            GenerateRealm();
+            Runtime.Clear();
+            RebuildFloors(Runtime.ConfiguredRoomCount);
         }
 
         public IReadOnlyList<IReadOnlyList<RoomType>> GetFloors() => _floors;
@@ -64,7 +68,6 @@ namespace XianTu
         public void MarkCurrentCleared()
         {
             Runtime.UnlockActiveRoom();
-            _roomIndex++;
         }
 
         public bool TryShowNavigation(bool bossNext, Action<RoomType> onChosen)
@@ -75,10 +78,18 @@ namespace XianTu
 
         public bool TryGetCurrentPlacement(out EdgarRoomPlacement placement)
         {
+            if (!Runtime.IsReady)
+                GenerateRealm();
+
             bool found = Runtime.TryGetPlacement(_roomIndex, out placement);
             if (found)
                 Runtime.ActivateRoom(_roomIndex);
             return found;
+        }
+
+        public void SelectRoom(int roomIndex)
+        {
+            _roomIndex = Mathf.Clamp(roomIndex, 0, Mathf.Max(0, Runtime.ConfiguredRoomCount - 1));
         }
 
         public void ClearDungeon()
@@ -104,8 +115,13 @@ namespace XianTu
             for (int realm = 0; realm < realms; realm++)
             {
                 var rooms = new List<RoomType>(roomCount);
+                int outerBossIndex = roomCount > 2
+                    ? Mathf.Clamp(roomCount / 3, 1, roomCount - 2)
+                    : -1;
                 for (int i = 0; i < roomCount; i++)
-                    rooms.Add(i == roomCount - 1 ? RoomType.Boss : RoomType.Battle);
+                    rooms.Add(i == outerBossIndex || i == roomCount - 1
+                        ? RoomType.Boss
+                        : RoomType.Battle);
                 _floors.Add(rooms);
             }
         }

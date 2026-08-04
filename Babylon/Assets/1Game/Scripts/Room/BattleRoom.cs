@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -25,13 +26,20 @@ namespace XianTu
         [SerializeField] private float hpMultiplier = 1f;
         [SerializeField] private float dmgMultiplier = 1f;
 
-        private List<EnemyBase> _enemies = new();
+        private enum EnemyArchetype { Melee, Ranged, Charger, Mage, Elite }
+
+        private readonly HashSet<GameObject> _encounterEnemies = new();
+        private readonly Queue<EnemyArchetype> _pendingEnemies = new();
+        private readonly List<Transform> _enemySpawnSockets = new();
+        private readonly List<Transform> _bossSpawnSockets = new();
         private int _totalEnemyCount;
         private bool _cleared;
+        private bool _spawningNextWave;
         private int _roomIndex;
         private GameObject _enemyHitVFXPrefab;
         private GameObject _roomVisuals;
         private bool _isEliteRoom;
+        private bool _buildRoomGeometry = true;
 
         public bool IsCleared => _cleared;
         public float RoomWidth => roomWidth;
@@ -41,7 +49,8 @@ namespace XianTu
         /// 初始化房间
         /// </summary>
         public void Initialize(int roomIndex, int enemyCount, float hpMul, float dmgMul,
-            float width = 35f, float depth = 35f, bool buildRoomGeometry = true)
+            float width = 35f, float depth = 35f, bool buildRoomGeometry = true,
+            Transform contentRoot = null)
         {
             _roomIndex = roomIndex;
             this.enemyCount = enemyCount;
@@ -49,12 +58,14 @@ namespace XianTu
             dmgMultiplier = dmgMul;
             roomWidth = width;
             roomDepth = depth;
+            _buildRoomGeometry = buildRoomGeometry;
+            CollectContentSockets(contentRoot);
 
             // 根据房间大小调整生成半径（留出墙边距）
             spawnRadius = Mathf.Min(width, depth) / 2f - 4f;
 
             // Edgar Grid3D 已提供实体房间时，不再叠加旧 RoomBuilder 几何。
-            if (buildRoomGeometry)
+            if (_buildRoomGeometry)
                 BuildRoom();
         }
 
@@ -73,10 +84,11 @@ namespace XianTu
         public void StartBattle()
         {
             _cleared = false;
-            _enemies.Clear();
-            _totalEnemyCount = enemyCount;
+            _spawningNextWave = false;
+            _encounterEnemies.Clear();
+            _pendingEnemies.Clear();
 
-            // 根据层数决定敌人类型分配
+            // 依据区域内房间深度组装敌群；具体落点由 Edgar 内容插槽决定。
             int rangedCount = 0;
             int chargerCount = 0;
             int mageCount = 0;
@@ -101,106 +113,225 @@ namespace XianTu
                 normalCount -= mageCount;
             }
 
-            // 生成普通近战敌人
             for (int i = 0; i < normalCount; i++)
-            {
-                Vector3 spawnPos = GetRandomSpawnPosition();
-                spawnPos.y = 0;
-                var enemy = EnemyBase.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
-                if (_enemyHitVFXPrefab != null) enemy.SetHitVFXPrefab(_enemyHitVFXPrefab);
-                if (skillRewardPool != null) enemy.SetSkillDrops(skillRewardPool);
-                _enemies.Add(enemy);
-            }
-
-            // 生成远程弓箍手
+                _pendingEnemies.Enqueue(EnemyArchetype.Melee);
             for (int i = 0; i < rangedCount; i++)
-            {
-                Vector3 spawnPos = GetRandomSpawnPosition();
-                spawnPos.y = 0;
-                var ranged = EnemyRanged.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
-                if (skillRewardPool != null) ranged.SetSkillDrops(skillRewardPool);
-            }
-
-            // 生成冲锋型
+                _pendingEnemies.Enqueue(EnemyArchetype.Ranged);
             for (int i = 0; i < chargerCount; i++)
-            {
-                Vector3 spawnPos = GetRandomSpawnPosition();
-                spawnPos.y = 0;
-                var charger = EnemyCharger.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
-                if (skillRewardPool != null) charger.SetSkillDrops(skillRewardPool);
-            }
-
-            // 生成AOE法师
+                _pendingEnemies.Enqueue(EnemyArchetype.Charger);
             for (int i = 0; i < mageCount; i++)
-            {
-                Vector3 spawnPos = GetRandomSpawnPosition();
-                spawnPos.y = 0;
-                var mage = EnemyMage.Spawn(spawnPos, hpMultiplier, dmgMultiplier);
-                if (skillRewardPool != null) mage.SetSkillDrops(skillRewardPool);
-            }
-            // 生成陷阱
-            int trapCount = Mathf.Min(_roomIndex, 3);
-            RoomBuilder.BuildTraps(transform, roomWidth, roomDepth, trapCount);
+                _pendingEnemies.Enqueue(EnemyArchetype.Mage);
 
-            // 生成可破坏物
-            var config2 = GameConfig.Instance;
-            int destructibleCount = config2 != null ? config2.可破坏物数量 : 3;
-            for (int i = 0; i < destructibleCount; i++)
+            // Edgar 模板自行承载场景内容，避免旧陷阱/可破坏物与实体模板重叠。
+            if (_buildRoomGeometry)
             {
-                Vector3 spawnPos = GetRandomSpawnPosition();
-                spawnPos.y = 0;
-                Destructible.Spawn(spawnPos);
-            }
+                int trapCount = Mathf.Min(_roomIndex, 3);
+                RoomBuilder.BuildTraps(transform, roomWidth, roomDepth, trapCount);
 
-            // 生成精英怪（满足层数条件且概率判定通过）
-            var eliteConfig = GameConfig.Instance;
-            if (eliteConfig != null && _roomIndex >= eliteConfig.精英怪最低层数)
-            {
-                if (Random.value < eliteConfig.精英怪出现概率)
+                var config2 = GameConfig.Instance;
+                int destructibleCount = config2 != null ? config2.可破坏物数量 : 3;
+                for (int i = 0; i < destructibleCount; i++)
                 {
-                    Vector3 elitePos = GetRandomSpawnPosition();
-                    elitePos.y = 0;
-                    var elite = EnemyElite.Spawn(elitePos, hpMultiplier, dmgMultiplier, skillRewardPool);
-                    _totalEnemyCount++; // 精英怪额外计入总数
+                    Vector3 spawnPos = GetRandomSpawnPosition();
+                    spawnPos.y = 0;
+                    Destructible.Spawn(spawnPos);
                 }
             }
 
+            // 精英房保底精英；普通房仍沿用配置概率。
+            var eliteConfig = GameConfig.Instance;
+            bool spawnElite = _isEliteRoom;
+            if (!spawnElite
+                && eliteConfig != null
+                && _roomIndex >= eliteConfig.精英怪最低层数)
+            {
+                spawnElite = Random.value < eliteConfig.精英怪出现概率;
+            }
+            if (spawnElite)
+                _pendingEnemies.Enqueue(EnemyArchetype.Elite);
+
             // 监听敌人死亡
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
+            _totalEnemyCount = _pendingEnemies.Count;
+            SpawnNextWave();
 
-            Debug.Log($"<color=orange>第 {_roomIndex + 1} 层开始！敌人数量：{enemyCount}</color>");
+            Debug.Log($"<color=orange>房间 {_roomIndex + 1} 战斗开始！敌人总数：{_totalEnemyCount}</color>");
 
             // 通知UI初始敌人计数
-            GameEvents.Publish(new GameEvents.EnemyCountChanged
-            {
-                RemainingCount = enemyCount,
-                TotalCount = enemyCount
-            });
+            PublishEnemyCount();
         }
 
         private void OnEnemyKilled(GameEvents.EnemyKilled evt)
         {
-            // 移除已死亡的敌人（EnemyBase列表）
-            _enemies.RemoveAll(e => e == null || e.gameObject == evt.Enemy);
+            if (evt.Enemy == null || !_encounterEnemies.Remove(evt.Enemy))
+                return;
 
-            // 统计场景中所有存活的Enemy标签对象
-            var allEnemies = GameObject.FindGameObjectsWithTag("Enemy");
-            int remaining = 0;
-            foreach (var e in allEnemies)
+            PublishEnemyCount();
+
+            if (_encounterEnemies.Count == 0 && _pendingEnemies.Count > 0)
             {
-                if (e != null && e != evt.Enemy) remaining++;
+                if (!_spawningNextWave)
+                    StartCoroutine(SpawnNextWaveDelayed());
+            }
+            else if (_encounterEnemies.Count == 0 && !_cleared)
+                OnRoomCleared();
+        }
+
+        /// <summary>登记由房间工厂额外生成的敌人（例如 Boss）。</summary>
+        public void RegisterEnemy(GameObject enemy)
+        {
+            if (enemy == null || !_encounterEnemies.Add(enemy))
+                return;
+
+            _totalEnemyCount++;
+            PublishEnemyCount();
+        }
+
+        public Vector3 GetBossSpawnPosition()
+        {
+            if (_bossSpawnSockets.Count > 0)
+                return _bossSpawnSockets[0].position;
+
+            if (!_buildRoomGeometry)
+                throw new System.InvalidOperationException(
+                    $"Edgar 战斗房 {_roomIndex} 缺少 {DungeonContentSocketType.BossSpawn} 插槽。");
+
+            return transform.position + new Vector3(0f, 0f, 8f);
+        }
+
+        private IEnumerator SpawnNextWaveDelayed()
+        {
+            _spawningNextWave = true;
+            yield return new WaitForSeconds(0.75f);
+            SpawnNextWave();
+            _spawningNextWave = false;
+        }
+
+        private void SpawnNextWave()
+        {
+            if (_pendingEnemies.Count == 0)
+                return;
+
+            var positions = GetAvailableSpawnPositions();
+            int waveSize = Mathf.Min(_pendingEnemies.Count, positions.Count);
+            for (int i = 0; i < waveSize; i++)
+                SpawnEnemy(_pendingEnemies.Dequeue(), positions[i]);
+
+            PublishEnemyCount();
+        }
+
+        private List<Vector3> GetAvailableSpawnPositions()
+        {
+            var positions = new List<Vector3>(_enemySpawnSockets.Count);
+            var player = PlayerController.Instance;
+
+            for (int i = 0; i < _enemySpawnSockets.Count; i++)
+            {
+                var socket = _enemySpawnSockets[i];
+                if (socket == null) continue;
+                if (player != null && Vector3.Distance(socket.position, player.transform.position) < 5f)
+                    continue;
+                positions.Add(socket.position);
             }
 
-            // 通知UI更新敌人计数
+            // 如果所有点都靠近入口，仍使用全部插槽，避免战斗无法开始。
+            if (positions.Count == 0)
+            {
+                for (int i = 0; i < _enemySpawnSockets.Count; i++)
+                    if (_enemySpawnSockets[i] != null)
+                        positions.Add(_enemySpawnSockets[i].position);
+            }
+
+            if (positions.Count == 0)
+            {
+                if (!_buildRoomGeometry)
+                    throw new System.InvalidOperationException(
+                        $"Edgar 战斗房 {_roomIndex} 缺少 {DungeonContentSocketType.EnemySpawn} 插槽。");
+                positions.Add(GetRandomSpawnPosition());
+            }
+
+            // 每波洗牌，避免敌群总从固定方向出现。
+            for (int i = positions.Count - 1; i > 0; i--)
+            {
+                int swapIndex = Random.Range(0, i + 1);
+                (positions[i], positions[swapIndex]) = (positions[swapIndex], positions[i]);
+            }
+
+            return positions;
+        }
+
+        private void SpawnEnemy(EnemyArchetype archetype, Vector3 position)
+        {
+            GameObject spawned;
+            switch (archetype)
+            {
+                case EnemyArchetype.Ranged:
+                {
+                    var enemy = EnemyRanged.Spawn(position, hpMultiplier, dmgMultiplier);
+                    if (skillRewardPool != null) enemy.SetSkillDrops(skillRewardPool);
+                    spawned = enemy.gameObject;
+                    break;
+                }
+                case EnemyArchetype.Charger:
+                {
+                    var enemy = EnemyCharger.Spawn(position, hpMultiplier, dmgMultiplier);
+                    if (skillRewardPool != null) enemy.SetSkillDrops(skillRewardPool);
+                    spawned = enemy.gameObject;
+                    break;
+                }
+                case EnemyArchetype.Mage:
+                {
+                    var enemy = EnemyMage.Spawn(position, hpMultiplier, dmgMultiplier);
+                    if (skillRewardPool != null) enemy.SetSkillDrops(skillRewardPool);
+                    spawned = enemy.gameObject;
+                    break;
+                }
+                case EnemyArchetype.Elite:
+                {
+                    spawned = EnemyElite.Spawn(
+                        position, hpMultiplier, dmgMultiplier, skillRewardPool).gameObject;
+                    break;
+                }
+                default:
+                {
+                    var enemy = EnemyBase.Spawn(position, hpMultiplier, dmgMultiplier);
+                    if (_enemyHitVFXPrefab != null) enemy.SetHitVFXPrefab(_enemyHitVFXPrefab);
+                    if (skillRewardPool != null) enemy.SetSkillDrops(skillRewardPool);
+                    spawned = enemy.gameObject;
+                    break;
+                }
+            }
+
+            _encounterEnemies.Add(spawned);
+        }
+
+        private void PublishEnemyCount()
+        {
             GameEvents.Publish(new GameEvents.EnemyCountChanged
             {
-                RemainingCount = remaining,
+                RemainingCount = _encounterEnemies.Count + _pendingEnemies.Count,
                 TotalCount = _totalEnemyCount
             });
+        }
 
-            if (remaining == 0 && !_cleared)
+        private void CollectContentSockets(Transform contentRoot)
+        {
+            _enemySpawnSockets.Clear();
+            _bossSpawnSockets.Clear();
+            if (contentRoot == null) return;
+
+            var sockets = contentRoot.GetComponentsInChildren<DungeonContentSocket>(true);
+            for (int i = 0; i < sockets.Length; i++)
             {
-                OnRoomCleared();
+                switch (sockets[i].SocketType)
+                {
+                    case DungeonContentSocketType.EnemySpawn:
+                        _enemySpawnSockets.Add(sockets[i].transform);
+                        break;
+                    case DungeonContentSocketType.BossSpawn:
+                        _bossSpawnSockets.Add(sockets[i].transform);
+                        break;
+                }
             }
         }
 
@@ -211,8 +342,10 @@ namespace XianTu
 
             Debug.Log($"<color=green>房间清理完成！</color>");
 
-            // V0.4.1：不再地面掉落，改为三选一奖励 UI。
-            // 由 GameManager 监听 RoomCleared 后统一调度 RewardPickUI。
+            // 当前奖励方案统一为世界掉落；过关后不再弹三选一。
+            SpawnSkillReward();
+            SpawnModuleReward();
+
             GameEvents.Publish(new GameEvents.RoomCleared
             {
                 RoomIndex = _roomIndex,

@@ -11,9 +11,25 @@
 - 确认本地 `Assets/1Game/1Pack/ScriptPackage/Edgar/` 为完整 PRO 包，包含 `DungeonGeneratorGrid3D`、Grid3D 房间模板、门与官方 3D 示例；导入后 Unity 编译 0 error。
 - 新增游戏侧 `Resources/LevelDesign/EdgarGrid3D/` 原型资源：14 房 LevelGraph、3 个房间模板、2 个走廊模板与独立 GeneratorSettings，不在运行时直接依赖官方示例图资产。
 - 新增 `EdgarDungeonRuntime`：按 Seed 生成实体地牢、提取房间落点/尺寸、战斗开始锁门、清场后解锁。
+- 根据首轮反馈将生成根整体放大为 **5 倍**；生成时机从“进入准备区前”延迟到“正式进入首个地牢房间”，避免完整 Edgar 地牢与村庄/准备房重叠。
+- Edgar 战斗房关闭旧 `RoomBuilder` 房间几何、陷阱和可破坏物注入，修复两套默认场景内容叠在一起。
+- 修复 Edgar Basics 占位材质粉色：复制 Floor/Wall/Door 到游戏侧 `EdgarGrid3D/Materials`，转换为 URP Lit 并重映射 5 个游戏侧房间/走廊模板，不修改第三方包。
+- 新增 14 个实体房间触发区；玩家步行进入未清房时激活遭遇，清场解锁门，已清房可回头通过且不重复刷新。
+- 移除 Edgar 流程的逐房传送门：普通房清场只改变房间状态；原型区域配置两个 Boss 房，两个 Boss 均击败后才生成进入下一层的出口。
+- 移除过关三选一调度并重新启用世界掉落；战斗房清场调用技能/模块掉落，敌人原有技能与材料掉落同步恢复，掉落物在常驻地牢换房时不再被清理。
+- 修复运行时首次添加 `DungeonGeneratorGrid3D` 时其 `Awake` 抢跑生成的问题：配置注入前临时停用宿主，防止 null FixedLevelGraphConfig。
 - 新增默认 `EdgarMapProvider` 并替换 `GameManager` / `MapProviders.Current` 的 silverua 默认注入；Edgar 实体门廊承担导航，不再弹 STS 全图。
 - `RoomSpawnContext` 增加外部几何开关；战斗房落到 Edgar 房间时跳过旧 `RoomBuilder`，保留现有敌人、奖励、Boss 与数值流程。
-- PlayMode 验证：新局生成 14 个实体房间，首战房正确落到生成位置并创建战斗门锁；当前仍为线性传送原型，步行穿门、回头探索、区域分区与双 Boss 待后续完成。
+- 使用 Fantastic Dungeon Pack 的 URP 模块直接拼装首批正式 Edgar 模板：6 个房间、2 个走廊及门连接/封堵件；`PrototypeLevelGraph` 已切换引用这些模板。
+- 翻转 8 个模板内全部 150 个 `COMP/P_MOD_Wall_01_O_straight_med` 墙体组合，使装饰面统一朝向房间内部；翻转后模板诊断仍为 8/8 通过。
+- 修正 Grid3D 门边界坐标：East/South 门按 Edgar 格子边语义重新对齐；8 个模板全部通过 `RoomTemplateDiagnosticsGrid3D`。
+- Edgar 战斗房改为读取实体模板的 `EnemySpawn` / `BossSpawn` 内容插槽；取消在房间 Bounds 内随机坐标刷怪，Boss 不再使用固定 `+Z` 偏移。
+- 每个 `BattleRoom` 独立持有本房敌人集合，清场判断不再扫描全场景 `Enemy` 标签；远程、冲锋、法师、精英和 Boss 均纳入本房计数。
+- 当敌人总量超过可用插槽时自动分波生成，每波优先排除玩家 5m 内的入口插槽；精英房保底生成精英，同一区域敌群组合改用真实房间序号推进。
+- PlayMode 冒烟测试：固定 Seed 生成 14 房；目标房识别 6 个敌人插槽、1 个 Boss 插槽，7 敌配置首波正确生成 6 个，Unity 编译 0 error。
+- 删除 Edgar 生成失败时回退旧 `RoomBuilder` 的路径；模板或配置异常现在直接抛出带 Realm/Room/Seed 上下文的错误，避免用旧房间掩盖故障。
+- 固定 Seed `20260804` PlayMode 冒烟测试通过：生成 14 个 Fantastic Dungeon 实体房间，Unity 编译 0 error。
+- PlayMode 验证：14 个房间触发器、2 个 Boss 房、世界掉落开启；普通房与首个 Boss 清场均无出口，第二个 Boss 清场后出现出口；`RewardPickUI` 未显示；运行场景无不支持 Shader。
 - silverua/StsMap 暂未物理删除，待 Edgar 区域主流程 Playtest 通过后再清理。
 
 ---

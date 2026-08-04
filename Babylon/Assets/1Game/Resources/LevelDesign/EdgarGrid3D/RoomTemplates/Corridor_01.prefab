@@ -131,6 +131,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6711247147370160431}
     m_Modifications:
+    - target: {fileID: 1150256661669880881, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 5a6aa85fc0c4b1049831bce972a4da0e, type: 2}
+    - target: {fileID: 1318583340417404123, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: cb1cd88055462ab418533b6c668fd690, type: 2}
     - target: {fileID: 1616380366675599651, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
       propertyPath: DirectionVector.x
       value: -1
@@ -139,6 +147,10 @@ PrefabInstance:
       propertyPath: DirectionVector.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4842818049322400826, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: cb1cd88055462ab418533b6c668fd690, type: 2}
     - target: {fileID: 5484244946129731104, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
       propertyPath: m_RootOrder
       value: 1
@@ -187,6 +199,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Door (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 6980123457854269489, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: cb1cd88055462ab418533b6c668fd690, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -205,6 +221,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 5a6aa85fc0c4b1049831bce972a4da0e, type: 2}
     - target: {fileID: 1178835038241278943, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
       propertyPath: m_Name
       value: Wall (3)
@@ -275,6 +295,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6711247147370160431}
     m_Modifications:
+    - target: {fileID: 1150256661669880881, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 5a6aa85fc0c4b1049831bce972a4da0e, type: 2}
+    - target: {fileID: 1318583340417404123, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: cb1cd88055462ab418533b6c668fd690, type: 2}
+    - target: {fileID: 4842818049322400826, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: cb1cd88055462ab418533b6c668fd690, type: 2}
     - target: {fileID: 5484244946129731104, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
       propertyPath: m_RootOrder
       value: 0
@@ -323,6 +355,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Door
       objectReference: {fileID: 0}
+    - target: {fileID: 6980123457854269489, guid: d78feda0302257f48aa68d7b7f8f54e2, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: cb1cd88055462ab418533b6c668fd690, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -341,6 +377,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: eba2ae7c15e804441a85cba6c51c81bd, type: 2}
     - target: {fileID: 1178835038241278943, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
       propertyPath: m_Name
       value: Floor
@@ -411,6 +451,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 5a6aa85fc0c4b1049831bce972a4da0e, type: 2}
     - target: {fileID: 1178835038241278943, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
       propertyPath: m_Name
       value: Wall (2)
@@ -481,6 +525,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 5a6aa85fc0c4b1049831bce972a4da0e, type: 2}
     - target: {fileID: 1178835038241278943, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
       propertyPath: m_Name
       value: Wall
@@ -551,6 +599,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: eba2ae7c15e804441a85cba6c51c81bd, type: 2}
     - target: {fileID: 1178835038241278943, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
       propertyPath: m_Name
       value: Floor (2)
@@ -621,6 +673,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 5a6aa85fc0c4b1049831bce972a4da0e, type: 2}
     - target: {fileID: 1178835038241278943, guid: eb9a399cc11303d428ac60674762c7d6, type: 3}
       propertyPath: m_Name
       value: Wall (1)
@@ -691,6 +747,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: eba2ae7c15e804441a85cba6c51c81bd, type: 2}
     - target: {fileID: 1178835038241278943, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
       propertyPath: m_Name
       value: Floor (4)
@@ -761,6 +821,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6782721770618915594}
     m_Modifications:
+    - target: {fileID: 510903240126406451, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: eba2ae7c15e804441a85cba6c51c81bd, type: 2}
     - target: {fileID: 1178835038241278943, guid: d517555e3afc4e84a8d656f1d90bdde0, type: 3}
       propertyPath: m_Name
       value: Floor (1)

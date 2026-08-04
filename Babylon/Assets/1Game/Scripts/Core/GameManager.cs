@@ -46,6 +46,9 @@ namespace XianTu
         private int _currentRoomInLevel; // 当前层内的房间索引
         private GameObject _currentRoomGo; // 当前房间的 GameObject
         private bool _gameOver;
+        private readonly HashSet<int> _clearedEdgarRooms = new();
+        private int _activeEdgarRoomIndex = -1;
+        private int _defeatedEdgarBosses;
         // V0.2.5：单局时长计时
         private float _runStartTime;
         private float _runElapsedTime;
@@ -104,12 +107,10 @@ namespace XianTu
 
         // ==================== V0.4.1 掉落物总开关 ====================
         /// <summary>
-        /// #2：世界掉落物总开关。false = 打任何东西都不产生地面掉落
-        /// （功法 / 洞府素材 / 妖丹 / 模块 / 遗产模块 / 宝箱 均不生成）。
-        /// 技能与模块改由战斗/精英/事件后的「三选一」奖励发放；灵力碎片（货币）仍照常直接结算。
+        /// 世界掉落物总开关。当前奖励方案为全掉落，不再在过关后弹三选一。
         /// 集中一处控制，所有 *.Spawn 工厂在生成前查询它。
         /// </summary>
-        public static bool EnableWorldDrops = false;
+        public static bool EnableWorldDrops = true;
 
         /// <summary>
         /// 从普通秘境准备区返回基地。仅准备区出口调用；正式进入地图后不提供此入口。
@@ -146,8 +147,8 @@ namespace XianTu
             // V0.1.18c 运行时读表：用参数仓库表覆盖模块 SO 数值（仅 Play 模式，缺行回退）。
             ModuleTableApplier.ApplyAll(modulePool);
 
-            // V0.4.1：开局不给种子 loadout，Q/E/R 全空（保留普攻）。
-            // 玩家通过三选一奖励逐步获取技能和模块。
+            // 开局不给种子 loadout，Q/E/R 全空（保留普攻）。
+            // 玩家通过局内世界掉落逐步获取技能和模块。
         }
 
         private const string PrefKeyTreeMapFlow = "GoB.UseTreeMapFlow";
@@ -271,8 +272,11 @@ namespace XianTu
             _currentRoomInLevel = 0;
             _flatRoomIndex = 0;
             _gameOver = false;
+            _clearedEdgarRooms.Clear();
+            _activeEdgarRoomIndex = -1;
+            _defeatedEdgarBosses = 0;
             _runStartTime = Time.time;
-            RewardPickUI.ResetCategoryCycle();
+            RewardPickUI.ForceHide();
 
             // v0.5.7：清零本局累计伤害（轮回一击按此结算）
             RunCombatStats.Reset();
@@ -420,27 +424,29 @@ namespace XianTu
         }
 
         /// <summary>生成当前房间</summary>
-        private void SpawnCurrentRoom()
+        private void SpawnCurrentRoom(bool teleportPlayer = true)
         {
             _transitioning = false; // 重置过渡标记
 
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
 
-            // 清理上一关残留的掉落物（技能 / 模块拾取物）
-            CleanupLeftoverPickups();
+            // Edgar 是同一张常驻地牢，掉落物要留在原房间；旧线性房间才清理残留。
+            if (MapProviders.Current is not EdgarMapProvider)
+                CleanupLeftoverPickups();
 
-            Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
-            float activeRoomSize = roomSize;
-            bool buildRoomGeometry = true;
+            if (MapProviders.Current is not EdgarMapProvider edgar)
+                throw new System.InvalidOperationException(
+                    $"当前关卡必须使用 {nameof(EdgarMapProvider)}，实际为 {MapProviders.Current?.GetType().Name ?? "null"}。");
 
-            if (MapProviders.Current is EdgarMapProvider edgar
-                && edgar.TryGetCurrentPlacement(out var placement))
-            {
-                spawnPos = placement.SpawnPosition;
-                activeRoomSize = placement.RoomSize;
-                buildRoomGeometry = false;
-            }
+            if (!edgar.TryGetCurrentPlacement(out var placement))
+                throw new System.InvalidOperationException(
+                    $"Edgar 地牢未能提供房间落点：Realm={_currentLevel}, Room={_currentRoomInLevel}。请先修复生成错误。");
+
+            Vector3 spawnPos = placement.SpawnPosition;
+            float activeRoomSize = placement.RoomSize;
+            const bool buildRoomGeometry = false;
+            _activeEdgarRoomIndex = _currentRoomInLevel;
 
             // 获取当前层当前房间的类型
             var roomType = _levelRooms[_currentLevel][_currentRoomInLevel];
@@ -461,18 +467,51 @@ namespace XianTu
             // V0.4.2：房间生成委托给 IRoomFactory
             _currentRoomGo = _roomFactory.Spawn(
                 roomType,
-                BuildRoomContext(spawnPos, activeRoomSize, buildRoomGeometry));
+                BuildRoomContext(
+                    spawnPos,
+                    activeRoomSize,
+                    buildRoomGeometry,
+                    placement.Instance.RoomTemplateInstance.transform));
 
-            // 将玩家传送到房间中心
-            TeleportPlayer(spawnPos);
+            if (teleportPlayer)
+                TeleportPlayer(spawnPos);
 
+        }
+
+        /// <summary>
+        /// 玩家通过 Edgar 实体门廊进入新房间。已清理房间允许自由回访，不会重复生成遭遇。
+        /// </summary>
+        public void EnterEdgarRoom(int roomIndex)
+        {
+            if (MapProviders.Current is not EdgarMapProvider edgar
+                || _gameOver
+                || roomIndex < 0
+                || _levelRooms == null
+                || _currentLevel >= _levelRooms.Count
+                || roomIndex >= _levelRooms[_currentLevel].Count)
+                return;
+
+            if (roomIndex == _activeEdgarRoomIndex || _clearedEdgarRooms.Contains(roomIndex))
+                return;
+
+            var activeBattle = _currentRoomGo != null
+                ? _currentRoomGo.GetComponent<BattleRoom>()
+                : null;
+            if (activeBattle != null && !activeBattle.IsCleared)
+                return;
+
+            _currentRoomInLevel = roomIndex;
+            _flatRoomIndex = roomIndex;
+            edgar.SelectRoom(roomIndex);
+            SpawnCurrentRoom(teleportPlayer: false);
         }
 
         /// <summary>V0.4.2：打包当局参数供 <see cref="IRoomFactory"/> 生成房间。</summary>
         private RoomSpawnContext BuildRoomContext(
             Vector3 spawnPos,
             float activeRoomSize,
-            bool buildRoomGeometry)
+            bool buildRoomGeometry,
+            Transform contentRoot = null)
         {
             return new RoomSpawnContext
             {
@@ -491,6 +530,7 @@ namespace XianTu
                 bossActId = MapProviders.Current.CurrentActId,
                 roomIndex = _currentRoomInLevel,
                 buildRoomGeometry = buildRoomGeometry,
+                contentRoot = contentRoot,
             };
         }
 
@@ -518,34 +558,36 @@ namespace XianTu
         {
             if (_gameOver || _transitioning) return;
             _transitioning = true;
-
-            // V0.4.1：只有战斗类房间（战斗/精英/事件）触发三选一奖励
-            if (evt.IsCombatRoom)
-            {
-                int bias = GetFloorRarityBias() + (evt.IsElite ? 20 : 0);
-                RewardPickUI.TryShow(evt.IsElite, evt.IsEvent,
-                    skillPool, modulePool, bias,
-                    () => ContinueAfterReward(evt));
-                return;
-            }
-
-            ContinueAfterReward(evt);
+            ContinueAfterRoomCleared(evt);
         }
 
-        /// <summary>
-        /// V0.4.1：按当前层从地图结构配表取模块稀有度偏移（与 BattleRoom 同逻辑）。
-        /// 供三选一奖励调度使用；查不到表时返回 0（无偏移）。
-        /// </summary>
-        private static int GetFloorRarityBias()
-        {
-            int currentLevel = Instance != null ? Instance.CurrentLevel : 0;
-            return MapProviders.Current.GetRarityBias(currentLevel);
-        }
-
-        private void ContinueAfterReward(GameEvents.RoomCleared evt)
+        private void ContinueAfterRoomCleared(GameEvents.RoomCleared evt)
         {
             // V0.4.2：标记地图当前节点已完成
             MapProviders.Current.MarkCurrentCleared();
+
+            if (MapProviders.Current is EdgarMapProvider)
+            {
+                int clearedIndex = _currentRoomInLevel;
+                _clearedEdgarRooms.Add(clearedIndex);
+
+                bool isBoss = _levelRooms != null
+                              && _currentLevel < _levelRooms.Count
+                              && clearedIndex >= 0
+                              && clearedIndex < _levelRooms[_currentLevel].Count
+                              && _levelRooms[_currentLevel][clearedIndex] == RoomType.Boss;
+                if (isBoss)
+                    _defeatedEdgarBosses++;
+
+                _transitioning = false;
+                Debug.Log($"<color=#66ccff>[Edgar] 房间 {clearedIndex + 1} 已清理；Boss {_defeatedEdgarBosses}/{EdgarMapProvider.RequiredBossCount}</color>");
+
+                // 普通清场只解锁实体门，不生成逐房传送门。
+                // 同一区域两个 Boss 均击败后，才生成进入下一层的出口。
+                if (_defeatedEdgarBosses >= EdgarMapProvider.RequiredBossCount)
+                    SpawnLevelCompletePortal();
+                return;
+            }
 
             _currentRoomInLevel++;
             _flatRoomIndex++;
@@ -681,6 +723,9 @@ namespace XianTu
                 {
                     _currentLevel++;
                     _currentRoomInLevel = 0;
+                    _clearedEdgarRooms.Clear();
+                    _activeEdgarRoomIndex = -1;
+                    _defeatedEdgarBosses = 0;
                     // V0.4.5：换境重生成该境分叉图并复位起点，保证新境每间都能弹全图。
                     MapProviders.Current.OnEnterRealm(_currentLevel);
                     Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
@@ -691,6 +736,9 @@ namespace XianTu
             {
                 _currentLevel++;
                 _currentRoomInLevel = 0;
+                _clearedEdgarRooms.Clear();
+                _activeEdgarRoomIndex = -1;
+                _defeatedEdgarBosses = 0;
                 MapProviders.Current.OnEnterRealm(_currentLevel);
                 EnterNextRoomWithChoice();
             }
