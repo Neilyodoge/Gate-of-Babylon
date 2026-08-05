@@ -472,6 +472,7 @@ namespace XianTu
                     activeRoomSize,
                     buildRoomGeometry,
                     placement.Instance.RoomTemplateInstance.transform));
+            _currentRoomGo.GetComponent<RoomRuntimeController>()?.Enter();
 
             if (teleportPlayer)
                 TeleportPlayer(spawnPos);
@@ -529,6 +530,12 @@ namespace XianTu
                 floorScale = GetCurrentFloorEnemyScale(),
                 bossActId = MapProviders.Current.CurrentActId,
                 roomIndex = _currentRoomInLevel,
+                roomCount = _levelRooms != null && _currentLevel < _levelRooms.Count
+                    ? _levelRooms[_currentLevel].Count
+                    : 1,
+                encounterSeed = unchecked(
+                    ((_currentLevel + 1) * 73856093)
+                    ^ ((_currentRoomInLevel + 1) * 19349663)),
                 buildRoomGeometry = buildRoomGeometry,
                 contentRoot = contentRoot,
             };

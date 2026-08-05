@@ -115,7 +115,6 @@ namespace XianTu
         public void ActivateRoom(int index)
         {
             _activeRoom = index;
-            SetRoomLocked(index, true);
         }
 
         public void UnlockActiveRoom()
@@ -126,6 +125,7 @@ namespace XianTu
 
         public void Clear()
         {
+            RoomRuntimeController.ResetRunState();
             _rooms.Clear();
             _activeRoom = -1;
             if (_triggerRoot != null)
@@ -210,7 +210,7 @@ namespace XianTu
             return new Bounds(room.transform.position, Vector3.Max(fallbackSize, new Vector3(10f, 3f, 10f)));
         }
 
-        private void SetRoomLocked(int index, bool locked)
+        public void SetRoomLocked(int index, bool locked)
         {
             if (!TryGetPlacement(index, out var placement) || placement.Instance == null)
                 return;

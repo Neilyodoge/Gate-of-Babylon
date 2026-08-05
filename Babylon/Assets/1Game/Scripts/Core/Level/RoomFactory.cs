@@ -25,6 +25,10 @@ namespace XianTu
         public int bossActId;
         /// <summary>事件房通关时回填给 <c>RoomCleared.RoomIndex</c>。</summary>
         public int roomIndex;
+        /// <summary>本层实体房间总数，用于稳定解析区域段。</summary>
+        public int roomCount;
+        /// <summary>本房内容与遭遇的固定随机种子；回访时不得重抽。</summary>
+        public int encounterSeed;
         /// <summary>是否由旧 RoomBuilder 创建房间几何；Edgar 实体房间中应关闭。</summary>
         public bool buildRoomGeometry;
         /// <summary>Edgar 当前实体房间根节点；用于读取玩家、敌人和 Boss 内容插槽。</summary>
@@ -65,78 +69,32 @@ namespace XianTu
 
         private static GameObject SpawnBattle(in RoomSpawnContext ctx)
         {
-            var go = new GameObject($"BattleRoom_Lv{ctx.level}_{ctx.realmName}");
-            go.transform.position = ctx.spawnPos;
-            var room = go.AddComponent<BattleRoom>();
-
-            int enemyCount = ctx.baseEnemyCount + ctx.level * ctx.enemyCountPerLevel;
-            float hpMul = (1f + ctx.level * ctx.hpScalePerLevel) * ctx.floorScale;
-            float dmgMul = (1f + ctx.level * ctx.dmgScalePerLevel) * ctx.floorScale;
-            room.Initialize(ctx.roomIndex, enemyCount, hpMul, dmgMul,
-                ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry, ctx.contentRoot);
-            room.SetSkillPool(ctx.skillPool);
-            room.SetModulePool(ctx.modulePool);
-
-            if (ctx.enemyHitVFX != null)
-                room.SetEnemyHitVFX(ctx.enemyHitVFX);
-
-            Debug.Log($"<color=yellow>【{ctx.realmName}】战斗房间 | 敌人 x{enemyCount} | 血量 x{hpMul:F1} | 伤害 x{dmgMul:F1} | 层缩放 x{ctx.floorScale:F2}</color>");
-            room.StartBattle();
-            return go;
+            return SpawnCombat(RoomType.Battle, "BattleRoom", ctx);
         }
 
         /// <summary>V0.2.1：精英战斗房 — 更少但更强的敌人 + 保底高稀有度模块掉落</summary>
         private static GameObject SpawnElite(in RoomSpawnContext ctx)
         {
-            var go = new GameObject($"EliteRoom_Lv{ctx.level}_{ctx.realmName}");
-            go.transform.position = ctx.spawnPos;
-            var room = go.AddComponent<BattleRoom>();
-
-            var config = GameConfig.Instance;
-            float eliteHpMul = config != null ? config.精英怪血量倍率 : 3f;
-            float eliteDmgMul = config != null ? config.精英怪伤害倍率 : 1.5f;
-
-            int enemyCount = Mathf.Max(2, ctx.baseEnemyCount - 1);
-            float hpMul = (1f + ctx.level * ctx.hpScalePerLevel) * ctx.floorScale * eliteHpMul;
-            float dmgMul = (1f + ctx.level * ctx.dmgScalePerLevel) * ctx.floorScale * eliteDmgMul;
-
-            room.Initialize(ctx.roomIndex, enemyCount, hpMul, dmgMul,
-                ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry, ctx.contentRoot);
-            room.SetSkillPool(ctx.skillPool);
-            room.SetModulePool(ctx.modulePool);
-            room.SetEliteRoom(true);
-
-            if (ctx.enemyHitVFX != null)
-                room.SetEnemyHitVFX(ctx.enemyHitVFX);
-
-            Debug.Log($"<color=#ff8800>【{ctx.realmName}】★ 精英房 ★ | 敌人 x{enemyCount} | 血量 x{hpMul:F1} | 伤害 x{dmgMul:F1}</color>");
-            room.StartBattle();
-            return go;
+            return SpawnCombat(RoomType.Elite, "EliteRoom", ctx);
         }
 
         private static GameObject SpawnBoss(in RoomSpawnContext ctx)
         {
-            var go = new GameObject($"BossRoom_Lv{ctx.level}_{ctx.realmName}");
+            return SpawnCombat(RoomType.Boss, "BossRoom", ctx);
+        }
+
+        private static GameObject SpawnCombat(
+            RoomType roomType,
+            string objectName,
+            in RoomSpawnContext ctx)
+        {
+            var go = new GameObject($"{objectName}_Lv{ctx.level}_{ctx.realmName}");
             go.transform.position = ctx.spawnPos;
-            var room = go.AddComponent<BattleRoom>();
-
-            float hpMul = 1f + ctx.level * ctx.hpScalePerLevel;
-            float dmgMul = 1f + ctx.level * ctx.dmgScalePerLevel;
-            int normalEnemyCount = 2;
-            room.Initialize(ctx.roomIndex, normalEnemyCount, hpMul, dmgMul,
-                ctx.roomSize, ctx.roomSize, ctx.buildRoomGeometry, ctx.contentRoot);
-            room.SetSkillPool(ctx.skillPool);
-            room.SetModulePool(ctx.modulePool);
-
-            if (ctx.enemyHitVFX != null)
-                room.SetEnemyHitVFX(ctx.enemyHitVFX);
-
-            Debug.Log($"<color=red>【{ctx.realmName}】★ Boss 房间 ★</color>");
-            room.StartBattle();
-
-            Vector3 bossPos = room.GetBossSpawnPosition();
-            var boss = EnemyBoss.Spawn(bossPos, hpMul, dmgMul, ctx.bossActId);
-            room.RegisterEnemy(boss.gameObject);
+            var handler = go.AddComponent<CombatRoomContentHandler>();
+            var controller = go.AddComponent<RoomRuntimeController>();
+            controller.Initialize(roomType, ctx, handler);
+            Debug.Log(
+                $"<color=yellow>【{ctx.realmName}】{roomType} 房由内容配表激活 | Room={ctx.roomIndex} | Seed={ctx.encounterSeed}</color>");
             return go;
         }
 

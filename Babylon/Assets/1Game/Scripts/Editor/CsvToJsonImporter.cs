@@ -11,14 +11,11 @@ namespace XianTu.LevelDesign.Editor
 {
     /// <summary>
     /// CSV → JSON 一键导表工具。
-    /// 策划用 Excel 编辑 Assets/1Game/RawData/LevelDesign/ 下的 CSV 文件，
-    /// 然后在 Unity 菜单 "修仙图/导表" 或编辑器窗口中一键导出为 JSON。
+    /// 战斗策划用 Excel 编辑 Assets/1Game/RawData/Combat/ 下的 CSV 文件，
+    /// 然后在 Unity 菜单中一键导出为 JSON。关卡配置统一由中文关卡工具编辑 Asset。
     /// </summary>
     public static class CsvToJsonImporter
     {
-        private const string CsvRoot = "Assets/1Game/RawData/LevelDesign";
-        private const string JsonRoot = "Assets/1Game/Resources/LevelDesign";
-        // V0.1.18：战斗/模块表独立目录（与关卡类表区分）
         private const string CombatCsvRoot = "Assets/1Game/RawData/Combat";
         private const string CombatJsonRoot = "Assets/1Game/Resources/Combat";
 
@@ -26,12 +23,8 @@ namespace XianTu.LevelDesign.Editor
         public static void ImportAll()
         {
             int count = 0;
-            count += ImportFlat<MapStructureRow>("Map_Structure_Config", ParseMapStructureRow);
-            count += ImportFlat<RoomSocketRow>("Room_Socket_Group_Config", ParseRoomSocketRow);
-            count += ImportFlat<BossPhaseRow>("Boss_Phase_Config", ParseBossPhaseRow);
-            count += ImportFlat<MaterialCaveResRow>("Material_CaveRes_Config", ParseMaterialCaveResRow);
-            count += ImportFlat<SkillBaseRow>("Skill_Base_Config", ParseSkillBaseRow);
-            count += ImportFlat<SkillEffectRow>("Skill_Effect_Config", ParseSkillEffectRow);
+            count += ImportFlat<SkillBaseRow>(
+                "Skill_Base_Config", ParseSkillBaseRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportFlat<ModuleBaseRow>("Module_Base_Config", ParseModuleBaseRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportFlat<ModuleTriggerParamRow>("Module_Trigger_Param_Config", ParseModuleTriggerParamRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportFlat<ModuleEffectParamRow>("Module_Effect_Param_Config", ParseModuleEffectParamRow, CombatCsvRoot, CombatJsonRoot);
@@ -40,15 +33,14 @@ namespace XianTu.LevelDesign.Editor
             count += ImportFlat<SkillParamRow>("Skill_Param_Config", ParseSkillParamRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportFlat<EnemyBaseRow>("Enemy_Base_Config", ParseEnemyBaseRow, CombatCsvRoot, CombatJsonRoot);
             count += ImportFlat<ConsumeKindBonusRow>("ConsumeKind_Bonus_Config", ParseConsumeKindBonusRow, CombatCsvRoot, CombatJsonRoot);
-            count += ImportEventStory();
 
             AssetDatabase.Refresh();
-            Debug.Log($"[导表] 完成 — 共 {count} 张表已更新（关卡表 {JsonRoot}/ · 战斗表 {CombatJsonRoot}/）");
+            Debug.Log($"[导表] 完成 — 共 {count} 张战斗表已更新（{CombatJsonRoot}/）");
         }
 
         // ── flat table generic pipeline ──────────────────────────────
         private static int ImportFlat<TRow>(string tableName, Func<string[], string[], TRow> parser,
-            string csvRoot = CsvRoot, string jsonRoot = JsonRoot)
+            string csvRoot = CombatCsvRoot, string jsonRoot = CombatJsonRoot)
         {
             string csvPath = Path.Combine(csvRoot, tableName + ".csv");
             string fullCsv = Path.GetFullPath(csvPath);
@@ -63,11 +55,23 @@ namespace XianTu.LevelDesign.Editor
 
             string[] headers = ParseCsvLine(lines[0]);
             var rows = new List<TRow>();
+            var idField = typeof(TRow).GetField("ID");
+            var seenIds = new HashSet<object>();
             for (int i = 1; i < lines.Count; i++)
             {
                 string[] cols = ParseCsvLine(lines[i]);
                 if (cols.Length == 0 || string.IsNullOrWhiteSpace(cols[0])) continue;
-                try { rows.Add(parser(headers, cols)); }
+                try
+                {
+                    var row = parser(headers, cols);
+                    if (idField != null)
+                    {
+                        object id = idField.GetValue(row);
+                        if (!seenIds.Add(id))
+                            throw new InvalidDataException($"ID={id} 重复。");
+                    }
+                    rows.Add(row);
+                }
                 catch (Exception ex) { Debug.LogError($"[导表] {tableName} 第{i + 1}行解析失败：{ex.Message}"); }
             }
 
@@ -76,143 +80,7 @@ namespace XianTu.LevelDesign.Editor
             return 1;
         }
 
-        // ── Event_Story_Config (nested Options) ─────────────────────
-        private static int ImportEventStory()
-        {
-            const string tableName = "Event_Story_Config";
-            string csvPath = Path.Combine(CsvRoot, tableName + ".csv");
-            string fullCsv = Path.GetFullPath(csvPath);
-            if (!File.Exists(fullCsv))
-            {
-                Debug.LogWarning($"[导表] 找不到 {csvPath}，跳过。");
-                return 0;
-            }
-
-            var lines = ReadCsvLines(fullCsv);
-            if (lines.Count < 2) return 0;
-
-            string[] headers = ParseCsvLine(lines[0]);
-            var eventMap = new Dictionary<int, StoryEventRow>();
-            var orderedIds = new List<int>();
-
-            for (int i = 1; i < lines.Count; i++)
-            {
-                string[] cols = ParseCsvLine(lines[i]);
-                if (cols.Length == 0 || string.IsNullOrWhiteSpace(cols[0])) continue;
-
-                int id = int.Parse(GetCol(headers, cols, "EventID"));
-                string nameCn = GetCol(headers, cols, "Name_CN");
-
-                if (!string.IsNullOrWhiteSpace(nameCn) && !eventMap.ContainsKey(id))
-                {
-                    var row = new StoryEventRow
-                    {
-                        ID = id,
-                        Name_CN = nameCn,
-                        Type = ParseInt(GetCol(headers, cols, "Type")),
-                        PrereqFlag = GetCol(headers, cols, "PrereqFlag"),
-                        Text_CN = GetCol(headers, cols, "Text_CN").Replace("\\n", "\n"),
-                        Options = Array.Empty<EventOption>()
-                    };
-                    eventMap[id] = row;
-                    orderedIds.Add(id);
-                }
-
-                if (!eventMap.ContainsKey(id)) continue;
-
-                string optText = GetCol(headers, cols, "Opt_Text");
-                if (string.IsNullOrWhiteSpace(optText)) continue;
-
-                var opt = new EventOption
-                {
-                    Text = optText,
-                    FlagName = GetCol(headers, cols, "Opt_FlagName"),
-                    FlagValue = ParseInt(GetCol(headers, cols, "Opt_FlagValue")),
-                    RewardID = ParseInt(GetCol(headers, cols, "Opt_RewardID")),
-                    CostID = ParseInt(GetCol(headers, cols, "Opt_CostID")),
-                    KarmaChange = ParseInt(GetCol(headers, cols, "Opt_KarmaChange")),
-                    DaoxinChange = ParseInt(GetCol(headers, cols, "Opt_DaoxinChange")),
-                    LifespanChange = ParseInt(GetCol(headers, cols, "Opt_LifespanChange"))
-                };
-
-                var list = new List<EventOption>(eventMap[id].Options) { opt };
-                eventMap[id].Options = list.ToArray();
-            }
-
-            var result = orderedIds.Select(id => eventMap[id]).ToArray();
-            WriteJson(tableName, result);
-            Debug.Log($"[导表] {tableName} → {result.Length} 个事件");
-            return 1;
-        }
-
         // ── row parsers ──────────────────────────────────────────────
-        private static MapStructureRow ParseMapStructureRow(string[] h, string[] c)
-        {
-            return new MapStructureRow
-            {
-                ID = ParseInt(GetCol(h, c, "ID")),
-                ActID = ParseInt(GetCol(h, c, "ActID")),
-                MaxFloor = ParseInt(GetCol(h, c, "MaxFloor")),
-                MinNodes = ParseInt(GetCol(h, c, "MinNodes")),
-                MaxNodes = ParseInt(GetCol(h, c, "MaxNodes")),
-                NormalWeight = ParseInt(GetCol(h, c, "NormalWeight"), 75),
-                SpecialWeight = ParseInt(GetCol(h, c, "SpecialWeight"), 25),
-                EliteMinCount = ParseInt(GetCol(h, c, "EliteMinCount")),
-                EliteMaxCount = ParseInt(GetCol(h, c, "EliteMaxCount")),
-                EventMinCount = ParseInt(GetCol(h, c, "EventMinCount")),
-                ShopMinCount = ParseInt(GetCol(h, c, "ShopMinCount")),
-                RoomPoolID = ParseIntArray(GetCol(h, c, "RoomPoolID")),
-                EnemyScaleMul = ParseFloatArray(GetCol(h, c, "EnemyScaleMul")),
-                ModuleRarityBias = ParseIntArray(GetCol(h, c, "ModuleRarityBias")),
-                HasStageReturn = ParseIntArray(GetCol(h, c, "HasStageReturn"))
-            };
-        }
-
-        private static RoomSocketRow ParseRoomSocketRow(string[] h, string[] c)
-        {
-            return new RoomSocketRow
-            {
-                ID = ParseInt(GetCol(h, c, "ID")),
-                SceneName = GetCol(h, c, "SceneName"),
-                RoomType = ParseInt(GetCol(h, c, "RoomType")),
-                EnemySquadID = ParseIntArray(GetCol(h, c, "EnemySquadID")),
-                ItemDropIDs = ParseIntArray(GetCol(h, c, "ItemDropIDs")),
-                ItemDropWeights = ParseIntArray(GetCol(h, c, "ItemDropWeights")),
-                EventID = ParseInt(GetCol(h, c, "EventID")),
-                EventTriggerRate = ParseInt(GetCol(h, c, "EventTriggerRate")),
-                Weight = ParseInt(GetCol(h, c, "Weight"), 100)
-            };
-        }
-
-        private static BossPhaseRow ParseBossPhaseRow(string[] h, string[] c)
-        {
-            return new BossPhaseRow
-            {
-                ID = ParseInt(GetCol(h, c, "ID")),
-                BossID = ParseInt(GetCol(h, c, "BossID")),
-                PhaseName = GetCol(h, c, "PhaseName"),
-                RequiredFlags = GetCol(h, c, "RequiredFlags"),
-                Priority = ParseInt(GetCol(h, c, "Priority")),
-                DialogueLines = ParseStringArray(GetCol(h, c, "DialogueLines")),
-                SkillSetID = ParseInt(GetCol(h, c, "SkillSetID")),
-                StatModifier = GetCol(h, c, "StatModifier"),
-                SummonSquadID = ParseInt(GetCol(h, c, "SummonSquadID"))
-            };
-        }
-
-        private static MaterialCaveResRow ParseMaterialCaveResRow(string[] h, string[] c)
-        {
-            return new MaterialCaveResRow
-            {
-                ID = ParseInt(GetCol(h, c, "ID")),
-                Name_CN = GetCol(h, c, "Name_CN"),
-                Text_CN = GetCol(h, c, "Text_CN"),
-                Type = ParseInt(GetCol(h, c, "Type")),
-                Icon = GetCol(h, c, "Icon"),
-                MaxStack = ParseInt(GetCol(h, c, "MaxStack"), 99)
-            };
-        }
-
         private static SkillBaseRow ParseSkillBaseRow(string[] h, string[] c)
         {
             return new SkillBaseRow
@@ -224,21 +92,6 @@ namespace XianTu.LevelDesign.Editor
                 Type = ParseInt(GetCol(h, c, "Type")),
                 BaseCooldown = ParseFloat(GetCol(h, c, "BaseCooldown")),
                 BaseDamageRatio = ParseInt(GetCol(h, c, "BaseDamageRatio")),
-                IconPath = GetCol(h, c, "IconPath")
-            };
-        }
-
-        private static SkillEffectRow ParseSkillEffectRow(string[] h, string[] c)
-        {
-            return new SkillEffectRow
-            {
-                ID = ParseInt(GetCol(h, c, "ID")),
-                Name_CN = GetCol(h, c, "Name_CN"),
-                Desc_CN = GetCol(h, c, "Desc_CN"),
-                Type = ParseInt(GetCol(h, c, "Type")),
-                BaseCooldown = ParseFloat(GetCol(h, c, "BaseCooldown")),
-                BaseDamageRatio = ParseInt(GetCol(h, c, "BaseDamageRatio")),
-                Charges = ParseInt(GetCol(h, c, "Charges")),
                 IconPath = GetCol(h, c, "IconPath")
             };
         }
@@ -458,7 +311,10 @@ namespace XianTu.LevelDesign.Editor
         }
 
         // ── JSON writer ──────────────────────────────────────────────
-        private static void WriteJson<TRow>(string tableName, TRow[] rows, string jsonRoot = JsonRoot)
+        private static void WriteJson<TRow>(
+            string tableName,
+            TRow[] rows,
+            string jsonRoot = CombatJsonRoot)
         {
             string dir = Path.GetFullPath(jsonRoot);
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
@@ -564,29 +420,5 @@ namespace XianTu.LevelDesign.Editor
             => float.TryParse(s, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : fallback;
 
-        private static int[] ParseIntArray(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return Array.Empty<int>();
-            return s.Split(';')
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => int.TryParse(x.Trim(), out int v) ? v : 0)
-                .ToArray();
-        }
-
-        private static float[] ParseFloatArray(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return Array.Empty<float>();
-            return s.Split(';')
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => float.TryParse(x.Trim(), System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : 0f)
-                .ToArray();
-        }
-
-        private static string[] ParseStringArray(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return Array.Empty<string>();
-            return s.Split('|').Select(x => x.Trim()).ToArray();
-        }
     }
 }

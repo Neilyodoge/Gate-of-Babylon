@@ -1,0 +1,611 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 643d2e615c45d1e4f8845fdf6dfa5d9b, type: 3}
+  m_Name: "\u5173\u5361\u6570\u636E\u5E93"
+  m_EditorClassIdentifier: 
+  MapStructures:
+  - ID: 1
+    ActID: 1
+    EnemyScaleMul:
+    - 1
+    ModuleRarityBias: 00000000
+    HasStageReturn: 00000000
+  - ID: 2
+    ActID: 2
+    EnemyScaleMul:
+    - 1.3
+    ModuleRarityBias: 0a000000
+    HasStageReturn: 00000000
+  - ID: 3
+    ActID: 3
+    EnemyScaleMul:
+    - 1.6
+    ModuleRarityBias: 14000000
+    HasStageReturn: 00000000
+  RoomContents:
+  - ID: 3001
+    Name_CN: "\u5916\u73AF\u5E38\u89C4\u6218\u6597"
+    Role: 0
+    District: 0
+    ActivationMode: 1
+    LockPolicy: 1
+    ContentConfigID: 1001
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u6218\u6597"
+    - "\u5916\u73AF"
+    MinGraphDepth: 0
+    MaxGraphDepth: 5
+    Weight: 100
+  - ID: 3002
+    Name_CN: "\u8FC7\u6E21\u533A\u4F0F\u51FB\u6218\u6597"
+    Role: 0
+    District: 1
+    ActivationMode: 4
+    LockPolicy: 1
+    ContentConfigID: 1002
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u6218\u6597"
+    - "\u8FDE\u63A5\u533A"
+    MinGraphDepth: 3
+    MaxGraphDepth: 9
+    Weight: 100
+  - ID: 3003
+    Name_CN: "\u5185\u73AF\u5E38\u89C4\u6218\u6597"
+    Role: 0
+    District: 2
+    ActivationMode: 1
+    LockPolicy: 1
+    ContentConfigID: 1003
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u6218\u6597"
+    - "\u5185\u73AF"
+    MinGraphDepth: 7
+    MaxGraphDepth: 99
+    Weight: 100
+  - ID: 3101
+    Name_CN: "\u7CBE\u82F1\u906D\u9047"
+    Role: 1
+    District: 1
+    ActivationMode: 1
+    LockPolicy: 1
+    ContentConfigID: 1101
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u7CBE\u82F1"
+    MinGraphDepth: 4
+    MaxGraphDepth: 99
+    Weight: 100
+  - ID: 3200
+    Name_CN: "\u5916\u73AF\u5B88\u5173\u9996\u9886"
+    Role: 5
+    District: 1
+    ActivationMode: 1
+    LockPolicy: 3
+    ContentConfigID: 1201
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u9996\u9886"
+    - "\u8FDE\u63A5\u533A"
+    MinGraphDepth: 3
+    MaxGraphDepth: 8
+    Weight: 100
+  - ID: 3201
+    Name_CN: "\u9996\u9886\u906D\u9047"
+    Role: 5
+    District: 2
+    ActivationMode: 1
+    LockPolicy: 3
+    ContentConfigID: 1201
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u9996\u9886"
+    MinGraphDepth: 8
+    MaxGraphDepth: 99
+    Weight: 100
+  Encounters:
+  - ID: 1001
+    Name_CN: "\u9884\u7F6E\u4F11\u7720\u5C0F\u961F"
+    SpawnMode: 0
+    MaxWaves: 1
+    ReinforceAtPct: 0
+    ReinforceDelaySec: 0
+    PreplacedCount: 4
+    Notes_CN: "\u5916\u73AF\u57FA\u7840\u906D\u9047"
+  - ID: 1002
+    Name_CN: "\u4F0F\u51FB\u5C0F\u961F"
+    SpawnMode: 2
+    MaxWaves: 1
+    ReinforceAtPct: 0
+    ReinforceDelaySec: 0.8
+    PreplacedCount: 0
+    Notes_CN: "\u8FDB\u5165\u6838\u5FC3\u533A\u540E\u9884\u8B66\u5E76\u843D\u5730"
+  - ID: 1003
+    Name_CN: "\u5206\u6CE2\u589E\u63F4"
+    SpawnMode: 1
+    MaxWaves: 2
+    ReinforceAtPct: 50
+    ReinforceDelaySec: 1.5
+    PreplacedCount: 0
+    Notes_CN: "\u666E\u901A\u623F\u6700\u591A\u4E00\u6279\u589E\u63F4"
+  - ID: 1101
+    Name_CN: "\u7CBE\u82F1\u7F16\u961F"
+    SpawnMode: 3
+    MaxWaves: 1
+    ReinforceAtPct: 0
+    ReinforceDelaySec: 0
+    PreplacedCount: 0
+    Notes_CN: "\u5E38\u9A7B\u5DE1\u903B\u7CBE\u82F1"
+  - ID: 1201
+    Name_CN: "\u811A\u672C\u9996\u9886"
+    SpawnMode: 4
+    MaxWaves: 1
+    ReinforceAtPct: 0
+    ReinforceDelaySec: 0
+    PreplacedCount: 0
+    Notes_CN: "\u7531\u663E\u5F0F Boss \u914D\u7F6E\u548C\u63D2\u69FD\u751F\u6210"
+  - ID: 1901
+    Name_CN: "\u56FE\u4F8B_\u89E6\u53D1\u5206\u6CE2"
+    SpawnMode: 1
+    MaxWaves: 1
+    ReinforceAtPct: 0
+    ReinforceDelaySec: 0.75
+    PreplacedCount: 0
+    Notes_CN: "\u7528\u4E8E\u9A8C\u8BC1 SpawnMode=1"
+  StoryEvents:
+  - ID: 1001
+    Name_CN: "\u53F6\u4FEE\u4E4B\u6B7B"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u4F60\u51FB\u8D25\u4E86\u6563\u4FEE\u53F6\u4FEE\uFF0C\u4ECE\u4ED6\u8EAB\u4E0A\u627E\u5230\u4E00\u9897\u98CE\u7075\u73E0\u3002\u4ED6\u5944\u5944\u4E00\u606F\u5730\u671B\u7740\u4F60\uFF0C\u773C\u795E\u4E2D\u65E2\u65E0\u6028\u6068\uFF0C\u4E5F\u65E0\u54C0\u6C42\u2014\u2014\u53EA\u662F\u9759\u9759\u5730\u7B49\u5F85\u7740\u81EA\u5DF1\u7684\u547D\u8FD0\u3002\u4F60\u8BE5\u5982\u4F55\u5904\u7F6E\u4ED6\uFF1F"
+    Options:
+    - Text: "\u53D6\u8D70\u98CE\u7075\u73E0\uFF0C\u5438\u6536\u4ED6\u6B8B\u4F59\u7684\u7075\u529B"
+      FlagName: betrayed_yeXiu
+      FlagValue: 1
+      RewardID: 2001
+      CostID: 0
+      KarmaChange: 1
+      DaoxinChange: -5
+      LifespanChange: 0
+    - Text: "\u5C06\u4ED6\u5C31\u5730\u57CB\u846C\uFF0C\u7ACB\u4E00\u5757\u65E0\u5B57\u7891"
+      FlagName: saved_yeXiu
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: -1
+      DaoxinChange: 10
+      LifespanChange: 0
+    - Text: "\u641C\u522E\u540E\u626C\u957F\u800C\u53BB"
+      FlagName: ignored_yeXiu
+      FlagValue: 1
+      RewardID: 2001
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: -2
+      LifespanChange: 0
+  - ID: 1002
+    Name_CN: "\u7075\u836F\u5B9D\u5E93"
+    Type: 3
+    PrereqFlag: saved_yeXiu=1
+    Text_CN: "\u4E00\u4F4D\u767D\u53D1\u8001\u8005\u6084\u7136\u73B0\u8EAB\uFF0C\u76EE\u5149\u67D4\u548C\uFF1A\u300C\u6211\u4FBF\u662F\u53F6\u4FEE\u7684\u5E08\u7236\u3002\u591A\u8C22\u4F60\u5584\u5F85\u6211\u90A3\u4E0D\u6210\u5668\u7684\u5F1F\u5B50\u2026\u2026\u8FD9\u662F\u4ED6\u751F\u524D\u4E3A\u6211\u5BFB\u5F97\u7684\u7075\u836F\uFF0C\u4FBF\u7531\u4F60\u5E26\u53BB\u5427\u3002\u300D"
+    Options:
+    - Text: "\u62DC\u8C22\u524D\u8F88\u8D50\u836F"
+      FlagName: elder_gift
+      FlagValue: 1
+      RewardID: 3001
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 5
+      LifespanChange: 0
+  - ID: 1003
+    Name_CN: "\u53E4\u4FEE\u9057\u5B9D"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u4E00\u5EA7\u53E4\u65E7\u77F3\u53F0\u4E0A\u8EBA\u7740\u4E00\u9897\u6563\u53D1\u91D1\u5149\u7684\u7075\u7269\u2014\u2014\u5929\u54C1\u7EA7\u7684\u300C\u4E5D\u8F6C\u8FD8\u9B42\u4E39\u300D\u3002\u4F46\u4F60\u80FD\u611F\u89C9\u5230\uFF0C\u53F0\u5B50\u5468\u56F4\u5F25\u6F2B\u7740\u4E00\u80A1\u8BE1\u5F02\u7684\u6C14\u606F\uFF0C\u4EFF\u4F5B\u5728\u6C72\u53D6\u7740\u63A5\u8FD1\u8005\u7684\u4EC0\u4E48\u2026\u2026"
+    Options:
+    - Text: "\u4EE5\u5BFF\u5143\u6362\u53D6\uFF08\u6D88\u8017 10 \u5E74\u5BFF\u5143\uFF09"
+      FlagName: took_ancient_treasure
+      FlagValue: 1
+      RewardID: 3001
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: -10
+    - Text: "\u653E\u5F03\uFF0C\u8F6C\u8EAB\u79BB\u53BB"
+      FlagName: 
+      FlagValue: 0
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 3
+      LifespanChange: 0
+    - Text: "\u5F3A\u884C\u593A\u53D6\uFF08\u4E0E\u5B88\u62A4\u8005\u4E00\u6218\uFF09"
+      FlagName: forced_treasure
+      FlagValue: 1
+      RewardID: 3001
+      CostID: 0
+      KarmaChange: 2
+      DaoxinChange: -5
+      LifespanChange: 0
+  - ID: 2001
+    Name_CN: "\u5E7D\u9B42\u54C0\u6B4C"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u4E00\u9053\u865A\u5E7B\u7684\u8EAB\u5F71\u6321\u4F4F\u53BB\u8DEF\u3002\u5B83\u5E76\u4E0D\u653B\u51FB\u4F60\uFF0C\u53EA\u662F\u53CD\u590D\u5583\u5583\u7740\u4E00\u4E2A\u540D\u5B57\u2014\u2014\u7136\u540E\u4F60\u542C\u6E05\u4E86\uFF1A\u90A3\u662F\u4F60\u7684\u540D\u5B57\u3002\u5B83\u4F38\u51FA\u624B\uFF0C\u6307\u5411\u8EAB\u540E\u7684\u77F3\u7891\uFF0C\u7891\u4E0A\u523B\u6EE1\u4E86\u5BC6\u5BC6\u9EBB\u9EBB\u7684\u6587\u5B57\u3002"
+    Options:
+    - Text: "\u9605\u8BFB\u77F3\u7891\u4E0A\u7684\u6587\u5B57"
+      FlagName: read_ghost_tablet
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 5
+      LifespanChange: 0
+    - Text: "\u6325\u5251\u9A71\u6563\u5E7D\u9B42"
+      FlagName: dispelled_ghost
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 1
+      DaoxinChange: -3
+      LifespanChange: 0
+    - Text: "\u8F6C\u8EAB\u7ED5\u8DEF"
+      FlagName: avoided_ghost
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+  - ID: 2002
+    Name_CN: "\u51A5\u6CB3\u6E21\u53E3"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u5E7D\u6697\u7684\u6CB3\u6C34\u5728\u811A\u4E0B\u6D41\u6DCC\uFF0C\u4E00\u53F6\u6241\u821F\u505C\u9760\u5728\u5CB8\u8FB9\u3002\u4E00\u4F4D\u8499\u9762\u8244\u516C\u7AD9\u5728\u821F\u4E0A\uFF1A\u300C\u6E21\u6CB3\u8005\u9700\u4ED8\u4EE3\u4EF7\u3002\u8840\u4E3A\u7B79\u7801\uFF0C\u547D\u4E3A\u821F\u8D44\u2014\u2014\u4F60\u9009\u54EA\u4E00\u6837\uFF1F\u300D"
+    Options:
+    - Text: "\u4EE5\u8840\u4E3A\u7B79\u2014\u2014\u732E\u796D 30% \u5F53\u524D\u751F\u547D\u503C"
+      FlagName: blood_toll
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: -2
+      LifespanChange: -5
+    - Text: "\u4EE5\u547D\u4E3A\u8D44\u2014\u2014\u6D88\u8017 15 \u5E74\u5BFF\u5143"
+      FlagName: life_toll
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: -15
+    - Text: "\u5F3A\u884C\u6E21\u6CB3\uFF08\u89E6\u53D1\u6218\u6597\uFF09"
+      FlagName: forced_crossing
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 2
+      DaoxinChange: -5
+      LifespanChange: 0
+  - ID: 2003
+    Name_CN: "\u4EA1\u8005\u9057\u8A00"
+    Type: 3
+    PrereqFlag: read_ghost_tablet=1
+    Text_CN: "\u77F3\u7891\u4E0A\u7684\u6587\u5B57\u6E10\u6E10\u6D6E\u73B0\u2014\u2014\u90A3\u662F\u4E00\u4F4D\u524D\u8F88\u4FEE\u58EB\u7684\u9057\u8A00\u3002\u4ED6\u5728\u6B64\u5730\u56F0\u4E86\u5343\u5E74\uFF0C\u7559\u4E0B\u4E86\u4E00\u5957\u6B8B\u7F3A\u7684\u529F\u6CD5\u56FE\u8C31\u3002\u6700\u540E\u4E00\u884C\u5199\u7740\uFF1A\u300C\u82E5\u6709\u7F18\u4EBA\u81F3\u6B64\uFF0C\u613F\u5C06\u6BD5\u751F\u6240\u609F\u76F8\u8D60\u3002\u4F46\u5207\u8BB0\u2014\u2014\u4E07\u4E8B\u7686\u6709\u4EE3\u4EF7\u3002\u300D"
+    Options:
+    - Text: "\u63A5\u53D7\u529F\u6CD5\u4F20\u627F\uFF08\u83B7\u5F97\u4E34\u65F6\u589E\u76CA\uFF09"
+      FlagName: accepted_legacy
+      FlagValue: 1
+      RewardID: 4001
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 3
+      LifespanChange: 0
+    - Text: "\u62D2\u7EDD\u4F20\u627F\uFF08\u83B7\u5F97\u9053\u5FC3\u52A0\u6210\uFF09"
+      FlagName: refused_legacy
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: -1
+      DaoxinChange: 15
+      LifespanChange: 0
+  - ID: 2004
+    Name_CN: "\u7075\u9B42\u4EA4\u6613"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u4E00\u56E2\u98D8\u5FFD\u4E0D\u5B9A\u7684\u5149\u8292\u51DD\u805A\u6210\u4EBA\u5F62\u3002\u5B83\u7684\u58F0\u97F3\u6C99\u54D1\u800C\u8BF1\u60D1\uFF1A\u300C\u6211\u80FD\u8BA9\u4F60\u53D8\u5F97\u66F4\u5F3A\u2014\u2014\u53EA\u9700\u8981\u4F60\u4E00\u5C0F\u90E8\u5206\u2026\u2026\u7075\u9B42\u3002\u4EA4\u6613\u7ED3\u675F\u540E\uFF0C\u4F60\u4F1A\u89C9\u5F97\u5C11\u4E86\u4EC0\u4E48\uFF0C\u4F46\u53C8\u8BF4\u4E0D\u4E0A\u6765\u3002\u300D"
+    Options:
+    - Text: "\u63A5\u53D7\u4EA4\u6613\uFF08\u653B\u51FB\u529B+20%\uFF0C\u9053\u5FC3-10\uFF09"
+      FlagName: soul_trade
+      FlagValue: 1
+      RewardID: 5001
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: -10
+      LifespanChange: 0
+    - Text: "\u62D2\u7EDD\u4EA4\u6613"
+      FlagName: refused_soul_trade
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 5
+      LifespanChange: 0
+    - Text: "\u53CD\u566C\u672F\u2014\u2014\u8BD5\u56FE\u4ECE\u5B83\u8EAB\u4E0A\u593A\u53D6\u529B\u91CF"
+      FlagName: soul_counter
+      FlagValue: 1
+      RewardID: 5001
+      CostID: 0
+      KarmaChange: 1
+      DaoxinChange: -8
+      LifespanChange: 0
+  - ID: 3001
+    Name_CN: "\u9F99\u9AA8\u796D\u575B"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u4E00\u5EA7\u7531\u5DE8\u9F99\u9AA8\u9AB8\u5806\u780C\u7684\u796D\u575B\u5C79\u7ACB\u5728\u70BC\u72F1\u5CF0\u4E2D\u5FC3\u3002\u796D\u575B\u4E0A\u65B9\u76D8\u65CB\u7740\u707C\u70ED\u7684\u7075\u529B\u6F29\u6DA1\uFF0C\u4F3C\u4E4E\u53EF\u4EE5\u7528\u6765\u6DEC\u70BC\u81EA\u8EAB\u2014\u2014\u4F46\u4EE3\u4EF7\u662F\u5C06\u4E00\u90E8\u5206\u81EA\u6211\u71C3\u70E7\u6B86\u5C3D\u3002"
+    Options:
+    - Text: "\u4EE5\u8089\u8EAB\u4E3A\u85AA\u2014\u2014\u732E\u796D 40% \u751F\u547D\u503C\u6362\u53D6\u6C38\u4E45\u653B\u51FB\u63D0\u5347"
+      FlagName: dragon_sacrifice
+      FlagValue: 1
+      RewardID: 6001
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: -5
+      LifespanChange: -10
+    - Text: "\u4EE5\u5FC3\u706B\u4E3A\u5F15\u2014\u2014\u6D88\u8017 20 \u9053\u5FC3\u6362\u53D6\u4E34\u65F6\u5168\u5C5E\u6027\u589E\u76CA"
+      FlagName: heart_fire
+      FlagValue: 1
+      RewardID: 6002
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: -20
+      LifespanChange: 0
+    - Text: "\u9ED8\u7136\u79BB\u53BB"
+      FlagName: left_altar
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 2
+      LifespanChange: 0
+  - ID: 3002
+    Name_CN: "\u5929\u706B\u8BD5\u70BC"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u4E00\u9053\u5929\u706B\u4ECE\u865A\u7A7A\u4E2D\u5288\u4E0B\uFF0C\u5C06\u53BB\u8DEF\u963B\u65AD\u3002\u706B\u7130\u4E2D\u9690\u7EA6\u53EF\u89C1\u4E00\u4E2A\u7B26\u6587\u2014\u2014\u7834\u89E3\u5B83\u6216\u8BB8\u80FD\u8BA9\u5929\u706B\u4E3A\u4F60\u6240\u7528\uFF0C\u4F46\u5931\u8D25\u7684\u4EE3\u4EF7\u662F\u904D\u4F53\u9CDE\u4F24\u3002"
+    Options:
+    - Text: "\u5C1D\u8BD5\u7834\u89E3\u7B26\u6587\uFF08\u8003\u9A8C\u8FD0\u6C14\uFF1A60%\u6210\u529F\uFF09"
+      FlagName: fire_trial
+      FlagValue: 1
+      RewardID: 6003
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+    - Text: "\u4EE5\u5BFF\u5143\u5F3A\u884C\u538B\u5236\u5929\u706B\uFF08\u6D88\u8017
+        20 \u5E74\uFF09"
+      FlagName: suppress_fire
+      FlagValue: 1
+      RewardID: 6003
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: -20
+    - Text: "\u7ED5\u8FDC\u8DEF\u907F\u5F00"
+      FlagName: bypass_fire
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+  - ID: 3003
+    Name_CN: "\u9F99\u8840\u89C9\u9192"
+    Type: 3
+    PrereqFlag: dragon_sacrifice=1
+    Text_CN: "\u796D\u575B\u7684\u9F99\u8840\u5728\u4F60\u4F53\u5185\u7FFB\u6D8C\u2014\u2014\u4F60\u611F\u89C9\u81EA\u5DF1\u7684\u8840\u8109\u6B63\u5728\u53D1\u751F\u53D8\u5316\u3002\u4E00\u4E2A\u4F4E\u6C89\u7684\u9F99\u541F\u56DE\u8361\u5728\u8111\u6D77\u4E2D\uFF1A\u300C\u6C5D\u4EE5\u8840\u8089\u4E3A\u796D\uFF0C\u9F99\u9AA8\u94F8\u5FC3\u3002\u81EA\u6B64\u2014\u2014\u6C5D\u4FBF\u662F\u534A\u9F99\u4E4B\u8EAB\u3002\u300D"
+    Options:
+    - Text: "\u63A5\u53D7\u9F99\u8840\u89C9\u9192\uFF08\u6C38\u4E45\u653B\u9632\u5404+15%\uFF09"
+      FlagName: dragon_awakened
+      FlagValue: 1
+      RewardID: 7001
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+    - Text: "\u538B\u5236\u9F99\u8840\u2014\u2014\u7EF4\u6301\u4EBA\u8EAB\uFF08\u9053\u5FC3+15\uFF09"
+      FlagName: suppressed_dragon
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 15
+      LifespanChange: 0
+  - ID: 3004
+    Name_CN: "\u52AB\u96F7\u964D\u4E16"
+    Type: 1
+    PrereqFlag: 
+    Text_CN: "\u5929\u7A79\u4E2D\u805A\u8D77\u4E00\u56E2\u6F06\u9ED1\u7684\u96F7\u4E91\u2014\u2014\u8FD9\u662F\u4FEE\u4ED9\u8005\u7A81\u7834\u65F6\u5FC5\u987B\u9762\u5BF9\u7684\u5929\u52AB\u3002\u96F7\u4E91\u4E2D\u7684\u5A01\u538B\u8BA9\u4F60\u51E0\u4E4E\u65E0\u6CD5\u547C\u5438\u3002\u4F60\u53EF\u4EE5\u9009\u62E9\u786C\u6297\u6E21\u52AB\uFF0C\u6216\u8005\u501F\u52A9\u5468\u56F4\u7684\u5730\u5F62\u5206\u6563\u96F7\u529B\u3002"
+    Options:
+    - Text: "\u786C\u6297\u5929\u52AB\uFF08\u9AD8\u98CE\u9669\u9AD8\u6536\u76CA\uFF09"
+      FlagName: endure_tribulation
+      FlagValue: 1
+      RewardID: 7002
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 5
+      LifespanChange: -15
+    - Text: "\u501F\u5730\u5F62\u5206\u6563\u96F7\u529B\uFF08\u7A33\u59A5\u65B9\u6848\uFF09"
+      FlagName: redirect_tribulation
+      FlagValue: 1
+      RewardID: 7003
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 2
+      LifespanChange: 0
+    - Text: "\u9003\u79BB\u52AB\u4E91\u8303\u56F4\uFF08\u4FDD\u547D\u4F18\u5148\uFF09"
+      FlagName: flee_tribulation
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: -5
+      LifespanChange: 0
+  BossPhases:
+  - ID: 1
+    BossID: 1
+    PhaseName: "\u9752\u4E91\u5B97\u957F\u8001 \xB7 \u5E38\u89C4"
+    RequiredFlags: 
+    Priority: 0
+    DialogueLines:
+    - "\u300C\u95EF\u5165\u6211\u9752\u4E91\u5B97\u7981\u5730\u7684\u5C0F\u8F88\uFF0C\u53EF\u77E5\u7F6A\u8FC7\uFF1F\u300D"
+    - "\u300C\u4ECA\u65E5\u4FBF\u8BA9\u4F60\u89C1\u8BC6\u771F\u6B63\u7684\u4FEE\u4ED9\u8005\u2026\u2026\u300D"
+    StatModifier: 
+  - ID: 2
+    BossID: 1
+    PhaseName: "\u9752\u4E91\u5B97\u957F\u8001 \xB7 \u9707\u6012"
+    RequiredFlags: betrayed_yeXiu=1
+    Priority: 10
+    DialogueLines:
+    - "\u300C\u53F6\u4FEE\u2026\u2026\u662F\u6211\u5EA7\u4E0B\u4EB2\u4F20\u5F1F\u5B50\uFF01\u300D"
+    - "\u300C\u4F60\u5C45\u7136\u53D6\u8D70\u4E86\u4ED6\u7684\u98CE\u7075\u73E0\uFF1F\u7AD6\u5B50\u5B89\u6562\uFF01\u300D"
+    - "\u300C\u4ECA\u65E5\u4E0D\u5C06\u4F60\u632B\u9AA8\u626C\u7070\uFF0C\u96BE\u6D88\u6211\u5FC3\u5934\u4E4B\u6068\uFF01\u300D"
+    StatModifier: hp*1.3,atk*1.5,spd*1.1
+  - ID: 3
+    BossID: 1
+    PhaseName: "\u9752\u4E91\u5B97\u957F\u8001 \xB7 \u60B2\u60AF"
+    RequiredFlags: saved_yeXiu=1
+    Priority: 10
+    DialogueLines:
+    - "\u300C\u4F60\u2026\u2026\u57CB\u846C\u4E86\u4ED6\uFF1F\u300D"
+    - "\u300C\u7B97\u4F60\u8FD8\u6709\u51E0\u5206\u826F\u5FC3\u3002\u53EF\u9752\u4E91\u5B97\u7684\u89C4\u77E9\uFF0C\u4E0D\u4F1A\u56E0\u4F60\u8FD9\u70B9\u5584\u4E3E\u800C\u6539\u53D8\u2014\u2014\u300D"
+    - "\u300C\u6765\u5427\uFF0C\u8BA9\u6211\u770B\u770B\u4F60\u8FD9\u4EFD\u4EC1\u5FC3\uFF0C\u80FD\u5426\u6491\u8FC7\u6211\u7684\u5251\u3002\u300D"
+    StatModifier: atk*0.8
+  - ID: 4
+    BossID: 1
+    PhaseName: "\u9752\u4E91\u5B97\u957F\u8001 \xB7 \u5165\u9B54\u8BC6\u7834"
+    RequiredFlags: daoxin<=20
+    Priority: 20
+    DialogueLines:
+    - "\u300C\u4F60\u8EAB\u4E0A\u715E\u6C14\u51B2\u5929\u2026\u2026\u5FC3\u9B54\u5DF2\u8D77\u3002\u300D"
+    - "\u300C\u8FD9\u4E00\u6218\uFF0C\u4FBF\u662F\u52A9\u4F60\u65A9\u9B54\u2014\u2014\u82E5\u4F60\u80FD\u6491\u8FC7\u53BB\u7684\u8BDD\u3002\u300D"
+    StatModifier: hp*1.5,atk*1.3
+  - ID: 5
+    BossID: 1
+    PhaseName: "\u9752\u4E91\u5B97\u957F\u8001 \xB7 \u56E0\u679C\u5BA1\u5224"
+    RequiredFlags: karma_debt>=3
+    Priority: 15
+    DialogueLines:
+    - "\u300C\u8840\u503A\u7D2F\u7D2F\uFF0C\u56E0\u679C\u5DF2\u7ED3\u3002\u300D"
+    - "\u300C\u4ECA\u65E5\uFF0C\u4FBF\u7531\u6211\u4E3A\u51A5\u51A5\u4E2D\u90A3\u4E9B\u4EA1\u9B42\u8BA8\u56DE\u516C\u9053\uFF01\u300D"
+    StatModifier: hp*1.2,atk*1.2
+  - ID: 6
+    BossID: 2
+    PhaseName: "\u5E7D\u51A5\u8C37\u5B88\u7075 \xB7 \u5E38\u89C4"
+    RequiredFlags: 
+    Priority: 0
+    DialogueLines:
+    - "\u300C\u6B64\u8C37\u4E43\u4E07\u7075\u5B89\u606F\u4E4B\u6240\u2026\u2026\u300D"
+    - "\u300C\u6D3B\u4EBA\u2026\u2026\u4E0D\u8BE5\u8E0F\u5165\u6B64\u5730\u3002\u300D"
+    StatModifier: 
+  - ID: 7
+    BossID: 2
+    PhaseName: "\u5E7D\u51A5\u8C37\u5B88\u7075 \xB7 \u4EA1\u9B42\u5171\u9E23"
+    RequiredFlags: kill_count>=30
+    Priority: 10
+    DialogueLines:
+    - "\u300C\u4F60\u8EAB\u4E0A\u2026\u2026\u6CBE\u6EE1\u4E86\u592A\u591A\u4EA1\u9B42\u7684\u6028\u6C14\u3002\u300D"
+    - "\u300C\u5B83\u4EEC\u5728\u54ED\u568E\uFF01\u5B83\u4EEC\u8981\u6211\u5C06\u4F60\u7559\u4E0B\u2026\u2026\u300D"
+    - "\u300C\u597D\u5427\u2026\u2026\u90A3\u4FBF\u6210\u5168\u5B83\u4EEC\u3002\u300D"
+    StatModifier: hp*1.2,atk*1.4,spd*1.2
+  - ID: 8
+    BossID: 2
+    PhaseName: "\u5E7D\u51A5\u8C37\u5B88\u7075 \xB7 \u51A5\u6CB3\u5316\u8EAB"
+    RequiredFlags: daoxin<=15
+    Priority: 20
+    DialogueLines:
+    - "\u300C\u4F60\u7684\u5FC3\u2026\u2026\u5DF2\u88AB\u9ED1\u6697\u541E\u566C\u8FC7\u534A\u3002\u300D"
+    - "\u300C\u51A5\u6CB3\u4E4B\u6C34\u611F\u5E94\u5230\u4E86\u4F60\u7684\u5815\u843D\u2014\u2014\u300D"
+    - "\u300C\u8BA9\u6211\u4EE5\u51A5\u6CB3\u4E4B\u529B\uFF0C\u5C06\u4F60\u5F7B\u5E95\u51C0\u5316\uFF01\u300D"
+    StatModifier: hp*1.6,atk*1.2,spd*0.9
+  - ID: 9
+    BossID: 2
+    PhaseName: "\u5E7D\u51A5\u8C37\u5B88\u7075 \xB7 \u60AF\u751F"
+    RequiredFlags: kill_count<10
+    Priority: 10
+    DialogueLines:
+    - "\u300C\u4F60\u2026\u2026\u7ADF\u672A\u6CBE\u67D3\u592A\u591A\u6740\u5B7D\uFF1F\u300D"
+    - "\u300C\u4E5F\u7F62\uFF0C\u6211\u4FBF\u8F7B\u4E9B\u2014\u2014\u4F46\u89C4\u77E9\u5C31\u662F\u89C4\u77E9\u3002\u300D"
+    StatModifier: atk*0.7
+  - ID: 10
+    BossID: 2
+    PhaseName: "\u5E7D\u51A5\u8C37\u5B88\u7075 \xB7 \u4EC7\u6068\u79EF\u805A"
+    RequiredFlags: karma_debt>=5
+    Priority: 15
+    DialogueLines:
+    - "\u300C\u56E0\u679C\u4E4B\u94FE\u592A\u91CD\u4E86\u2026\u2026\u8FD9\u5EA7\u8C37\u5DF2\u627F\u53D7\u4E0D\u4F4F\u3002\u300D"
+    - "\u300C\u4F60\u5FC5\u987B\u4ED8\u51FA\u4EE3\u4EF7\u2014\u2014\u73B0\u5728\u5C31\u4ED8\uFF01\u300D"
+    StatModifier: hp*1.3,atk*1.3,spd*1.1
+  - ID: 11
+    BossID: 3
+    PhaseName: "\u70BC\u72F1\u5CF0\u9F99\u9B42 \xB7 \u5E38\u89C4"
+    RequiredFlags: 
+    Priority: 0
+    DialogueLines:
+    - "\u300C\u4E07\u5E74\u6C89\u5BC2\u2026\u2026\u53C8\u6709\u877C\u8681\u524D\u6765\u9001\u6B7B\uFF1F\u300D"
+    - "\u300C\u8BA9\u4F60\u89C1\u8BC6\u4F55\u4E3A\u771F\u9F99\u4E4B\u5A01\uFF01\u300D"
+    StatModifier: 
+  - ID: 12
+    BossID: 3
+    PhaseName: "\u70BC\u72F1\u5CF0\u9F99\u9B42 \xB7 \u9F99\u6012\u711A\u5929"
+    RequiredFlags: daoxin<=10
+    Priority: 20
+    DialogueLines:
+    - "\u300C\u4F60\u4F53\u5185\u7684\u9B54\u6C14\u2026\u2026\u4EE4\u6211\u9F99\u8840\u6CB8\u817E\uFF01\u300D"
+    - "\u300C\u65E2\u5982\u6B64\u2014\u2014\u4FBF\u8BA9\u8FD9\u7130\u706B\u5C06\u4F60\u6211\u4E00\u540C\u711A\u5C3D\uFF01\u300D"
+    StatModifier: hp*1.4,atk*1.8,spd*1.3
+  - ID: 13
+    BossID: 3
+    PhaseName: "\u70BC\u72F1\u5CF0\u9F99\u9B42 \xB7 \u53E4\u9F99\u8BD5\u70BC"
+    RequiredFlags: cleared_act2_no_death=1
+    Priority: 15
+    DialogueLines:
+    - "\u300C\u672A\u66FE\u843D\u8D25\u4FBF\u6765\u5230\u6B64\u5730\u2026\u2026\u6709\u4E9B\u610F\u601D\u3002\u300D"
+    - "\u300C\u6211\u4FBF\u7ED9\u4F60\u4E00\u4E2A\u53E4\u9F99\u7684\u8BD5\u70BC\u2014\u2014\u63A5\u597D\u4E86\uFF01\u300D"
+    StatModifier: hp*1.8,atk*1.5
+  - ID: 14
+    BossID: 3
+    PhaseName: "\u70BC\u72F1\u5CF0\u9F99\u9B42 \xB7 \u5BC2\u706D\u82CF\u9192"
+    RequiredFlags: karma_debt>=7
+    Priority: 10
+    DialogueLines:
+    - "\u300C\u592A\u591A\u592A\u591A\u4E86\u2026\u2026\u56E0\u679C\u5DF2\u4E0D\u53EF\u9006\u8F6C\u3002\u300D"
+    - "\u300C\u90A3\u4FBF\u2026\u2026\u4E00\u5207\u5F52\u4E8E\u865A\u65E0\u5427\u3002\u300D"
+    StatModifier: hp*1.3,atk*1.6,spd*1.2
+  - ID: 15
+    BossID: 3
+    PhaseName: "\u70BC\u72F1\u5CF0\u9F99\u9B42 \xB7 \u601C\u60AF"
+    RequiredFlags: saved_yeXiu=1&kill_count<15
+    Priority: 10
+    DialogueLines:
+    - "\u300C\u4F60\u2026\u2026\u5FC3\u4E2D\u5C1A\u5B58\u5584\u5FF5\u3002\u300D"
+    - "\u300C\u867D\u662F\u877C\u8681\uFF0C\u5374\u6709\u9F99\u5FC3\u3002\u8BA9\u6211\u770B\u770B\u4F60\u591F\u4E0D\u591F\u683C\u6D3B\u7740\u79BB\u5F00\u3002\u300D"
+    StatModifier: atk*0.9

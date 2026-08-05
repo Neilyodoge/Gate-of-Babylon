@@ -20,6 +20,9 @@ namespace XianTu
             if (other.GetComponentInParent<PlayerController>() == null)
                 return;
 
+            if (RoomRuntimeController.TryEnter(_roomIndex))
+                return;
+
             GameManager.Instance?.EnterEdgarRoom(_roomIndex);
         }
     }

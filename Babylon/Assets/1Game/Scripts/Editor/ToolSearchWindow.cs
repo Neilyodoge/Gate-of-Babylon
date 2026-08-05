@@ -278,6 +278,17 @@ namespace XianTu
             // ---- 房间与关卡 (Room) ----
             list.Add(new ToolEntry
             {
+                Name = "关卡配置与房间预制体工具",
+                Category = "Room",
+                Description = "中文配置小怪、区域、首领、房间、遭遇、剧情和阶段；制作房间有效范围、怪物刷新范围和内容标记点。",
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/关卡工具/关卡配置与房间预制体"),
+                ScriptPath = "Assets/1Game/Scripts/Editor/LevelDesignAuthoringWindow.cs",
+                MenuPath = "仙途秘境/关卡工具/关卡配置与房间预制体",
+                IsSpecialized = true
+            });
+
+            list.Add(new ToolEntry
+            {
                 Name = "定位 RoomBuilder 脚本",
                 Category = "Room",
                 OnClick = () => PingScript("Assets/1Game/Scripts/Room/RoomBuilder.cs"),

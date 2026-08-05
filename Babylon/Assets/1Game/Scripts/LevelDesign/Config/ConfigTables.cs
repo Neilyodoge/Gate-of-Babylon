@@ -5,26 +5,88 @@ using UnityEngine;
 namespace XianTu.LevelDesign
 {
     // ============================================================
-    // GDD §12 表格数据结构定义 —— 与 JSON 文件一一对应
-    // 所有表格放在 Resources/LevelDesign/ 下，文件名同 typeof(T).Name
+    // GDD §12 配置数据结构。关卡数据由关卡数据库 ScriptableObject 持有，
+    // 战斗数据仍由 Combat 配表管线加载。
     // ============================================================
 
-    /// <summary>GDD §12.1.4 房间类型（数字编码）</summary>
-    public enum LevelRoomType
+    public enum RoomRole
     {
-        Start = 0,
-        Battle = 1,
-        Elite = 2,
+        [InspectorName("普通战斗房")]
+        Battle = 0,
+        [InspectorName("精英房")]
+        Elite = 1,
+        [InspectorName("事件房")]
+        Event = 2,
+        [InspectorName("商店")]
         Shop = 3,
-        Event = 4,
-        Boss = 5
+        [InspectorName("休息房")]
+        Rest = 4,
+        [InspectorName("首领房")]
+        Boss = 5,
+        [InspectorName("军械库")]
+        Armory = 6,
+        [InspectorName("降落房")]
+        Landing = 7
+    }
+
+    public enum District
+    {
+        [InspectorName("外环")]
+        Outer = 0,
+        [InspectorName("连接区")]
+        Transition = 1,
+        [InspectorName("内环")]
+        Inner = 2
+    }
+
+    public enum ActivationMode
+    {
+        [InspectorName("进入房间时")]
+        OnEnter = 0,
+        [InspectorName("进入核心区域时")]
+        OnCoreEnter = 1,
+        [InspectorName("交互时")]
+        OnInteract = 2,
+        [InspectorName("始终激活")]
+        AlwaysActive = 3,
+        [InspectorName("伏击触发时")]
+        OnAmbush = 4
+    }
+
+    public enum LockPolicy
+    {
+        [InspectorName("不锁门")]
+        None = 0,
+        [InspectorName("战斗期间锁门")]
+        CombatLock = 1,
+        [InspectorName("事件选择期间锁门")]
+        EventChoiceLock = 2,
+        [InspectorName("首领战期间锁门")]
+        BossLock = 3
+    }
+
+    public enum SpawnMode
+    {
+        [InspectorName("预置休眠")]
+        PreplacedDormant = 0,
+        [InspectorName("触发后分波")]
+        WaveOnTrigger = 1,
+        [InspectorName("伏击生成")]
+        AmbushSpawn = 2,
+        [InspectorName("常驻巡逻")]
+        PatrolActive = 3,
+        [InspectorName("脚本首领")]
+        ScriptedBoss = 4
     }
 
     /// <summary>GDD §12.2.3 事件类型</summary>
     public enum StoryEventType
     {
+        [InspectorName("多项选择")]
         MultiChoice = 1,
+        [InspectorName("单项选择")]
         SingleChoice = 2,
+        [InspectorName("条件事件")]
         ConditionalEvent = 3
     }
 
@@ -34,24 +96,18 @@ namespace XianTu.LevelDesign
     [Serializable]
     public class MapStructureRow
     {
+        [InspectorName("配置编号")]
         public int ID;
+        [InspectorName("秘境编号")]
         public int ActID;
-        public int MaxFloor;
-        public int MinNodes;
-        public int MaxNodes;
-        public int NormalWeight = 75;
-        public int SpecialWeight = 25;
-        public int EliteMinCount;
-        public int EliteMaxCount;
-        public int EventMinCount;
-        public int ShopMinCount;
-        /// <summary>引用 Room_Socket_Group_Config 的 ID 列表</summary>
-        public int[] RoomPoolID;
-        /// <summary>每层敌人数值缩放倍率（长度=MaxFloor，缺省层=1.0）</summary>
+        [InspectorName("各层敌人数值倍率")]
+        [Tooltip("数组第1项对应第1层；未配置的层按1倍处理。")]
         public float[] EnemyScaleMul;
-        /// <summary>每层模块掉落稀有度偏移（Rare/Epic 权重百分比提升，缺省=0）</summary>
+        [InspectorName("各层模块稀有度偏移")]
+        [Tooltip("数组第1项对应第1层；填写稀有模块权重的百分比增量。")]
         public int[] ModuleRarityBias;
-        /// <summary>每层结束后是否有阶段返回点（0=无，1=有）</summary>
+        [InspectorName("各层是否提供阶段返回")]
+        [Tooltip("数组第1项对应第1层；0表示没有，1表示提供返回点。")]
         public int[] HasStageReturn;
 
         public float GetEnemyScale(int floor)
@@ -71,23 +127,72 @@ namespace XianTu.LevelDesign
         }
     }
 
-    // ------------------------------------------------------------
-    // §12.2.2 Room_Socket_Group_Config — 房间内容配置
-    // ------------------------------------------------------------
     [Serializable]
-    public class RoomSocketRow
+    public class RoomContentRow
     {
+        [InspectorName("内容编号")]
         public int ID;
-        public string SceneName;
-        public int RoomType;
-        public int[] EnemySquadID;
-        public int[] ItemDropIDs;
-        public int[] ItemDropWeights;
+        [InspectorName("中文名称")]
+        public string Name_CN;
+        [InspectorName("房间类型")]
+        public RoomRole Role;
+        [InspectorName("所属分区")]
+        public District District;
+        [InspectorName("激活方式")]
+        public ActivationMode ActivationMode;
+        [InspectorName("锁门规则")]
+        public LockPolicy LockPolicy;
+        [InspectorName("遭遇编号")]
+        [Tooltip("战斗房、精英房和首领房引用的战斗遭遇编号。")]
+        public int ContentConfigID;
+        [InspectorName("剧情事件编号")]
+        [Tooltip("事件房引用的剧情事件编号；非事件房填写0。")]
         public int EventID;
+        [InspectorName("事件触发概率")]
+        [Range(0, 100)]
         public int EventTriggerRate;
+        [InspectorName("房间标签")]
+        [Tooltip("用于筛选首领和房间预制体；工具中显示为字符串列表。")]
+        public string[] PrefabTags;
+        [InspectorName("最小图深度")]
+        public int MinGraphDepth;
+        [InspectorName("最大图深度")]
+        public int MaxGraphDepth = 999;
+        [InspectorName("抽取权重")]
         public int Weight = 100;
 
-        public LevelRoomType TypeEnum => (LevelRoomType)RoomType;
+        public RoomRole RoleEnum => Role;
+        public District DistrictEnum => District;
+        public ActivationMode ActivationModeEnum => ActivationMode;
+        public LockPolicy LockPolicyEnum => LockPolicy;
+    }
+
+    [Serializable]
+    public class EncounterRow
+    {
+        [InspectorName("遭遇编号")]
+        public int ID;
+        [InspectorName("中文名称")]
+        public string Name_CN;
+        [InspectorName("刷怪方式")]
+        public SpawnMode SpawnMode;
+        [InspectorName("最大波数")]
+        [Range(1, 2)]
+        public int MaxWaves = 1;
+        [InspectorName("增援触发剩余比例")]
+        [Range(0, 100)]
+        public int ReinforceAtPct;
+        [InspectorName("增援延迟（秒）")]
+        [Min(0f)]
+        public float ReinforceDelaySec = 0.75f;
+        [InspectorName("预置怪物数量")]
+        [Min(0)]
+        public int PreplacedCount;
+        [InspectorName("中文备注")]
+        [TextArea]
+        public string Notes_CN;
+
+        public SpawnMode SpawnModeEnum => SpawnMode;
     }
 
     // ------------------------------------------------------------
@@ -96,27 +201,43 @@ namespace XianTu.LevelDesign
     [Serializable]
     public class EventOption
     {
+        [InspectorName("选项文字")]
         public string Text;
+        [InspectorName("写入的事件标记")]
         public string FlagName;
+        [InspectorName("标记值")]
         public int FlagValue;
+        [InspectorName("奖励编号")]
         public int RewardID;
+        [InspectorName("消耗编号")]
         public int CostID;
+        [InspectorName("因果变化")]
         public int KarmaChange;
+        [InspectorName("道心变化")]
         public int DaoxinChange;
+        [InspectorName("寿元变化")]
         public int LifespanChange;
     }
 
     [Serializable]
     public class StoryEventRow
     {
+        [InspectorName("事件编号")]
         public int ID;
+        [InspectorName("事件名称")]
         public string Name_CN;
-        public int Type;
+        [InspectorName("事件类型")]
+        public StoryEventType Type;
+        [InspectorName("前置条件")]
+        [Tooltip("内部条件表达式；留空表示无前置条件。")]
         public string PrereqFlag;
+        [InspectorName("事件正文")]
+        [TextArea(3, 8)]
         public string Text_CN;
+        [InspectorName("玩家选项")]
         public EventOption[] Options;
 
-        public StoryEventType TypeEnum => (StoryEventType)Type;
+        public StoryEventType TypeEnum => Type;
     }
 
     // ------------------------------------------------------------
@@ -125,32 +246,22 @@ namespace XianTu.LevelDesign
     [Serializable]
     public class BossPhaseRow
     {
+        [InspectorName("阶段编号")]
         public int ID;
+        [InspectorName("首领编号")]
         public int BossID;
+        [InspectorName("阶段名称")]
         public string PhaseName;
-        /// <summary>格式：flagA=1&amp;flagB>=2，支持 AND 组合；空 = 无前置</summary>
+        [InspectorName("需要的事件条件")]
+        [Tooltip("条件表达式；支持多个条件同时成立，留空表示无前置条件。")]
         public string RequiredFlags;
+        [InspectorName("选择优先级")]
         public int Priority;
+        [InspectorName("登场对白")]
         public string[] DialogueLines;
-        public int SkillSetID;
-        /// <summary>格式：hp*1.2,atk*1.5,spd*0.8</summary>
+        [InspectorName("属性修正")]
+        [Tooltip("内部表达式，例如生命、攻击和速度倍率。")]
         public string StatModifier;
-        public int SummonSquadID;
-    }
-
-    // ------------------------------------------------------------
-    // §12.2.3 Material_CaveRes_Config — 洞府素材
-    // ------------------------------------------------------------
-    [Serializable]
-    public class MaterialCaveResRow
-    {
-        public int ID;
-        public string Name_CN;
-        public string Text_CN;
-        /// <summary>1=灵植种子 / 2=灵药 / 3=灵矿 / 4=妖兽材料 / 5=古籍残页 / 6=阵法符</summary>
-        public int Type;
-        public string Icon;
-        public int MaxStack = 99;
     }
 
     // ------------------------------------------------------------
@@ -169,24 +280,6 @@ namespace XianTu.LevelDesign
         public float BaseCooldown;
         /// <summary>基础伤害 / 效果倍率：百分比与权重均以 10000=100% 计；纯数值直接填</summary>
         public int BaseDamageRatio;
-        public string IconPath;
-    }
-
-    // ------------------------------------------------------------
-    // §6.9-2 Skill_Effect_Config — 被动 / BUFF / DEBUFF / 效果总库
-    // ------------------------------------------------------------
-    [Serializable]
-    public class SkillEffectRow
-    {
-        public int ID;
-        public string Name_CN;
-        public string Desc_CN;
-        /// <summary>1=BUFF / 2=被动 / 3=DEBUFF / 4=特殊被动(暂不实现)</summary>
-        public int Type;
-        public float BaseCooldown;
-        public int BaseDamageRatio;
-        /// <summary>可叠加层数上限（0=不可叠加）。技能型可叠加，与灵物叠加/质变分开结算（Q4）</summary>
-        public int Charges;
         public string IconPath;
     }
 
@@ -432,13 +525,7 @@ namespace XianTu.LevelDesign
     // ------------------------------------------------------------
     // JSON 顶层包装器（Unity JsonUtility 不支持顶级数组）
     // ------------------------------------------------------------
-    [Serializable] public class MapStructureTable { public MapStructureRow[] Rows; }
-    [Serializable] public class RoomSocketTable { public RoomSocketRow[] Rows; }
-    [Serializable] public class StoryEventTable { public StoryEventRow[] Rows; }
-    [Serializable] public class BossPhaseTable { public BossPhaseRow[] Rows; }
-    [Serializable] public class MaterialCaveResTable { public MaterialCaveResRow[] Rows; }
     [Serializable] public class SkillBaseTable { public SkillBaseRow[] Rows; }
-    [Serializable] public class SkillEffectTable { public SkillEffectRow[] Rows; }
     [Serializable] public class SkillParamTable { public SkillParamRow[] Rows; }
     [Serializable] public class ModuleBaseTable { public ModuleBaseRow[] Rows; }
     [Serializable] public class ModuleTriggerParamTable { public ModuleTriggerParamRow[] Rows; }

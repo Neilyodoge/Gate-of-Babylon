@@ -6,6 +6,47 @@
 
 ---
 
+## 关卡 A · 关卡配表迁移为全中文 Asset 工具（2026-08-05）
+
+- 新增 `关卡数据库.asset`，并将原生成配置重命名为 `怪物与首领生成配置.asset`；秘境结构、房间内容、战斗遭遇、剧情事件和首领阶段从 CSV/JSON 完整迁移为 ScriptableObject 单一真源，原有 3/6/6/11/15 条数据保持编号不变。
+- `ConfigDatabase` 改为直接读取关卡数据库 Asset；技能基础表归回 `RawData/Combat` 与 `Resources/Combat`，战斗批量配表仍保留 CSV→JSON 管线。
+- 中文关卡窗口完整覆盖怪物、区域、首领、房间、遭遇、剧情、首领阶段和预制体制作，字段、枚举、帮助和校验提示均使用中文；保存后立即重载运行时数据库。
+- 易用性收口：默认“日常制作模式”只显示怪物生成、首领随机、房间制作三页；小怪仅填类型/分类/分区和三区数量配比，首领仅填编号/分区/权重。预算、波次、房间规则、遭遇、剧情和首领阶段统一藏入“显示高级配置”。
+- 删除 `RawData/LevelDesign` 全部旧表及对应关卡 JSON；移除旧房间池、洞府素材表、技能效果空表、枚举图例，以及手工 EnemySquad 组队回退代码和 schema。
+- 验证迁移后运行时读取秘境 3、房间 6、遭遇 6、事件 11、首领阶段 15、技能 29；Unity 编译 0 error。
+
+---
+
+## 工程 · 高置信无引用资源清理（2026-08-05）
+
+- 仅在 `Assets/1Game/` 内按 Unity 反向依赖审计，保留仍被引用的资源、`Resources` 动态加载内容及角色/场景素材包备用源文件。
+- 删除 15 个 Cute Series 怪物演示场景及其共享 Demo 资源，以及 Hit & Slashes、Frank Katana、Auras Pack 的独立 Demo 内容。
+- 删除 Suriyun 演示 UI/相机灯光动画、Fantastic Dungeon 的 `old` 贴图和 Hit & Slashes 未引用大尺寸源图；合计约 10.5 MB，删除前均确认无游戏资源反向引用。
+
+---
+
+## 关卡 A · 中文关卡配置与房间 Prefab 工具（2026-08-05）
+
+- 新增 Unity 中文窗口「仙途秘境/关卡工具/关卡配置与房间Prefab」，集中配置普通小怪池、三分区数量/预算/近战远程法术比例、Boss 随机池；英文枚举、标签与事件 Flag 均有悬停说明。
+- 新增 `DungeonLevelAuthoringConfig.asset`：普通小怪按分区敌池、威胁预算和类别配比使用固定房间 Seed 自动组队，精英怪不进入自动池；旧 EnemySquad 作为关闭自动组队后的兼容路径。
+- Boss 与普通小怪池分离，按分区、房间标签、Required/Blocked Flag 和权重抽取；选定 Boss ID 写入 `RoomRuntimeState`，回访不重抽。
+- 新增 `DungeonRoomAuthoring` 与 `DungeonEnemySpawnArea`：Scene 视图以绿色显示房间有效范围、橙色显示怪物刷新范围；支持 Box/Sphere/Capsule/Mesh Collider，Mesh 按表面采样。
+- 房间 Prefab 页支持根据模型自动创建有效范围、创建 Box 刷新区、将所选 Cube/Mesh 一键转换、创建玩家/Boss/奖励/事件/材料/出口标记、新建或复制标准 Edgar 连接点，以及 Edgar/内容标记一键检查。
+- `BattleRoom` 优先使用刷新范围并检查玩家安全距离、点间距、分类和容量；没有范围的旧模板继续使用 `EnemySpawn` 离散点。
+- 工具烟测：三分区固定 Seed 自动组队稳定，Boss 条件池解析通过，Box 10/10 与不规则 Mesh 30/30 采样通过；Unity 编译 0 error。
+
+---
+
+## 关卡 A · 房间内容配表与战斗 Handler（2026-08-05）
+
+- 新增 `Room_Content_Config`、`Encounter_Config`、`Enemy_Squad_Config` 与 `LevelDesign_Enum_Legend` CSV/JSON；导表器校验重复 ID、非法枚举和数组长度，`ConfigDatabase` 校验 Room→Encounter→Squad 缺失引用。
+- 新增 `RoomRuntimeController`、`RoomRuntimeState`、`RoomContentResolver`、`IRoomContentHandler` 与 `CombatRoomContentHandler`，统一房间 `Dormant → Armed → Active → Completed` 生命周期，并保存内容 ID、固定 Encounter Seed、锁门和清场状态。
+- Edgar 房间改为按 `LockPolicy` 锁门；已清房回访恢复 Completed 状态，不重新抽取内容或生成敌人。
+- 战斗/精英/Boss 改为 Encounter + EnemySquad 配表驱动，移除按 room index 追加敌人类型的旧启发式；实现预置休眠、触发分波、伏击预警、常驻巡逻、脚本 Boss 五种 SpawnMode。
+- 固定 Seed `20260805` PlayMode 验证通过：生成 14 房、首房 6 个 EnemySpawn、CombatLock 建门；预置 4 敌在 Armed 阶段休眠、Active 阶段唤醒并锁门、Completed 解锁，回访不重刷；五种 SpawnMode 均完成配置预备。Unity 编译 0 error。
+
+---
+
 ## 关卡 A · Edgar PRO Grid3D 实体地牢桥接原型（2026-08-04）
 
 - 接入 Meryuhi URPFog `urp14`：源码作为 MIT 嵌入式 UPM 包放入 `Packages/moe.meryuhi.effects.fog/`，`N_RenderData` 已挂 Full Screen Fog Renderer Feature，`N_VolumeProfile` 已添加 Height 模式 Override；初始强度为 0，等待场景美术调参。
