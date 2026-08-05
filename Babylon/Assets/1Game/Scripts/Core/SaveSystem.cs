@@ -324,11 +324,16 @@ namespace XianTu
             if (data == null) return false;
             bool changed = data.schemaVersion < 3;
 
-            data.unlockedSkillIds ??= new List<string>();
-            data.unlockedModuleIds ??= new List<string>();
-            data.caveInventory ??= new List<ItemCountEntry>();
-            data.unlockedTalentIds ??= new List<string>();
-            data.unlockedBeastIds ??= new List<string>();
+            changed |= EnsureList(ref data.unlockedSkillIds);
+            changed |= EnsureList(ref data.unlockedModuleIds);
+            changed |= EnsureList(ref data.caveInventory);
+            changed |= EnsureList(ref data.unlockedTalentIds);
+            changed |= EnsureList(ref data.unlockedBeastIds);
+            changed |= EnsureList(ref data.realmQualities);
+            changed |= EnsureList(ref data.opportunityFlags);
+            changed |= EnsureList(ref data.pendingOpportunities);
+            changed |= EnsureList(ref data.masteryNodeIds);
+            changed |= EnsureList(ref data.unlockedGrowthBranches);
 
 #pragma warning disable CS0618
             if (data.buildBackpack != null && data.buildBackpack.Count > 0)
@@ -361,6 +366,13 @@ namespace XianTu
                 changed = true;
             }
             return changed;
+        }
+
+        private static bool EnsureList<T>(ref List<T> list)
+        {
+            if (list != null) return false;
+            list = new List<T>();
+            return true;
         }
 
         private static void MigrateChain(LegacyChainSnapshot chain, List<string> ids)

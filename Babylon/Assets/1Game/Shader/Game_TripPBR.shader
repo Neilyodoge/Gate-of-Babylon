@@ -8,7 +8,7 @@ Shader "Game/TripPBR"
         [Normal][NoScaleOffset] _NormalMap("Normal Map", 2D) = "bump" {}
         _NormalScale("Normal Scale", Range(0,2)) = 1.0
 
-        [NoScaleOffset] _MaskMap("Mask Map (R Metallic, G AO, B Emission, A Smoothness)", 2D) = "white" {}
+        [NoScaleOffset] _MaskMap("Mask Map (R Smoothness, G Metallic, B AO, A Emission)", 2D) = "white" {}
         _MetallicScale("Metallic Multiplier", Range(0,1)) = 0.0
         _OcclusionStrength("AO Strength", Range(0,1)) = 1.0
         [HDR] _EmissionColor("Emission Color", Color) = (0,0,0,1)
@@ -215,14 +215,14 @@ Shader "Game/TripPBR"
                     sampler_MaskMap,
                     input.positionWS,
                     blend);
-                half metallic = saturate(mask.r * _MetallicScale);
+                half metallic = saturate(mask.g * _MetallicScale);
                 half occlusion = lerp(
                     1.0h,
-                    mask.g,
+                    mask.b,
                     _OcclusionStrength);
-                half emissionMask = mask.b;
+                half emissionMask = mask.a;
                 half smoothness = saturate(
-                    mask.a * _SmoothnessScale);
+                    mask.r * _SmoothnessScale);
 
                 half3 normalWS = GameSampleTriplanarNormal(
                     input.positionWS,

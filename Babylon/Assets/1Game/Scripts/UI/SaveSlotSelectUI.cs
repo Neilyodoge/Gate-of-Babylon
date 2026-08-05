@@ -94,11 +94,11 @@ namespace XianTu
                     var buttons = UGuiKit.CreateRow(card, 12f, 38f);
                     buttons.gameObject.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
                     var loadBtn = UGuiKit.CreateButton(buttons, "读取存档", () => OnLoadSlot(slot), new Color(0.3f, 0.5f, 0.8f, 0.95f), 15, new Vector2(150f, 38f));
-                    loadBtn.GetComponent<LayoutElement>().preferredWidth = 150f;
+                    SetButtonLayout(loadBtn, 150f, 38f);
                     var overwriteBtn = UGuiKit.CreateButton(buttons, "覆盖新建", () => ShowDestructiveConfirm(slot, overwrite: true), new Color(0.55f, 0.38f, 0.18f, 0.9f), 15, new Vector2(150f, 38f));
-                    overwriteBtn.GetComponent<LayoutElement>().preferredWidth = 150f;
+                    SetButtonLayout(overwriteBtn, 150f, 38f);
                     var deleteBtn = UGuiKit.CreateButton(buttons, "删除存档", () => ShowDestructiveConfirm(slot, overwrite: false), new Color(0.6f, 0.3f, 0.2f, 0.9f), 15, new Vector2(150f, 38f));
-                    deleteBtn.GetComponent<LayoutElement>().preferredWidth = 150f;
+                    SetButtonLayout(deleteBtn, 150f, 38f);
                 }
                 else
                 {
@@ -163,6 +163,13 @@ namespace XianTu
 
             var no = UGuiKit.CreateButton(btnRow, "取消", Refresh, new Color(0.25f, 0.25f, 0.3f, 0.9f), 16, new Vector2(180f, 42f));
             UGuiKit.SetHeight(no.GetComponent<RectTransform>(), 42f); no.GetComponent<LayoutElement>().preferredWidth = 180f;
+        }
+
+        private static void SetButtonLayout(Button button, float width, float height)
+        {
+            var layout = UGuiKit.SetHeight(button.GetComponent<RectTransform>(), height);
+            layout.preferredWidth = width;
+            layout.minWidth = width;
         }
     }
 }

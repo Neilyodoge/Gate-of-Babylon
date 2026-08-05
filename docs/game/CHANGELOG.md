@@ -8,6 +8,9 @@
 
 ## 关卡 A · Edgar PRO Grid3D 实体地牢桥接原型（2026-08-04）
 
+- `Game_TripPBR.shader` 的 Mask 贴图通道调整为 SMAE：R 光滑度 / G 金属度 / B AO / A 自发光 Mask。
+- 修复主菜单“进入基地”槽位按钮：`SaveSlotSelectUI` 在设置尺寸前为按钮补齐 `LayoutElement`，避免空引用并确保横向布局具有可点击尺寸；同时强化 schema v3 迁移，旧存档缺失的成长、机缘与精通集合会自动补齐并写回。
+- GDD §7.2 冻结关卡 A 首版产能：每局 14 个主体房（普通 5 / 精英 2 / 事件 2 / 商店 1 / 休息 1 / Boss 2 / 军械库 1），正式模板库为 12 个主体房 + 4 个连接模板；逐项列明分区主题、用途、Doorway 与内容槽要求。
 - 确认本地 `Assets/1Game/1Pack/ScriptPackage/Edgar/` 为完整 PRO 包，包含 `DungeonGeneratorGrid3D`、Grid3D 房间模板、门与官方 3D 示例；导入后 Unity 编译 0 error。
 - 新增游戏侧 `Resources/LevelDesign/EdgarGrid3D/` 原型资源：14 房 LevelGraph、3 个房间模板、2 个走廊模板与独立 GeneratorSettings，不在运行时直接依赖官方示例图资产。
 - 新增 `EdgarDungeonRuntime`：按 Seed 生成实体地牢、提取房间落点/尺寸、战斗开始锁门、清场后解锁。
