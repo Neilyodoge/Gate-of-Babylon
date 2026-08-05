@@ -25,7 +25,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: b4ce14d74497907449d14837112a165e, type: 3}
+        m_Texture: {fileID: 2800000, guid: 3f6ad76334e1ef245a9750c1ce773068, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
@@ -33,7 +33,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MaskMap:
-        m_Texture: {fileID: 2800000, guid: 3f3a88a28367a34429439d7c5a498839, type: 3}
+        m_Texture: {fileID: 2800000, guid: 3b67bb38b3cb7da40a9219414d9a3f35, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -41,7 +41,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 2800000, guid: 0e4fabfd87b5ec64a8ff28aef97dcc71, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -60,11 +60,11 @@ Material:
     - _OcclusionStrength: 1
     - _ReceiveShadows: 1
     - _Smoothness: 0.5
-    - _SmoothnessScale: 0.8
+    - _SmoothnessScale: 1
     - _SpecularIntensity: 1
     - _TriplanarBlendSharpness: 4
-    - _TriplanarScale: 0.25
+    - _TriplanarScale: 1
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.54088044, g: 0.5154162, b: 0.5017601, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []

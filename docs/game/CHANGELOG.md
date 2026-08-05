@@ -8,6 +8,7 @@
 
 ## 关卡 A · Edgar PRO Grid3D 实体地牢桥接原型（2026-08-04）
 
+- 接入 Meryuhi URPFog `urp14`：源码作为 MIT 嵌入式 UPM 包放入 `Packages/moe.meryuhi.effects.fog/`，`N_RenderData` 已挂 Full Screen Fog Renderer Feature，`N_VolumeProfile` 已添加 Height 模式 Override；初始强度为 0，等待场景美术调参。
 - `Game_TripPBR.shader` 的 Mask 贴图通道调整为 SMAE：R 光滑度 / G 金属度 / B AO / A 自发光 Mask。
 - 修复主菜单“进入基地”槽位按钮：`SaveSlotSelectUI` 在设置尺寸前为按钮补齐 `LayoutElement`，避免空引用并确保横向布局具有可点击尺寸；同时强化 schema v3 迁移，旧存档缺失的成长、机缘与精通集合会自动补齐并写回。
 - GDD §7.2 冻结关卡 A 首版产能：每局 14 个主体房（普通 5 / 精英 2 / 事件 2 / 商店 1 / 休息 1 / Boss 2 / 军械库 1），正式模板库为 12 个主体房 + 4 个连接模板；逐项列明分区主题、用途、Doorway 与内容槽要求。
