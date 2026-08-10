@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using Edgar.Unity.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -8,7 +8,7 @@ namespace Edgar.Unity
     public class DungeonRoomTemplateInitializerGrid3D
     {
         #if UNITY_EDITOR
-        [MenuItem("Assets/Create/Edgar (Grid3D)/Dungeon room template")]
+        [MenuItem("Assets/Create/仙途秘境/Edgar Grid3D/房间模板")]
         public static void CreateRoomTemplatePrefab()
         {
             // Create empty game object
@@ -25,7 +25,7 @@ namespace Edgar.Unity
 
             // Save prefab
             var currentPath = GetCurrentPath();
-            PrefabUtility.SaveAsPrefabAsset(roomTemplate, AssetDatabase.GenerateUniqueAssetPath(currentPath + "/Room template.prefab"));
+            PrefabUtility.SaveAsPrefabAsset(roomTemplate, AssetDatabase.GenerateUniqueAssetPath(currentPath + "/房间模板.prefab"));
 
             // Remove game object from scene
             Object.DestroyImmediate(roomTemplate);
@@ -33,7 +33,7 @@ namespace Edgar.Unity
         #endif
 
         #if UNITY_EDITOR
-        [MenuItem("Assets/Create/Edgar (Grid3D)/Door")]
+        [MenuItem("Assets/Create/仙途秘境/Edgar Grid3D/门")]
         public static void CreateDoorPrefab()
         {
             // Create empty game object
@@ -44,7 +44,7 @@ namespace Edgar.Unity
 
             // Save prefab
             var currentPath = GetCurrentPath();
-            PrefabUtility.SaveAsPrefabAsset(roomTemplate, AssetDatabase.GenerateUniqueAssetPath(currentPath + "/Door.prefab"));
+            PrefabUtility.SaveAsPrefabAsset(roomTemplate, AssetDatabase.GenerateUniqueAssetPath(currentPath + "/门.prefab"));
 
             // Remove game object from scene
             Object.DestroyImmediate(roomTemplate);

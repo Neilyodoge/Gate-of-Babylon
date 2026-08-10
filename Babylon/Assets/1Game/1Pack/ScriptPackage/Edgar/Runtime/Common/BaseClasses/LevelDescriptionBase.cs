@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Edgar.GraphBasedGenerator.Grid2D;
@@ -27,7 +27,7 @@ namespace Edgar.Unity
         {
             if (room == null) throw new ArgumentNullException(nameof(room));
             if (roomTemplates == null) throw new ArgumentNullException(nameof(roomTemplates));
-            if (roomTemplates.Count == 0) throw new ArgumentException($"There must be at least one room template for each room. Room: {room}", nameof(roomTemplates));
+            if (roomTemplates.Count == 0) throw new ArgumentException($"每个房间至少需要一个房间模板。房间：{room}", nameof(roomTemplates));
 
             LevelDescription.AddRoom(room, GetBasicRoomDescription(roomTemplates));
         }
@@ -54,7 +54,7 @@ namespace Edgar.Unity
         {
             if (connection == null) throw new ArgumentNullException(nameof(connection));
             if (corridorRoom == null) throw new ArgumentNullException(nameof(corridorRoom));
-            if (corridorRoomTemplates.Count == 0) throw new ArgumentException($"There must be at least one room template for each corridor room. Room: {corridorRoom}", nameof(corridorRoom));
+            if (corridorRoomTemplates.Count == 0) throw new ArgumentException($"每个走廊房间至少需要一个房间模板。房间：{corridorRoom}", nameof(corridorRoom));
 
             Connections.Add(connection);
             CorridorToConnectionMapping.Add(corridorRoom, connection);
@@ -106,13 +106,13 @@ namespace Edgar.Unity
                 return roomTemplate;
             }
 
-            Debug.LogError($"There was a problem when loading the room template \"{roomTemplatePrefab.name}\":");
+            Debug.LogError($"加载房间模板“{roomTemplatePrefab.name}”时发生问题：");
             foreach (var error in result.Errors)
             {
                 Debug.LogError($"- {error}");
             }
 
-            throw new ConfigurationException("Please fix all the errors above and try again");
+            throw new ConfigurationException("请修复以上所有错误后重试。");
         }
 
         /// <summary>

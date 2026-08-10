@@ -1,4 +1,4 @@
-﻿using Edgar.Geometry;
+using Edgar.Geometry;
 using Edgar.GraphBasedGenerator.Grid2D;
 using Edgar.GraphBasedGenerator.Grid2D.Exceptions;
 using UnityEngine;
@@ -30,13 +30,13 @@ namespace Edgar.Unity.Diagnostics
             var roomTemplateSettings = roomTemplate.GetComponent<RoomTemplateSettingsGrid3D>();
             if (roomTemplateSettings == null)
             {
-                result.AddError($"The {nameof(RoomTemplateSettingsGrid3D)} component is missing on the room template game object.");
+                result.AddError($"房间模板根对象缺少 {nameof(RoomTemplateSettingsGrid3D)} 组件。");
             }
             else
             {
                 if (roomTemplateSettings.GeneratorSettings == null)
                 {
-                    result.AddError($"The {nameof(RoomTemplateSettingsGrid3D.GeneratorSettings)} field must be assigned.");
+                    result.AddError($"必须指定 {nameof(RoomTemplateSettingsGrid3D.GeneratorSettings)} 字段。");
                 }
             }
 
@@ -59,17 +59,16 @@ namespace Edgar.Unity.Diagnostics
 
                 if (doors.Count == 0)
                 {
-                    result.AddError($"There are no doors.");
+                    result.AddError("房间模板没有门。");
                 }
             }
             catch (DoorLineOutsideOfOutlineException)
             {
-                result.AddError(
-                    $"It seems like some of the doors are not located on the outline of the room template or are incorrectly rotated.");
+                result.AddError("部分门不在房间模板轮廓上，或门的旋转方向不正确。");
             }
             catch (DuplicateDoorPositionException)
             {
-                result.AddError("There are duplicate/overlapping door lines with the same door length and socket.");
+                result.AddError("存在门长和 Socket 相同的重复或重叠门线。");
             }
 
             return result;

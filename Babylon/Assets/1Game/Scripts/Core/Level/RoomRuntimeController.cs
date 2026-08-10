@@ -24,7 +24,11 @@ namespace XianTu
             if (!States.TryGetValue(spawn.roomIndex, out _state))
             {
                 _content = RoomContentResolver.Resolve(
-                    roomType, spawn.roomIndex, spawn.roomCount, seed);
+                    roomType,
+                    spawn.roomIndex,
+                    spawn.roomCount,
+                    seed,
+                    spawn.hasDistrict ? spawn.district : null);
                 _state = new RoomRuntimeState
                 {
                     RoomIndex = spawn.roomIndex,
@@ -102,6 +106,12 @@ namespace XianTu
         {
             ActiveControllers.Clear();
             States.Clear();
+        }
+
+        public static void DebugResetRoom(int roomIndex)
+        {
+            ActiveControllers.Remove(roomIndex);
+            States.Remove(roomIndex);
         }
 
         private void OnDestroy()

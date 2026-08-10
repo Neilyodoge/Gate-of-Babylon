@@ -1,9 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Edgar.Unity
 {
     /// <inheritdoc />
-    [AddComponentMenu("Edgar/Grid3D/_Internal/Room Info (Grid3D)")]
+    [AddComponentMenu("仙途秘境/Edgar Grid3D/_内部/房间信息")]
     public class RoomInfoGrid3D : RoomInfoBase<RoomInstanceGrid3D>
     {
     }

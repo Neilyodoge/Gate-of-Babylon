@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Edgar.GraphBasedGenerator.Grid2D;
 using UnityEngine;
@@ -49,24 +49,24 @@ namespace Edgar.Unity.Diagnostics
 
             if (isPreemptive)
             {
-                Debug.LogWarning($"<size=17><b>--- Performance diagnostics ---</b></size>");
-                Debug.LogWarning($"This is an automatic diagnostic procedure meant to analyze potential problems with the configuration of the generator.");
-                Debug.LogWarning($"You can see this text because you enabled the \"{nameof(DungeonGeneratorBaseGrid2D.EnableDiagnostics)}\" checkbox.");
-                Debug.LogWarning($"If the performance of the generator is good, you may ignore all the suggestions below.");
+                Debug.LogWarning("<size=17><b>--- 性能诊断 ---</b></size>");
+                Debug.LogWarning("这是用于分析生成器潜在配置问题的自动诊断流程。");
+                Debug.LogWarning($"显示此信息是因为启用了“{nameof(DungeonGeneratorBaseGrid2D.EnableDiagnostics)}”。");
+                Debug.LogWarning("若生成性能正常，可以忽略下方建议。");
                 Debug.LogWarning($"---");
             }
             else
             {
-                Debug.LogWarning($"<size=17><b>--- Timeout diagnostics ---</b></size>");
-                Debug.LogWarning($"The generator was not able to produce a level within a given time limit. The reason for that is usually that there is some problem with the configuration of the generator.");
+                Debug.LogWarning("<size=17><b>--- 超时诊断 ---</b></size>");
+                Debug.LogWarning("生成器未能在规定时间内生成关卡，通常表示生成器配置存在问题。");
             }
 
             var problematicResults = results.Where(x => x.IsPotentialProblem).ToList();
 
             if (problematicResults.Count > 0)
             {
-                Debug.LogWarning($"Below you can find an automatic diagnostic of what might be wrong with the configuration of the generator.");
-                Debug.LogWarning($"If you are not sure what that to do, please create an issue on github together with a screenshot of the diagnostic below.");
+                Debug.LogWarning("以下是对生成器配置潜在问题的自动诊断。");
+                Debug.LogWarning("若无法确定处理方式，请在 Edgar 的 GitHub 提交 Issue，并附上下方诊断截图。");
 
                 foreach (var result in problematicResults)
                 {
@@ -78,11 +78,11 @@ namespace Edgar.Unity.Diagnostics
             }
             else
             {
-                Debug.LogWarning($"It seems like we were not able to automatically detect any problems with the configuration.");
-                Debug.LogWarning($"Please create an issue on github to further investigate the performance of the generator.");
+                Debug.LogWarning("自动诊断未发现明确的配置问题。");
+                Debug.LogWarning("请在 Edgar 的 GitHub 提交 Issue，以进一步调查生成器性能。");
             }
 
-            Debug.LogWarning($"-------- <b>End of diagnostic</b> --------");
+            Debug.LogWarning("-------- <b>诊断结束</b> --------");
 
             Application.SetStackTraceLogType(LogType.Warning, originalLogType);
         }
@@ -94,28 +94,28 @@ namespace Edgar.Unity.Diagnostics
             var originalLogType = Application.GetStackTraceLogType(LogType.Warning);
             Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
 
-            Debug.LogWarning($"<size=17><b>--- Error diagnostic ---</b></size>");
-            Debug.LogWarning($"The generator was not able to produce a level due to an error with one or more room templates.");
+            Debug.LogWarning("<size=17><b>--- 错误诊断 ---</b></size>");
+            Debug.LogWarning("一个或多个房间模板存在错误，生成器无法生成关卡。");
 
             if (wrongManualDoors != null)
             {
                 Debug.LogWarning("--");
-                Debug.LogWarning($"<b>There is a high chance that this error caused by an incorrect configuration of the manual door mode. See the \"{wrongManualDoors.Name}\" diagnostic section below.</b>");
-                Debug.LogWarning($"<b>If you do not think that your manual doors are incorrect, continue reading.</b>");
+                Debug.LogWarning($"<b>该错误很可能由手动门模式配置不正确引起，请查看下方“{wrongManualDoors.Name}”诊断章节。</b>");
+                Debug.LogWarning("<b>若确认手动门配置无误，请继续阅读。</b>");
                 Debug.LogWarning("--");
             }
 
-            Debug.LogWarning($"When trying to find a suitable shape for the \"{room.GetDisplayName()}\" room, there was no available room template that could be connected to already laid-out neighbors.");
-            Debug.LogWarning($"When that happened, neighbors were assigned the following room templates: {string.Join(",", roomTemplates.Select(x => $"\"{x.Name}\""))}.");
-            Debug.LogWarning($"To fix this issues, make sure that for every possible choice of neighboring room templates,");
-            Debug.LogWarning($"there exists a room template for the room \"{room.GetDisplayName()}\" that can be connected to at least one of the neighbors.");
+            Debug.LogWarning($"为房间“{room.GetDisplayName()}”查找合适形状时，没有可与已放置相邻房间连接的模板。");
+            Debug.LogWarning($"当时相邻房间使用的模板为：{string.Join(",", roomTemplates.Select(x => $"“{x.Name}”"))}。");
+            Debug.LogWarning("请确保在相邻房间模板的每种可能组合下，");
+            Debug.LogWarning($"房间“{room.GetDisplayName()}”都至少有一个模板能与其中一个相邻房间连接。");
 
             if (wrongManualDoors != null)
             {
                 PrintResult(wrongManualDoors);
             }
 
-            Debug.LogWarning($"-------- <b>End of diagnostic</b> --------");
+            Debug.LogWarning("-------- <b>诊断结束</b> --------");
 
             Application.SetStackTraceLogType(LogType.Warning, originalLogType);
         }

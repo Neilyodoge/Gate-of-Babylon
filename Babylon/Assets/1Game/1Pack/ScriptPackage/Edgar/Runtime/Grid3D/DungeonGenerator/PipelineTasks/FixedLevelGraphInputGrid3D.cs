@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Linq;
 using UnityEngine;
 
@@ -17,12 +17,12 @@ namespace Edgar.Unity
         {
             if (config.LevelGraph == null)
             {
-                throw new ConfigurationException("The LevelGraph field must not be null. Please assign a level graph in the Input config section of the generator component.");
+                throw new ConfigurationException("LevelGraph 字段不能为空。请在生成器组件的“输入配置”中指定关卡图。");
             }
 
             if (config.LevelGraph.Rooms.Count == 0)
             {
-                throw new ConfigurationException($"Each level graph must contain at least one room. Please add some rooms to the level graph called \"{config.LevelGraph.name}\".");
+                throw new ConfigurationException($"关卡图至少需要一个房间。请向关卡图“{config.LevelGraph.name}”添加房间。");
             }
 
             var levelDescription = new LevelDescriptionGrid3D(config.AllowRotationOverride.GetBoolValue());
@@ -34,7 +34,7 @@ namespace Edgar.Unity
 
                 if (roomTemplates.Count == 0)
                 {
-                    throw new ConfigurationException($"There are no room templates for the room \"{room.GetDisplayName()}\" and also no room templates in the default set of room templates. Please make sure that the room has at least one room template available.");
+                    throw new ConfigurationException($"房间“{room.GetDisplayName()}”没有可用模板，默认房间模板集合中也没有模板。请至少为该房间提供一个房间模板。");
                 }
 
                 levelDescription.AddRoom(room, roomTemplates);
@@ -51,7 +51,7 @@ namespace Edgar.Unity
 
                     if (corridorRoom is Room basicRoom)
                     {
-                        basicRoom.Name = "Corridor";
+                        basicRoom.Name = "走廊";
                     }
 
                     levelDescription.AddCorridorConnection(connection, corridorRoom,

@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using UnityEditor;
@@ -21,34 +21,34 @@ namespace Edgar.Unity.Editor
 
             var foldoutStyle = new GUIStyle(EditorStyles.foldout) {fontStyle = FontStyle.Bold};
 
-            defaultRoomTemplatesFoldout = EditorGUILayout.Foldout(defaultRoomTemplatesFoldout, "Default room templates", foldoutStyle);
+            defaultRoomTemplatesFoldout = EditorGUILayout.Foldout(defaultRoomTemplatesFoldout, "默认房间模板", foldoutStyle);
 
             if (defaultRoomTemplatesFoldout)
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(
                     serializedObject.FindProperty(nameof(LevelGraph.DefaultIndividualRoomTemplates)),
-                    new GUIContent("Room Templates"),
+                    new GUIContent("房间模板"),
                     true);
                 EditorGUILayout.PropertyField(
                     serializedObject.FindProperty(nameof(LevelGraph.DefaultRoomTemplateSets)),
-                    new GUIContent("Room Templates Sets"),
+                    new GUIContent("房间模板集合"),
                     true);
                 EditorGUI.indentLevel--;
             }
 
-            corridorRoomTemplatesFoldout = EditorGUILayout.Foldout(corridorRoomTemplatesFoldout, "Corridor room templates", foldoutStyle);
+            corridorRoomTemplatesFoldout = EditorGUILayout.Foldout(corridorRoomTemplatesFoldout, "走廊房间模板", foldoutStyle);
 
             if (corridorRoomTemplatesFoldout)
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(serializedObject.FindProperty(
                         nameof(LevelGraph.CorridorIndividualRoomTemplates)),
-                    new GUIContent("Room Templates"),
+                    new GUIContent("房间模板"),
                     true);
                 EditorGUILayout.PropertyField(
                     serializedObject.FindProperty(nameof(LevelGraph.CorridorRoomTemplateSets)),
-                    new GUIContent("Room Templates Sets"),
+                    new GUIContent("房间模板集合"),
                     true);
                 EditorGUI.indentLevel--;
             }
@@ -57,17 +57,17 @@ namespace Edgar.Unity.Editor
 
             EditorGUILayout.PropertyField(
                 serializedObject.FindProperty(nameof(LevelGraph.IsDirected)),
-                new GUIContent("Is Directed"),
+                new GUIContent("是否为有向图"),
                 true);
 
-            EditorGUILayout.LabelField("Custom room and connection types", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("自定义房间与连接类型", EditorStyles.boldLabel);
 
             var derivedRoomTypes = GetDerivedRoomTypes();
             var currentRoomType = serializedObject.FindProperty(nameof(LevelGraph.RoomType)).stringValue;
             var selectedRoomIndex = derivedRoomTypes.FindIndex(x => x.FullName == currentRoomType);
             selectedRoomIndex = selectedRoomIndex == -1 ? derivedRoomTypes.IndexOf(typeof(Room)) : selectedRoomIndex;
             var roomOptions = derivedRoomTypes.Select(x => $"{x.Name} ({x.Namespace})").ToArray();
-            selectedRoomIndex = EditorGUILayout.Popup("Room type", selectedRoomIndex, roomOptions);
+            selectedRoomIndex = EditorGUILayout.Popup("房间类型", selectedRoomIndex, roomOptions);
             serializedObject.FindProperty(nameof(LevelGraph.RoomType)).stringValue = derivedRoomTypes[selectedRoomIndex].FullName;
 
             var derivedConnectionTypes = GetDerivedConnectionTypes();
@@ -75,19 +75,19 @@ namespace Edgar.Unity.Editor
             var selectedConnectionIndex = derivedConnectionTypes.FindIndex(x => x.FullName == currentConnectionType);
             selectedConnectionIndex = selectedConnectionIndex == -1 ? derivedConnectionTypes.IndexOf(typeof(Connection)) : selectedConnectionIndex;
             var connectionOptions = derivedConnectionTypes.Select(x => $"{x.Name} ({x.Namespace})").ToArray();
-            selectedConnectionIndex = EditorGUILayout.Popup("Connection type", selectedConnectionIndex, connectionOptions);
+            selectedConnectionIndex = EditorGUILayout.Popup("连接类型", selectedConnectionIndex, connectionOptions);
             serializedObject.FindProperty(nameof(LevelGraph.ConnectionType)).stringValue = derivedConnectionTypes[selectedConnectionIndex].FullName;
 
             if (derivedRoomTypes[selectedRoomIndex] == typeof(Room) && derivedConnectionTypes[selectedConnectionIndex] == typeof(Connection))
             {
                 EditorGUILayout.HelpBox(
-                    "Default room or connection types are selected. It is not possible to change this easily after you add rooms and connections to the graph.",
+                    "当前使用默认房间或连接类型。向图中添加房间和连接后，再修改这些类型会比较困难。",
                     MessageType.Warning);
             }
 
             EditorGUILayout.Space();
 
-            if (GUILayout.Button("Open graph editor"))
+            if (GUILayout.Button("打开关卡图编辑器"))
             {
                 OpenWindow((LevelGraph) target);
             }
@@ -134,7 +134,7 @@ namespace Edgar.Unity.Editor
         private static void OpenWindow(LevelGraph levelGraph)
         {
             var type = Type.GetType("UnityEditor.GameView,UnityEditor");
-            var window = EditorWindow.GetWindow<LevelGraphEditor>("Graph editor", type);
+            var window = EditorWindow.GetWindow<LevelGraphEditor>("关卡图编辑器", type);
             window.Initialize(levelGraph);
             window.Show();
         }

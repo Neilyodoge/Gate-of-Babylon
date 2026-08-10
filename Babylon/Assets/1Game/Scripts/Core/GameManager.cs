@@ -514,6 +514,9 @@ namespace XianTu
             bool buildRoomGeometry,
             Transform contentRoot = null)
         {
+            var roomAuthoring = contentRoot != null
+                ? contentRoot.GetComponent<DungeonRoomAuthoring>()
+                : null;
             return new RoomSpawnContext
             {
                 level = _currentLevel,
@@ -538,6 +541,10 @@ namespace XianTu
                     ^ ((_currentRoomInLevel + 1) * 19349663)),
                 buildRoomGeometry = buildRoomGeometry,
                 contentRoot = contentRoot,
+                district = roomAuthoring != null
+                    ? roomAuthoring.District
+                    : XianTu.LevelDesign.District.Outer,
+                hasDistrict = roomAuthoring != null,
             };
         }
 
@@ -590,7 +597,7 @@ namespace XianTu
                 Debug.Log($"<color=#66ccff>[Edgar] 房间 {clearedIndex + 1} 已清理；Boss {_defeatedEdgarBosses}/{EdgarMapProvider.RequiredBossCount}</color>");
 
                 // 普通清场只解锁实体门，不生成逐房传送门。
-                // 同一区域两个 Boss 均击败后，才生成进入下一层的出口。
+                // 本局对侧端点 Boss 击败后，生成进入下一层的出口。
                 if (_defeatedEdgarBosses >= EdgarMapProvider.RequiredBossCount)
                     SpawnLevelCompletePortal();
                 return;
@@ -689,66 +696,68 @@ namespace XianTu
         {
             Vector3 roomCenter = _currentRoomGo != null ? _currentRoomGo.transform.position : Vector3.zero;
             float roomHalfDepth = GetCurrentRoomHalfDepth();
-
             bool isLastRealm = _currentLevel >= _realmNames.Length - 1;
+            Vector3 portalPos = roomCenter + new Vector3(0f, 0f, roomHalfDepth * 0.5f);
+            var runtime = FindFirstObjectByType<EdgarDungeonRuntime>();
+            if (MapProviders.Current is EdgarMapProvider
+                && runtime != null
+                && runtime.TryGetContentSocketPosition(
+                    _currentRoomInLevel,
+                    DungeonContentSocketType.ExitPortal,
+                    out Vector3 socketPosition))
+                portalPos = socketPosition;
 
-            if (isLastRealm)
+            void CompleteLevel()
             {
-                _gameOver = true;
-                _runElapsedTime = Time.time - _runStartTime;
-                float victoryMul = 2.0f;
-                int insightRaw = InsightSystem.Instance.CommitOnExtract(victoryMul);
-                int temperingRaw = 0;
-                if (FeatureFlags.EnableCaveMeta)
-                    temperingRaw = CultivationSystem.Instance.CommitOnExtract(victoryMul);
-                int matCount = CaveInventory.Instance.TotalPendingCount;
-                CaveInventory.Instance.CommitCurrentRun();
-
-                string realmName = _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
-                ExtractResultPanel.Show(_currentLevel, realmName,
-                    insightRaw, temperingRaw, matCount,
-                    ExtractResultPanel.EndType.Victory,
-                    () =>
-                    {
-                        EnterVillageHub();
-                        _transitioning = false;
-                        _gameOver = false;
-                        Debug.Log("<color=yellow>✨✨✨ 通关成功！返回基地 ✨✨✨</color>");
-                    });
-                GameEvents.Publish(new GameEvents.GameWon());
-                Debug.Log($"<color=lime>[RunTimer] 通关时长：{_runElapsedTime / 60f:F1} 分钟（目标 25-40min）</color>");
-                return;
-            }
-
-            // 非最终层 → 传送到下一层
-            // #4：换境后的第一间也必须经 STS 全图择路进入（与第一层完全一致），
-            //     否则会表现为「另一种关卡形式」（无地图、直接刷房）。
-            if (LevelTransition.Instance != null)
-            {
-                Vector3 portalPos = roomCenter + new Vector3(0f, 0, roomHalfDepth * 0.5f);
-                LevelTransition.Instance.SpawnPortal(portalPos, () =>
+                if (isLastRealm)
                 {
-                    _currentLevel++;
-                    _currentRoomInLevel = 0;
-                    _clearedEdgarRooms.Clear();
-                    _activeEdgarRoomIndex = -1;
-                    _defeatedEdgarBosses = 0;
-                    // V0.4.5：换境重生成该境分叉图并复位起点，保证新境每间都能弹全图。
-                    MapProviders.Current.OnEnterRealm(_currentLevel);
-                    Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
-                    EnterNextRoomWithChoice();
-                });
-            }
-            else
-            {
+                    _gameOver = true;
+                    _runElapsedTime = Time.time - _runStartTime;
+                    float victoryMul = 2.0f;
+                    int insightRaw = InsightSystem.Instance.CommitOnExtract(victoryMul);
+                    int temperingRaw = 0;
+                    if (FeatureFlags.EnableCaveMeta)
+                        temperingRaw = CultivationSystem.Instance.CommitOnExtract(victoryMul);
+                    int matCount = CaveInventory.Instance.TotalPendingCount;
+                    CaveInventory.Instance.CommitCurrentRun();
+
+                    string realmName = _currentLevel < _realmNames.Length
+                        ? _realmNames[_currentLevel]
+                        : "巅峰";
+                    ExtractResultPanel.Show(
+                        _currentLevel,
+                        realmName,
+                        insightRaw,
+                        temperingRaw,
+                        matCount,
+                        ExtractResultPanel.EndType.Victory,
+                        () =>
+                        {
+                            EnterVillageHub();
+                            _transitioning = false;
+                            _gameOver = false;
+                            Debug.Log("<color=yellow>✨✨✨ 通关成功！返回基地 ✨✨✨</color>");
+                        });
+                    GameEvents.Publish(new GameEvents.GameWon());
+                    Debug.Log(
+                        $"<color=lime>[RunTimer] 通关时长：{_runElapsedTime / 60f:F1} 分钟（目标 25-40min）</color>");
+                    return;
+                }
+
                 _currentLevel++;
                 _currentRoomInLevel = 0;
                 _clearedEdgarRooms.Clear();
                 _activeEdgarRoomIndex = -1;
                 _defeatedEdgarBosses = 0;
                 MapProviders.Current.OnEnterRealm(_currentLevel);
+                Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
                 EnterNextRoomWithChoice();
             }
+
+            if (LevelTransition.Instance != null)
+                LevelTransition.Instance.SpawnPortal(portalPos, CompleteLevel);
+            else
+                CompleteLevel();
         }
 
         /// <summary>获取当前房间的半深度（用于定位传送门）</summary>
@@ -898,6 +907,13 @@ namespace XianTu
         /// <summary>Debug：直接跳转到指定类型的房间</summary>
         public void DebugGotoRoom(RoomType roomType)
         {
+            if (MapProviders.Current is EdgarMapProvider)
+            {
+                if (!DebugGotoEdgarRoom(roomType))
+                    Debug.LogError($"[Debug] Edgar 地牢中找不到 {roomType} 房间。");
+                return;
+            }
+
             _gameOver = false;
             _transitioning = false;
 
@@ -920,11 +936,73 @@ namespace XianTu
             _currentRoomGo = _roomFactory.Spawn(
                 roomType,
                 BuildRoomContext(spawnPos, roomSize, buildRoomGeometry: true));
+            _currentRoomGo.GetComponent<RoomRuntimeController>()?.Enter();
 
             // 传送玩家
             TeleportPlayer(spawnPos);
 
             Debug.Log($"<color=magenta>[Debug] 跳转到 {roomType} 房间</color>");
+        }
+
+        public bool DebugGotoEdgarRoom(RoomType roomType)
+        {
+            if (MapProviders.Current is not EdgarMapProvider edgar
+                || !edgar.TryFindRoomIndex(roomType, out int roomIndex))
+                return false;
+            return DebugGotoEdgarRoom(roomIndex, edgar);
+        }
+
+        public bool DebugGotoEdgarRoom(string nodeName)
+        {
+            if (MapProviders.Current is not EdgarMapProvider edgar
+                || string.IsNullOrWhiteSpace(nodeName))
+                return false;
+            if (!edgar.TryGetCurrentPlacement(out _))
+                return false;
+
+            var runtime = FindFirstObjectByType<EdgarDungeonRuntime>();
+            if (runtime == null)
+                return false;
+            for (int i = 0; i < runtime.RoomCount; i++)
+            {
+                if (string.Equals(
+                        runtime.GetNodeName(i),
+                        nodeName,
+                        System.StringComparison.OrdinalIgnoreCase))
+                    return DebugGotoEdgarRoom(i, edgar);
+            }
+            return false;
+        }
+
+        private bool DebugGotoEdgarRoom(int roomIndex, EdgarMapProvider edgar)
+        {
+            if (_levelRooms == null
+                || _currentLevel < 0
+                || _currentLevel >= _levelRooms.Count
+                || roomIndex < 0
+                || roomIndex >= _levelRooms[_currentLevel].Count)
+                return false;
+
+            _gameOver = false;
+            _transitioning = false;
+            if (LevelTransition.Instance != null)
+                LevelTransition.Instance.DestroyPortal();
+            foreach (var enemy in GameObject.FindGameObjectsWithTag("Enemy"))
+                Destroy(enemy);
+
+            _clearedEdgarRooms.Remove(roomIndex);
+            _activeEdgarRoomIndex = -1;
+            RoomRuntimeController.DebugResetRoom(roomIndex);
+            _currentRoomInLevel = roomIndex;
+            _flatRoomIndex = roomIndex;
+            edgar.SelectRoom(roomIndex);
+            SpawnCurrentRoom(teleportPlayer: true);
+
+            Debug.Log(
+                $"<color=magenta>[Debug] 直达 Edgar 节点 " +
+                $"{FindFirstObjectByType<EdgarDungeonRuntime>()?.GetNodeName(roomIndex)}，" +
+                $"Room={roomIndex}，Type={_levelRooms[_currentLevel][roomIndex]}</color>");
+            return true;
         }
 
         /// <summary>Debug：设置当前层数</summary>

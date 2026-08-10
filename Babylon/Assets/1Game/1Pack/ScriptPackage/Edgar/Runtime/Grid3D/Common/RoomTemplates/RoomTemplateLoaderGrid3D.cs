@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Edgar.Geometry;
@@ -61,7 +61,7 @@ namespace Edgar.Unity
             {
                 if (roomTemplatePrefab.transform.localPosition != Vector3.zero)
                 {
-                    result = new ActionResult("The room template prefab root must be positioned at (0,0,0).");
+                    result = new ActionResult("房间模板 Prefab 根节点必须位于 (0,0,0)。");
                     return false;
                 }
             }
@@ -87,7 +87,7 @@ namespace Edgar.Unity
                 if (precomputedOutline == null || precomputedOutline.Count == 0)
                 {
                     result = new ActionResult();
-                    result.AddError($"The outline of the room template is not valid: The outline computation mode is set to InsideEditor but no outline was provided.");
+                    result.AddError("房间模板轮廓无效：轮廓计算模式设为 InsideEditor，但没有提供预计算轮廓。");
                     return false;
                 }
 
@@ -99,7 +99,7 @@ namespace Edgar.Unity
                 catch (Exception e)
                 {
                     result = new ActionResult();
-                    result.AddError($"The precomputed outline of the room template is not valid: {e.Message}.");
+                    result.AddError($"房间模板的预计算轮廓无效：{e.Message}。");
                     return false;
                 }
             }
@@ -113,7 +113,7 @@ namespace Edgar.Unity
                 catch (InvalidOutlineException e)
                 {
                     result = new ActionResult();
-                    result.AddError($"The outline of the room template is not valid: {e.Message}");
+                    result.AddError($"房间模板轮廓无效：{e.Message}");
                     return false;
                 }
             }
@@ -171,7 +171,7 @@ namespace Edgar.Unity
             {
                 if (doorComponent.GeneratorSettings == null)
                 {
-                    actionResult.AddError($"The door object '{doorComponent.gameObject.name}' does not have {nameof(DoorHandlerGrid3D.GeneratorSettings)} assigned.");
+                    actionResult.AddError($"门对象“{doorComponent.gameObject.name}”未指定 {nameof(DoorHandlerGrid3D.GeneratorSettings)}。");
                     continue;
                 }
 
@@ -195,17 +195,17 @@ namespace Edgar.Unity
                         }
                         catch (DoorLineOutsideOfOutlineException)
                         {
-                            actionResult.AddError($"The door object '{doorComponent.gameObject.name}' is not located on the outline of the room template or is incorrectly rotated.");
+                            actionResult.AddError($"门对象“{doorComponent.gameObject.name}”不在房间模板轮廓上，或旋转方向不正确。");
                         }
                     }
                 }
                 catch (MisalignedPositionException)
                 {
-                    actionResult.AddError($"The door object '{doorComponent.gameObject.name}' is not correctly positioned on the grid.");
+                    actionResult.AddError($"门对象“{doorComponent.gameObject.name}”未正确对齐网格。");
                 }
                 catch (DoorRotationOutOfSyncException)
                 {
-                    actionResult.AddError($"The door object '{doorComponent.gameObject.name}' has an incorrect orientation.");
+                    actionResult.AddError($"门对象“{doorComponent.gameObject.name}”朝向不正确。");
                 }
             }
 
@@ -372,7 +372,7 @@ namespace Edgar.Unity
         {
             if (points.Count == 0)
             {
-                throw new InvalidOutlineException($"There must be at least one block to compute the outline. If you have blocks in your room template, please check that you have the correct {nameof(RoomTemplateSettingsGrid3D.OutlineMode)} selected.");
+                throw new InvalidOutlineException($"计算轮廓至少需要一个 Block。若模板中已有 Block，请确认 {nameof(RoomTemplateSettingsGrid3D.OutlineMode)} 选择正确。");
             }
 
             var orderedDirections = new Dictionary<EdgarVector2Int, List<EdgarVector2Int>>
@@ -458,7 +458,7 @@ namespace Edgar.Unity
 
                 if (!foundNeighbor)
                 {
-                    throw new InvalidOutlineException("Invalid room shape.");
+                throw new InvalidOutlineException("房间形状无效。");
                 }
 
                 if (currentDirection != previousDirection)
@@ -481,7 +481,7 @@ namespace Edgar.Unity
 
             if (polygonPoints.ToHashSet().Count != polygonPoints.Count)
             {
-                throw new InvalidOutlineException("All polygon tiles must share at least a single side with a different tile");
+                throw new InvalidOutlineException("所有多边形格子都必须至少与另一个格子共享一条边。");
             }
 
             return new PolygonGrid2D(polygonPoints);

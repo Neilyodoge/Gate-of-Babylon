@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Edgar.GraphBasedGenerator.Grid2D;
 using Edgar.Unity.Diagnostics;
@@ -39,7 +39,7 @@ namespace Edgar.Unity
                 }
                 else
                 {
-                    throw new GeneratorException("Something went wrong inside FixElevationsInsideCycles, please contact the author of the asset.");
+                    throw new GeneratorException("修正环形路径内部高度时发生异常，请联系 Edgar 插件作者。");
                 }
             }
 

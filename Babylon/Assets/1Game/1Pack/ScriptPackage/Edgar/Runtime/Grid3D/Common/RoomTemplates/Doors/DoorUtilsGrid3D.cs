@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Edgar.Geometry;
 using UnityEngine;
@@ -44,7 +44,7 @@ namespace Edgar.Unity
 
             if (currentDirectionIndex == -1)
             {
-                throw new ArgumentException("Invalid door direction provided.");
+                throw new ArgumentException("提供的门方向无效。");
             }
 
             var nextIndex = currentDirectionIndex + amount;

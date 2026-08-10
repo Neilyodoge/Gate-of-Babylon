@@ -57,12 +57,19 @@ namespace XianTu
         private bool _playerInRange;
         private NpcHeadCard _headCard;
 
-        public void Initialize(int roomIndex, SkillData[] skillPool = null, ModuleDef[] modulePool = null)
+        public void Initialize(
+            int roomIndex,
+            SkillData[] skillPool = null,
+            ModuleDef[] modulePool = null,
+            bool buildRoomGeometry = true)
         {
             _roomIndex = roomIndex;
             _shopSkills = skillPool;
             _shopModules = modulePool;
-            BuildRoom();
+            if (buildRoomGeometry)
+                BuildRoom();
+            else
+                BuildShopContents();
             CreateShopUI();
 
             GameEvents.Subscribe<GameEvents.ResourceChanged>(OnResourceChanged);
@@ -87,7 +94,11 @@ namespace XianTu
         private void BuildRoom()
         {
             _roomVisuals = RoomBuilder.Build(transform, 20f, 20f, _roomIndex);
+            BuildShopContents();
+        }
 
+        private void BuildShopContents()
+        {
             var counter = GameObject.CreatePrimitive(PrimitiveType.Cube);
             counter.name = "ShopCounter";
             counter.transform.SetParent(transform);

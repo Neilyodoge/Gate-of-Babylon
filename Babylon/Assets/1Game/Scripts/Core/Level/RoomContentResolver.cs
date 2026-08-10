@@ -10,10 +10,11 @@ namespace XianTu
             RoomType roomType,
             int roomIndex,
             int roomCount,
-            int seed)
+            int seed,
+            District? districtOverride = null)
         {
             var role = ToRole(roomType);
-            var district = ResolveDistrict(roomIndex, roomCount);
+            var district = districtOverride ?? ResolveDistrict(roomIndex, roomCount);
             var candidates = new List<RoomContentRow>();
             foreach (var pair in ConfigDatabase.Instance.RoomContents)
             {
@@ -26,20 +27,9 @@ namespace XianTu
             }
 
             if (candidates.Count == 0)
-            {
-                foreach (var pair in ConfigDatabase.Instance.RoomContents)
-                {
-                    var row = pair.Value;
-                    if (row.RoleEnum == role
-                        && roomIndex >= row.MinGraphDepth
-                        && roomIndex <= row.MaxGraphDepth)
-                        candidates.Add(row);
-                }
-            }
-
-            if (candidates.Count == 0)
                 throw new InvalidOperationException(
-                    $"找不到房间内容配置：Room={roomIndex}, Role={role}, District={district}, Seed={seed}。");
+                    $"找不到同分区房间内容配置：Room={roomIndex}, Role={role}, " +
+                    $"District={district}, Seed={seed}。禁止跨区回退，请补齐对应分区配置。");
 
             candidates.Sort((a, b) => a.ID.CompareTo(b.ID));
             int totalWeight = 0;
@@ -71,6 +61,7 @@ namespace XianTu
                 RoomType.Boss => RoomRole.Boss,
                 RoomType.Treasure => RoomRole.Armory,
                 RoomType.Upgrade => RoomRole.Armory,
+                RoomType.Landing => RoomRole.Landing,
                 _ => throw new ArgumentOutOfRangeException(nameof(roomType), roomType, null)
             };
         }

@@ -81,10 +81,17 @@ MonoBehaviour:
     ReinforceAtPct: 50
     ReinforceDelaySec: 1.25
   BossPool:
-  - DisplayName: "\u5F53\u524D\u9ED8\u8BA4\u9996\u9886"
+  - DisplayName: "\u5916\u73AF Boss A"
     BossID: 1
     Weight: 100
-    AllowedDistricts: 7
+    AllowedDistricts: 1
+    RequiredFlags: 
+    BlockedFlags: 
+    RequiredRoomTag: 
+  - DisplayName: "\u5185\u73AF Boss B"
+    BossID: 2
+    Weight: 100
+    AllowedDistricts: 4
     RequiredFlags: 
     BlockedFlags: 
     RequiredRoomTag: 

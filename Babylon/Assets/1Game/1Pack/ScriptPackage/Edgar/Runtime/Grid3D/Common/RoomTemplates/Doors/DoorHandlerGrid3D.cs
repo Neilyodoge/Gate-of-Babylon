@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Edgar.Unity.Exceptions;
@@ -14,51 +14,59 @@ namespace Edgar.Unity
     /// The shorter name just does not feel right to me. This handler component is referenced/store in multiple
     /// place and it would be confusing if it was named just "Door" instead of "DoorHandler".
     /// </remarks>
-    [AddComponentMenu("Edgar/Grid3D/Door Handler (Grid3D)")]
+    [AddComponentMenu("仙途秘境/Edgar Grid3D/门设置")]
     public class DoorHandlerGrid3D : MonoBehaviour
     {
         /// <summary>
         /// Width of the door (in tiles).
         /// </summary>
+        [InspectorName("宽度（格）")]
         public int Width = 1;
 
         /// <summary>
         /// Height of the door (in tiles).
         /// </summary>
+        [InspectorName("高度（格）")]
         public int Height = 1;
 
         /// <summary>
         /// How many times should the door be repeated to also cover neighboring tiles.
         /// This is similar to hybrid doors in the 2D version of the asset.
         /// </summary>
+        [InspectorName("向相邻格延伸")]
         public int Repeat = 0;
 
         /// <summary>
         /// Door socket which control which doors can be connected together.
         /// </summary>
+        [InspectorName("门 Socket")]
         public DoorSocketBase Socket;
 
         /// <summary>
         /// Direction of the door that is used if a level graph is configured to be directed.
         /// The direction specifies whether the door is an entrance, exit or both.
         /// </summary>
+        [InspectorName("门方向")]
         public DoorDirection Direction = DoorDirection.Undirected;
 
         /// <summary>
         /// Generator settings.
         /// </summary>
+        [InspectorName("生成器设置")]
         public GeneratorSettingsGrid3D GeneratorSettings;
 
         /// <summary>
         /// List of blockers that are used in place of door positions that are not used.
         /// If more than one is provided, a random one is picked.
         /// </summary>
+        [InspectorName("未连接时封门物")]
         public List<GameObject> Blockers;
 
         /// <summary>
         /// List of connectors that are used in place of door positions that are used.
         /// If more than one is provided, a random one is picked.
         /// </summary>
+        [InspectorName("已连接时连接物")]
         public List<GameObject> Connectors;
 
         /// <summary>

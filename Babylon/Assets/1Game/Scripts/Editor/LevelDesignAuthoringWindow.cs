@@ -14,6 +14,10 @@ namespace XianTu.Editor
             "Assets/1Game/Resources/LevelDesign/怪物与首领生成配置.asset";
         private const string DatabasePath =
             "Assets/1Game/Resources/LevelDesign/关卡数据库.asset";
+        private const string StarterConfigPath =
+            "Assets/1Game/Data/LevelDesign/Templates/新手怪物与首领模板.asset";
+        private const string StarterRoomPrefabPath =
+            "Assets/1Game/Resources/LevelDesign/EdgarGrid3D/RoomTemplates/Generated/Rooms/WB_Outer_Battle.prefab";
 
         private const string AdvancedModeSessionKey =
             "XianTu.LevelDesignAuthoringWindow.AdvancedMode";
@@ -218,6 +222,20 @@ namespace XianTu.Editor
                 EditorGUILayout.HelpBox(
                     "推荐流程：① 怪物生成调数量和配比　② 首领随机登记候选　③ 房间制作处理范围与连接点。其他规则已有默认配置。",
                     MessageType.Info);
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button(
+                        new GUIContent(
+                            "一键套用新手配置模板",
+                            "把怪物池、三区数量配比和首领池恢复为一套可直接运行的示例。"),
+                        GUILayout.Height(28f)))
+                    ApplyStarterConfigTemplate();
+                if (GUILayout.Button(
+                        new GUIContent(
+                            "复制新手房间模板",
+                            "另存一个已经配置好范围、刷新区、内容点和连接点的可编辑战斗房。"),
+                        GUILayout.Height(28f)))
+                    DuplicateStarterRoomTemplate();
+                EditorGUILayout.EndHorizontal();
             }
             else
             {
@@ -236,6 +254,80 @@ namespace XianTu.Editor
                 _serializedConfig.FindProperty(propertyName),
                 new GUIContent(title, help),
                 true);
+        }
+
+        private void ApplyStarterConfigTemplate()
+        {
+            var template =
+                AssetDatabase.LoadAssetAtPath<DungeonLevelAuthoringConfig>(
+                    StarterConfigPath);
+            if (template == null)
+            {
+                EditorUtility.DisplayDialog(
+                    "缺少新手模板",
+                    $"没有找到：{StarterConfigPath}",
+                    "确定");
+                return;
+            }
+            if (_config == null)
+            {
+                EditorUtility.DisplayDialog(
+                    "缺少当前配置",
+                    "请先创建怪物与首领生成配置。",
+                    "确定");
+                return;
+            }
+            if (!EditorUtility.DisplayDialog(
+                    "套用新手配置模板",
+                    "这会覆盖当前的小怪池、三区数量配比和首领池。是否继续？",
+                    "套用模板",
+                    "取消"))
+                return;
+
+            Undo.RecordObject(_config, "套用新手配置模板");
+            string currentName = _config.name;
+            EditorUtility.CopySerialized(template, _config);
+            _config.name = currentName;
+            EditorUtility.SetDirty(_config);
+            AssetDatabase.SaveAssets();
+            DungeonLevelAuthoringConfig.ClearCache();
+            ConfigDatabase.Reload();
+            _serializedConfig = new SerializedObject(_config);
+            ShowNotification(new GUIContent("已套用新手配置模板"));
+        }
+
+        private static void DuplicateStarterRoomTemplate()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                StarterRoomPrefabPath);
+            if (prefab == null)
+            {
+                EditorUtility.DisplayDialog(
+                    "缺少房间模板",
+                    $"没有找到：{StarterRoomPrefabPath}",
+                    "确定");
+                return;
+            }
+
+            string destination = EditorUtility.SaveFilePanelInProject(
+                "复制新手房间模板",
+                "我的新战斗房",
+                "prefab",
+                "选择新房间预制体的保存位置。",
+                "Assets/1Game/Prefabs/LevelDesign");
+            if (string.IsNullOrEmpty(destination)) return;
+            if (!AssetDatabase.CopyAsset(StarterRoomPrefabPath, destination))
+            {
+                EditorUtility.DisplayDialog(
+                    "复制失败",
+                    "无法复制房间模板，请确认目标位置和文件名。",
+                    "确定");
+                return;
+            }
+            AssetDatabase.Refresh();
+            var copy = AssetDatabase.LoadAssetAtPath<GameObject>(destination);
+            Selection.activeObject = copy;
+            EditorGUIUtility.PingObject(copy);
         }
 
         private void DrawSimplePopulationPresets()
@@ -459,6 +551,12 @@ namespace XianTu.Editor
             EditorGUILayout.HelpBox(
                 "建议在预制体编辑模式中使用。绿色线框是房间有效范围，橙色线框或网格是怪物刷新范围；范围由碰撞体决定，可使用方盒或不规则网格。",
                 MessageType.Info);
+            if (GUILayout.Button(
+                    new GUIContent(
+                        "从新手模板复制一个新房间",
+                        "模板已经包含四个有效连接点、玩家/敌人内容点、绿色有效范围和橙色刷新范围。"),
+                    GUILayout.Height(30f)))
+                DuplicateStarterRoomTemplate();
 
             _roomRoot = (GameObject)EditorGUILayout.ObjectField(
                 new GUIContent(

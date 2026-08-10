@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Edgar.Unity
@@ -6,7 +6,7 @@ namespace Edgar.Unity
     /// <summary>
     ///     Represents a level graph.
     /// </summary>
-    [CreateAssetMenu(fileName = "LevelGraph", menuName = "Edgar/Level graph")]
+    [CreateAssetMenu(fileName = "关卡图", menuName = "仙途秘境/Edgar/关卡图")]
     public class LevelGraph : ScriptableObject
     {
         /// <summary>

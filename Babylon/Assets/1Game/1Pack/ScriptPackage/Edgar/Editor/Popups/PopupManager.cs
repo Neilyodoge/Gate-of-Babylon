@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -74,7 +74,7 @@ namespace Edgar.Unity.Editor
             EditorPrefs.SetString(EditorConstants.DisabledPopupsEditorPrefsKey, disabledPopups);
         }
 
-        [MenuItem("Edit/Edgar - Enable all popups again")]
+        [MenuItem("Edit/Edgar - 重新启用全部弹窗")]
         private static void EnableAllPopups()
         {
             EditorPrefs.SetString(EditorConstants.DisabledPopupsEditorPrefsKey, "");

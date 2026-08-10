@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace Edgar.Unity.Editor.Grid3D
@@ -12,7 +12,7 @@ namespace Edgar.Unity.Editor.Grid3D
         {
             customPostProcessingTasksList = new ReorderableList(new UnityEditorInternal.ReorderableList(serializedObject,
                 serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.CustomPostProcessingTasks)),
-                true, true, true, true), "Custom post-processing tasks");
+                true, true, true, true), "自定义后处理任务");
         }
 
         public override void OnInspectorGUI()
@@ -21,51 +21,71 @@ namespace Edgar.Unity.Editor.Grid3D
 
             EditorGUIUtility.labelWidth = EditorGUIUtility.currentViewWidth / 2f;
 
-            EditorGUILayout.LabelField("Input config", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.InputType)));
+            EditorGUILayout.LabelField("输入配置", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.InputType)),
+                new GUIContent("输入类型"));
             switch (generator.InputType)
             {
                 case DungeonGeneratorInputTypeGrid2D.CustomInput:
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.CustomInput)));
+                    EditorGUILayout.PropertyField(
+                        serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.CustomInput)),
+                        new GUIContent("自定义输入"));
                     break;
                 case DungeonGeneratorInputTypeGrid2D.FixedLevelGraph:
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.FixedLevelGraphConfig)));
+                    EditorGUILayout.PropertyField(
+                        serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.FixedLevelGraphConfig)),
+                        new GUIContent("固定关卡图配置"));
                     break;
             }
 
-            EditorGUILayout.LabelField("Generator config", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.GeneratorConfig)));
+            EditorGUILayout.LabelField("生成器配置", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.GeneratorConfig)),
+                new GUIContent("生成参数"));
 
             if (generator.GeneratorConfig.GeneratorSettings == null)
             {
-                EditorGUILayout.HelpBox($"Please assign the {nameof(DungeonGeneratorConfigGrid3D.GeneratorSettings)} field.", MessageType.Error);
+                EditorGUILayout.HelpBox("请指定“生成器设置”字段。", MessageType.Error);
             }
 
-            EditorGUILayout.LabelField("Post-processing config", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.PostProcessingConfig)));
+            EditorGUILayout.LabelField("后处理配置", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.PostProcessingConfig)),
+                new GUIContent("后处理参数"));
 
             if (generator.DisableCustomPostProcessing)
             {
-                EditorGUILayout.HelpBox($"Custom post-processing tasks are temporarily disabled. Uncheck the \"{nameof(DungeonGeneratorGrid3D.DisableCustomPostProcessing)}\" checkbox to enable them again.", MessageType.Warning);
+                EditorGUILayout.HelpBox("自定义后处理任务当前已禁用。取消勾选“禁用自定义后处理”即可重新启用。", MessageType.Warning);
             }
             else
             {
                 customPostProcessingTasksList.DoLayoutList();
             }
 
-            EditorGUILayout.LabelField("Other", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.UseRandomSeed)));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.RandomGeneratorSeed)));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.GenerateOn)));
+            EditorGUILayout.LabelField("其他", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.UseRandomSeed)),
+                new GUIContent("使用随机种子"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.RandomGeneratorSeed)),
+                new GUIContent("生成种子"));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.GenerateOn)),
+                new GUIContent("生成时机"));
 
-            EditorGUILayout.HelpBox("If you have problems with the performance of the generator, you can enable diagnostics what will run after a level is generated and print results to the console. Do not use in production.", MessageType.Info);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorBaseGrid2D.EnableDiagnostics)));
+            EditorGUILayout.HelpBox("若生成器性能异常，可启用诊断。诊断会在关卡生成后运行并把结果输出到控制台；正式版本请勿启用。", MessageType.Info);
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorBaseGrid2D.EnableDiagnostics)),
+                new GUIContent("启用诊断"));
 
-            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.DisableCustomPostProcessing)));
+            EditorGUILayout.PropertyField(
+                serializedObject.FindProperty(nameof(DungeonGeneratorGrid3D.DisableCustomPostProcessing)),
+                new GUIContent("禁用自定义后处理"));
 
             EditorGUILayout.Space();
 
-            if (GUILayout.Button("Generate"))
+            if (GUILayout.Button("生成关卡"))
             {
                 generator.Generate();
             }

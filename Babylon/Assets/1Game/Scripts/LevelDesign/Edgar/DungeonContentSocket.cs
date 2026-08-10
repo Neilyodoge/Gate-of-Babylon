@@ -7,7 +7,8 @@ namespace XianTu
     /// </summary>
     public sealed class DungeonContentSocket : MonoBehaviour
     {
-        [SerializeField] private DungeonContentSocketType socketType;
+        [SerializeField, InspectorName("内容点类型")]
+        private DungeonContentSocketType socketType;
 
         public DungeonContentSocketType SocketType => socketType;
 
@@ -19,12 +20,19 @@ namespace XianTu
 
     public enum DungeonContentSocketType
     {
+        [InspectorName("玩家出生点")]
         PlayerSpawn = 0,
+        [InspectorName("普通敌人出生点")]
         EnemySpawn = 1,
+        [InspectorName("材料点")]
         Material = 2,
+        [InspectorName("奖励掉落点")]
         RewardDrop = 3,
+        [InspectorName("首领出生点")]
         BossSpawn = 4,
+        [InspectorName("事件点")]
         Event = 5,
+        [InspectorName("出口传送门")]
         ExitPortal = 6,
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Edgar.GraphBasedGenerator.Grid2D;
 using UnityEngine;
@@ -85,7 +85,7 @@ namespace Edgar.Unity
                     if (hasDirectedDoors || hasDirectedDoorLines)
                     {
                         throw new ConfigurationException(
-                            $"LevelGraph.IsDirected must be enabled when using entrance-only or exit-only doors. Level graph: \"{levelGraph.name}\", room template: \"{roomTemplate.Name}\"");
+                            $"使用仅入口或仅出口的门时，必须启用 LevelGraph.IsDirected。关卡图：“{levelGraph.name}”，房间模板：“{roomTemplate.Name}”。");
                     }
                 }
             }

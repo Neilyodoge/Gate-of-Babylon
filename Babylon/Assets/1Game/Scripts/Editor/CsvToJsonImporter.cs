@@ -19,7 +19,7 @@ namespace XianTu.LevelDesign.Editor
         private const string CombatCsvRoot = "Assets/1Game/RawData/Combat";
         private const string CombatJsonRoot = "Assets/1Game/Resources/Combat";
 
-        [MenuItem("修仙图/导表 — CSV → JSON %#t")]
+        [MenuItem("仙途秘境/数据工具/导入战斗配表 %#t")]
         public static void ImportAll()
         {
             int count = 0;

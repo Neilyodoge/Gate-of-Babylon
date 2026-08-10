@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using Edgar.Unity.Diagnostics;
 using UnityEditor;
@@ -25,12 +25,12 @@ namespace Edgar.Unity.Editor
 
             if (!validityCheck.HasErrors)
             {
-                EditorGUILayout.HelpBox("The room template is valid.", MessageType.Info);
+                EditorGUILayout.HelpBox("房间模板有效。", MessageType.Info);
             }
             else
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("There are some problems with the room template:");
+                sb.AppendLine("房间模板存在以下问题：");
 
                 var errors = string.Join("\n", validityCheck.Errors);
                 sb.Append(errors);
@@ -67,27 +67,27 @@ namespace Edgar.Unity.Editor
             GUILayout.BeginArea(new Rect(10, 10, 180, 100));
             GUILayout.BeginVertical(EditorStyles.helpBox);
 
-            GUILayout.Label("Room template status", EditorStyles.boldLabel);
+            GUILayout.Label("房间模板状态", EditorStyles.boldLabel);
 
             var hasComponents = RoomTemplateDiagnosticsGrid3D.CheckComponents(roomTemplate.gameObject);
             var isOutlineValid = hasComponents.IsSuccessful && roomTemplate.ComputeOutline() != null;
-            var outlineText = isOutlineValid ? "valid" : "<color=#870526ff>invalid</color>";
+            var outlineText = isOutlineValid ? "有效" : "<color=#870526ff>无效</color>";
             var areDoorsValid = false;
-            var doorsText = "N/A";
+            var doorsText = "不可用";
 
             if (isOutlineValid)
             {
                 var doorsCheck = RoomTemplateDiagnosticsGrid3D.CheckDoors(roomTemplate.gameObject);
                 areDoorsValid = !doorsCheck.HasErrors;
-                doorsText = !doorsCheck.HasErrors ? "valid" : "<color=#870526ff>invalid</color>";
+                doorsText = !doorsCheck.HasErrors ? "有效" : "<color=#870526ff>无效</color>";
             }
 
-            GUILayout.Label($"Outline: <b>{outlineText}</b>", new GUIStyle(EditorStyles.label) { richText = true });
-            GUILayout.Label($"Doors: <b>{doorsText}</b>", new GUIStyle(EditorStyles.label) { richText = true });
+            GUILayout.Label($"轮廓：<b>{outlineText}</b>", new GUIStyle(EditorStyles.label) { richText = true });
+            GUILayout.Label($"门：<b>{doorsText}</b>", new GUIStyle(EditorStyles.label) { richText = true });
 
             if (!isOutlineValid || !areDoorsValid)
             {
-                GUILayout.Label($"<size=9>See the Room template settings component for details</size>", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
+                GUILayout.Label($"<size=9>详情请查看“房间模板设置”组件</size>", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
             }
 
             GUILayout.EndVertical();

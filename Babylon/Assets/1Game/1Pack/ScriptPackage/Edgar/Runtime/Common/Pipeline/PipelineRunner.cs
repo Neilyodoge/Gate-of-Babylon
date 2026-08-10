@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,7 +33,7 @@ namespace Edgar.Unity
         {
             if (isGenerating)
             {
-                Debug.LogError($"The generator was called while already generating a level. This usually indicates an error in the setup. It is often caused by calling the generator on Start/Awake from a game manager while having the 'Generate On Start' option turned on in the generator. If you are calling the generator manually, disable 'Generate On Start' in the generator component.");
+                Debug.LogError("关卡生成尚未完成时再次调用了生成器，通常表示调用配置有误。常见原因是游戏管理器在 Start/Awake 中手动调用生成，同时生成器仍启用了自动生成。若由代码手动生成，请将生成器的“生成时机”设为“手动”。");
             }
             
             isGenerating = true;
@@ -113,7 +113,7 @@ namespace Edgar.Unity
             var results = Diagnostics.Diagnostics.Run(payload);
             Diagnostics.Diagnostics.DisplayNoSuitableShapeResults(results, room.Room, roomTemplates);
 
-            return new GeneratorException($"The generator was not able to produce a level due to an error. Please see the console above for additional diagnostic information.");
+            return new GeneratorException("生成器因错误无法生成关卡，请查看控制台上方的诊断信息。");
         }
     }
 }

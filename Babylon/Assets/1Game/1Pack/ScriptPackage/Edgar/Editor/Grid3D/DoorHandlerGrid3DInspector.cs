@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace Edgar.Unity.Editor.Grid3D
@@ -22,7 +22,7 @@ namespace Edgar.Unity.Editor.Grid3D
 
             if (doorHandler.GeneratorSettings == null)
             {
-                EditorGUILayout.HelpBox($"Please assign the {nameof(doorHandler.GeneratorSettings)} field.", MessageType.Error);
+                EditorGUILayout.HelpBox("请指定“生成器设置”字段。", MessageType.Error);
             }
             else if (!isInsideDoorPrefab)
             {
@@ -38,14 +38,14 @@ namespace Edgar.Unity.Editor.Grid3D
             {
                 GUILayout.BeginHorizontal();
 
-                if (GUILayout.Button("Rotate -90"))
+                if (GUILayout.Button("旋转 -90°"))
                 {
                     doorHandler.Rotate90(false);
                     SceneView.RepaintAll();
                     EditorUtility.SetDirty(target);
                 }
 
-                if (GUILayout.Button("Rotate +90"))
+                if (GUILayout.Button("旋转 +90°"))
                 {
                     doorHandler.Rotate90(true);
                     SceneView.RepaintAll();
@@ -56,9 +56,9 @@ namespace Edgar.Unity.Editor.Grid3D
             }
             else
             {
-                EditorGUILayout.HelpBox($"The rotation of this door is out of sync with the internal rotation. Please always use the Rotate buttons when rotating the door. Click the button below to sync the rotation.", MessageType.Error);
+                EditorGUILayout.HelpBox("该门的 Transform 旋转与 Edgar 内部方向不一致。请始终使用上方旋转按钮；若已手动旋转，请点击下方按钮同步。", MessageType.Error);
 
-                if (GUILayout.Button("Sync rotation"))
+                if (GUILayout.Button("同步旋转"))
                 {
                     doorHandler.SyncRotation();
                     SceneView.RepaintAll();
@@ -81,9 +81,9 @@ namespace Edgar.Unity.Editor.Grid3D
             var closestSnapCell = GridUtilsGrid3D.SnapInterpolatedToCellRound(doorPositionInterpolated);
             var closestSnapLocal = generatorSettings.CellToLocal(closestSnapCell);
 
-            EditorGUILayout.HelpBox($"This door is not correctly positioned on the grid. The closest valid position is {closestSnapLocal}.", MessageType.Error);
+            EditorGUILayout.HelpBox($"该门未正确对齐网格。最近的有效位置是 {closestSnapLocal}。", MessageType.Error);
 
-            if (GUILayout.Button("Snap to grid"))
+            if (GUILayout.Button("吸附到网格"))
             {
                 doorHandler.transform.localPosition = closestSnapLocal;
                 SceneView.RepaintAll();

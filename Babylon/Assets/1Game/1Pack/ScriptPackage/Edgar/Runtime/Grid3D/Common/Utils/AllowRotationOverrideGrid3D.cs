@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using UnityEngine;
 
 namespace Edgar.Unity
 {
@@ -10,16 +11,19 @@ namespace Edgar.Unity
         /// <summary>
         /// Do not change anything. Keep the configuration from individual room templates.
         /// </summary>
+        [InspectorName("不覆盖")]
         NoOverride = 0,
 
         /// <summary>
         /// Allow rotation for all room templates.
         /// </summary>
+        [InspectorName("全部允许旋转")]
         Allow = 1,
 
         /// <summary>
         /// Do not allow rotation of any room template.
         /// </summary>
+        [InspectorName("全部禁止旋转")]
         DoNotAllow = 2,
     }
 

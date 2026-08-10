@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
@@ -121,7 +121,7 @@ namespace Edgar.Unity.Editor
                 }
                 else
                 {
-                    Debug.LogError($"There is a null room in the level graph {levelGraph.name}. This should not happen.");
+                    Debug.LogError($"关卡图 {levelGraph.name} 中存在空房间引用；这不应发生。");
                 }
             }
 
@@ -135,7 +135,7 @@ namespace Edgar.Unity.Editor
                 }
                 else
                 {
-                    Debug.LogError($"There is a null connection in the level graph {levelGraph.name}. This should not happen.");
+                    Debug.LogError($"关卡图 {levelGraph.name} 中存在空连接引用；这不应发生。");
                 }
             }
         }
@@ -229,21 +229,21 @@ namespace Edgar.Unity.Editor
 
             if (LevelGraph != null)
             {
-                GUILayout.Label($"Selected graph: {LevelGraph.name} {(lastIsDirty ? "*" : "")}");
+                GUILayout.Label($"当前关卡图：{LevelGraph.name} {(lastIsDirty ? "*" : "")}");
             }
             else
             {
-                GUILayout.Label($"No graph selected");
+                GUILayout.Label("未选择关卡图");
             }
 
-            var snapToGridNewValue = GUILayout.Toggle(snapToGrid, "Snap to grid", GUILayout.Width(120));
+            var snapToGridNewValue = GUILayout.Toggle(snapToGrid, "吸附到网格", GUILayout.Width(120));
             if (snapToGridNewValue != snapToGrid)
             {
                 EdgarSettings.instance.General.SnapLevelGraphToGrid = snapToGridNewValue;
                 EdgarSettings.instance.Save();
             }
 
-            if (GUILayout.Button(new GUIContent("Select in inspector"), EditorStyles.toolbarButton, GUILayout.Width(150)))
+            if (GUILayout.Button(new GUIContent("在 Inspector 中选中"), EditorStyles.toolbarButton, GUILayout.Width(150)))
             {
                 if (LevelGraph != null)
                 {
@@ -251,7 +251,7 @@ namespace Edgar.Unity.Editor
                 }
             }
 
-            if (GUILayout.Button(new GUIContent("Select level graph"), EditorStyles.toolbarButton, GUILayout.Width(150)))
+            if (GUILayout.Button(new GUIContent("选择关卡图"), EditorStyles.toolbarButton, GUILayout.Width(150)))
             {
                 // Create a window picker control ID
                 currentPickerWindow = GUIUtility.GetControlID(FocusType.Passive) + 100;

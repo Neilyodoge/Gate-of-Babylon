@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,12 +25,12 @@ namespace Edgar.Unity
 
             if (config.Timeout <= 0)
             {
-                throw new ConfigurationException($"{nameof(config.Timeout)} must be greater than 0");
+                throw new ConfigurationException($"{nameof(config.Timeout)} 必须大于 0。");
             }
 
             if (config.GeneratorSettings == null)
             {
-                throw new ConfigurationException($"Please assign the {nameof(DungeonGeneratorConfigGrid3D.GeneratorSettings)} field in the {nameof(DungeonGeneratorGrid3D)} component.");
+                throw new ConfigurationException($"请在 {nameof(DungeonGeneratorGrid3D)} 组件中指定 {nameof(DungeonGeneratorConfigGrid3D.GeneratorSettings)} 字段。");
             }
 
             // Check that all the room template have the same generator settings as the generator
@@ -48,7 +48,7 @@ namespace Edgar.Unity
 
             if (nonMatchingGeneratorSettings.Count != 0)
             {
-                throw new ConfigurationException($"All room templates must have the same generator settings as the generator. The following room templates have different generator settings: {string.Join(", ", nonMatchingGeneratorSettings.Select(x => x.name))}");
+                throw new ConfigurationException($"所有房间模板必须与生成器使用相同的生成器设置。以下模板设置不一致：{string.Join(", ", nonMatchingGeneratorSettings.Select(x => x.name))}");
             }
 
             var rootGameObject = config.RootGameObject;
@@ -137,8 +137,8 @@ namespace Edgar.Unity
                 TimeTotal = generator.TimeTotal,
             };
 
-            Debug.Log($"Layout generated in {stats.TimeTotal / 1000f:F} seconds");
-            Debug.Log($"{stats.Iterations} iterations needed, {stats.Iterations / (stats.TimeTotal / 1000d):0} iterations per second");
+            Debug.Log($"Edgar 布局生成完成，用时 {stats.TimeTotal / 1000f:F} 秒");
+            Debug.Log($"共迭代 {stats.Iterations} 次，每秒约 {stats.Iterations / (stats.TimeTotal / 1000d):0} 次");
 
             Payload.GeneratedLevel = generatedLevel;
             Payload.GeneratorStats = stats;

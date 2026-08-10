@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -27,11 +27,11 @@ namespace Edgar.Unity.Editor
 
             if (popup.Links != null && popup.Links.Count > 0)
             {
-                GUILayout.Label("Useful links:");
+                GUILayout.Label("相关链接：");
 
                 foreach (var link in popup.Links)
                 {
-                    if (GUILayout.Button(" - link: " + link.Text, GUI.skin.label))
+                    if (GUILayout.Button(" - 链接：" + link.Text, GUI.skin.label))
                     {
                         Application.OpenURL(link.Url);
                     }
@@ -43,14 +43,14 @@ namespace Edgar.Unity.Editor
 
             GUILayout.Space(10);
 
-            if (GUILayout.Button("Close"))
+            if (GUILayout.Button("关闭"))
                 Close();
 
-            doNotShowAgain = GUILayout.Toggle(doNotShowAgain, "Do not show this popup again. <size=8>(All popups can be enabled again by going to \"Edit/Edgar - Enable all popups again\")</size>", new GUIStyle(EditorStyles.toggle) {richText = true});
+            doNotShowAgain = GUILayout.Toggle(doNotShowAgain, "不再显示此弹窗。<size=8>（可通过“Edit/Edgar - 重新启用全部弹窗”恢复）</size>", new GUIStyle(EditorStyles.toggle) {richText = true});
 
             GUILayout.Space(10);
 
-            GUILayout.Label("<b>! Warning !</b>: <size=9>Please do not create your game directly inside this scene. If you modify this scene, it will be harder for you to update the asset to new versions in the future. It is okay to use this scene as a playground. However, be prepared to lose all your modifications as I recommend to delete the whole asset folder when upgrading.</size>", new GUIStyle(EditorStyles.label) {richText = true, wordWrap = true});
+            GUILayout.Label("<b>！警告！</b>：<size=9>请勿直接在此示例场景中制作正式游戏。修改示例场景会增加后续升级插件的难度。可以把它当作试验场，但升级时通常建议删除整个插件目录，因此请预期这些修改可能丢失。</size>", new GUIStyle(EditorStyles.label) {richText = true, wordWrap = true});
 
             GUILayout.EndVertical();
         }

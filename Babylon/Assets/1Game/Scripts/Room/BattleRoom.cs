@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Edgar.Unity;
 using UnityEngine;
 using XianTu.LevelDesign;
 
@@ -34,6 +35,7 @@ namespace XianTu
         private readonly List<Transform> _enemySpawnSockets = new();
         private readonly List<Transform> _bossSpawnSockets = new();
         private readonly List<DungeonEnemySpawnArea> _enemySpawnAreas = new();
+        private readonly List<DoorHandlerGrid3D> _doorHandlers = new();
         private readonly Dictionary<DungeonEnemySpawnArea, int> _spawnAreaUseCounts = new();
         private readonly List<GameObject> _dormantEnemies = new();
         private int _totalEnemyCount;
@@ -53,6 +55,7 @@ namespace XianTu
         private int _reinforceAtPct;
         private float _reinforceDelaySec;
         private System.Random _spawnRandom;
+        private Transform _contentRoot;
 
         public bool IsCleared => _cleared;
         public float RoomWidth => roomWidth;
@@ -192,6 +195,7 @@ namespace XianTu
 
             _reinforceAtPct = plan.ReinforceAtPct;
             _reinforceDelaySec = plan.ReinforceDelaySec;
+            List<EnemyArchetype> firstWave = null;
             foreach (var sourceWave in plan.Waves)
             {
                 var wave = new List<EnemyArchetype>(sourceWave.Count);
@@ -205,7 +209,14 @@ namespace XianTu
                         _ => EnemyArchetype.Melee
                     });
                 _pendingWaves.Enqueue(wave);
+                firstWave ??= wave;
                 _pendingEnemyCount += wave.Count;
+            }
+
+            if (_isEliteRoom && firstWave != null)
+            {
+                firstWave.Insert(0, EnemyArchetype.Elite);
+                _pendingEnemyCount++;
             }
 
             enemyCount = _pendingEnemyCount;
@@ -277,7 +288,20 @@ namespace XianTu
         public Vector3 GetBossSpawnPosition()
         {
             if (_bossSpawnSockets.Count > 0)
-                return _bossSpawnSockets[0].position;
+            {
+                Vector3 candidate = _bossSpawnSockets[0].position;
+                if (DungeonSpawnSafety.TryFindGroundedPoint(
+                        _contentRoot,
+                        candidate,
+                        0.7f,
+                        2.2f,
+                        0.1f,
+                        out Vector3 grounded))
+                    return grounded;
+
+                throw new System.InvalidOperationException(
+                    $"Edgar Boss 房 {_roomIndex} 的 BossSpawn 下方没有安全地板。");
+            }
 
             if (!_buildRoomGeometry)
                 throw new System.InvalidOperationException(
@@ -350,6 +374,8 @@ namespace XianTu
                     && Vector3.Distance(point, player.transform.position)
                     < Mathf.Max(5f, area.MinPlayerDistance))
                     continue;
+                if (IsInsideDoorClearance(point))
+                    continue;
 
                 bool overlaps = false;
                 for (int i = 0; i < usedPositions.Count; i++)
@@ -371,26 +397,62 @@ namespace XianTu
             foreach (var socket in _enemySpawnSockets)
             {
                 if (socket == null) continue;
-                if (player != null
-                    && Vector3.Distance(socket.position, player.transform.position) < 5f)
+                if (_contentRoot == null
+                    || !DungeonSpawnSafety.TryFindGroundedPoint(
+                        _contentRoot,
+                        socket.position,
+                        0.45f,
+                        1.8f,
+                        0.1f,
+                        out Vector3 grounded))
                     continue;
-                socketPositions.Add(socket.position);
-            }
-
-            if (socketPositions.Count == 0)
-            {
-                foreach (var socket in _enemySpawnSockets)
-                    if (socket != null)
-                        socketPositions.Add(socket.position);
+                if (player != null
+                    && Vector3.Distance(grounded, player.transform.position) < 5f)
+                    continue;
+                if (IsInsideDoorClearance(grounded))
+                    continue;
+                socketPositions.Add(grounded);
             }
 
             if (socketPositions.Count > 0)
                 return socketPositions[_spawnRandom.Next(socketPositions.Count)];
+            if (_contentRoot != null)
+            {
+                for (int attempt = 0; attempt < 32; attempt++)
+                {
+                    if (!DungeonSpawnSafety.TryFindRandomGroundedPoint(
+                            _contentRoot,
+                            _spawnRandom,
+                            0.45f,
+                            1.8f,
+                            0.1f,
+                            out Vector3 fallback))
+                        break;
+                    if (player != null
+                        && Vector3.Distance(fallback, player.transform.position) < 5f)
+                        continue;
+                    if (IsInsideDoorClearance(fallback))
+                        continue;
+
+                    bool overlaps = false;
+                    for (int i = 0; i < usedPositions.Count; i++)
+                    {
+                        if (Vector3.Distance(fallback, usedPositions[i]) < 1.5f)
+                        {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+                    if (!overlaps)
+                        return fallback;
+                }
+            }
             if (_buildRoomGeometry)
                 return GetRandomSpawnPosition();
 
             throw new System.InvalidOperationException(
-                $"Edgar 战斗房 {_roomIndex} 缺少可用的怪物刷新范围和 {DungeonContentSocketType.EnemySpawn} 插槽。");
+                $"Edgar 战斗房 {_roomIndex} 没有满足地板、胶囊净空、玩家距离、" +
+                $"怪物间距与门道避让的刷新点。");
         }
 
         private DungeonEnemySpawnArea RollSpawnArea(List<DungeonEnemySpawnArea> candidates)
@@ -405,6 +467,42 @@ namespace XianTu
                 if (roll < 0) return area;
             }
             return candidates[candidates.Count - 1];
+        }
+
+        private bool IsInsideDoorClearance(Vector3 point)
+        {
+            if (_contentRoot == null || _doorHandlers.Count == 0)
+                return false;
+
+            foreach (var door in _doorHandlers)
+            {
+                if (door == null) continue;
+                Vector3 inward = _contentRoot.TransformDirection((Vector3)door.DirectionVector);
+                inward.y = 0f;
+                if (inward.sqrMagnitude < 0.001f) continue;
+                inward.Normalize();
+
+                Vector3 delta = point - door.transform.position;
+                delta.y = 0f;
+                float along = Vector3.Dot(delta, inward);
+                if (along < -2f || along > 10f)
+                    continue;
+
+                float lateral = Mathf.Abs(Vector3.Dot(
+                    delta,
+                    new Vector3(-inward.z, 0f, inward.x)));
+                float scale = Mathf.Max(
+                    Mathf.Abs(_contentRoot.lossyScale.x),
+                    Mathf.Abs(_contentRoot.lossyScale.z));
+                float cellWidth = door.GeneratorSettings != null
+                    ? door.GeneratorSettings.CellSize.x
+                    : 1f;
+                float halfWidth = door.Width * cellWidth * scale * 0.5f + 1.5f;
+                if (lateral <= halfWidth)
+                    return true;
+            }
+
+            return false;
         }
 
         private void SpawnEnemy(EnemyArchetype archetype, Vector3 position)
@@ -466,10 +564,14 @@ namespace XianTu
             _enemySpawnSockets.Clear();
             _bossSpawnSockets.Clear();
             _enemySpawnAreas.Clear();
+            _doorHandlers.Clear();
+            _contentRoot = contentRoot;
             if (contentRoot == null) return;
 
             _enemySpawnAreas.AddRange(
                 contentRoot.GetComponentsInChildren<DungeonEnemySpawnArea>(true));
+            _doorHandlers.AddRange(
+                contentRoot.GetComponentsInChildren<DoorHandlerGrid3D>(true));
             var sockets = contentRoot.GetComponentsInChildren<DungeonContentSocket>(true);
             for (int i = 0; i < sockets.Length; i++)
             {

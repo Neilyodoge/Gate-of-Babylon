@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,6 +21,7 @@ namespace Edgar.Unity
         [Obsolete("The ThrowExceptionImmediately is no longer used. It was previously used inside SmartCoroutine but that piece of code was removed.")]
         protected abstract bool ThrowExceptionImmediately { get; }
 
+        [InspectorName("启用诊断")]
         public bool EnableDiagnostics = false;
 
         protected virtual (Random, int) GetRandomNumbersGenerator(bool useRandomSeed, int seed)
@@ -30,14 +31,14 @@ namespace Edgar.Unity
                 seed = seedsGenerator.Next();
             }
 
-            Debug.Log($"Random generator seed: {seed}");
+            Debug.Log($"随机生成种子：{seed}");
 
             return (new Random(seed), seed);
         }
 
         public virtual object Generate()
         {
-            Debug.Log($"--- Generator started (Edgar v{AssetInfo.Version}) ---");
+            Debug.Log($"--- Edgar 生成器已启动（v{AssetInfo.Version}）---");
 
             var stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -46,14 +47,14 @@ namespace Edgar.Unity
 
             PipelineRunner.Run(pipelineItems, payload, EnableDiagnostics);
 
-            Debug.Log($"--- Level generated in {stopwatch.ElapsedMilliseconds / 1000f:F}s ---");
+            Debug.Log($"--- 关卡生成完成，用时 {stopwatch.ElapsedMilliseconds / 1000f:F} 秒 ---");
 
             return payload;
         }
 
         public virtual IEnumerator GenerateCoroutine()
         {
-            Debug.Log("--- Generator started ---");
+            Debug.Log("--- Edgar 生成器已启动 ---");
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
@@ -74,7 +75,7 @@ namespace Edgar.Unity
             
             yield return payload;
 
-            Debug.Log($"--- Level generated in {stopwatch.ElapsedMilliseconds / 1000f:F}s ---");
+            Debug.Log($"--- 关卡生成完成，用时 {stopwatch.ElapsedMilliseconds / 1000f:F} 秒 ---");
         }
 
         protected abstract (List<IPipelineTask<TPayload>> pipelineItems, TPayload payload) GetPipelineItemsAndPayload();

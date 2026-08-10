@@ -1,9 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Edgar.Unity
 {
     /// <inheritdoc />
-    [AddComponentMenu("Edgar/Grid3D/_Internal/Level Info (Grid3D)")]
+    [AddComponentMenu("仙途秘境/Edgar Grid3D/_内部/关卡信息")]
     public class LevelInfoGrid3D : LevelInfoBase<RoomInstanceGrid3D>
     {
     }

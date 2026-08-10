@@ -24,12 +24,7 @@ namespace XianTu
             float dmgMul = (1f + context.Spawn.level * context.Spawn.dmgScalePerLevel)
                            * context.Spawn.floorScale;
             if (context.RoomType == RoomType.Elite)
-            {
-                var config = GameConfig.Instance;
-                hpMul *= config != null ? config.精英怪血量倍率 : 3f;
-                dmgMul *= config != null ? config.精英怪伤害倍率 : 1.5f;
                 _battleRoom.SetEliteRoom(true);
-            }
 
             _battleRoom.Initialize(
                 context.Spawn.roomIndex,

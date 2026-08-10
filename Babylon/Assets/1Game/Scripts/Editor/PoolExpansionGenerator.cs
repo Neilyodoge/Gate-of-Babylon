@@ -6,13 +6,13 @@ namespace XianTu.EditorTools
     /// <summary>
     /// P2 内容扩展：批量生成新的效果器 / 改造件模块，把模块池补到目标数量。
     /// 只使用 PlayerCombat 已实现的 EffectType / ModifierType，保证新模块开箱即用。
-    /// 幂等：已存在同名资产则跳过。菜单：修仙图/P2 — 扩容模块池。
+    /// 幂等：已存在同名资产则跳过。
     /// </summary>
     public static class PoolExpansionGenerator
     {
         private const string Dir = "Assets/1Game/Data/Modules";
 
-        [MenuItem("修仙图/P2 — 扩容模块池")]
+        [MenuItem("仙途秘境/开发工具/扩容模块池")]
         public static int Generate()
         {
             int n = 0;

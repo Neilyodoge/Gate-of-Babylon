@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Edgar.Geometry;
@@ -218,7 +218,7 @@ namespace Edgar.Unity
                     return 270;
 
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(transformation), transformation, "Only rotations are currently supported as transformations");
+                    throw new ArgumentOutOfRangeException(nameof(transformation), transformation, "当前只支持旋转变换。");
             }
         }
 
@@ -260,7 +260,7 @@ namespace Edgar.Unity
                 {
                     if (position.y != room.Position.y)
                     {
-                        throw new GeneratorException($"It was not possible to set the correct elevation for rooms {room.Room.GetDisplayName()} and {previousRoom.Room.GetDisplayName()}. This happens when there is a room template in a cycle that has different elevations of its doors.");
+                        throw new GeneratorException($"无法为房间 {room.Room.GetDisplayName()} 与 {previousRoom.Room.GetDisplayName()} 设置正确高度。通常是因为环形路径中的某个房间模板，其各扇门高度不同。");
                     }
 
                     continue;

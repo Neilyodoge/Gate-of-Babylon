@@ -17,5 +17,6 @@ namespace XianTu
         Upgrade = 5,
         Elite = 6,
         Event = 7,
+        Landing = 8,
     }
 }

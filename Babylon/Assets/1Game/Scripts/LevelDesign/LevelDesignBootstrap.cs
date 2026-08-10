@@ -100,9 +100,11 @@ namespace XianTu.LevelDesign
         private void OnRoomCleared(GameEvents.RoomCleared evt)
         {
             if (!autoRollEventOnRoomClear) return;
+            if (MapProviders.Current is EdgarMapProvider)
+                return;
 
             // V0.4.1：地图改用 silverua 原生全图后，房间事件统一走线性事件调度表
-            // （旧 TreeMap 节点驱动的 mode A 已随 TreeMap 删除）。
+            // Edgar 使用房间自身分配的事件；这里只保留 silverua 线性调度。
             var dir = LevelDesignDirector.Instance;
             var gm = GameManager.Instance;
             if (gm == null) return;

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Edgar.Geometry;
 using Edgar.GraphBasedGenerator.Common;
 using UnityEngine;
@@ -8,25 +8,29 @@ namespace Edgar.Unity
     /// <summary>
     /// Component that is attached to each room template game objects and contains basic settings.
     /// </summary>
-    [AddComponentMenu("Edgar/Grid3D/Room Template Settings (Grid3D)")]
+    [AddComponentMenu("仙途秘境/Edgar Grid3D/房间模板设置")]
     public class RoomTemplateSettingsGrid3D : MonoBehaviour
     {
         /// <summary>
         /// Controls how the outline is computed.
         /// </summary>
         /// <seealso cref="RoomTemplateRepeatMode"/>
+        [InspectorName("轮廓来源")]
         public RoomTemplateOutlineModeGrid3D OutlineMode = RoomTemplateOutlineModeGrid3D.FromColliders;
 
         /// <summary>
         /// Whether the room template can be used multiple times in generated levels.
         /// </summary>
+        [InspectorName("重复使用模式")]
         public RoomTemplateRepeatMode RepeatMode = RoomTemplateRepeatMode.AllowRepeat;
 
         /// <summary>
         /// Whether the room template can appear rotates in generated levels.
         /// </summary>
+        [InspectorName("允许旋转")]
         public bool AllowRotation = true;
 
+        [InspectorName("生成器设置")]
         public GeneratorSettingsGrid3D GeneratorSettings;
 
         /// <summary>

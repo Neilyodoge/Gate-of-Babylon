@@ -224,6 +224,16 @@ namespace XianTu
         private void GotoBossRoom()
         {
             if (GameManager.Instance == null) return;
+            if (MapProviders.Current is EdgarMapProvider)
+            {
+                bool success = GameManager.Instance.DebugGotoEdgarRoom(RoomType.Boss);
+                AddLog(success
+                    ? "<color=red>☠ 已直达本局真实 Boss 房</color>"
+                    : "<color=red>× 未找到本局 Boss 节点</color>");
+                if (success)
+                    TogglePanel();
+                return;
+            }
             GameManager.Instance.DebugGotoRoom(RoomType.Boss);
             AddLog("<color=red>☠ 跳转到Boss房间</color>");
         }
@@ -250,6 +260,19 @@ namespace XianTu
             if (GameManager.Instance == null) return;
             GameManager.Instance.DebugGotoRoom(RoomType.Upgrade);
             AddLog("<color=green>↑ 跳转到升级房间</color>");
+        }
+
+        private void GotoEdgarNode(string nodeName)
+        {
+            if (GameManager.Instance == null)
+                return;
+
+            bool success = GameManager.Instance.DebugGotoEdgarRoom(nodeName);
+            AddLog(success
+                ? $"<color=#66ccff>◎ 已直达节点 {nodeName}</color>"
+                : $"<color=red>× 无法直达节点 {nodeName}，请先进入 Edgar 秘境</color>");
+            if (success)
+                TogglePanel();
         }
 
         /// <summary>大量增加灵力碎片</summary>
@@ -600,43 +623,25 @@ namespace XianTu
 
             // ===== 按钮组 =====
 
-            // --- 玩家状态 ---
-            CreateSectionHeader(contentGo.transform, "【 玩家状态 】");
-            CreateButton(contentGo.transform, "🛡 无敌模式", new Color(0.6f, 0.5f, 0.2f), ToggleGodMode);
-            CreateButton(contentGo.transform, "🔒 锁血模式", new Color(0.5f, 0.4f, 0.2f), ToggleLockHp);
-            CreateButton(contentGo.transform, "♥ 满血恢复", new Color(0.2f, 0.5f, 0.3f), FullHeal);
-            CreateButton(contentGo.transform, "⚔ 一击必杀", new Color(0.6f, 0.2f, 0.2f), ToggleOneHitKill);
-            CreateButton(contentGo.transform, "👟 加速模式 (3x)", new Color(0.2f, 0.4f, 0.5f), ToggleSpeedBoost);
-
-            // --- 属性调整 ---
-            CreateSectionHeader(contentGo.transform, "【 属性调整 】");
+            CreateSectionHeader(contentGo.transform, "【 战斗调试 】");
+            CreateButton(contentGo.transform, "🛡 不掉血", new Color(0.45f, 0.4f, 0.15f), ToggleGodMode);
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
-            CreateButton(contentGo.transform, "✦ 灵力碎片 +5000", new Color(0.25f, 0.4f, 0.55f), AddShardsLarge);
-            // --- 房间控制 ---
-            CreateSectionHeader(contentGo.transform, "【 房间跳转 】");
-            CreateButton(contentGo.transform, "☠ 清除所有敌人", new Color(0.5f, 0.15f, 0.15f), KillAllEnemies);
-            CreateButton(contentGo.transform, "✓ 强制通关当前房间", new Color(0.3f, 0.5f, 0.2f), ClearCurrentRoom);
-            CreateButton(contentGo.transform, "$ 跳转 → 商店", new Color(0.5f, 0.45f, 0.15f), GotoShopRoom);
-            CreateButton(contentGo.transform, "⚔ 跳转 → 战斗", new Color(0.5f, 0.3f, 0.15f), GotoBattleRoom);
-            CreateButton(contentGo.transform, "☠ 跳转 → Boss", new Color(0.5f, 0.1f, 0.1f), GotoBossRoom);
-            CreateButton(contentGo.transform, "♥ 跳转 → 休息", new Color(0.15f, 0.35f, 0.5f), GotoRestRoom);
-            CreateButton(contentGo.transform, "★ 跳转 → 宝箱", new Color(0.5f, 0.35f, 0.1f), GotoTreasureRoom);
-            CreateButton(contentGo.transform, "↑ 跳转 → 升级", new Color(0.2f, 0.5f, 0.3f), GotoUpgradeRoom);
+            CreateButton(contentGo.transform, "☠ 全屏秒杀", new Color(0.55f, 0.1f, 0.1f), KillAllEnemies);
 
-            // --- 模块链系统（GDD V.07）---
-            CreateSectionHeader(contentGo.transform, "【 模块链 】");
-            CreateButton(contentGo.transform, "🔧 打开装配界面（手动配链）", new Color(0.2f, 0.5f, 0.55f), OpenAssemblyUI);
-            CreateButton(contentGo.transform, "📦 发放全部模块 + 打开装配", new Color(0.15f, 0.45f, 0.5f), GrantAllModules);
-            CreateButton(contentGo.transform, "📦📦 发放全部模块 x3 + 打开装配", new Color(0.2f, 0.5f, 0.55f), GrantAllModulesX3);
-            CreateButton(contentGo.transform, "⚡ 自动装配 Q 链", new Color(0.3f, 0.5f, 0.4f), AutoAssembleQChain);
-            CreateButton(contentGo.transform, "⚡ 自动装配全部 3 链", new Color(0.25f, 0.55f, 0.45f), AutoAssembleAllChains);
-            CreateButton(contentGo.transform, "🗑 清空模块背包+链", new Color(0.45f, 0.25f, 0.25f), ClearAllModules);
-
-            // --- 系统 ---
-            CreateSectionHeader(contentGo.transform, "【 系统 】");
-            CreateButton(contentGo.transform, "📜 日志面板：展开/收起", new Color(0.25f, 0.3f, 0.45f), ToggleLogPanel);
-            CreateButton(contentGo.transform, "⏱ 切换时间缩放", new Color(0.3f, 0.3f, 0.4f), CycleTimeScale);
-            CreateButton(contentGo.transform, "↺ 重新开始", new Color(0.4f, 0.2f, 0.3f), RestartGame);
+            CreateSectionHeader(contentGo.transform, "【 Edgar 节点直达 】");
+            CreateButton(contentGo.transform, "☠ 直达本局 Boss", new Color(0.6f, 0.08f, 0.08f), GotoBossRoom);
+            CreateButton(contentGo.transform, "O0 外环端点", new Color(0.45f, 0.2f, 0.25f), () => GotoEdgarNode("O0"));
+            CreateButton(contentGo.transform, "O1 外环事件", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("O1"));
+            CreateButton(contentGo.transform, "O2 外环战斗", new Color(0.35f, 0.3f, 0.2f), () => GotoEdgarNode("O2"));
+            CreateButton(contentGo.transform, "O3 外环精英", new Color(0.55f, 0.25f, 0.1f), () => GotoEdgarNode("O3"));
+            CreateButton(contentGo.transform, "O4 外环降落候选", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("O4"));
+            CreateButton(contentGo.transform, "C0 连接区商店", new Color(0.2f, 0.5f, 0.25f), () => GotoEdgarNode("C0"));
+            CreateButton(contentGo.transform, "C1 连接区战斗", new Color(0.4f, 0.35f, 0.15f), () => GotoEdgarNode("C1"));
+            CreateButton(contentGo.transform, "I0 内环战斗", new Color(0.3f, 0.2f, 0.45f), () => GotoEdgarNode("I0"));
+            CreateButton(contentGo.transform, "I1 内环事件", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("I1"));
+            CreateButton(contentGo.transform, "I2 内环精英", new Color(0.55f, 0.2f, 0.15f), () => GotoEdgarNode("I2"));
+            CreateButton(contentGo.transform, "I3 内环降落候选", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("I3"));
+            CreateButton(contentGo.transform, "I4 内环端点", new Color(0.4f, 0.15f, 0.45f), () => GotoEdgarNode("I4"));
 
             // 底部日志区域
             CreateSeparator(_panelGo.transform, 0.08f);

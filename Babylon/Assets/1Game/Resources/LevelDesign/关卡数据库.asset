@@ -45,7 +45,7 @@ MonoBehaviour:
     - "\u6218\u6597"
     - "\u5916\u73AF"
     MinGraphDepth: 0
-    MaxGraphDepth: 5
+    MaxGraphDepth: 99
     Weight: 100
   - ID: 3002
     Name_CN: "\u8FC7\u6E21\u533A\u4F0F\u51FB\u6218\u6597"
@@ -59,8 +59,8 @@ MonoBehaviour:
     PrefabTags:
     - "\u6218\u6597"
     - "\u8FDE\u63A5\u533A"
-    MinGraphDepth: 3
-    MaxGraphDepth: 9
+    MinGraphDepth: 0
+    MaxGraphDepth: 99
     Weight: 100
   - ID: 3003
     Name_CN: "\u5185\u73AF\u5E38\u89C4\u6218\u6597"
@@ -74,7 +74,7 @@ MonoBehaviour:
     PrefabTags:
     - "\u6218\u6597"
     - "\u5185\u73AF"
-    MinGraphDepth: 7
+    MinGraphDepth: 0
     MaxGraphDepth: 99
     Weight: 100
   - ID: 3101
@@ -88,7 +88,7 @@ MonoBehaviour:
     EventTriggerRate: 0
     PrefabTags:
     - "\u7CBE\u82F1"
-    MinGraphDepth: 4
+    MinGraphDepth: 0
     MaxGraphDepth: 99
     Weight: 100
   - ID: 3200
@@ -103,11 +103,11 @@ MonoBehaviour:
     PrefabTags:
     - "\u9996\u9886"
     - "\u8FDE\u63A5\u533A"
-    MinGraphDepth: 3
-    MaxGraphDepth: 8
+    MinGraphDepth: 0
+    MaxGraphDepth: 99
     Weight: 100
   - ID: 3201
-    Name_CN: "\u9996\u9886\u906D\u9047"
+    Name_CN: "\u5185\u73AF\u9996\u9886\u906D\u9047"
     Role: 5
     District: 2
     ActivationMode: 1
@@ -117,7 +117,53 @@ MonoBehaviour:
     EventTriggerRate: 0
     PrefabTags:
     - "\u9996\u9886"
-    MinGraphDepth: 8
+    - "\u5185\u73AF"
+    MinGraphDepth: 0
+    MaxGraphDepth: 99
+    Weight: 100
+  - ID: 3100
+    Name_CN: "\u5916\u73AF\u7CBE\u82F1\u906D\u9047"
+    Role: 1
+    District: 0
+    ActivationMode: 1
+    LockPolicy: 1
+    ContentConfigID: 1101
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u7CBE\u82F1"
+    - "\u5916\u73AF"
+    MinGraphDepth: 0
+    MaxGraphDepth: 99
+    Weight: 100
+  - ID: 3102
+    Name_CN: "\u5185\u73AF\u7CBE\u82F1\u906D\u9047"
+    Role: 1
+    District: 2
+    ActivationMode: 1
+    LockPolicy: 1
+    ContentConfigID: 1101
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u7CBE\u82F1"
+    - "\u5185\u73AF"
+    MinGraphDepth: 0
+    MaxGraphDepth: 99
+    Weight: 100
+  - ID: 3202
+    Name_CN: "\u5916\u73AF\u9996\u9886\u906D\u9047"
+    Role: 5
+    District: 0
+    ActivationMode: 1
+    LockPolicy: 3
+    ContentConfigID: 1201
+    EventID: 0
+    EventTriggerRate: 0
+    PrefabTags:
+    - "\u9996\u9886"
+    - "\u5916\u73AF"
+    MinGraphDepth: 0
     MaxGraphDepth: 99
     Weight: 100
   Encounters:

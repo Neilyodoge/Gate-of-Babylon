@@ -201,7 +201,16 @@ namespace XianTu
             if (kb.wKey.isPressed || kb.upArrowKey.isPressed) v += 1f;
             if (kb.sKey.isPressed || kb.downArrowKey.isPressed) v -= 1f;
 
-            _moveInput = new Vector3(h, 0, v).normalized;
+            var cam = Camera.main;
+            if (cam == null)
+            {
+                _moveInput = new Vector3(h, 0f, v).normalized;
+                return;
+            }
+
+            Vector3 cameraForward = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized;
+            Vector3 cameraRight = Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized;
+            _moveInput = (cameraRight * h + cameraForward * v).normalized;
         }
 
         /// <summary>

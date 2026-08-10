@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using UnityEditor;
 #if UNITY_2021_2_OR_NEWER
 using UnityEditor.SceneManagement;
@@ -42,7 +42,7 @@ namespace Edgar.Unity
 
         private static void RecalculateOutline(RoomTemplateSettingsGrid3D roomTemplateSettings)
         {
-            Debug.Log($"Computing room template outline for: {roomTemplateSettings.name}");
+            Debug.Log($"正在计算房间模板轮廓：{roomTemplateSettings.name}");
             roomTemplateSettings.Outline = roomTemplateSettings
                 .ComputeOutline()
                 .GetPoints()

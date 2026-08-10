@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -469,7 +469,7 @@ namespace Edgar.Unity.Editor
         private void ShowConnectionContextMenu(ConnectionControl connectionControl)
         {
             var genericMenu = new GenericMenu();
-            genericMenu.AddItem(new GUIContent("Delete connection"), false, () => DeleteConnection(connectionControl));
+            genericMenu.AddItem(new GUIContent("删除连接"), false, () => DeleteConnection(connectionControl));
             genericMenu.ShowAsContext();
         }
 
@@ -492,8 +492,8 @@ namespace Edgar.Unity.Editor
         private void ShowRoomContextMenu(RoomControl roomControl)
         {
             var genericMenu = new GenericMenu();
-            genericMenu.AddItem(new GUIContent("Configure room"), false, () => SelectObject(roomControl.Room));
-            genericMenu.AddItem(new GUIContent("Delete room"), false, () => DeleteRoom(roomControl));
+            genericMenu.AddItem(new GUIContent("配置房间"), false, () => SelectObject(roomControl.Room));
+            genericMenu.AddItem(new GUIContent("删除房间"), false, () => DeleteRoom(roomControl));
             genericMenu.ShowAsContext();
         }
 
@@ -597,7 +597,7 @@ namespace Edgar.Unity.Editor
 
                 if (!typeof(RoomControl).IsAssignableFrom(controlType))
                 {
-                    Debug.LogWarning($"Class '{controlType}' does not inherit from '{nameof(RoomControl)}'!");
+                    Debug.LogWarning($"类型“{controlType}”未继承“{nameof(RoomControl)}”！");
                     continue;
                 }
 
@@ -613,7 +613,7 @@ namespace Edgar.Unity.Editor
 
                 if (!typeof(ConnectionControl).IsAssignableFrom(controlType))
                 {
-                    Debug.LogWarning($"Class '{controlType}' does not inherit from '{nameof(ConnectionControl)}'!");
+                    Debug.LogWarning($"类型“{controlType}”未继承“{nameof(ConnectionControl)}”！");
                     continue;
                 }
 

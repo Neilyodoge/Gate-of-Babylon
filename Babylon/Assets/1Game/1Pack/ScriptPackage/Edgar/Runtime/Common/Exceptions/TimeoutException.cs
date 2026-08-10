@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Edgar.Unity.Diagnostics;
 
 namespace Edgar.Unity
@@ -10,7 +10,7 @@ namespace Edgar.Unity
     {
         public List<IDiagnosticResult> DiagnosticResults { get; set; }
 
-        public TimeoutException() : base($"The generator was not able to produce a level within a given time limit. Please see the console above for additional diagnostic information.")
+        public TimeoutException() : base("生成器未能在规定时间内生成关卡，请查看控制台上方的诊断信息。")
         {
             /* empty */
         }

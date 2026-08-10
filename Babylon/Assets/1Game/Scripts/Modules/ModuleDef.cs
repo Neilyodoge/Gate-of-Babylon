@@ -190,7 +190,7 @@ namespace XianTu
 
     // ==================== 模块定义 ====================
 
-    [CreateAssetMenu(fileName = "NewModule", menuName = "秘境探索/模块定义")]
+    [CreateAssetMenu(fileName = "NewModule", menuName = "仙途秘境/模块定义")]
     public class ModuleDef : ScriptableObject
     {
         [Header("基础信息")]

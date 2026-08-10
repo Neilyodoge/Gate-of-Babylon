@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Edgar.Unity
@@ -11,6 +11,7 @@ namespace Edgar.Unity
         /// <summary>
         /// Room templates assigned to the connection.
         /// </summary>
+        [InspectorName("连接房间模板")]
         public List<GameObject> RoomTemplates = new List<GameObject>();
 
         public override List<GameObject> GetRoomTemplates()

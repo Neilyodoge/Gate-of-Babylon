@@ -1,4 +1,5 @@
 using UnityEngine;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -33,6 +34,9 @@ namespace XianTu
         public bool buildRoomGeometry;
         /// <summary>Edgar 当前实体房间根节点；用于读取玩家、敌人和 Boss 内容插槽。</summary>
         public Transform contentRoot;
+        /// <summary>实体房模板声明的区域；反向出生时不能再按房间索引推断区域。</summary>
+        public District district;
+        public bool hasDistrict;
     }
 
     /// <summary>按类型创建房间的工厂契约。</summary>
@@ -63,6 +67,7 @@ namespace XianTu
                 case RoomType.Treasure: return SpawnTreasure(ctx);
                 case RoomType.Boss: return SpawnBoss(ctx);
                 case RoomType.Upgrade: return SpawnUpgrade(ctx);
+                case RoomType.Landing: return SpawnLanding(ctx);
                 default: return SpawnBattle(ctx);
             }
         }
@@ -101,10 +106,23 @@ namespace XianTu
         private static GameObject SpawnShop(in RoomSpawnContext ctx)
         {
             var go = new GameObject($"ShopRoom_Lv{ctx.level}_{ctx.realmName}");
-            go.transform.position = ctx.spawnPos;
+            go.transform.position = ResolveContentCenter(ctx.contentRoot, ctx.spawnPos);
             var room = go.AddComponent<ShopRoom>();
-            room.Initialize(ctx.level, ctx.skillPool, ctx.modulePool);
+            room.Initialize(
+                ctx.roomIndex,
+                ctx.skillPool,
+                ctx.modulePool,
+                ctx.buildRoomGeometry);
             Debug.Log($"<color=yellow>【{ctx.realmName}】商店房间 — 按F离开</color>");
+            return go;
+        }
+
+        private static GameObject SpawnLanding(in RoomSpawnContext ctx)
+        {
+            var go = new GameObject($"LandingRoom_Lv{ctx.level}_{ctx.realmName}");
+            go.transform.position = ctx.spawnPos;
+            Debug.Log(
+                $"<color=#66ccff>【{ctx.realmName}】安全降落房 | Room={ctx.roomIndex} | 不生成遭遇、不锁门</color>");
             return go;
         }
 
@@ -114,7 +132,8 @@ namespace XianTu
             var go = new GameObject($"EventRoom_Lv{ctx.level}_{ctx.realmName}");
             go.transform.position = ctx.spawnPos;
 
-            RoomBuilder.Build(go.transform, ctx.roomSize, ctx.roomSize, ctx.level);
+            if (ctx.buildRoomGeometry)
+                RoomBuilder.Build(go.transform, ctx.roomSize, ctx.roomSize, ctx.level);
             Debug.Log($"<color=#6677ff>【{ctx.realmName}】事件房 — 触发叙事事件</color>");
 
             int roomIndex = ctx.roomIndex;
@@ -123,6 +142,21 @@ namespace XianTu
                 GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = roomIndex, IsEvent = true, IsCombatRoom = true });
             });
             return go;
+        }
+
+        private static Vector3 ResolveContentCenter(Transform contentRoot, Vector3 fallback)
+        {
+            if (contentRoot == null)
+                return fallback;
+
+            var renderers = contentRoot.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+                return contentRoot.position;
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+            return new Vector3(bounds.center.x, fallback.y, bounds.center.z);
         }
 
         private static GameObject SpawnRest(in RoomSpawnContext ctx)

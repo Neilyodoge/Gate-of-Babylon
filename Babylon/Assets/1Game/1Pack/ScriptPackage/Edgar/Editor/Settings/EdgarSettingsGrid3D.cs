@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -18,10 +18,12 @@ namespace Edgar.Unity.Editor
             public override void OnGUI()
             {
                 GUILayout.BeginVertical(EditorStyles.helpBox);
-                Show = EditorGUILayout.Foldout(Show, "Grid3D settings");
+                Show = EditorGUILayout.Foldout(Show, "Grid3D 设置");
                 if (Show)
                 {
-                    EditorGUILayout.PropertyField(Property(nameof(DefaultGeneratorSettings)));
+                    EditorGUILayout.PropertyField(
+                        Property(nameof(DefaultGeneratorSettings)),
+                        new GUIContent("默认生成器设置"));
                 }
                 GUILayout.EndVertical();
             }

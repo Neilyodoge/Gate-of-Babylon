@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -20,11 +20,15 @@ namespace Edgar.Unity.Editor
             public override void OnGUI()
             {
                 GUILayout.BeginVertical(EditorStyles.helpBox);
-                Show = EditorGUILayout.Foldout(Show, "General settings");
+                Show = EditorGUILayout.Foldout(Show, "通用设置");
                 if (Show)
                 {
-                    EditorGUILayout.PropertyField(Property(nameof(SnapLevelGraphToGrid)));
-                    EditorGUILayout.PropertyField(Property(nameof(DoubleClickToConfigureRoom)));
+                    EditorGUILayout.PropertyField(
+                        Property(nameof(SnapLevelGraphToGrid)),
+                        new GUIContent("关卡图吸附网格"));
+                    EditorGUILayout.PropertyField(
+                        Property(nameof(DoubleClickToConfigureRoom)),
+                        new GUIContent("双击配置房间"));
                 }
                 GUILayout.EndVertical();
             }

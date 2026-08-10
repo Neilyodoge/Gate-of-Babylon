@@ -125,6 +125,7 @@ namespace XianTu
                 RoomType.Treasure => new Color(1f, 0.6f, 0.1f, 0.8f),
                 RoomType.Boss => new Color(0.8f, 0.1f, 0.1f, 0.9f),
                 RoomType.Upgrade => new Color(0.4f, 0.8f, 0.4f, 0.8f),
+                RoomType.Landing => new Color(0.2f, 0.8f, 0.85f, 0.9f),
                 _ => new Color(0.5f, 0.5f, 0.5f, 0.5f)
             };
         }
@@ -141,6 +142,7 @@ namespace XianTu
                 RoomType.Treasure => "★",
                 RoomType.Boss => "☠",
                 RoomType.Upgrade => "↑",
+                RoomType.Landing => "◇",
                 _ => "·"
             };
         }
