@@ -2,16 +2,13 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using XianTu.LevelDesign;
+using System.Collections.Generic;
 
 namespace XianTu
 {
     /// <summary>
-    /// 村庄 Hub —— 冒险者基地（参考 Hades 2 的 Mourning Fields）。
-    /// 不属于 6 层境界的任何一层，玩家在此进行：
-    ///   1. 走配置使按 F → 打开模块装配界面配置初始 Build（GDD V.07）
-    ///   2. 走山门 → 调 GameManager.StartNewRun() 进入第一关
-    ///
-    /// 视觉上比常规战斗房间更大、更暖、装饰性更强；不会清残留拾取物（Hub 本身没有掉落）。
+    /// 冒险者基地。空间由带语义插槽的白盒/美术 Prefab 提供，运行时只负责接线。
     /// </summary>
     public class VillageHub : MonoBehaviour
     {
@@ -20,19 +17,65 @@ namespace XianTu
 
         private GameObject _roomVisuals;
         private VillagePortal _portal;
+        private Vector3 _playerSpawnPos;
+        private const string WhiteboxResourcePath = "LevelDesign/VillageHub/WB_VillageHub";
 
-        /// <summary>玩家出生位置（房间中心）</summary>
-        public Vector3 PlayerSpawnPos => transform.position;
+        public Vector3 PlayerSpawnPos => _playerSpawnPos;
 
         public void Initialize(Action onPortalEntered)
         {
-            BuildRoom();
-            BuildNpcAndPortal(onPortalEntered);
+            var prefab = Resources.Load<GameObject>(WhiteboxResourcePath);
+            if (prefab == null)
+                throw new InvalidOperationException(
+                    $"缺少基地 Prefab：Resources/{WhiteboxResourcePath}.prefab。请执行“仙途秘境/关卡工具/生成基地白盒”。");
+
+            _roomVisuals = Instantiate(prefab, transform);
+            _roomVisuals.name = "VillageHubVisuals";
+            BindFunctionalSlots(onPortalEntered);
         }
 
         private void OnDestroy()
         {
             if (_roomVisuals != null) Destroy(_roomVisuals);
+        }
+
+        private void BindFunctionalSlots(Action onPortalEntered)
+        {
+            var slots = _roomVisuals.GetComponentsInChildren<VillageHubSlot>(true);
+            var byType = new Dictionary<VillageHubSlotType, VillageHubSlot>();
+            foreach (var slot in slots)
+            {
+                if (slot == null)
+                    continue;
+                if (!byType.TryAdd(slot.SlotType, slot))
+                    throw new InvalidOperationException($"基地功能插槽重复：{slot.SlotType}。");
+            }
+
+            foreach (VillageHubSlotType required in Enum.GetValues(typeof(VillageHubSlotType)))
+            {
+                if (!byType.ContainsKey(required))
+                    throw new InvalidOperationException($"基地 Prefab 缺少功能插槽：{required}。");
+            }
+
+            _playerSpawnPos = byType[VillageHubSlotType.PlayerSpawn].transform.position;
+
+            var portalSlot = byType[VillageHubSlotType.RealmPortal];
+            _portal = portalSlot.GetComponent<VillagePortal>();
+            if (_portal == null)
+                _portal = portalSlot.gameObject.AddComponent<VillagePortal>();
+            _portal.Build(onPortalEntered);
+
+            var preparationSlot = byType[VillageHubSlotType.PreparationStation];
+            if (preparationSlot.GetComponent<ScripturePavilion>() == null)
+                preparationSlot.gameObject.AddComponent<ScripturePavilion>();
+
+            var caveSlot = byType[VillageHubSlotType.CaveStation];
+            if (caveSlot.GetComponent<FormationPlatform>() == null)
+                caveSlot.gameObject.AddComponent<FormationPlatform>();
+
+            var tabletSlot = byType[VillageHubSlotType.MapTablet];
+            if (tabletSlot.GetComponent<HubMapTablet>() == null)
+                tabletSlot.gameObject.AddComponent<HubMapTablet>();
         }
 
         private void BuildRoom()
@@ -324,13 +367,20 @@ namespace XianTu
             bridge.OnExit = OnPlayerExit;
 
             // 统一卡片 UI（紫色 · 入秘境）—— 让山门远距离就能看到，玩家明白这里是出口
+            bool continueNight = LevelAPhaseRuntime.IsNightPending;
             _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
             {
-                displayName = "秘境之门",
+                displayName = continueNight ? "无暮王城 · 永夜待续" : "秘境之门",
                 icon = "✦",
-                roleSub = "入秘境 · 进入第一关",
-                hintText = "按 [F] 入秘境",
-                themeColor = new Color(0.7f, 0.4f, 1f),
+                roleSub = continueNight
+                    ? LevelAPhaseRuntime.BuildEntrySummary()
+                    : "入秘境 · 进入第一关",
+                hintText = continueNight
+                    ? "按 [F] 重构筑后从永夜重新降落"
+                    : "按 [F] 入秘境",
+                themeColor = continueNight
+                    ? new Color(0.25f, 0.72f, 1f)
+                    : new Color(0.7f, 0.4f, 1f),
                 yOffset = 4.5f,
                 showLongRangeMarker = true
             });

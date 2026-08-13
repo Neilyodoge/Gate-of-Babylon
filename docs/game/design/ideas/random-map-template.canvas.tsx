@@ -13,6 +13,7 @@ import {
 type Region = "外城" | "连接区" | "内城";
 type RoomType = "普通" | "降落点" | "事件" | "精英" | "商店" | "Boss";
 type Decision = "destroy" | "preserve";
+type Phase = "白昼" | "永夜";
 
 type Room = {
   id: string;
@@ -34,26 +35,34 @@ type EventTemplate = {
   title: string;
   destroyNow: string;
   preserveNow: string;
+  destroyNext: string;
+  preserveNext: string;
 };
 
 const eventTemplates: EventTemplate[] = [
   {
     id: "A1",
     title: "通路事件",
-    destroyNow: "强拆侧门，本轮立即开放高风险近路并生成守路精英",
-    preserveNow: "维持安全长路，本轮沿途生成稳定奖励点",
+    destroyNow: "强拆侧门，白昼立即开放近路并取得材料",
+    preserveNow: "稳定开启，白昼立即开放安全通路",
+    destroyNext: "永夜保留破口，并追加警戒或伏击",
+    preserveNext: "永夜保留安全捷径",
   },
   {
     id: "B1",
     title: "供能事件",
-    destroyNow: "立即取得能源核心；本轮机关停机且当前 Boss 护盾失效",
-    preserveNow: "本轮开启供能宝箱与商店，但当前 Boss 保留护盾",
+    destroyNow: "拆取能源核心，白昼立即取得较多材料",
+    preserveNow: "重新供能，白昼立即点亮设施并获得战力收益",
+    destroyNext: "永夜区域失去供能，改变敌群或材料分布",
+    preserveNext: "永夜保留照明或设施支持",
   },
   {
     id: "C1",
     title: "封存事件",
-    destroyNow: "本轮立即释放精英追猎，击败后取得高价值掉落",
-    preserveNow: "本轮开放调查交互，取得路线情报",
+    destroyNow: "释放力量，白昼立即取得材料",
+    preserveNow: "完成封存，白昼立即移除危险物",
+    destroyNext: "永夜追加高价值遭遇并提高 Boss 压力",
+    preserveNext: "永夜降低区域或 Boss 压力",
   },
 ];
 
@@ -71,7 +80,6 @@ function makeRandom(seed: number) {
 function generateMap(seed: number) {
   const random = makeRandom(seed);
   const jitter = () => Math.round((random() - 0.5) * 34);
-  const firstTime = random() < 0.5 ? "昼" : "夜";
   const spawnRegion: Region = random() < 0.5 ? "外城" : "内城";
   const worldRotation = [0, 90, 180, 270][Math.floor(random() * 4)];
   const landingCandidates = spawnRegion === "外城" ? ["O2", "O4"] : ["I0", "I3"];
@@ -126,7 +134,6 @@ function generateMap(seed: number) {
   return {
     rooms,
     edges,
-    firstTime,
     spawnRegion,
     worldRotation,
     event,
@@ -202,15 +209,18 @@ export default function RandomMapTemplateCanvas() {
   const theme = useHostTheme();
   const [seed, setSeed] = useCanvasState("random-map-seed", 20260807);
   const [decision, setDecision] = useCanvasState<Decision>("random-map-decision", "destroy");
+  const [phase, setPhase] = useCanvasState<Phase>("random-map-phase", "白昼");
   const generated = generateMap(seed);
-  const currentTime = generated.firstTime;
+  const currentTime = phase;
   const roomById = Object.fromEntries(generated.rooms.map((room) => [room.id, room]));
   const immediateEffect =
     decision === "destroy" ? generated.event.destroyNow : generated.event.preserveNow;
+  const delayedEffect =
+    decision === "destroy" ? generated.event.destroyNext : generated.event.preserveNext;
   const timeModifier =
-    currentTime === "昼"
-      ? "昼间修饰：视野清晰、巡逻敌群活跃、机关状态显式可见。"
-      : "夜间修饰：视野受限、伏击敌群增加、隐藏入口更容易出现。";
+    currentTime === "白昼"
+      ? "白昼阶段：视野清晰、巡逻敌群活跃、加冕秩序仍在运转。"
+      : "永夜阶段：亡者设施显露，使用永夜敌池并使白昼结果落位。";
   const eventCategory = generated.event.id.charAt(0);
   const outcomeLabel =
     eventCategory === "A"
@@ -231,15 +241,16 @@ export default function RandomMapTemplateCanvas() {
   const refresh = () => {
     setSeed((current) => current + 1);
     setDecision("destroy");
+    setPhase("白昼");
   };
 
   return (
     <Stack gap={20} style={{ padding: 26, maxWidth: 1500, margin: "0 auto" }}>
       <Row justify="space-between" align="start">
         <Stack gap={7}>
-          <H1>关卡 A：可刷新随机地图模板</H1>
+          <H1>关卡 A：无暮王城双阶段地图</H1>
           <Text tone="secondary">
-            最小完整体验 · 12 个主体房 · 每局单 Boss · 事件全部本局结算
+            12 个主体房 · 白昼 → 永夜 · 即时反馈 + 反转阶段后果
           </Text>
           <Row gap={7} wrap>
             <Pill active>{currentTime}</Pill>
@@ -252,6 +263,12 @@ export default function RandomMapTemplateCanvas() {
         </Stack>
         <Row gap={8} wrap justify="end">
           <Button variant="primary" onClick={refresh}>刷新地图</Button>
+          <Button
+            variant="secondary"
+            onClick={() => setPhase((current) => current === "白昼" ? "永夜" : "白昼")}
+          >
+            {phase === "白昼" ? "查看永夜" : "查看白昼"}
+          </Button>
           <Button variant={decision === "destroy" ? "secondary" : "ghost"} onClick={() => setDecision("destroy")}>
             选择破坏
           </Button>
@@ -334,7 +351,7 @@ export default function RandomMapTemplateCanvas() {
             <Text weight="semibold">刷新时随机</Text>
             <div style={{ marginTop: 7 }}>
               <Text size="small" tone="secondary">
-                “刷新地图”会重抽昼夜、出生区、降落房、整图旋转角和微内容；整体旋转不改变地标 A/B 的局部左右关系。
+                “刷新地图”会重抽新循环的出生区、降落房、整图旋转角和微内容；永夜复用当前布局并从原出生区安全端重新降落，永夜通关后重置白昼。
               </Text>
             </div>
           </div>
@@ -342,7 +359,7 @@ export default function RandomMapTemplateCanvas() {
             <Text weight="semibold">首测边界</Text>
             <div style={{ marginTop: 7 }}>
               <Text size="small" tone="secondary">
-                事件全部在本局产生可见结果；下一次进入独立生成，不读取本局可破坏物状态。
+                事件在白昼立即反馈，并可把最多两个结果提交到永夜；永夜完成后清除。
               </Text>
             </div>
           </div>
@@ -361,7 +378,7 @@ export default function RandomMapTemplateCanvas() {
         }}
       >
         <Stack gap={9}>
-          <H2>本局因果</H2>
+          <H2>双阶段因果</H2>
           <div
             style={{
               padding: 16,
@@ -371,19 +388,22 @@ export default function RandomMapTemplateCanvas() {
             }}
           >
             <Text weight="semibold">
-              {`事件 ${generated.event.id} · ${generated.event.title} · 本局立即生效`}
+              {`事件 ${generated.event.id} · ${generated.event.title}`}
             </Text>
             <div style={{ marginTop: 8 }}>
               <Text>
-                {`当前选择：${decision === "destroy" ? "破坏" : "保留"}。结果：${immediateEffect}`}
+                {`当前选择：${decision === "destroy" ? "破坏" : "保留"}。即时结果：${immediateEffect}`}
               </Text>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <Text>{`永夜结果：${delayedEffect}`}</Text>
             </div>
             <div style={{ marginTop: 8 }}>
               <Text size="small">{timeModifier}</Text>
             </div>
             <div style={{ marginTop: 8 }}>
               <Text size="small" tone="secondary">
-                退出本局后事件状态直接清空；永久情报、已领取材料和局外成长按各自规则保留。
+                白昼 Boss 后提交；永夜从安全端重新降落，结果成功落位并持续显示“上次行动”；永夜通关后清除并重置白昼。
               </Text>
             </div>
           </div>
@@ -393,7 +413,7 @@ export default function RandomMapTemplateCanvas() {
           <H2>图例与硬约束</H2>
           <Text size="small">实线：主路线与区域环路　粗短虚线：仅由通路事件产生</Text>
           <Text size="small">外城 5 房 + 连接区 2 房 + 内城 5 房 = 12 房</Text>
-          <Text size="small">每局单 Boss、双精英、双事件；事件不封锁唯一通路</Text>
+          <Text size="small">每阶段单 Boss、双精英、双事件；事件不封锁唯一通路</Text>
           <Text size="small">事件固定上侧、精英固定下侧、商店固定连接区；整图不镜像</Text>
         </Stack>
       </div>
@@ -403,16 +423,16 @@ export default function RandomMapTemplateCanvas() {
           <H2>总事件与内容池</H2>
           <Row gap={7} wrap>
             <Pill>3 类事件系统</Pill>
-            <Pill>全部本局结算</Pill>
+            <Pill>即时 + 永夜结果</Pill>
             <Pill>5 类房间微内容</Pill>
             <Pill>固定双精英</Pill>
           </Row>
         </Row>
         <div style={{ padding: 14, background: theme.fill.tertiary, borderRadius: 9 }}>
-          <Text weight="semibold">昼夜与事件分工</Text>
+          <Text weight="semibold">阶段与事件分工</Text>
           <div style={{ marginTop: 6 }}>
             <Text size="small" tone="secondary">
-              事件因果不随昼夜改写；昼夜只统一改变视野、敌群和隐藏入口。玩家只需理解“我破坏了什么”，不必记忆四套结果。
+              事件因果不随阶段改写：白昼先反馈，永夜兑现后果；阶段统一改变环境、敌群和关键模块。
             </Text>
           </div>
         </div>
@@ -425,7 +445,7 @@ export default function RandomMapTemplateCanvas() {
           }}
         >
           <Stack gap={8}>
-            <Text weight="semibold">事件池 · 每局 2 个事件槽，其中 1 个主要事件</Text>
+            <Text weight="semibold">事件池 · 白昼 2 个事件槽，其中 1 个主要事件</Text>
             {eventTemplates.map((event) => (
               <div
                 key={event.id}
@@ -440,12 +460,12 @@ export default function RandomMapTemplateCanvas() {
                 <Stack gap={4}>
                   <Text size="small" weight="semibold">{`${event.id} · ${event.title}`}</Text>
                   <Text size="small" tone="secondary">
-                    本局立即生效
+                    白昼即时 + 永夜后果
                   </Text>
                 </Stack>
                 <Stack gap={4}>
-                  <Text size="small">{`破坏：${event.destroyNow}`}</Text>
-                  <Text size="small" tone="secondary">{`保留：${event.preserveNow}`}</Text>
+                  <Text size="small">{`破坏：${event.destroyNow}；${event.destroyNext}`}</Text>
+                  <Text size="small" tone="secondary">{`保留：${event.preserveNow}；${event.preserveNext}`}</Text>
                 </Stack>
               </div>
             ))}
@@ -480,7 +500,7 @@ export default function RandomMapTemplateCanvas() {
               <Text weight="semibold">重复进入边界</Text>
               <div style={{ marginTop: 8 }}>
                 <Text size="small" tone="secondary">
-                  每局地图、昼夜、Boss 与事件独立重抽。Boss 首测使用共享材料掉落，避免随机结果阻碍定向刷取。
+                  白昼完成后关卡保持永夜；永夜死亡或返回不重打白昼。经基地再次进入时重新构筑。
                 </Text>
               </div>
             </div>
@@ -500,18 +520,18 @@ export default function RandomMapTemplateCanvas() {
             </div>
           </div>
           <div style={{ padding: 14, border: `1px solid ${theme.stroke.primary}`, borderRadius: 9 }}>
-            <Text weight="semibold">事件全部本局化</Text>
+            <Text weight="semibold">结果延续一阶段</Text>
             <div style={{ marginTop: 6 }}>
               <Text size="small" tone="secondary">
-                通路、供能、封存都在本局完成选择与反馈；重复进入只承担重新刷图和刷材料，不维护关卡级 Pending。
+                通路、供能、封存都在白昼立即反馈，最多两个结果在永夜实体落位；永夜通关后清除，并为下一循环重置白昼。
               </Text>
             </div>
           </div>
           <div style={{ padding: 14, border: `1px solid ${theme.accent.primary}`, borderRadius: 9 }}>
-            <Text weight="semibold">后续再加跨局</Text>
+            <Text weight="semibold">回顾保持简单</Text>
             <div style={{ marginTop: 6 }}>
               <Text size="small" tone="secondary">
-                若首测证明重复进入有价值，再使用“进入同关卡成功落位才消费”的一次性 Pending；不恢复强制双轮周期。
+                永夜左下角长期显示“上次行动”；经基地进入时由传送门提示当前永夜及上次变化。
               </Text>
             </div>
           </div>

@@ -42,7 +42,7 @@ namespace XianTu
                 _encounter,
                 context.EncounterSeed,
                 context.Content.DistrictEnum);
-            _battleRoom.Cleared += context.OnCompleted;
+            _battleRoom.Cleared += HandleCleared;
         }
 
         public void Arm()
@@ -86,6 +86,7 @@ namespace XianTu
                 _battleRoom.HpMultiplier,
                 _battleRoom.DmgMultiplier,
                 bossID);
+            boss.ConfigureSummons(_battleRoom.RegisterEnemy, _context.ContentRoot);
             _battleRoom.RegisterEnemy(boss.gameObject);
         }
 
@@ -97,7 +98,74 @@ namespace XianTu
         private void OnDestroy()
         {
             if (_battleRoom != null)
-                _battleRoom.Cleared -= _context.OnCompleted;
+                _battleRoom.Cleared -= HandleCleared;
+        }
+
+        private void HandleCleared()
+        {
+            if (_context.RoomType == RoomType.Battle)
+                SpawnRoomMaterials(_context);
+            _context.OnCompleted?.Invoke();
+        }
+
+        private static void SpawnRoomMaterials(in RoomContentContext context)
+        {
+            if (context.State == null || context.State.MaterialsSpawned)
+                return;
+            if (context.ContentRoot == null)
+                throw new System.InvalidOperationException(
+                    $"普通战斗房 {context.Spawn.roomIndex} 缺少实体房根节点，无法读取 Material 插槽。");
+
+            var sockets = context.ContentRoot.GetComponentsInChildren<DungeonContentSocket>(true);
+            System.Array.Sort(
+                sockets,
+                (a, b) => string.CompareOrdinal(a.gameObject.name, b.gameObject.name));
+
+            int spawned = 0;
+            foreach (var socket in sockets)
+            {
+                if (socket.SocketType != DungeonContentSocketType.Material)
+                    continue;
+                if (!DungeonSpawnSafety.TryFindGroundedPoint(
+                        context.ContentRoot,
+                        socket.transform.position,
+                        0.2f,
+                        0.6f,
+                        0.08f,
+                        out Vector3 grounded))
+                    throw new System.InvalidOperationException(
+                        $"普通战斗房 {context.Spawn.roomIndex} 的材料点 {socket.name} 无法投射到安全地面。");
+
+                if (HasMaterialPickupNear(grounded))
+                {
+                    spawned++;
+                    continue;
+                }
+
+                if (CaveMaterialPool.SpawnDeterministic(
+                        grounded,
+                        context.EncounterSeed + spawned * 7919) != null)
+                    spawned++;
+            }
+
+            if (spawned == 0)
+                throw new System.InvalidOperationException(
+                    $"普通战斗房 {context.Spawn.roomIndex} 缺少可用 Material 插槽。");
+
+            context.State.MaterialsSpawned = true;
+        }
+
+        private static bool HasMaterialPickupNear(Vector3 point)
+        {
+            var pickups = Object.FindObjectsByType<ItemPickup>(FindObjectsSortMode.None);
+            foreach (var pickup in pickups)
+            {
+                if (pickup.itemData != null
+                    && pickup.itemData.scope == ItemScope.CaveMaterial
+                    && Vector3.SqrMagnitude(pickup.transform.position - point) <= 2.25f)
+                    return true;
+            }
+            return false;
         }
     }
 }

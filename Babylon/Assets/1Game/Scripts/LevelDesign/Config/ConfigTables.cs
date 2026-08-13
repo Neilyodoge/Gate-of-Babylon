@@ -217,6 +217,36 @@ namespace XianTu.LevelDesign
         public int DaoxinChange;
         [InspectorName("寿元变化")]
         public int LifespanChange;
+        [InspectorName("本局场景结果")]
+        public EventSceneResult SceneResult;
+    }
+
+    public enum EventSceneResult
+    {
+        [InspectorName("无场景变化")]
+        None = 0,
+        [InspectorName("开启通路")]
+        OpenRoute = 1,
+        [InspectorName("设施供能")]
+        Power = 2,
+        [InspectorName("封存危险")]
+        Seal = 3,
+        [InspectorName("桥梁机构已破坏")]
+        BridgeSabotaged = 4,
+        [InspectorName("召集阵核心已摧毁")]
+        SummonArrayDestroyed = 5,
+        [InspectorName("召集阵外环已破坏")]
+        SummonArrayOuterBroken = 6,
+    }
+
+    public enum StoryEventImpactKind
+    {
+        [InspectorName("单局强度 / Boss机制")]
+        Strength = 0,
+        [InspectorName("关卡布局")]
+        Layout = 1,
+        [InspectorName("道具获取")]
+        Item = 2,
     }
 
     [Serializable]
@@ -228,6 +258,8 @@ namespace XianTu.LevelDesign
         public string Name_CN;
         [InspectorName("事件类型")]
         public StoryEventType Type;
+        [InspectorName("主要玩法影响")]
+        public StoryEventImpactKind ImpactKind;
         [InspectorName("前置条件")]
         [Tooltip("内部条件表达式；留空表示无前置条件。")]
         public string PrereqFlag;

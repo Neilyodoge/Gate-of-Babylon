@@ -68,6 +68,12 @@ namespace XianTu
         private Color[] _originalColors;
         private float _hitFlashTimer;
         private bool _phase2Triggered;
+        private bool _nightSummon70Triggered;
+        private bool _nightSummon35Triggered;
+        private bool _isNightBoss;
+        private string _displayName = "守关妖兽";
+        private System.Action<GameObject> _summonRegistrar;
+        private Transform _summonRoomRoot;
 
         // V0.2.4：配表驱动的 P2 形态（BossPhaseSelector 选出的次优先形态）
         private LevelDesign.BossPhaseRow _pendingPhase2Row;
@@ -78,6 +84,7 @@ namespace XianTu
 
         // Boss名字标签
         private GameObject _nameTag;
+        private TMPro.TextMeshProUGUI _nameText;
 
         public CombatStats Stats => stats;
 
@@ -134,15 +141,15 @@ namespace XianTu
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<TMPro.TextMeshProUGUI>();
-            text.text = "★ 守关妖兽 ★";
-            text.fontSize = 24;
-            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
-            text.color = new Color(1f, 0.4f, 0.1f);
-            text.alignment = TMPro.TextAlignmentOptions.Center;
-            text.enableWordWrapping = false;
-            text.overflowMode = TMPro.TextOverflowModes.Overflow;
-            text.raycastTarget = false;
+            _nameText = textGo.AddComponent<TMPro.TextMeshProUGUI>();
+            _nameText.text = $"★ {_displayName} ★";
+            _nameText.fontSize = 24;
+            if (UGuiKit.CjkFont != null) _nameText.font = UGuiKit.CjkFont;
+            _nameText.color = new Color(1f, 0.4f, 0.1f);
+            _nameText.alignment = TMPro.TextAlignmentOptions.Center;
+            _nameText.enableWordWrapping = false;
+            _nameText.overflowMode = TMPro.TextOverflowModes.Overflow;
+            _nameText.raycastTarget = false;
 
             _nameTag = canvas;
         }
@@ -218,6 +225,9 @@ namespace XianTu
 
         private void CheckPhaseTransition()
         {
+            if (_isNightBoss)
+                CheckNightSummonThresholds();
+
             if (!_phase2Triggered && stats.currentHp <= stats.maxHp * 0.5f)
             {
                 _phase2Triggered = true;
@@ -243,7 +253,8 @@ namespace XianTu
                     _originalColors[i] = new Color(1f, 0.3f, 0.1f);
 
                 Debug.Log("<color=red>★ Boss 进入狂暴阶段！★</color>");
-                SpawnMinions(2);
+                if (!_isNightBoss)
+                    SpawnMinions(2);
             }
         }
 
@@ -252,9 +263,76 @@ namespace XianTu
             for (int i = 0; i < count; i++)
             {
                 Vector3 offset = new Vector3(Random.Range(-3f, 3f), 0, Random.Range(-3f, 3f));
-                Vector3 pos = transform.position + offset;
-                EnemyBase.Spawn(pos, 0.5f, 0.5f);
+                Vector3 pos = ResolveSummonPosition(transform.position + offset);
+                RegisterSummon(EnemyBase.Spawn(pos, 0.5f, 0.5f).gameObject);
             }
+        }
+
+        public void ConfigureSummons(System.Action<GameObject> registrar, Transform roomRoot)
+        {
+            _summonRegistrar = registrar;
+            _summonRoomRoot = roomRoot;
+        }
+
+        private void CheckNightSummonThresholds()
+        {
+            float hpRatio = stats.maxHp > 0f ? stats.currentHp / stats.maxHp : 1f;
+            if (!_nightSummon70Triggered && hpRatio <= 0.70f)
+            {
+                _nightSummon70Triggered = true;
+                SpawnNightGuardWave();
+            }
+            if (!_nightSummon35Triggered && hpRatio <= 0.35f)
+            {
+                _nightSummon35Triggered = true;
+                SpawnNightGuardWave();
+            }
+        }
+
+        private void SpawnNightGuardWave()
+        {
+            var flags = LevelDesign.BossFlagSet.Instance;
+            if (flags.Evaluate("summon_array_destroyed=1"))
+            {
+                Debug.Log("[永夜首领] 禁卫召集阵已摧毁，本次召唤失败。");
+                return;
+            }
+
+            if (flags.Evaluate("summon_array_outer_broken=1"))
+            {
+                Vector3 pos = ResolveSummonPosition(transform.position + transform.right * 3f);
+                RegisterSummon(EnemyElite.Spawn(pos, 0.65f, 0.65f).gameObject);
+                Debug.Log("[永夜首领] 召集阵外环损坏，仅投射 1 名禁卫队长。");
+                return;
+            }
+
+            Vector3 left = ResolveSummonPosition(transform.position - transform.right * 3f);
+            Vector3 right = ResolveSummonPosition(transform.position + transform.right * 3f);
+            Vector3 back = ResolveSummonPosition(transform.position - transform.forward * 3f);
+            RegisterSummon(EnemyBase.Spawn(left, 0.5f, 0.5f).gameObject);
+            RegisterSummon(EnemyBase.Spawn(right, 0.5f, 0.5f).gameObject);
+            RegisterSummon(EnemyRanged.Spawn(back, 0.5f, 0.5f).gameObject);
+            Debug.Log("[永夜首领] 禁卫召集阵完整，投射 2 名近战禁卫与 1 名远程禁卫。");
+        }
+
+        private Vector3 ResolveSummonPosition(Vector3 candidate)
+        {
+            if (_summonRoomRoot != null
+                && DungeonSpawnSafety.TryFindGroundedPoint(
+                    _summonRoomRoot,
+                    candidate,
+                    0.45f,
+                    1.8f,
+                    0.1f,
+                    out Vector3 grounded))
+                return grounded;
+            return candidate;
+        }
+
+        private void RegisterSummon(GameObject summon)
+        {
+            if (summon != null)
+                _summonRegistrar?.Invoke(summon);
         }
 
         private void UpdateTracking(float distToTarget)
@@ -912,6 +990,8 @@ namespace XianTu
             cc.center = new Vector3(0, 1.8f, 0);
 
             var boss = go.AddComponent<EnemyBoss>();
+            boss._isNightBoss = LevelDesign.LevelAPhaseRuntime.IsNightMapActive;
+            boss._displayName = boss._isNightBoss ? "无暮王残念" : "最后摄政官";
             var config = GameConfig.Instance;
             if (config != null)
             {

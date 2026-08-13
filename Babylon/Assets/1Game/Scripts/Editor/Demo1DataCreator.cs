@@ -21,12 +21,10 @@ namespace XianTu.Editor
         private const string FRANK_MESH_PATH = "Assets/1Game/ArtRes/Package/Character/Frank_Katana/Assets/Meshes/";
 
         // 怪物资源包路径
-        private const string MONSTER_PACK_PATH = "Assets/1Game/ArtRes/Package/Monsters Ultimate Pack 05 Cute Series/";
+        private const string MONSTER_PACK_PATH = "Assets/1Game/ArtRes/Package/Monster/Monsters Ultimate Pack 05 Cute Series/";
 
         // 法系主角 Mori 资源包路径（文件夹为中文名：模型/动画/贴图，用 FindAssets 规避编码问题）
         private const string MAGIC_PACK_PATH = "Assets/1Game/ArtRes/Package/Character/magic";
-        // 元素怪资源包路径
-        private const string ELEMENTALS_PACK_PATH = "Assets/1Game/ArtRes/Package/Monster/StylizedFantasyElementalsPack";
         // 主角档案存放路径（Resources 下，供 PlayerCharacterRegistry 加载）
         private const string CHAR_PROFILE_PATH = "Assets/1Game/Resources/CharacterProfiles/";
         // 法师主角模型文件名
@@ -734,51 +732,6 @@ namespace XianTu.Editor
                     return path;
             }
             return null;
-        }
-
-        // ==================== ⑧ 元素怪接入 ====================
-
-        [MenuItem("仙途秘境/⑧ 接入元素怪到 MonsterPrefabs（五行）", false, 8)]
-        public static void WireElementalMonsters()
-        {
-            string configPath = "Assets/1Game/Resources/MonsterPrefabs.asset";
-            var config = AssetDatabase.LoadAssetAtPath<MonsterPrefabs>(configPath);
-            if (config == null)
-            {
-                config = ScriptableObject.CreateInstance<MonsterPrefabs>();
-                AssetDatabase.CreateAsset(config, configPath);
-            }
-
-            // 五行映射：土=近战, 风=远程, 火=冲锋, 水=法师, 火金=Boss
-            var earth = LoadElemental("EarthElemental_Green.prefab");
-            var air = LoadElemental("AirElemental_Wind.prefab");
-            var lava = LoadElemental("LavaElemental_Red.prefab");
-            var water = LoadElemental("WaterElemental_Blue.prefab");
-            var boss = LoadElemental("LavaElemental_Gold.prefab");
-
-            if (earth != null) config.普通小怪Prefab = earth;
-            if (air != null) config.远程敌人Prefab = air;
-            if (lava != null) config.冲锋敌人Prefab = lava;
-            if (water != null) config.法师敌人Prefab = water;
-            if (boss != null) config.Boss敌人Prefab = boss;
-
-            EditorUtility.SetDirty(config);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
-            Debug.Log("<color=green>✅ 元素怪已接入 MonsterPrefabs（五行映射）</color>");
-            Debug.Log($"  土·近战：{(earth != null ? "EarthElemental_Green ✓" : "❌")}");
-            Debug.Log($"  风·远程：{(air != null ? "AirElemental_Wind ✓" : "❌")}");
-            Debug.Log($"  火·冲锋：{(lava != null ? "LavaElemental_Red ✓" : "❌")}");
-            Debug.Log($"  水·法师：{(water != null ? "WaterElemental_Blue ✓" : "❌")}");
-            Debug.Log($"  金火·Boss：{(boss != null ? "LavaElemental_Gold ✓" : "❌")}");
-            Selection.activeObject = config;
-        }
-
-        private static GameObject LoadElemental(string fileNameWithExt)
-        {
-            string path = FindAssetPath(ELEMENTALS_PACK_PATH, fileNameWithExt);
-            return string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<GameObject>(path);
         }
 
         // ==================== 动画工具方法 ====================

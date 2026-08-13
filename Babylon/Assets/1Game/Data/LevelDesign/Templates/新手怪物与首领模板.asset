@@ -19,24 +19,28 @@ MonoBehaviour:
     Cost: 1
     Weight: 100
     AllowedDistricts: 7
+    AllowedPhases: 3
   - DisplayName: "\u8FDC\u7A0B\u5F13\u624B"
     EnemyKind: 1
     Category: 1
     Cost: 2
     Weight: 100
     AllowedDistricts: 7
+    AllowedPhases: 3
   - DisplayName: "\u51B2\u950B\u602A"
     EnemyKind: 2
     Category: 0
     Cost: 3
     Weight: 45
     AllowedDistricts: 7
+    AllowedPhases: 3
   - DisplayName: "\u6CD5\u672F\u602A"
     EnemyKind: 3
     Category: 2
     Cost: 3
     Weight: 100
     AllowedDistricts: 7
+    AllowedPhases: 3
   PopulationPresets:
   - DisplayName: "\u5916\u73AF\u666E\u901A\u6218\u6597"
     District: 0

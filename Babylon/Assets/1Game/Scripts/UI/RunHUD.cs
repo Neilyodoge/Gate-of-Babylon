@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -30,6 +31,8 @@ namespace XianTu
         private TextMeshProUGUI _cultLabel;
         private GameObject _moralPanel;
         private TextMeshProUGUI _daoxinLabel, _karmaLabel, _lifespanLabel;
+        private GameObject _phaseRecapPanel;
+        private TextMeshProUGUI _phaseRecapLabel;
         private RectTransform _toastRoot;
         private readonly List<TextMeshProUGUI> _toastPool = new();
         private const int ToastPoolMax = 8;
@@ -115,6 +118,35 @@ namespace XianTu
                 l.gameObject.SetActive(false);
                 _toastPool.Add(l);
             }
+
+            _phaseRecapPanel = new GameObject(
+                "PhaseRecapPanel",
+                typeof(RectTransform),
+                typeof(Image));
+            var prt = (RectTransform)_phaseRecapPanel.transform;
+            prt.SetParent(_root.transform, false);
+            prt.anchorMin = Vector2.zero;
+            prt.anchorMax = Vector2.zero;
+            prt.pivot = Vector2.zero;
+            prt.anchoredPosition = new Vector2(12f, 116f);
+            prt.sizeDelta = new Vector2(340f, 84f);
+            var recapBackground = _phaseRecapPanel.GetComponent<Image>();
+            recapBackground.color = new Color(0.035f, 0.09f, 0.14f, 0.86f);
+            recapBackground.raycastTarget = false;
+            _phaseRecapLabel = UGuiKit.CreateText(
+                prt,
+                "",
+                14,
+                new Color(0.72f, 0.9f, 1f),
+                TextAlignmentOptions.TopLeft,
+                FontStyles.Normal);
+            var recapRt = (RectTransform)_phaseRecapLabel.transform;
+            recapRt.anchorMin = Vector2.zero;
+            recapRt.anchorMax = Vector2.one;
+            recapRt.offsetMin = new Vector2(12f, 8f);
+            recapRt.offsetMax = new Vector2(-12f, -8f);
+            _phaseRecapLabel.enableWordWrapping = true;
+            _phaseRecapPanel.SetActive(false);
         }
 
         // ========== 经验飘字降噪 ==========
@@ -179,6 +211,7 @@ namespace XianTu
             RefreshInsightBar();
             RefreshCultivation();
             RefreshMoral();
+            RefreshPhaseRecap();
             RefreshToasts();
         }
 
@@ -249,6 +282,20 @@ namespace XianTu
                     _toastPool[i].gameObject.SetActive(false);
                 }
             }
+        }
+
+        private void RefreshPhaseRecap()
+        {
+            bool show = LevelAPhaseRuntime.IsNightMapActive;
+            if (_phaseRecapPanel.activeSelf != show)
+                _phaseRecapPanel.SetActive(show);
+            if (!show)
+                return;
+
+            var lines = LevelAPhaseRuntime.GetRecapLines();
+            _phaseRecapLabel.text = lines.Count == 0
+                ? "<b>上次行动</b>\n未留下可追溯的场景变化"
+                : $"<b>上次行动</b>\n· {string.Join("\n· ", lines)}";
         }
     }
 }

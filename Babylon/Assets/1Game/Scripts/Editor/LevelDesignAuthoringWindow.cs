@@ -423,6 +423,9 @@ namespace XianTu.Editor
                 EditorGUILayout.PropertyField(
                     enemy.FindPropertyRelative("AllowedDistricts"),
                     new GUIContent("允许出现的分区"));
+                EditorGUILayout.PropertyField(
+                    enemy.FindPropertyRelative("AllowedPhases"),
+                    new GUIContent("允许出现的昼夜阶段"));
                 EditorGUILayout.EndVertical();
             }
 
@@ -466,6 +469,9 @@ namespace XianTu.Editor
                 EditorGUILayout.PropertyField(
                     boss.FindPropertyRelative("AllowedDistricts"),
                     new GUIContent("允许出现的分区"));
+                EditorGUILayout.PropertyField(
+                    boss.FindPropertyRelative("AllowedPhases"),
+                    new GUIContent("允许出现的昼夜阶段"));
                 EditorGUILayout.PropertyField(
                     boss.FindPropertyRelative("Weight"),
                     new GUIContent("抽取权重"));
@@ -724,7 +730,8 @@ namespace XianTu.Editor
                 Category = category,
                 Cost = cost,
                 Weight = weight,
-                AllowedDistricts = DistrictMask.All
+                AllowedDistricts = DistrictMask.All,
+                AllowedPhases = LevelPhaseMask.Both,
             };
         }
 

@@ -28,6 +28,21 @@ namespace XianTu
         public bool IsReady => Runtime != null && Runtime.IsReady;
         public int CurrentActId => _realm + 1;
         public bool CurrentNodeHasNext => IsReady && _roomIndex < Runtime.RoomCount - 1;
+        public string CurrentStoryTemplateID => StoryTemplateRuntime.Current?.ID;
+        public LevelAPhase CurrentPhase => LevelAPhaseRuntime.CurrentPhase;
+        public IReadOnlyDictionary<string, int> AssignedRoomEvents => _eventIdsByNode;
+        public int CurrentEventID
+        {
+            get
+            {
+                if (!IsReady)
+                    return 0;
+                string nodeName = Runtime.GetNodeName(_roomIndex);
+                return _eventIdsByNode.TryGetValue(nodeName, out int eventID)
+                    ? eventID
+                    : 0;
+            }
+        }
 
         private EdgarDungeonRuntime Runtime
         {
@@ -51,8 +66,23 @@ namespace XianTu
         {
             _realm = 0;
             _roomIndex = 0;
-            ConfigureRunVariant();
             LevelDesignDirector.Instance.StartNewRun();
+            if (LevelAPhaseRuntime.IsNightPending)
+                RestoreRunVariant();
+            else
+                ConfigureRunVariant();
+            Runtime.Clear();
+            RebuildFloors(Runtime.ConfiguredRoomCount);
+        }
+
+        public void EnterNightPhase()
+        {
+            if (!LevelAPhaseRuntime.IsNightPending)
+                throw new InvalidOperationException("无法进入永夜：白昼阶段尚未提交。");
+
+            _realm = 0;
+            _roomIndex = 0;
+            RestoreRunVariant();
             Runtime.Clear();
             RebuildFloors(Runtime.ConfiguredRoomCount);
         }
@@ -61,8 +91,8 @@ namespace XianTu
         {
             _realm = Mathf.Max(0, realm);
             _roomIndex = 0;
-            ConfigureRunVariant();
             LevelDesignDirector.Instance.BeginAct(_realm + 1);
+            ConfigureRunVariant();
             Runtime.Clear();
             RebuildFloors(Runtime.ConfiguredRoomCount);
         }
@@ -73,7 +103,7 @@ namespace XianTu
         public int GetRarityBias(int floor) => WithStructure(floor, (s, f) => s.GetRarityBias(f), 0);
         public bool GetHasStageReturn(int floor) => WithStructure(floor, (s, f) => s.GetHasStageReturn(f), true);
 
-        public void TryTriggerRoomEvent(Action onCompleted)
+        public void TryTriggerRoomEvent(Action<EventOption> onCompleted)
         {
             string nodeName = Runtime.GetNodeName(_roomIndex);
             if (!_eventIdsByNode.TryGetValue(nodeName, out int eventID))
@@ -82,10 +112,26 @@ namespace XianTu
 
             bool triggered = StoryEventService.Instance.TryTriggerEvent(
                 eventID,
-                _ => onCompleted?.Invoke());
+                selected => onCompleted?.Invoke(selected));
             if (!triggered)
                 throw new InvalidOperationException(
                     $"事件 {eventID} 无法触发：Node={nodeName}, Realm={_realm}, Seed={_runSeed}。");
+        }
+
+        public void CompleteCurrentRoomEvent(EventOption selected)
+        {
+            string nodeName = Runtime.GetNodeName(_roomIndex);
+            if (!_eventIdsByNode.TryGetValue(nodeName, out int eventID))
+                throw new InvalidOperationException(
+                    $"完成事件时节点 {nodeName} 未分配 EventID。");
+            LevelAPhaseRuntime.RecordOutcome(nodeName, eventID, selected);
+        }
+
+        public bool IsCurrentEventRecorded()
+        {
+            string nodeName = Runtime.GetNodeName(_roomIndex);
+            return _eventIdsByNode.TryGetValue(nodeName, out int eventID)
+                   && LevelAPhaseRuntime.HasRecordedOutcome(nodeName, eventID);
         }
 
         public void MarkCurrentCleared()
@@ -137,6 +183,7 @@ namespace XianTu
             if (_runtime != null)
                 _runtime.Clear();
             _roomIndex = 0;
+            LevelAPhaseRuntime.SetNightMapActive(false);
         }
 
         private void GenerateRealm()
@@ -144,7 +191,30 @@ namespace XianTu
             bool generated = Runtime.Generate(_runSeed, _spawnNodeName);
             RebuildFloors(generated ? Runtime.RoomCount : 0);
             if (generated)
+            {
+                LevelAPhaseRuntime.SetNightMapActive(LevelAPhaseRuntime.IsNightPending);
                 BuildLandmarkLabels();
+                ConfigureEventVariantRoots();
+                ApplyNightOutcomes();
+                LevelAPhaseVisuals.Apply(LevelAPhaseRuntime.CurrentPhase);
+            }
+        }
+
+        private void ConfigureEventVariantRoots()
+        {
+            for (int i = 0; i < Runtime.RoomCount; i++)
+            {
+                if (!Runtime.TryGetPlacement(i, out var placement)
+                    || !_eventIdsByNode.TryGetValue(placement.NodeName, out int eventID))
+                    continue;
+                Transform roomRoot = placement.Instance?.RoomTemplateInstance?.transform;
+                if (roomRoot == null)
+                    continue;
+
+                bool active = eventID == 1004
+                              || (LevelAPhaseRuntime.IsNightPending && eventID == 1006);
+                DungeonEventVariantRoot.ActivateOnly(roomRoot, active ? eventID : -1);
+            }
         }
 
         private void BuildLandmarkLabels()
@@ -175,8 +245,20 @@ namespace XianTu
                 }
                 else if (nodeName == "O1" || nodeName == "I1")
                 {
-                    text = "事件房";
-                    color = new Color(0.3f, 0.86f, 1f);
+                    int eventID = _eventIdsByNode.TryGetValue(nodeName, out int assigned)
+                        ? assigned
+                        : 0;
+                    text = eventID switch
+                    {
+                        1004 when LevelAPhaseRuntime.IsNightPending => "巡礼桥遗址",
+                        1004 => "断裂巡礼桥",
+                        1006 when LevelAPhaseRuntime.IsNightPending => "禁卫召集阵",
+                        1006 => "封闭阵室",
+                        _ => "事件房",
+                    };
+                    color = eventID == 1006
+                        ? new Color(0.72f, 0.34f, 1f)
+                        : new Color(0.3f, 0.86f, 1f);
                 }
                 else if (nodeName == "C0")
                 {
@@ -223,33 +305,98 @@ namespace XianTu
             int candidateIndex = (int)(((uint)_runSeed >> 1) % candidates.Length);
             _spawnNodeName = candidates[candidateIndex];
             _bossNodeName = outerSpawn ? "I4" : "O0";
+            StoryTemplateRuntime.SelectForAct(_realm + 1, _runSeed);
             ConfigureRoomEvents();
+            LevelAPhaseRuntime.BeginNewDay(
+                _runSeed,
+                _spawnNodeName,
+                _bossNodeName,
+                StoryTemplateRuntime.Current?.ID);
+        }
+
+        private void RestoreRunVariant()
+        {
+            if (!LevelAPhaseRuntime.TryGetMapVariant(
+                    out _runSeed,
+                    out _spawnNodeName,
+                    out _bossNodeName))
+                throw new InvalidOperationException("永夜阶段缺少可复现的地图 Seed、出生节点或 Boss 节点。");
+
+            StoryTemplateRuntime.SelectForAct(_realm + 1, _runSeed);
+            ConfigureRoomEvents();
+            LevelAPhaseRuntime.RestorePendingFlags();
+            Debug.Log(
+                $"[无暮王城] 恢复永夜地图：Seed={_runSeed}，" +
+                $"Landing={_spawnNodeName}，Boss={_bossNodeName}");
+        }
+
+        private void ApplyNightOutcomes()
+        {
+            if (!LevelAPhaseRuntime.IsNightPending)
+                return;
+
+            foreach (var outcome in LevelAPhaseRuntime.GetPendingOutcomes())
+            {
+                if (outcome == null
+                    || outcome.sceneResult == (int)EventSceneResult.None)
+                    continue;
+
+                EdgarRoomPlacement target = default;
+                bool foundTarget = false;
+                for (int i = 0; i < Runtime.RoomCount; i++)
+                {
+                    if (!Runtime.TryGetPlacement(i, out var placement)
+                        || placement.NodeName != outcome.nodeName)
+                        continue;
+                    target = placement;
+                    foundTarget = true;
+                    break;
+                }
+
+                Transform roomRoot = foundTarget
+                    ? target.Instance?.RoomTemplateInstance?.transform
+                    : null;
+                if (!foundTarget || roomRoot == null)
+                    throw new InvalidOperationException(
+                        $"永夜事件结果无法落位：Node={outcome.nodeName}，Event={outcome.eventId}。");
+
+                Vector3 position = roomRoot.position;
+                foreach (var socket in roomRoot.GetComponentsInChildren<DungeonContentSocket>(true))
+                {
+                    if (socket.SocketType != DungeonContentSocketType.Event)
+                        continue;
+                    position = socket.transform.position;
+                    break;
+                }
+
+                EventSceneOutcome.Apply(
+                    new EventOption
+                    {
+                        SceneResult = (EventSceneResult)outcome.sceneResult,
+                        FlagName = outcome.flagName,
+                        FlagValue = outcome.flagValue,
+                    },
+                    roomRoot,
+                    position);
+            }
         }
 
         private void ConfigureRoomEvents()
         {
             _eventIdsByNode.Clear();
-            int actPrefix = (_realm + 1) * 1000;
-            var candidates = new List<int>();
-            foreach (var pair in ConfigDatabase.Instance.StoryEvents)
-            {
-                var row = pair.Value;
-                if (pair.Key > actPrefix
-                    && pair.Key < actPrefix + 1000
-                    && string.IsNullOrWhiteSpace(row.PrereqFlag)
-                    && row.Options != null
-                    && row.Options.Length > 0)
-                    candidates.Add(pair.Key);
-            }
-
-            candidates.Sort();
-            if (candidates.Count < 2)
+            if (!ConfigDatabase.Instance.StoryEvents.ContainsKey(1004)
+                || !ConfigDatabase.Instance.StoryEvents.ContainsKey(1006))
                 throw new InvalidOperationException(
-                    $"第 {_realm + 1} 层至少需要 2 个无前置条件事件，当前只有 {candidates.Count} 个。");
+                    "无暮王城 MVP 需要事件 1004“断裂巡礼桥”和 1006“禁卫召集阵”。");
 
-            int start = (int)((uint)_runSeed % candidates.Count);
-            _eventIdsByNode["O1"] = candidates[start];
-            _eventIdsByNode["I1"] = candidates[(start + 1) % candidates.Count];
+            bool spawnInOuter = _spawnNodeName.StartsWith("O", StringComparison.Ordinal);
+            string layoutNode = spawnInOuter ? "O1" : "I1";
+            string strengthNode = spawnInOuter ? "I1" : "O1";
+            _eventIdsByNode[layoutNode] = 1004;
+            _eventIdsByNode[strengthNode] = 1006;
+            Debug.Log(
+                $"[无暮王城事件] 白昼 Layout=1004@{layoutNode} | " +
+                $"永夜 Strength=1006@{strengthNode}");
         }
 
         private string GetOrderedNodeName(int index, int roomCount)
@@ -287,7 +434,13 @@ namespace XianTu
             if (nodeName == _bossNodeName) return RoomType.Boss;
             if (nodeName == _spawnNodeName) return RoomType.Landing;
             if (nodeName == "O3" || nodeName == "I2") return RoomType.Elite;
-            if (nodeName == "O1" || nodeName == "I1") return RoomType.Event;
+            if (_eventIdsByNode.TryGetValue(nodeName, out int eventID))
+            {
+                if (!LevelAPhaseRuntime.IsNightPending && eventID == 1004)
+                    return RoomType.Event;
+                if (LevelAPhaseRuntime.IsNightPending && eventID == 1006)
+                    return RoomType.Event;
+            }
             if (nodeName == "C0") return RoomType.Shop;
             return RoomType.Battle;
         }

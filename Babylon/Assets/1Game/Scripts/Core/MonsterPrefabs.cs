@@ -69,6 +69,8 @@ namespace XianTu
             {
                 go = Instantiate(prefab, position, Quaternion.identity);
                 go.name = fallbackName;
+                foreach (var animator in go.GetComponentsInChildren<Animator>(true))
+                    animator.applyRootMotion = false;
             }
             else
             {

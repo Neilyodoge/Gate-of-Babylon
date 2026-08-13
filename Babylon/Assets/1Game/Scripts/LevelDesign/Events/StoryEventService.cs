@@ -22,6 +22,13 @@ namespace XianTu.LevelDesign
 
         public event Action<StoryEventRow, EventOption> OnEventCompleted;
 
+        public bool IsCompletedInAct(int eventID) => _completedInAct.Contains(eventID);
+        public void RestoreCompletedEvent(int eventID)
+        {
+            if (eventID > 0)
+                _completedInAct.Add(eventID);
+        }
+
         // ------------------------------------------------------------
         // 入口：尝试触发指定事件
         // ------------------------------------------------------------
@@ -113,19 +120,70 @@ namespace XianTu.LevelDesign
                 PlayerStateHooks.Instance.ChangeLifespan(opt.LifespanChange);
         }
 
-        // 局内灵物表已移除（去修仙化）：事件奖励/代价暂以 Flag + 日志占位，
-        // 后续接入模块 / 货币奖励时再替换（GDD §12.2.3）。
         private void GrantItemReward(int rewardID)
         {
             if (rewardID <= 0) return;
+            var player = PlayerController.Instance;
+            Vector3 dropPosition = player != null
+                ? player.transform.position + player.transform.forward * 1.2f
+                : Vector3.up * 0.2f;
+
+            switch (rewardID)
+            {
+                case 2001:
+                    CaveMaterialPool.SpawnRandom(dropPosition);
+                    break;
+                case 3001:
+                    CaveMaterialPool.SpawnRandom(dropPosition + Vector3.left * 0.5f);
+                    CaveMaterialPool.SpawnRandom(dropPosition + Vector3.right * 0.5f);
+                    break;
+                case 4001:
+                    RequirePlayerStats(rewardID).damageBonusPercent += 0.10f;
+                    break;
+                case 5001:
+                    RequirePlayerStats(rewardID).damageBonusPercent += 0.20f;
+                    break;
+                case 6001:
+                    RequirePlayerStats(rewardID).damageBonusPercent += 0.20f;
+                    break;
+                case 6002:
+                {
+                    var stats = RequirePlayerStats(rewardID);
+                    stats.damageBonusPercent += 0.10f;
+                    float hpGain = stats.maxHp * 0.20f;
+                    stats.maxHp += hpGain;
+                    stats.currentHp += hpGain;
+                    break;
+                }
+                case 6003:
+                    RequirePlayerStats(rewardID).skillDamagePercent += 0.15f;
+                    break;
+                default:
+                    throw new InvalidOperationException(
+                        $"事件奖励 RewardID={rewardID} 未配置真实效果，禁止静默占位。");
+            }
+
             BossFlagSet.Instance.Add($"reward_{rewardID}", 1);
-            Debug.Log($"[StoryEvent] ✓ 获得（占位）：RewardID={rewardID}");
+            Debug.Log($"[StoryEvent] ✓ 已应用真实奖励：RewardID={rewardID}");
         }
 
         private void ConsumeItemCost(int costID)
         {
             if (costID <= 0) return;
-            Debug.Log($"[StoryEvent] − 消耗（占位）：CostID={costID}");
+            if (PlayerResources.Instance == null
+                || !PlayerResources.Instance.SpendShards(costID))
+                throw new InvalidOperationException(
+                    $"事件代价 CostID={costID} 需要消耗同等数量灵力碎片，但当前数量不足。");
+
+            Debug.Log($"[StoryEvent] − 已消耗灵力碎片：{costID}");
+        }
+
+        private static CombatStats RequirePlayerStats(int rewardID)
+        {
+            if (PlayerController.Instance?.Stats == null)
+                throw new InvalidOperationException(
+                    $"应用事件奖励 RewardID={rewardID} 时找不到玩家战斗属性。");
+            return PlayerController.Instance.Stats;
         }
 
         // ------------------------------------------------------------

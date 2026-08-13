@@ -104,6 +104,11 @@ namespace XianTu.LevelDesign
             float atk = boss.Stats.attackDamage;
             float spd = boss.Stats.moveSpeed;
             BossPhaseSelector.ApplyStatModifier(phase, ref hp, ref atk, ref spd);
+            bool storyApplied = StoryTemplateRuntime.ApplyBossModifier(
+                ref hp,
+                ref atk,
+                ref spd,
+                out string storyResult);
             boss.Stats.maxHp = hp;
             boss.Stats.currentHp = hp;
             boss.Stats.attackDamage = atk;
@@ -113,6 +118,8 @@ namespace XianTu.LevelDesign
             PlayBossEntrance(phase);
 
             Debug.Log($"[LevelDesign] Boss 应用形态：{phase.PhaseName} | HP→{hp:F0} ATK→{atk:F1} SPD→{spd:F2}");
+            if (storyApplied)
+                Debug.Log($"[Story Template] Boss 本局修正：{storyResult}");
             return phase;
         }
     }

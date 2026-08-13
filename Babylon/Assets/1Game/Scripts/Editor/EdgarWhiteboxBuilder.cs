@@ -197,7 +197,8 @@ namespace XianTu.Editor
                 if (!spec.IsCorridor)
                 {
                     BuildPlayerSpawnSockets(root.transform, bounds);
-                    BuildSemanticSockets(root.transform, bounds, spec.Marker);
+                    BuildSemanticSockets(root.transform, bounds, spec.Marker, spec.Tags);
+                    BuildEventSceneObjects(root.transform, bounds, spec.Marker);
                     BuildSpawnAreas(root.transform, bounds);
                 }
 
@@ -444,7 +445,8 @@ namespace XianTu.Editor
         private static void BuildSemanticSockets(
             Transform root,
             Bounds bounds,
-            MarkerKind marker)
+            MarkerKind marker,
+            IReadOnlyCollection<string> tags)
         {
             DestroyChild(root, "SemanticSockets");
             var sockets = new GameObject("SemanticSockets").transform;
@@ -472,6 +474,21 @@ namespace XianTu.Editor
                     center,
                     DungeonContentSocketType.Event);
             }
+
+            if (tags.Contains("Combat") || tags.Contains("Endpoint"))
+            {
+                float offsetX = Mathf.Max(1.2f, bounds.extents.x * 0.32f);
+                CreateContentSocket(
+                    sockets,
+                    "Material_01",
+                    center + Vector3.left * offsetX,
+                    DungeonContentSocketType.Material);
+                CreateContentSocket(
+                    sockets,
+                    "Material_02",
+                    center + Vector3.right * offsetX,
+                    DungeonContentSocketType.Material);
+            }
         }
 
         private static void CreateContentSocket(
@@ -484,6 +501,125 @@ namespace XianTu.Editor
             socketObject.transform.SetParent(parent, false);
             socketObject.transform.localPosition = localPosition;
             socketObject.AddComponent<DungeonContentSocket>().Configure(type);
+        }
+
+        private static void BuildEventSceneObjects(
+            Transform root,
+            Bounds bounds,
+            MarkerKind marker)
+        {
+            DestroyChild(root, "EventSceneObjects");
+            if (marker != MarkerKind.Event)
+                return;
+
+            var sceneObjects = new GameObject("EventSceneObjects").transform;
+            sceneObjects.SetParent(root, false);
+            Vector3 center = new(
+                bounds.center.x,
+                bounds.min.y + 1.2f,
+                bounds.center.z + bounds.extents.z * 0.32f);
+
+            var bridgeVariant = new GameObject("Layout_断裂巡礼桥").transform;
+            bridgeVariant.SetParent(sceneObjects, false);
+            bridgeVariant.gameObject.AddComponent<DungeonEventVariantRoot>().Configure(1004);
+            var routeBlocker = CreateCube(
+                bridgeVariant,
+                "巡礼桥封锁",
+                center,
+                new Vector3(
+                    Mathf.Min(3.2f, bounds.size.x * 0.28f),
+                    2.4f,
+                    0.45f),
+                GetOrCreateAccent("EventRouteBlocked", new Color(0.72f, 0.16f, 0.08f)));
+            routeBlocker.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.OpenRoute, EventSceneObjectAction.Disable);
+            routeBlocker.AddComponent<DungeonEventSceneObject>()
+                .Configure(
+                    EventSceneResult.BridgeSabotaged,
+                    EventSceneObjectAction.Disable,
+                    LevelPhaseMask.Day);
+
+            var bridge = CreateCube(
+                bridgeVariant,
+                "巡礼桥桥面",
+                center + Vector3.forward * 1.8f + Vector3.down * 0.85f,
+                new Vector3(3.2f, 0.3f, 3.6f),
+                GetOrCreateAccent("EventRouteOpen", new Color(0.12f, 0.72f, 0.34f)));
+            bridge.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.OpenRoute, EventSceneObjectAction.Enable);
+            bridge.AddComponent<DungeonEventSceneObject>()
+                .Configure(
+                    EventSceneResult.BridgeSabotaged,
+                    EventSceneObjectAction.Enable,
+                    LevelPhaseMask.Day);
+            bridge.SetActive(false);
+
+            var collapsedBridge = CreateCube(
+                bridgeVariant,
+                "永夜坍塌残骸",
+                center + Vector3.forward * 1.8f + Vector3.down * 0.75f,
+                new Vector3(3.1f, 0.55f, 1.2f),
+                GetOrCreateAccent("EventBridgeCollapsed", new Color(0.58f, 0.12f, 0.08f)));
+            collapsedBridge.AddComponent<DungeonEventSceneObject>()
+                .Configure(
+                    EventSceneResult.BridgeSabotaged,
+                    EventSceneObjectAction.Enable,
+                    LevelPhaseMask.Night);
+            collapsedBridge.SetActive(false);
+
+            var summonVariant = new GameObject("Strength_禁卫召集阵").transform;
+            summonVariant.SetParent(sceneObjects, false);
+            summonVariant.gameObject.AddComponent<DungeonEventVariantRoot>().Configure(1006);
+            var summonCore = CreateCube(
+                summonVariant,
+                "召集阵阵心",
+                center,
+                new Vector3(1f, 1.8f, 1f),
+                GetOrCreateAccent("SummonArrayCore", new Color(0.22f, 0.5f, 1f)));
+            Object.DestroyImmediate(summonCore.GetComponent<Collider>());
+            summonCore.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.SummonArrayDestroyed, EventSceneObjectAction.Disable);
+
+            var summonRing = CreateCube(
+                summonVariant,
+                "召集阵外环",
+                center + Vector3.down * 0.95f,
+                new Vector3(3.8f, 0.16f, 3.8f),
+                GetOrCreateAccent("SummonArrayRing", new Color(0.48f, 0.22f, 0.95f)));
+            Object.DestroyImmediate(summonRing.GetComponent<Collider>());
+            summonRing.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.SummonArrayDestroyed, EventSceneObjectAction.Disable);
+            summonRing.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.SummonArrayOuterBroken, EventSceneObjectAction.Disable);
+
+            var brokenRing = CreateCube(
+                summonVariant,
+                "破损召集阵外环",
+                center + Vector3.right * 1.2f + Vector3.down * 0.92f,
+                new Vector3(1.4f, 0.22f, 2.8f),
+                GetOrCreateAccent("SummonArrayBroken", new Color(0.82f, 0.18f, 0.62f)));
+            Object.DestroyImmediate(brokenRing.GetComponent<Collider>());
+            brokenRing.AddComponent<DungeonEventSceneObject>()
+                .Configure(
+                    EventSceneResult.SummonArrayOuterBroken,
+                    EventSceneObjectAction.Enable);
+            brokenRing.SetActive(false);
+
+            var destroyedCore = CreateCube(
+                summonVariant,
+                "召集阵残骸",
+                center + Vector3.down * 0.65f,
+                new Vector3(1.8f, 0.35f, 1.8f),
+                GetOrCreateAccent("SummonArrayDestroyed", new Color(0.72f, 0.08f, 0.16f)));
+            Object.DestroyImmediate(destroyedCore.GetComponent<Collider>());
+            destroyedCore.AddComponent<DungeonEventSceneObject>()
+                .Configure(
+                    EventSceneResult.SummonArrayDestroyed,
+                    EventSceneObjectAction.Enable);
+            destroyedCore.SetActive(false);
+
+            bridgeVariant.gameObject.SetActive(false);
+            summonVariant.gameObject.SetActive(false);
         }
 
         private static void CreateSpawnArea(

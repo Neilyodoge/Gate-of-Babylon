@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -41,8 +42,8 @@ namespace XianTu
         /// <summary>某层是否显示阶段返回点（查不到配表回退 true）。</summary>
         bool GetHasStageReturn(int floor);
 
-        /// <summary>事件房触发叙事事件，完成后回调 <paramref name="onCompleted"/>。</summary>
-        void TryTriggerRoomEvent(Action onCompleted);
+        /// <summary>事件房触发叙事事件，完成后把玩家选择回调给实体房内容层。</summary>
+        void TryTriggerRoomEvent(Action<EventOption> onCompleted);
 
         /// <summary>标记当前节点已通关。</summary>
         void MarkCurrentCleared();

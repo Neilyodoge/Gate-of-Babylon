@@ -131,16 +131,11 @@ namespace XianTu
         {
             var go = new GameObject($"EventRoom_Lv{ctx.level}_{ctx.realmName}");
             go.transform.position = ctx.spawnPos;
-
-            if (ctx.buildRoomGeometry)
-                RoomBuilder.Build(go.transform, ctx.roomSize, ctx.roomSize, ctx.level);
-            Debug.Log($"<color=#6677ff>【{ctx.realmName}】事件房 — 触发叙事事件</color>");
-
-            int roomIndex = ctx.roomIndex;
-            MapProviders.Current.TryTriggerRoomEvent(() =>
-            {
-                GameEvents.Publish(new GameEvents.RoomCleared { RoomIndex = roomIndex, IsEvent = true, IsCombatRoom = true });
-            });
+            var handler = go.AddComponent<EventRoomContentHandler>();
+            var controller = go.AddComponent<RoomRuntimeController>();
+            controller.Initialize(RoomType.Event, ctx, handler);
+            Debug.Log(
+                $"<color=#6677ff>【{ctx.realmName}】事件房 — 调查自发光交互物后触发选择</color>");
             return go;
         }
 

@@ -141,18 +141,32 @@
             "modifiedTimeStamp": 1785145069893
         },
         {
-            "guid": "0735c275001a2c84dafdb30deced5d8d",
+            "guid": "9a6d67933f671cc4cb9e222afb1279bd",
             "title": "渲染设置",
             "comment": "",
             "titleColor": {
-                "r": 0.4131758511066437,
+                "r": 0.4117647111415863,
                 "g": 1.0,
-                "b": 0.3999999761581421,
+                "b": 0.4000000059604645,
                 "a": 1.0
             },
-            "shortcutSlot": 4,
-            "createdTimeStamp": 1785145326980,
-            "modifiedTimeStamp": 1785145326980
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1785396681002,
+            "modifiedTimeStamp": 1785396681002
+        },
+        {
+            "guid": "55c4aee04d3a32e4c8adef17fca52b43",
+            "title": "1关卡",
+            "comment": "",
+            "titleColor": {
+                "r": 0.3339685797691345,
+                "g": 0.8619999885559082,
+                "b": 0.649884819984436,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1785829805241,
+            "modifiedTimeStamp": 1785829813081
         }
     ]
 }

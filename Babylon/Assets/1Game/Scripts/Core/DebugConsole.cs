@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 using TMPro;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -16,8 +17,11 @@ namespace XianTu
 
         private bool _isOpen;
         private GameObject _panelGo;
+        private RectTransform _panelRT;
         private Canvas _canvas;
         private TextMeshProUGUI _statusText;
+        private GameObject _guidePanelGo;
+        private RectTransform _guideFlowContent;
         private ScrollRect _scrollRect;
         private RectTransform _contentRT;
         private GameObject _toggleBtnGo;  // 屏幕角落的开关按钮
@@ -98,11 +102,46 @@ namespace XianTu
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
-            else if (_logPanelGo != null)
+            else
             {
-                // 关闭控制台时一并收起日志面板（否则没有按钮可关）
-                _logPanelOpen = false;
-                _logPanelGo.SetActive(false);
+                SetGuideVisible(false);
+                if (_logPanelGo != null)
+                {
+                    // 关闭控制台时一并收起日志面板（否则没有按钮可关）
+                    _logPanelOpen = false;
+                    _logPanelGo.SetActive(false);
+                }
+            }
+        }
+
+        public void OpenPanel()
+        {
+            if (!_isOpen)
+                TogglePanel();
+            else
+                RefreshStatus();
+        }
+
+        public void OpenLevelGuide()
+        {
+            OpenPanel();
+            SetGuideVisible(true);
+        }
+
+        private void ToggleLevelGuide()
+        {
+            SetGuideVisible(_guidePanelGo == null || !_guidePanelGo.activeSelf);
+        }
+
+        private void SetGuideVisible(bool visible)
+        {
+            if (_guidePanelGo != null)
+                _guidePanelGo.SetActive(visible);
+            if (visible)
+            {
+                RefreshStatus();
+                RebuildEventFlow();
+                Canvas.ForceUpdateCanvases();
             }
         }
 
@@ -563,12 +602,12 @@ namespace XianTu
             // 主面板（左侧）
             _panelGo = new GameObject("DebugPanel");
             _panelGo.transform.SetParent(canvasGo.transform, false);
-            var panelRT = _panelGo.AddComponent<RectTransform>();
-            panelRT.anchorMin = new Vector2(0, 0);
-            panelRT.anchorMax = new Vector2(0, 1);
-            panelRT.pivot = new Vector2(0, 0.5f);
-            panelRT.offsetMin = new Vector2(10, 10);
-            panelRT.offsetMax = new Vector2(290, -10);
+            _panelRT = _panelGo.AddComponent<RectTransform>();
+            _panelRT.anchorMin = new Vector2(0, 0);
+            _panelRT.anchorMax = new Vector2(0, 1);
+            _panelRT.pivot = new Vector2(0, 0.5f);
+            _panelRT.offsetMin = new Vector2(10, 10);
+            _panelRT.offsetMax = new Vector2(300, -10);
             var panelImg = _panelGo.AddComponent<Image>();
             panelImg.color = new Color(0.05f, 0.05f, 0.1f, 0.92f);
 
@@ -623,9 +662,14 @@ namespace XianTu
 
             // ===== 按钮组 =====
 
+            CreateSectionHeader(contentGo.transform, "【 信息 】");
+            CreateButton(contentGo.transform, "📜 事件提示",
+                new Color(0.12f, 0.38f, 0.48f), ToggleLevelGuide);
+
             CreateSectionHeader(contentGo.transform, "【 战斗调试 】");
             CreateButton(contentGo.transform, "🛡 不掉血", new Color(0.45f, 0.4f, 0.15f), ToggleGodMode);
             CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
+            CreateButton(contentGo.transform, "👟 3倍移动速度", new Color(0.12f, 0.38f, 0.5f), ToggleSpeedBoost);
             CreateButton(contentGo.transform, "☠ 全屏秒杀", new Color(0.55f, 0.1f, 0.1f), KillAllEnemies);
 
             CreateSectionHeader(contentGo.transform, "【 Edgar 节点直达 】");
@@ -652,7 +696,206 @@ namespace XianTu
             _logText.alignment = TextAlignmentOptions.BottomLeft;
             _logText.richText = true;
 
+            CreateGuidePanel(canvasGo.transform);
             RefreshStatus();
+        }
+
+        private void CreateGuidePanel(Transform parent)
+        {
+            _guidePanelGo = new GameObject("EventDebugPanel", typeof(RectTransform), typeof(Image));
+            _guidePanelGo.transform.SetParent(parent, false);
+            var panelRect = _guidePanelGo.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0f, 0f);
+            panelRect.anchorMax = new Vector2(0f, 1f);
+            panelRect.pivot = new Vector2(0f, 0.5f);
+            panelRect.offsetMin = new Vector2(310f, 10f);
+            panelRect.offsetMax = new Vector2(1170f, -10f);
+
+            var image = _guidePanelGo.GetComponent<Image>();
+            image.color = new Color(0.07f, 0.11f, 0.16f, 0.96f);
+            image.raycastTarget = false;
+
+            CreateLabel(_guidePanelGo.transform, "Title", "═══ 事件 Debug · 关卡提示 ═══",
+                new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(8f, -8f), new Vector2(-8f, -42f),
+                16, new Color(1f, 0.85f, 0.3f), FontStyle.Bold);
+
+            CreateLabel(_guidePanelGo.transform, "Legend",
+                "流程：遇到事件  →  三选一  →  立即生效  →  永夜变化　　<color=#8fe3ff>亮色=可选</color>　<color=#80e09b>绿色=已选</color>　<color=#777777>灰色=不可选</color>",
+                new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(16f, -42f), new Vector2(-16f, -72f),
+                12, new Color(0.76f, 0.8f, 0.86f), FontStyle.Normal);
+
+            var scrollGo = new GameObject("EventFlowScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            scrollGo.transform.SetParent(_guidePanelGo.transform, false);
+            var scrollRectTransform = scrollGo.GetComponent<RectTransform>();
+            scrollRectTransform.anchorMin = Vector2.zero;
+            scrollRectTransform.anchorMax = Vector2.one;
+            scrollRectTransform.offsetMin = new Vector2(12f, 12f);
+            scrollRectTransform.offsetMax = new Vector2(-12f, -78f);
+            scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
+
+            var contentGo = new GameObject("EventFlowContent", typeof(RectTransform));
+            contentGo.transform.SetParent(scrollGo.transform, false);
+            _guideFlowContent = contentGo.GetComponent<RectTransform>();
+            _guideFlowContent.anchorMin = new Vector2(0f, 1f);
+            _guideFlowContent.anchorMax = new Vector2(1f, 1f);
+            _guideFlowContent.pivot = new Vector2(0.5f, 1f);
+            _guideFlowContent.offsetMin = Vector2.zero;
+            _guideFlowContent.offsetMax = Vector2.zero;
+
+            var layout = contentGo.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 8f;
+            layout.padding = new RectOffset(4, 4, 4, 4);
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            contentGo.AddComponent<ContentSizeFitter>().verticalFit =
+                ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.content = _guideFlowContent;
+
+            _guidePanelGo.SetActive(false);
+        }
+
+        private void RebuildEventFlow()
+        {
+            if (_guideFlowContent == null)
+                return;
+
+            for (int i = _guideFlowContent.childCount - 1; i >= 0; i--)
+                Destroy(_guideFlowContent.GetChild(i).gameObject);
+
+            CreateFlowText(_guideFlowContent, LevelGuidePresenter.BuildFlowSummary(),
+                13, new Color(0.65f, 0.88f, 1f), 28f, FontStyles.Bold);
+            foreach (var flowEvent in LevelGuidePresenter.BuildFlowData())
+                CreateEventFlowGroup(_guideFlowContent, flowEvent);
+        }
+
+        private void CreateEventFlowGroup(
+            Transform parent,
+            LevelGuidePresenter.FlowEvent flowEvent)
+        {
+            var group = new GameObject($"Flow_{flowEvent.Name}", typeof(RectTransform), typeof(Image));
+            group.transform.SetParent(parent, false);
+            var groupLayout = group.AddComponent<LayoutElement>();
+            groupLayout.preferredHeight = 218f;
+            groupLayout.minHeight = 218f;
+            var groupImage = group.GetComponent<Image>();
+            groupImage.color = flowEvent.IsAvailable
+                ? new Color(0.12f, 0.2f, 0.28f, 0.98f)
+                : flowEvent.IsCompleted
+                    ? new Color(0.11f, 0.24f, 0.17f, 0.98f)
+                    : new Color(0.12f, 0.13f, 0.15f, 0.98f);
+
+            var vertical = group.AddComponent<VerticalLayoutGroup>();
+            vertical.spacing = 3f;
+            vertical.padding = new RectOffset(10, 10, 7, 7);
+            vertical.childControlWidth = true;
+            vertical.childControlHeight = true;
+            vertical.childForceExpandWidth = true;
+            vertical.childForceExpandHeight = false;
+
+            Color headerColor = flowEvent.IsAvailable
+                ? new Color(1f, 0.82f, 0.42f)
+                : flowEvent.IsCompleted
+                    ? new Color(0.5f, 0.9f, 0.62f)
+                    : new Color(0.48f, 0.5f, 0.54f);
+            CreateFlowText(group.transform,
+                $"{flowEvent.Name}　<color=#aab2c0>[{flowEvent.Status}]</color>",
+                15, headerColor, 26f, FontStyles.Bold);
+            CreateFlowText(group.transform, "↓　选择其一", 12,
+                flowEvent.IsAvailable ? new Color(0.55f, 0.85f, 1f) : new Color(0.4f, 0.42f, 0.46f),
+                19f, FontStyles.Normal, TextAlignmentOptions.Center);
+
+            var options = new GameObject("Options", typeof(RectTransform));
+            options.transform.SetParent(group.transform, false);
+            var optionsLayoutElement = options.AddComponent<LayoutElement>();
+            optionsLayoutElement.preferredHeight = 150f;
+            optionsLayoutElement.minHeight = 150f;
+            var horizontal = options.AddComponent<HorizontalLayoutGroup>();
+            horizontal.spacing = 8f;
+            horizontal.childControlWidth = true;
+            horizontal.childControlHeight = true;
+            horizontal.childForceExpandWidth = true;
+            horizontal.childForceExpandHeight = true;
+
+            for (int i = 0; i < flowEvent.Options.Count; i++)
+                CreateOptionCard(options.transform, flowEvent.Options[i], i + 1);
+        }
+
+        private void CreateOptionCard(
+            Transform parent,
+            LevelGuidePresenter.FlowOption option,
+            int index)
+        {
+            var card = new GameObject($"Option_{index}", typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(parent, false);
+            var cardLayout = card.AddComponent<LayoutElement>();
+            cardLayout.minWidth = 220f;
+            cardLayout.flexibleWidth = 1f;
+            var image = card.GetComponent<Image>();
+            image.color = option.State switch
+            {
+                LevelGuidePresenter.FlowOptionState.Selected =>
+                    new Color(0.12f, 0.38f, 0.22f, 0.98f),
+                LevelGuidePresenter.FlowOptionState.Available =>
+                    new Color(0.08f, 0.3f, 0.42f, 0.98f),
+                _ => new Color(0.16f, 0.17f, 0.19f, 0.98f),
+            };
+
+            var vertical = card.AddComponent<VerticalLayoutGroup>();
+            vertical.spacing = 3f;
+            vertical.padding = new RectOffset(9, 9, 7, 7);
+            vertical.childControlWidth = true;
+            vertical.childControlHeight = true;
+            vertical.childForceExpandWidth = true;
+            vertical.childForceExpandHeight = false;
+
+            bool dimmed = option.State == LevelGuidePresenter.FlowOptionState.Unavailable;
+            Color titleColor = dimmed
+                ? new Color(0.48f, 0.49f, 0.52f)
+                : Color.white;
+            Color bodyColor = dimmed
+                ? new Color(0.4f, 0.41f, 0.44f)
+                : new Color(0.82f, 0.86f, 0.92f);
+            Color stateColor = option.State switch
+            {
+                LevelGuidePresenter.FlowOptionState.Selected => new Color(0.55f, 1f, 0.65f),
+                LevelGuidePresenter.FlowOptionState.Available => new Color(0.55f, 0.9f, 1f),
+                _ => new Color(0.48f, 0.49f, 0.52f),
+            };
+
+            CreateFlowText(card.transform, $"{index}. {option.Title}",
+                14, titleColor, 30f, FontStyles.Bold);
+            CreateFlowText(card.transform, $"现 → {option.Immediate}",
+                11, bodyColor, 35f, FontStyles.Normal);
+            CreateFlowText(card.transform, $"夜 → {option.Night}",
+                11, bodyColor, 35f, FontStyles.Normal);
+            CreateFlowText(card.transform, option.StateLabel,
+                11, stateColor, 23f, FontStyles.Bold, TextAlignmentOptions.Center);
+        }
+
+        private static TextMeshProUGUI CreateFlowText(
+            Transform parent,
+            string text,
+            int fontSize,
+            Color color,
+            float height,
+            FontStyles style,
+            TextAlignmentOptions alignment = TextAlignmentOptions.TopLeft)
+        {
+            var label = UGuiKit.CreateText(parent, text, fontSize, color, alignment, style);
+            label.enableWordWrapping = true;
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            var layout = label.gameObject.AddComponent<LayoutElement>();
+            layout.preferredHeight = height;
+            layout.minHeight = height;
+            return label;
         }
 
         // ==================== UI 辅助方法 ====================

@@ -96,7 +96,7 @@ namespace XianTu
             var cv = _chainContainer.gameObject.AddComponent<VerticalLayoutGroup>();
             cv.spacing = 6f; cv.childControlWidth = true; cv.childForceExpandWidth = true; cv.childControlHeight = true; cv.childForceExpandHeight = false;
 
-            var hint = UGuiKit.CreateText(panel, "按 Tab 或点击 ✕ 关闭", 12, new Color(0.5f, 0.52f, 0.58f), TextAlignmentOptions.Center);
+            var hint = UGuiKit.CreateText(panel, "按 C 或点击 ✕ 关闭", 12, new Color(0.5f, 0.52f, 0.58f), TextAlignmentOptions.Center);
             UGuiKit.SetHeight(hint, 20f);
         }
 

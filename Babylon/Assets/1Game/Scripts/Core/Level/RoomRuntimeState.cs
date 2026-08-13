@@ -20,5 +20,6 @@ namespace XianTu
         public RoomRuntimePhase Phase;
         public bool DoorsLocked;
         public bool Cleared;
+        public bool MaterialsSpawned;
     }
 }

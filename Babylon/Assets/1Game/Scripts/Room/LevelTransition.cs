@@ -1,11 +1,13 @@
 using UnityEngine;
 using System.Collections;
+using TMPro;
+using UnityEngine.InputSystem;
 
 namespace XianTu
 {
     /// <summary>
     /// 层间过渡动画 —— 传送门效果
-    /// 通关后显示传送门，玩家走入后过渡到下一层
+    /// 通关后显示传送门，玩家靠近确认用途并按 F 后过渡。
     /// </summary>
     public class LevelTransition : MonoBehaviour
     {
@@ -57,7 +59,11 @@ namespace XianTu
         }
 
         /// <summary>在指定位置创建传送门（大型发光门，非常醒目）</summary>
-        public void SpawnPortal(Vector3 position, System.Action onEnter)
+        public void SpawnPortal(
+            Vector3 position,
+            System.Action onEnter,
+            string title = "继续探索",
+            string purpose = "进入下一房间")
         {
             if (_portal != null) Destroy(_portal);
 
@@ -157,7 +163,7 @@ namespace XianTu
             triggerGo.transform.localPosition = new Vector3(0, 1.2f, -0.5f);
             var bc = triggerGo.AddComponent<BoxCollider>();
             bc.isTrigger = true;
-            bc.size = new Vector3(3f, 3f, 3f);
+            bc.size = new Vector3(4.5f, 3f, 4.5f);
             var rb = triggerGo.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
@@ -167,12 +173,105 @@ namespace XianTu
             {
                 if (!_isTransitioning)
                     StartCoroutine(TransitionCoroutine(onEnter));
-            });
+            }, title, purpose, glowColor);
 
             // 门面板 + 发光球呼吸动画
             StartCoroutine(PortalGlowAnimation(portalFace, topOrb, glowColor));
 
-            Debug.Log($"<color=cyan>★ 传送门已生成在 {position}，走入即可进入下一层 ★</color>");
+            Debug.Log($"<color=cyan>★ {title}已生成在 {position}，靠近查看用途并按 F 进入 ★</color>");
+        }
+
+        /// <summary>白昼 Boss 后生成两个明确出口：保留 Build 追入永夜，或结算后返回基地。</summary>
+        public void SpawnPhaseChoicePortals(
+            Vector3 position,
+            System.Action onContinueNight,
+            System.Action onReturnVillage)
+        {
+            if (_portal != null) Destroy(_portal);
+
+            _portal = new GameObject("Portal_PhaseChoice");
+            _portal.transform.position = position;
+            BuildChoicePortal(
+                _portal.transform,
+                new Vector3(-2.4f, 0f, 0f),
+                "追入永夜",
+                "保留当前构筑，重新降落到永夜",
+                new Color(0.2f, 0.85f, 1f),
+                onContinueNight);
+            BuildChoicePortal(
+                _portal.transform,
+                new Vector3(2.4f, 0f, 0f),
+                "返回基地",
+                "结算白昼阶段，下次从永夜继续",
+                new Color(1f, 0.68f, 0.24f),
+                onReturnVillage);
+            Debug.Log("<color=#66ddff>[无暮王城] 白昼出口已生成：追入永夜 / 返回基地。</color>");
+        }
+
+        private void BuildChoicePortal(
+            Transform parent,
+            Vector3 localPosition,
+            string label,
+            string purpose,
+            Color color,
+            System.Action onEnter)
+        {
+            var root = new GameObject(label);
+            root.transform.SetParent(parent, false);
+            root.transform.localPosition = localPosition;
+
+            CreateChoicePart(root.transform, "左门柱",
+                new Vector3(-0.85f, 1.4f, 0f), new Vector3(0.25f, 2.8f, 0.3f), color);
+            CreateChoicePart(root.transform, "右门柱",
+                new Vector3(0.85f, 1.4f, 0f), new Vector3(0.25f, 2.8f, 0.3f), color);
+            CreateChoicePart(root.transform, "门楣",
+                new Vector3(0f, 2.75f, 0f), new Vector3(1.95f, 0.25f, 0.35f), color);
+            CreateChoicePart(root.transform, "门面",
+                new Vector3(0f, 1.35f, 0f), new Vector3(1.45f, 2.4f, 0.08f), color * 0.7f);
+
+            var textGo = new GameObject("出口名称");
+            textGo.transform.SetParent(root.transform, false);
+            textGo.transform.localPosition = new Vector3(0f, 3.35f, 0f);
+            textGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            var text = textGo.AddComponent<TextMeshPro>();
+            text.text = label;
+            text.fontSize = 3f;
+            if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
+            text.alignment = TextAlignmentOptions.Center;
+            text.color = color;
+            text.rectTransform.sizeDelta = new Vector2(5f, 1f);
+
+            var triggerGo = new GameObject("PortalTrigger");
+            triggerGo.transform.SetParent(root.transform, false);
+            triggerGo.transform.localPosition = new Vector3(0f, 1.2f, -0.4f);
+            var collider = triggerGo.AddComponent<BoxCollider>();
+            collider.isTrigger = true;
+            collider.size = new Vector3(3.6f, 3f, 3.6f);
+            var body = triggerGo.AddComponent<Rigidbody>();
+            body.isKinematic = true;
+            body.useGravity = false;
+            triggerGo.AddComponent<PortalTrigger>().Initialize(() =>
+            {
+                if (!_isTransitioning)
+                    StartCoroutine(TransitionCoroutine(onEnter));
+            }, label, purpose, color);
+        }
+
+        private void CreateChoicePart(
+            Transform parent,
+            string name,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Color color)
+        {
+            var part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.name = name;
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localScale = localScale;
+            var collider = part.GetComponent<Collider>();
+            if (collider != null) Destroy(collider);
+            SetGlowMaterial(part, color * 0.45f, color * 4f);
         }
 
         /// <summary>设置自发光材质（不透明，靠 Emission 发光）</summary>
@@ -264,42 +363,98 @@ namespace XianTu
         public void DestroyPortal()
         {
             if (_portal != null) Destroy(_portal);
+            _portal = null;
         }
     }
 
-    /// <summary>传送门触发器</summary>
-    public class PortalTrigger : MonoBehaviour
+    /// <summary>传送门近距离确认：显示用途，按 F 后才执行过渡。</summary>
+    public class PortalTrigger : MonoBehaviour, IInteractable
     {
-        private System.Action _onPlayerEnter;
-        private bool _triggered;
+        public Vector3 InteractionWorldPos => transform.position;
+        public int InteractionPriority => 10;
+        public bool IsInteractionAvailable => _playerInRange && !_triggered;
+        public bool IsRoutedActive { get; set; }
 
-        public void Initialize(System.Action onEnter)
+        private System.Action _onConfirm;
+        private bool _triggered;
+        private bool _playerInRange;
+        private NpcHeadCard _headCard;
+
+        public void Initialize(
+            System.Action onConfirm,
+            string title,
+            string purpose,
+            Color themeColor)
         {
-            _onPlayerEnter = onEnter;
+            _onConfirm = onConfirm;
             _triggered = false;
+            _headCard = NpcHeadCard.Attach(transform.parent, new NpcHeadCard.Config
+            {
+                displayName = title,
+                icon = "◇",
+                roleSub = purpose,
+                hintText = "按 [F] 确认进入",
+                themeColor = themeColor,
+                yOffset = 4.1f,
+                showLongRangeMarker = false,
+            });
+            _headCard.SetCardVisible(false);
+            _headCard.SetHintVisible(false);
         }
 
         private void OnTriggerEnter(Collider other)
         {
-            TryTrigger(other);
+            SetPlayerInRange(other, true);
         }
 
-        // 备用：如果 OnTriggerEnter 没触发（CharacterController 有时只触发 Stay）
         private void OnTriggerStay(Collider other)
         {
-            TryTrigger(other);
+            SetPlayerInRange(other, true);
         }
 
-        private void TryTrigger(Collider other)
+        private void OnTriggerExit(Collider other)
         {
-            if (_triggered) return;
-            // 同时支持 tag 检测和组件检测
-            if (other.CompareTag("Player") || other.GetComponent<PlayerController>() != null)
+            SetPlayerInRange(other, false);
+        }
+
+        private void Update()
+        {
+            bool showPrompt = IsRoutedActive && !_triggered;
+            _headCard?.SetCardVisible(showPrompt);
+            _headCard?.SetHintVisible(showPrompt);
+            if (!showPrompt)
+                return;
+
+            var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.fKey.wasPressedThisFrame)
             {
                 _triggered = true;
-                Debug.Log("<color=green>★ 玩家进入传送门！★</color>");
-                _onPlayerEnter?.Invoke();
+                _playerInRange = false;
+                InteractionRouter.Unregister(this);
+                _headCard?.SetCardVisible(false);
+                _headCard?.SetHintVisible(false);
+                Debug.Log("<color=green>★ 玩家确认进入传送门！★</color>");
+                _onConfirm?.Invoke();
             }
+        }
+
+        private void SetPlayerInRange(Collider other, bool inRange)
+        {
+            if (other == null
+                || (!other.CompareTag("Player")
+                    && other.GetComponent<PlayerController>() == null))
+                return;
+
+            _playerInRange = inRange;
+            if (inRange)
+                InteractionRouter.Register(this);
+            else
+                InteractionRouter.Unregister(this);
+        }
+
+        private void OnDestroy()
+        {
+            InteractionRouter.Unregister(this);
         }
     }
 }

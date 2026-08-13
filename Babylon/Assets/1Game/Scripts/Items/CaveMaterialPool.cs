@@ -45,9 +45,20 @@ namespace XianTu
             if (chance < 1f && Random.value > chance) return null;
 
             var picked = All[Random.Range(0, All.Length)];
-            if (picked == null) return null;
+            return Spawn(picked, position);
+        }
 
-            // 把素材掉在脚下（确保不沉地）
+        /// <summary>按固定 Seed 选择素材，保证同一房间回放不会改变采集点内容。</summary>
+        public static ItemPickup SpawnDeterministic(Vector3 position, int seed)
+        {
+            if (All.Length == 0) return null;
+            var random = new System.Random(seed);
+            return Spawn(All[random.Next(All.Length)], position);
+        }
+
+        private static ItemPickup Spawn(ItemData picked, Vector3 position)
+        {
+            if (picked == null) return null;
             Vector3 dropPos = position;
             dropPos.y = Mathf.Max(dropPos.y, 0.1f);
             var pickup = ItemPickup.Spawn(picked, dropPos);

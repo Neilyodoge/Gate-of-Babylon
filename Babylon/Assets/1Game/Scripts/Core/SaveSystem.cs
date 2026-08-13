@@ -322,7 +322,7 @@ namespace XianTu
         private static bool NormalizeAndMigrate(SaveDataV1 data)
         {
             if (data == null) return false;
-            bool changed = data.schemaVersion < 3;
+            bool changed = data.schemaVersion < 4;
 
             changed |= EnsureList(ref data.unlockedSkillIds);
             changed |= EnsureList(ref data.unlockedModuleIds);
@@ -334,6 +334,12 @@ namespace XianTu
             changed |= EnsureList(ref data.pendingOpportunities);
             changed |= EnsureList(ref data.masteryNodeIds);
             changed |= EnsureList(ref data.unlockedGrowthBranches);
+            if (data.levelAProgress == null)
+            {
+                data.levelAProgress = new LevelAProgressState();
+                changed = true;
+            }
+            changed |= EnsureList(ref data.levelAProgress.pendingOutcomes);
 
 #pragma warning disable CS0618
             if (data.buildBackpack != null && data.buildBackpack.Count > 0)
@@ -360,9 +366,9 @@ namespace XianTu
                 changed = true;
             }
 
-            if (data.schemaVersion != 3)
+            if (data.schemaVersion != 4)
             {
-                data.schemaVersion = 3;
+                data.schemaVersion = 4;
                 changed = true;
             }
             return changed;

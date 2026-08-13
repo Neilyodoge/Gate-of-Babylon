@@ -19,24 +19,28 @@ MonoBehaviour:
     Cost: 1
     Weight: 100
     AllowedDistricts: 7
+    AllowedPhases: 1
   - DisplayName: "\u8FDC\u7A0B\u5F13\u624B"
     EnemyKind: 1
     Category: 1
     Cost: 2
     Weight: 100
     AllowedDistricts: 7
+    AllowedPhases: 1
   - DisplayName: "\u51B2\u950B\u602A"
     EnemyKind: 2
     Category: 0
     Cost: 3
     Weight: 45
     AllowedDistricts: 7
+    AllowedPhases: 2
   - DisplayName: "\u6CD5\u672F\u602A"
     EnemyKind: 3
     Category: 2
     Cost: 3
     Weight: 100
     AllowedDistricts: 7
+    AllowedPhases: 2
   PopulationPresets:
   - DisplayName: "\u5916\u73AF\u666E\u901A\u6218\u6597"
     District: 0
@@ -81,17 +85,19 @@ MonoBehaviour:
     ReinforceAtPct: 50
     ReinforceDelaySec: 1.25
   BossPool:
-  - DisplayName: "\u5916\u73AF Boss A"
+  - DisplayName: "\u767D\u663C \xB7 \u6700\u540E\u6444\u653F\u5B98"
     BossID: 1
     Weight: 100
-    AllowedDistricts: 1
+    AllowedDistricts: 7
+    AllowedPhases: 1
     RequiredFlags: 
     BlockedFlags: 
     RequiredRoomTag: 
-  - DisplayName: "\u5185\u73AF Boss B"
+  - DisplayName: "\u6C38\u591C \xB7 \u65E0\u66AE\u738B\u6B8B\u5FF5"
     BossID: 2
     Weight: 100
-    AllowedDistricts: 4
+    AllowedDistricts: 7
+    AllowedPhases: 2
     RequiredFlags: 
     BlockedFlags: 
     RequiredRoomTag: 

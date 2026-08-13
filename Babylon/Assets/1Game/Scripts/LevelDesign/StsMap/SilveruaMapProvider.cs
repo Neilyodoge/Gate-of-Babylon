@@ -59,10 +59,10 @@ namespace XianTu
         public int GetRarityBias(int floor) => WithStructure(floor, (s, f) => s.GetRarityBias(f), 0);
         public bool GetHasStageReturn(int floor) => WithStructure(floor, (s, f) => s.GetHasStageReturn(f), true);
 
-        public void TryTriggerRoomEvent(Action onCompleted)
+        public void TryTriggerRoomEvent(Action<EventOption> onCompleted)
         {
             // 事件房本身直接放行；剧情事件由 LevelDesignBootstrap 的线性调度表在 RoomCleared 时触发。
-            onCompleted?.Invoke();
+            onCompleted?.Invoke(null);
         }
 
         public void MarkCurrentCleared() { /* silverua 路径在点选节点时已推进，无需额外标记 */ }

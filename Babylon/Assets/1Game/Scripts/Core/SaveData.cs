@@ -14,8 +14,8 @@ namespace XianTu
     [Serializable]
     public class SaveDataV1
     {
-        /// <summary>存档格式版本号（v3：永久技能/模块解锁 + 移除 Build 带出）。</summary>
-        public int schemaVersion = 3;
+        /// <summary>存档格式版本号（v4：增加关卡 A 白昼 / 永夜阶段状态）。</summary>
+        public int schemaVersion = 4;
 
         /// <summary>洞府素材库存：itemName → 数量（用 itemName 当 id，因为 ItemData 是 SO 无 GUID）</summary>
         public List<ItemCountEntry> caveInventory = new();
@@ -136,6 +136,11 @@ namespace XianTu
         /// <summary>该槽位累计游玩秒数。</summary>
         public double totalPlayTimeSeconds = 0;
 
+        // ========== v4：关卡 A · 无暮王城双阶段 ==========
+
+        /// <summary>关卡 A 当前阶段、地图复现信息与待落位事件结果。</summary>
+        public LevelAProgressState levelAProgress = new();
+
         // ========== V0.4.1 旧 Build 背包墓碑（仅供 v2 → v3 迁移） ==========
 
         [Obsolete("v3 不再保存或带出 Build；仅在加载旧存档时迁移为永久解锁记录。")]
@@ -158,6 +163,30 @@ namespace XianTu
     {
         public string itemName;
         public int count;
+    }
+
+    [Serializable]
+    public sealed class LevelAProgressState
+    {
+        /// <summary>0=白昼，1=永夜。</summary>
+        public int phase;
+        public bool dayCompleted;
+        public int runSeed;
+        public string spawnNode = "";
+        public string bossNode = "";
+        public string storyTemplateId = "";
+        public List<LevelAPendingOutcome> pendingOutcomes = new();
+    }
+
+    [Serializable]
+    public sealed class LevelAPendingOutcome
+    {
+        public int eventId;
+        public int sceneResult;
+        public string nodeName = "";
+        public string flagName = "";
+        public int flagValue;
+        public string recapText = "";
     }
 
     /// <summary>v2 Build 快照兼容结构；迁移完成后不会再写入业务数据。</summary>

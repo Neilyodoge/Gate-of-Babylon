@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -112,17 +113,6 @@ namespace XianTu
         /// </summary>
         public static bool EnableWorldDrops = true;
 
-        /// <summary>
-        /// 从普通秘境准备区返回基地。仅准备区出口调用；正式进入地图后不提供此入口。
-        /// </summary>
-        public void ExitRunPreparationToVillage()
-        {
-            _transitioning = false;
-            _gameOver = false;
-            RewardPickUI.ForceHide();
-            SkillSelectUI.Hide();
-            EnterVillageHub();
-        }
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
         public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
 
@@ -209,6 +199,8 @@ namespace XianTu
         /// </summary>
         private void EnterVillageHub()
         {
+            LevelAPhaseRuntime.SetNightMapActive(false);
+            LevelAPhaseVisuals.RestoreDayDefaults();
             if (_currentRoomGo != null)
                 Destroy(_currentRoomGo);
             if (MapProviders.Current is EdgarMapProvider edgar)
@@ -229,7 +221,7 @@ namespace XianTu
             var hub = _currentRoomGo.AddComponent<VillageHub>();
             hub.Initialize(onPortalEntered: StartNewRun);
 
-            TeleportPlayer(spawnPos);
+            TeleportPlayer(hub.PlayerSpawnPos);
 
             // #1：局外「挂空」——完全去掉 Q/E/R 技能与增强链（仅保留普攻）。
             ClearPlayerLoadout();
@@ -310,31 +302,25 @@ namespace XianTu
                 _minimap.SetVisible(true);
             }
 
-            // V0.4.1：先进入准备房间；触发正式入口时才选择初始技能，选完进入第一间。
-            SpawnPrepRoom();
+            // 基地秘境门即正式入口：原独立准备房仅重复一次确认，现直接选初始技能。
+            SkillSelectUI.Show(skillPool, OnInitialSkillPicked);
         }
 
-        /// <summary>生成准备房间：可返回基地；触发正式入口并选择技能后进入第一间。</summary>
-        private void SpawnPrepRoom()
+        private void OnInitialSkillPicked(SkillData skill)
         {
-            if (_currentRoomGo != null)
-                Destroy(_currentRoomGo);
-            CleanupLeftoverPickups();
+            if (skill != null)
+            {
+                var combat = PlayerController.Instance?.GetComponent<PlayerCombat>();
+                if (combat != null)
+                {
+                    combat.EquipSkillQ(skill);
+                    SaveSystem.Instance.UnlockSkill(skill);
+                    GameEvents.Publish(new GameEvents.SkillEquipped { Skill = skill, SlotIndex = 0 });
+                    Debug.Log($"<color=#66d9ff>已装备初始技能：{skill.skillName} → Q 槽位</color>");
+                }
+            }
 
-            Vector3 spawnPos = roomSpawnPoint != null ? roomSpawnPoint.position : Vector3.zero;
-            _currentRoomGo = new GameObject("PrepRoom");
-            _currentRoomGo.transform.position = spawnPos;
-            var prep = _currentRoomGo.AddComponent<PrepRoom>();
-            prep.Initialize(skillPool, OnPrepRoomComplete, ExitRunPreparationToVillage);
-
-            TeleportPlayer(spawnPos);
-            Debug.Log("<color=#6699ff>═══ 秘境准备区 · 可前往入口或返回基地 ═══</color>");
-        }
-
-        private void OnPrepRoomComplete()
-        {
-            Debug.Log("<color=#66ff99>准备完成 · 择路进入第一处秘境</color>");
-            // 首房也经地图点选进入（silverua 全图首层就是起点选择）。
+            Debug.Log("<color=#66ff99>初始技能确认 · 进入第一处秘境</color>");
             EnterNextRoomWithChoice();
         }
 
@@ -709,8 +695,11 @@ namespace XianTu
 
             void CompleteLevel()
             {
-                if (isLastRealm)
+                bool completesLevelA = LevelAPhaseRuntime.IsNightPending;
+                if (completesLevelA || isLastRealm)
                 {
+                    if (completesLevelA)
+                        LevelAPhaseRuntime.ResetAfterNightVictory();
                     _gameOver = true;
                     _runElapsedTime = Time.time - _runStartTime;
                     float victoryMul = 2.0f;
@@ -754,10 +743,91 @@ namespace XianTu
                 EnterNextRoomWithChoice();
             }
 
+            if (!LevelAPhaseRuntime.IsNightPending)
+            {
+                void ContinueIntoNight()
+                {
+                    LevelAPhaseRuntime.CommitNight();
+                    BeginNightPhaseDirect();
+                }
+
+                void ReturnAfterDay()
+                {
+                    LevelAPhaseRuntime.CommitNight();
+                    ReturnToVillageAfterDay();
+                }
+
+                if (LevelTransition.Instance != null)
+                    LevelTransition.Instance.SpawnPhaseChoicePortals(
+                        portalPos,
+                        ContinueIntoNight,
+                        ReturnAfterDay);
+                else
+                    ContinueIntoNight();
+                return;
+            }
+
             if (LevelTransition.Instance != null)
-                LevelTransition.Instance.SpawnPortal(portalPos, CompleteLevel);
+            {
+                bool isFinalExit = LevelAPhaseRuntime.IsNightPending || isLastRealm;
+                string title = isFinalExit ? "通关结算门" : "前往下一层";
+                string purpose = isFinalExit
+                    ? "结算本次通关并返回基地"
+                    : $"进入下一层：{_realmNames[Mathf.Min(_currentLevel + 1, _realmNames.Length - 1)]}";
+                LevelTransition.Instance.SpawnPortal(portalPos, CompleteLevel, title, purpose);
+            }
             else
                 CompleteLevel();
+        }
+
+        private void BeginNightPhaseDirect()
+        {
+            if (MapProviders.Current is not EdgarMapProvider edgar)
+                throw new System.InvalidOperationException("无暮王城永夜阶段要求 EdgarMapProvider。");
+
+            _currentLevel = 0;
+            _currentRoomInLevel = 0;
+            _flatRoomIndex = 0;
+            _clearedEdgarRooms.Clear();
+            _activeEdgarRoomIndex = -1;
+            _defeatedEdgarBosses = 0;
+            edgar.EnterNightPhase();
+            GenerateLevelLayoutFromProvider();
+            if (_minimap != null)
+            {
+                _minimap.Initialize(_levelLayout);
+                _minimap.SetVisible(true);
+            }
+            Debug.Log("<color=#6699ff>═══ 无暮王城 · 永夜重新降落 ═══</color>");
+            EnterNextRoomWithChoice();
+        }
+
+        private void ReturnToVillageAfterDay()
+        {
+            _gameOver = true;
+            _runElapsedTime = Time.time - _runStartTime;
+            const float stageMultiplier = 1f;
+            int insightRaw = InsightSystem.Instance.CommitOnExtract(stageMultiplier);
+            int temperingRaw = 0;
+            if (FeatureFlags.EnableCaveMeta)
+                temperingRaw = CultivationSystem.Instance.CommitOnExtract(stageMultiplier);
+            int matCount = CaveInventory.Instance.TotalPendingCount;
+            CaveInventory.Instance.CommitCurrentRun();
+
+            ExtractResultPanel.Show(
+                _currentLevel,
+                "无暮王城 · 白昼",
+                insightRaw,
+                temperingRaw,
+                matCount,
+                ExtractResultPanel.EndType.Extract,
+                () =>
+                {
+                    EnterVillageHub();
+                    _transitioning = false;
+                    _gameOver = false;
+                    Debug.Log("<color=#66ddff>[无暮王城] 白昼结束；下次从永夜重新降落。</color>");
+                });
         }
 
         /// <summary>获取当前房间的半深度（用于定位传送门）</summary>

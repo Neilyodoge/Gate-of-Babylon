@@ -40,6 +40,17 @@ namespace XianTu.LevelDesign
         Mage = 3
     }
 
+    [Flags]
+    public enum LevelPhaseMask
+    {
+        [InspectorName("白昼")]
+        Day = 1 << 0,
+        [InspectorName("永夜")]
+        Night = 1 << 1,
+        [InspectorName("昼夜均可")]
+        Both = Day | Night,
+    }
+
     [Serializable]
     public sealed class EnemyPoolEntry
     {
@@ -66,6 +77,10 @@ namespace XianTu.LevelDesign
         [InspectorName("允许出现的分区")]
         [Tooltip("Outer=外环，Transition=连接区，Inner=内环；可多选。")]
         public DistrictMask AllowedDistricts = DistrictMask.All;
+
+        [InspectorName("允许出现的阶段")]
+        [Tooltip("关卡 A 白昼与永夜使用两组怪物；可多选。")]
+        public LevelPhaseMask AllowedPhases = LevelPhaseMask.Both;
     }
 
     [Serializable]
@@ -147,6 +162,10 @@ namespace XianTu.LevelDesign
         [Tooltip("首领只能从所属分区的候选池中抽取。")]
         public DistrictMask AllowedDistricts = DistrictMask.All;
 
+        [InspectorName("允许出现的阶段")]
+        [Tooltip("用于区分无暮王城的白昼与永夜首领。")]
+        public LevelPhaseMask AllowedPhases = LevelPhaseMask.Both;
+
         [InspectorName("需要的事件条件")]
         [Tooltip("事件条件表达式。可从剧情事件配置复制对应标记，留空表示没有前置条件。")]
         public string RequiredFlags;
@@ -205,14 +224,19 @@ namespace XianTu.LevelDesign
                 throw new InvalidOperationException($"小怪自动生成缺少 {district} 分区预设，Seed={seed}。");
 
             DistrictMask districtMask = ToMask(district);
+            LevelPhaseMask phaseMask = LevelAPhaseRuntime.IsNightMapActive
+                ? LevelPhaseMask.Night
+                : LevelPhaseMask.Day;
             var pool = EnemyPool
                 .Where(x => x != null
                             && x.Cost > 0
                             && x.Weight > 0
+                            && (x.AllowedPhases & phaseMask) != 0
                             && (x.AllowedDistricts & districtMask) != 0)
                 .ToList();
             if (pool.Count == 0)
-                throw new InvalidOperationException($"小怪池没有可用于 {district} 分区的条目，Seed={seed}。");
+                throw new InvalidOperationException(
+                    $"小怪池没有可用于 {district}/{phaseMask} 的条目，Seed={seed}。");
 
             var random = new System.Random(seed);
             int minBudget = Mathf.Max(1, Mathf.Min(preset.MinBudget, preset.MaxBudget));
@@ -265,10 +289,14 @@ namespace XianTu.LevelDesign
             int fallbackBossID)
         {
             DistrictMask districtMask = ToMask(district);
+            LevelPhaseMask phaseMask = LevelAPhaseRuntime.IsNightMapActive
+                ? LevelPhaseMask.Night
+                : LevelPhaseMask.Day;
             var candidates = BossPool.Where(x =>
                 x != null
                 && x.BossID > 0
                 && x.Weight > 0
+                && (x.AllowedPhases & phaseMask) != 0
                 && (x.AllowedDistricts & districtMask) != 0
                 && (string.IsNullOrWhiteSpace(x.RequiredFlags)
                     || BossFlagSet.Instance.Evaluate(x.RequiredFlags))

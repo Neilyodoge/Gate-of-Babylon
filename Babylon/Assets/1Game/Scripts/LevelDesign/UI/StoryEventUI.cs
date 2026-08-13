@@ -107,7 +107,7 @@ namespace XianTu.LevelDesign
                 {
                     if (opt == null || string.IsNullOrEmpty(opt.Text)) continue;
                     var captured = opt;
-                    var btn = XianTu.UGuiKit.CreateButton(_options, BuildOptionLabel(opt), () => OnPick(captured), out var lbl, XianTu.UGuiKit.BtnNormal, 16, new Vector2(640f, 48f));
+                    var btn = XianTu.UGuiKit.CreateButton(_options, StoryEventOptionFormatter.BuildChoiceLabel(opt), () => OnPick(captured), out var lbl, XianTu.UGuiKit.BtnNormal, 16, new Vector2(640f, 48f));
                     lbl.alignment = TextAlignmentOptions.Left;
                     XianTu.UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 48f);
                 }
@@ -123,19 +123,5 @@ namespace XianTu.LevelDesign
             _onSelected?.Invoke(opt);
         }
 
-        private string BuildOptionLabel(EventOption opt)
-        {
-            var tags = new System.Collections.Generic.List<string>();
-            if (opt.KarmaChange > 0) tags.Add($"<color=#e87f5b>因果 +{opt.KarmaChange}</color>");
-            else if (opt.KarmaChange < 0) tags.Add($"<color=#9ed18c>因果 {opt.KarmaChange}</color>");
-            if (opt.DaoxinChange > 0) tags.Add($"<color=#9ed18c>道心 +{opt.DaoxinChange}</color>");
-            else if (opt.DaoxinChange < 0) tags.Add($"<color=#e87f5b>道心 {opt.DaoxinChange}</color>");
-            if (opt.LifespanChange != 0) tags.Add($"<color=#c89cd8>寿元 {opt.LifespanChange}</color>");
-            if (opt.RewardID > 0) tags.Add("<color=#7fb8ff>有奖励</color>");
-            if (opt.CostID > 0) tags.Add("<color=#e87f5b>有代价</color>");
-
-            string suffix = tags.Count > 0 ? "    " + string.Join("  ·  ", tags) : "";
-            return $"▸ {opt.Text}{suffix}";
-        }
     }
 }
