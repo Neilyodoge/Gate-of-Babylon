@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace XianTu
 {
@@ -9,7 +10,7 @@ namespace XianTu
     /// 阶段2（≤50%血）：增加AOE攻击 + 速度提升 + 召唤小怪
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public class EnemyBoss : MonoBehaviour, IDamageable
+    public class EnemyBoss : MonoBehaviour, IDamageable, IEnemyAbilityExecutor
     {
         [Header("属性")]
         [SerializeField] private CombatStats stats = new()
@@ -31,9 +32,15 @@ namespace XianTu
         [SerializeField] private float chargeSpeed = 15f;
         [SerializeField] private float chargeDuration = 0.6f;
         [SerializeField] private float chargePrepTime = 0.8f;
+        [SerializeField] private float tacticalRangeMultiplier = 2.2f;
+        [SerializeField, Range(0f, 1f)] private float tacticalPauseChance = 0.08f;
+        [SerializeField] private Vector2 tacticalDurationRange = new(0.25f, 0.6f);
+        [Tooltip("可选。配置后优先按通用条件选技能，未命中时仍走现有保底逻辑。")]
+        [SerializeField] private EnemyAbilityProfile abilityProfile;
 
 
         private CharacterController _cc;
+        private EnemyNavMotor _navMotor;
         private Transform _target;
 
         // 计时器
@@ -44,12 +51,15 @@ namespace XianTu
 
         // 状态
         private enum BossPhase { Phase1, Phase2 }
-        private enum BossAction { Idle, Tracking, MeleeAttack, ChargePrepare, Charging, AOECast, Stunned, LeapPrepare, Leaping, ShockwaveCast }
+        private enum BossAction { Idle, Tracking, MeleeAttack, ChargePrepare, Charging, AOECast, Stunned, LeapPrepare, Leaping, ShockwaveCast, FinalSkill }
         private BossPhase _phase = BossPhase.Phase1;
         private BossAction _action = BossAction.Idle;
         private float _actionTimer;
         private Vector3 _chargeDirection;
         private Vector3 _aoeTargetPos;
+        private float _tacticalTimer;
+        private float _tacticalDirection;
+        private float _tacticalMoveScale;
 
         // 跳跃攻击
         private Vector3 _leapTargetPos;
@@ -74,6 +84,7 @@ namespace XianTu
         private string _displayName = "守关妖兽";
         private System.Action<GameObject> _summonRegistrar;
         private Transform _summonRoomRoot;
+        private EnemyAbilityPlanner _abilityPlanner;
 
         // V0.2.4：配表驱动的 P2 形态（BossPhaseSelector 选出的次优先形态）
         private LevelDesign.BossPhaseRow _pendingPhase2Row;
@@ -96,10 +107,17 @@ namespace XianTu
         {
             AliveCount++;
             _cc = GetComponent<CharacterController>();
+            _navMotor = GetComponent<EnemyNavMotor>();
+            if (_navMotor == null)
+                _navMotor = gameObject.AddComponent<EnemyNavMotor>();
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
                 _originalColors[i] = MaterialHelper.SafeGetColor(_renderers[i].material);
+            if (abilityProfile == null)
+                abilityProfile = Resources.Load<EnemyAbilityProfile>("EnemyAI/Boss_Default");
+            if (abilityProfile != null)
+                _abilityPlanner = new EnemyAbilityPlanner(abilityProfile, this);
         }
 
         private void DecrementAlive()
@@ -111,6 +129,16 @@ namespace XianTu
 
         private void Start()
         {
+            var config = GameConfig.Instance;
+            if (config != null)
+            {
+                meleeInterval = config.Boss近战攻击间隔;
+                tacticalRangeMultiplier = config.近战战术距离倍率;
+                tacticalPauseChance = config.Boss观察停顿概率;
+                tacticalDurationRange = config.战术动作持续时间;
+                _abilityPlanner?.SetCooldownOverride("melee", meleeInterval);
+            }
+
             stats.ResetHp();
             _healthBar = EnemyHealthBar.Create(gameObject);
             if (PlayerController.Instance != null)
@@ -205,6 +233,8 @@ namespace XianTu
                     break;
                 case BossAction.ShockwaveCast:
                     UpdateShockwave();
+                    break;
+                case BossAction.FinalSkill:
                     break;
                 case BossAction.Stunned:
                     _actionTimer -= Time.deltaTime;
@@ -344,6 +374,23 @@ namespace XianTu
             if (_phase == BossPhase.Phase2)
                 _aoeTimer -= Time.deltaTime;
 
+            if (_abilityPlanner != null)
+            {
+                float hpRatio = stats.maxHp > 0f ? stats.currentHp / stats.maxHp : 1f;
+                var context = new EnemyAbilityContext(
+                    distToTarget,
+                    hpRatio,
+                    _phase == BossPhase.Phase1 ? 1 : 2,
+                    CountNearbyAllies(10f),
+                    _isNightBoss);
+                if (_abilityPlanner.TryDecide(context))
+                    return;
+
+                if (distToTarget > meleeRange && distToTarget <= detectRange)
+                    UpdateTacticalMovement(distToTarget);
+                return;
+            }
+
             // 优先级：跳跃 > 冲锋 > 震荡波 > AOE > 近战
 
             // 跳跃攻击（距离较远时跳向玩家）
@@ -368,7 +415,12 @@ namespace XianTu
             }
 
             // AOE（仅第二阶段）
-            if (_phase == BossPhase.Phase2 && _aoeTimer <= 0)
+            bool crownLightDisabled = !_isNightBoss
+                                      && LevelDesign.BossFlagSet.Instance.Evaluate(
+                                          "crown_light_disabled=1");
+            if (_phase == BossPhase.Phase2
+                && _aoeTimer <= 0
+                && !crownLightDisabled)
             {
                 StartAOECast();
                 return;
@@ -385,7 +437,7 @@ namespace XianTu
             }
             else if (distToTarget <= detectRange)
             {
-                MoveTowards(_target.position);
+                UpdateTacticalMovement(distToTarget);
             }
         }
 
@@ -463,7 +515,12 @@ namespace XianTu
         {
             _action = BossAction.AOECast;
             _actionTimer = aoeWarningTime;
-            _aoeTargetPos = _target.position;
+            bool crownLightMisaligned = !_isNightBoss
+                                        && LevelDesign.BossFlagSet.Instance.Evaluate(
+                                            "crown_light_misaligned=1");
+            _aoeTargetPos = crownLightMisaligned
+                ? transform.position
+                : _target.position;
             CreateWarningIndicator(false);
 
             SetAllRenderersColor(new Color(0.6f, 0.1f, 0.8f));
@@ -765,6 +822,7 @@ namespace XianTu
 
         private void EndAction(float stunTime)
         {
+            _navMotor.ResyncAfterForcedMove();
             _action = BossAction.Stunned;
             _actionTimer = stunTime;
             _chargeTimer = chargeInterval;
@@ -774,11 +832,329 @@ namespace XianTu
 
         private void MoveTowards(Vector3 targetPos)
         {
-            Vector3 dir = (targetPos - transform.position).normalized;
-            dir.y = 0;
-            Vector3 velocity = dir * stats.moveSpeed;
-            velocity.y = -9.8f;
-            _cc.Move(velocity * Time.deltaTime);
+            _navMotor.MoveTo(targetPos, stats.moveSpeed, meleeRange * 0.85f);
+        }
+
+        private void UpdateTacticalMovement(float distance)
+        {
+            if (_target == null)
+                return;
+            if (distance > meleeRange * tacticalRangeMultiplier)
+            {
+                MoveTowards(_target.position);
+                return;
+            }
+
+            _tacticalTimer -= Time.deltaTime;
+            if (_tacticalTimer <= 0f)
+            {
+                _tacticalTimer = Random.Range(
+                    Mathf.Min(tacticalDurationRange.x, tacticalDurationRange.y),
+                    Mathf.Max(tacticalDurationRange.x, tacticalDurationRange.y));
+                _tacticalDirection = Random.value < 0.5f ? -1f : 1f;
+                _tacticalMoveScale = Random.value < tacticalPauseChance
+                    ? 0f
+                    : Random.Range(0.3f, 0.55f);
+            }
+
+            Vector3 toTarget = _target.position - transform.position;
+            toTarget.y = 0f;
+            if (toTarget.sqrMagnitude < 0.01f)
+                return;
+
+            Vector3 side = Vector3.Cross(Vector3.up, toTarget.normalized) * _tacticalDirection;
+            float inwardBias = distance > meleeRange * 1.2f ? 0.25f : 0f;
+            Vector3 direction = (side + toTarget.normalized * inwardBias).normalized;
+            _navMotor.MoveTo(
+                transform.position + direction * 2.5f,
+                stats.moveSpeed * _tacticalMoveScale,
+                0.05f);
+        }
+
+        bool IEnemyAbilityExecutor.IsAbilityLocked =>
+            _action != BossAction.Idle && _action != BossAction.Tracking;
+
+        bool IEnemyAbilityExecutor.TryExecuteAbility(EnemyAbilityRule rule)
+        {
+            switch (rule.Action)
+            {
+                case EnemyAbilityAction.Melee:
+                    MeleeAttack();
+                    _meleeTimer = meleeInterval;
+                    return true;
+                case EnemyAbilityAction.Charge:
+                    StartChargePrepare();
+                    return true;
+                case EnemyAbilityAction.AreaAttack:
+                    if (!_isNightBoss
+                        && LevelDesign.BossFlagSet.Instance.Evaluate("crown_light_disabled=1"))
+                        return false;
+                    StartAOECast();
+                    return true;
+                case EnemyAbilityAction.Leap:
+                    StartLeapPrepare();
+                    return true;
+                case EnemyAbilityAction.Shockwave:
+                    StartShockwave();
+                    return true;
+                case EnemyAbilityAction.Summon:
+                    SpawnNightGuardWave();
+                    return true;
+                default:
+                    return TryExecuteCustomAbility(rule.CustomActionKey);
+            }
+        }
+
+        private bool TryExecuteCustomAbility(string actionKey)
+        {
+            if (actionKey == "day_crown_sweep" && !_isNightBoss)
+            {
+                StartCoroutine(DayCrownSweep());
+                return true;
+            }
+            if (actionKey == "night_prison_chains" && _isNightBoss)
+            {
+                StartCoroutine(NightPrisonChains());
+                return true;
+            }
+            return false;
+        }
+
+        private IEnumerator DayCrownSweep()
+        {
+            _action = BossAction.FinalSkill;
+            Vector3 origin = transform.position;
+            Vector3 baseDirection = _target.position - origin;
+            baseDirection.y = 0f;
+            if (baseDirection.sqrMagnitude < 0.01f)
+                baseDirection = transform.forward;
+            baseDirection.Normalize();
+
+            bool misaligned = LevelDesign.BossFlagSet.Instance.Evaluate(
+                "crown_light_misaligned=1");
+            if (misaligned)
+                baseDirection = transform.forward;
+
+            const float length = 12f;
+            const float width = 1.2f;
+            float[] angles = { -28f, 0f, 28f };
+            var warnings = new List<GameObject>();
+            foreach (float angle in angles)
+            {
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * baseDirection;
+                warnings.Add(CreateFinalSkillBeam(
+                    origin,
+                    direction,
+                    length,
+                    width,
+                    new Color(1f, 0.75f, 0.15f, 0.35f),
+                    "冠光裁决"));
+            }
+
+            yield return new WaitForSeconds(1.05f);
+            if (stats.IsAlive && _target != null)
+            {
+                Vector3 playerPosition = _target.position;
+                bool hit = false;
+                foreach (float angle in angles)
+                {
+                    Vector3 direction = Quaternion.Euler(0f, angle, 0f) * baseDirection;
+                    if (DistanceToSegment(playerPosition, origin, origin + direction * length)
+                        <= width * 0.5f)
+                    {
+                        hit = true;
+                        break;
+                    }
+                }
+                if (hit)
+                    DamageTarget(1.45f, origin);
+            }
+
+            foreach (GameObject warning in warnings)
+                if (warning != null)
+                    Destroy(warning);
+            _action = BossAction.Stunned;
+            _actionTimer = 0.65f;
+        }
+
+        private IEnumerator NightPrisonChains()
+        {
+            _action = BossAction.FinalSkill;
+            Vector3 center = _target.position;
+            const float radius = 4f;
+            GameObject warning = CreateFinalSkillRing(
+                center,
+                radius,
+                new Color(0.45f, 0.15f, 0.8f, 0.4f),
+                "狱链封步预警");
+
+            yield return new WaitForSeconds(1.1f);
+            if (warning != null)
+                Destroy(warning);
+
+            if (stats.IsAlive && _target != null
+                && Vector3.Distance(Flatten(_target.position), Flatten(center)) <= radius)
+            {
+                DamageTarget(0.65f, center);
+                ApplyPrisonSlow(3.5f);
+                CreateChainPrison(center, radius, 3.5f);
+            }
+
+            _action = BossAction.Stunned;
+            _actionTimer = 0.55f;
+        }
+
+        private void DamageTarget(float multiplier, Vector3 hitPoint)
+        {
+            if (_target == null)
+                return;
+            IDamageable damageable = _target.GetComponent<IDamageable>();
+            if (damageable == null)
+                return;
+            float defense = damageable.Stats != null ? damageable.Stats.defense : 0f;
+            var (damage, _) = stats.CalcSkillDamage(defense, multiplier);
+            damageable.OnDamage(damage, hitPoint, gameObject);
+        }
+
+        private void ApplyPrisonSlow(float duration)
+        {
+            if (_target == null)
+                return;
+            StatusEffectController controller = _target.GetComponent<StatusEffectController>();
+            if (controller == null)
+                return;
+            controller.Apply(new StatusEffect
+            {
+                id = "boss_night_prison_slow",
+                displayName = "狱链束缚",
+                description = "移速降低 20%",
+                isBuff = false,
+                stacks = 1,
+                maxStacks = 1,
+                defaultDuration = duration,
+                duration = duration,
+                uiColor = new Color(0.55f, 0.25f, 0.9f),
+                modifiers = new List<StatModifier>
+                {
+                    StatModifier.Percent(StatType.MoveSpeed, -0.2f)
+                }
+            });
+        }
+
+        private void CreateChainPrison(Vector3 center, float radius, float duration)
+        {
+            var root = new GameObject("[BossSkill] NightChainPrison");
+            const int segmentCount = 12;
+            float segmentLength = 2f * Mathf.PI * radius / segmentCount;
+            for (int i = 0; i < segmentCount; i++)
+            {
+                float angle = i * 360f / segmentCount;
+                Vector3 radial = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                var segment = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                segment.name = $"Chain_{i:00}";
+                segment.transform.SetParent(root.transform);
+                segment.transform.position = center + radial * radius + Vector3.up * 1.1f;
+                segment.transform.rotation = Quaternion.Euler(0f, angle, 0f);
+                segment.transform.localScale = new Vector3(segmentLength * 1.08f, 2.2f, 0.18f);
+                Renderer renderer = segment.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    var material = new Material(MaterialHelper.GetLitShader());
+                    material.color = new Color(0.3f, 0.08f, 0.5f);
+                    material.EnableKeyword("_EMISSION");
+                    material.SetColor("_EmissionColor", new Color(0.55f, 0.12f, 0.9f) * 2.5f);
+                    renderer.material = material;
+                }
+            }
+            Destroy(root, duration);
+        }
+
+        private GameObject CreateFinalSkillBeam(
+            Vector3 origin,
+            Vector3 direction,
+            float length,
+            float width,
+            Color color,
+            string label)
+        {
+            var beam = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            beam.name = $"[Warning] {label}";
+            beam.transform.position = origin + direction * length * 0.5f + Vector3.up * 0.08f;
+            beam.transform.rotation = Quaternion.LookRotation(direction);
+            beam.transform.localScale = new Vector3(width, 0.08f, length);
+            Collider collider = beam.GetComponent<Collider>();
+            if (collider != null)
+                Destroy(collider);
+            ApplyFinalSkillMaterial(beam.GetComponent<Renderer>(), color);
+            return beam;
+        }
+
+        private GameObject CreateFinalSkillRing(
+            Vector3 center,
+            float radius,
+            Color color,
+            string label)
+        {
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = $"[Warning] {label}";
+            ring.transform.position = center + Vector3.up * 0.05f;
+            ring.transform.localScale = new Vector3(radius * 2f, 0.04f, radius * 2f);
+            Collider collider = ring.GetComponent<Collider>();
+            if (collider != null)
+                Destroy(collider);
+            ApplyFinalSkillMaterial(ring.GetComponent<Renderer>(), color);
+            return ring;
+        }
+
+        private static void ApplyFinalSkillMaterial(Renderer renderer, Color color)
+        {
+            if (renderer == null)
+                return;
+            var material = new Material(MaterialHelper.GetLitShader());
+            material.color = color;
+            material.EnableKeyword("_EMISSION");
+            material.SetColor("_EmissionColor", new Color(color.r, color.g, color.b) * 2.2f);
+            renderer.material = material;
+        }
+
+        private static float DistanceToSegment(Vector3 point, Vector3 start, Vector3 end)
+        {
+            point = Flatten(point);
+            start = Flatten(start);
+            end = Flatten(end);
+            Vector3 segment = end - start;
+            if (segment.sqrMagnitude < 0.001f)
+                return Vector3.Distance(point, start);
+            float t = Mathf.Clamp01(Vector3.Dot(point - start, segment) / segment.sqrMagnitude);
+            return Vector3.Distance(point, start + segment * t);
+        }
+
+        private static Vector3 Flatten(Vector3 value)
+        {
+            value.y = 0f;
+            return value;
+        }
+
+        private int CountNearbyAllies(float radius)
+        {
+            int count = 0;
+            Collider[] hits = Physics.OverlapSphere(
+                transform.position,
+                radius,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            var roots = new System.Collections.Generic.HashSet<Transform>();
+            foreach (Collider hit in hits)
+            {
+                Transform root = hit.transform.root;
+                if (root == transform.root || !roots.Add(root))
+                    continue;
+                if (root.GetComponent<EnemyBase>() != null
+                    || root.GetComponent<EnemyElite>() != null
+                    || root.GetComponent<EnemyBoss>() != null)
+                    count++;
+            }
+            return count;
         }
 
         // ========== 预警 ==========
@@ -896,6 +1272,7 @@ namespace XianTu
                 Vector3 knockback = (transform.position - attacker.transform.position).normalized * 0.15f;
                 knockback.y = 0;
                 _cc.Move(knockback);
+                _navMotor.ResyncAfterForcedMove();
             }
 
             if (HitStop.Instance != null) HitStop.Instance.TriggerHeavy();

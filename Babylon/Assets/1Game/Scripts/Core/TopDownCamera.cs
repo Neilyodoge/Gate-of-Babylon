@@ -12,10 +12,16 @@ namespace XianTu
         [SerializeField] private Vector3 offset = new(0, 25f, -9f);
         [SerializeField] private float smoothSpeed = 8f;
         [SerializeField] private float lookDownAngle = 70f;
+        [SerializeField, Range(20f, 80f)] private float verticalFov = 50f;
 
         private Transform _target;
         private EdgarDungeonRuntime _dungeonRuntime;
         private int _lastDungeonRotation = int.MinValue;
+
+        private void Awake()
+        {
+            ApplyLens();
+        }
 
         private void Start()
         {
@@ -23,6 +29,18 @@ namespace XianTu
                 _target = PlayerController.Instance.transform;
 
             transform.rotation = Quaternion.Euler(lookDownAngle, 0, 0);
+        }
+
+        private void OnValidate()
+        {
+            ApplyLens();
+        }
+
+        private void ApplyLens()
+        {
+            Camera attachedCamera = GetComponent<Camera>();
+            if (attachedCamera != null)
+                attachedCamera.fieldOfView = verticalFov;
         }
 
         private void LateUpdate()

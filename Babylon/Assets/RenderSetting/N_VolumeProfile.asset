@@ -43,6 +43,27 @@ MonoBehaviour:
   killFireflies:
     m_OverrideState: 1
     m_Value: 1
+  pcDownsampleKernelSize:
+    m_OverrideState: 0
+    m_Value: 5
+  pcDownsampleSigma:
+    m_OverrideState: 0
+    m_Value: 1
+  pcUpsampleKernelSize:
+    m_OverrideState: 0
+    m_Value: 5
+  pcUpsampleSigma:
+    m_OverrideState: 0
+    m_Value: 1
+  pcLuminanceCompression:
+    m_OverrideState: 0
+    m_Value: 0.2
+  pcPrefilterScale:
+    m_OverrideState: 0
+    m_Value: 1
+  pcLayerWeights:
+    m_OverrideState: 0
+    m_Value: {x: 1, y: 1, z: 1, w: 1}
   downscale:
     m_OverrideState: 0
     m_Value: 0

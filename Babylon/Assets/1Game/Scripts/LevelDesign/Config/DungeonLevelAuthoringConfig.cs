@@ -303,10 +303,26 @@ namespace XianTu.LevelDesign
                 && (string.IsNullOrWhiteSpace(x.BlockedFlags)
                     || !BossFlagSet.Instance.Evaluate(x.BlockedFlags))
                 && (string.IsNullOrWhiteSpace(x.RequiredRoomTag)
-                    || (roomTags != null && roomTags.Contains(x.RequiredRoomTag))))
+                    || HasRoomTag(roomTags, x.RequiredRoomTag)))
                 .ToList();
             if (candidates.Count == 0) return fallbackBossID;
             return RollWeighted(candidates, new System.Random(seed)).BossID;
+        }
+
+        private static bool HasRoomTag(
+            IReadOnlyList<string> roomTags,
+            string requiredTag)
+        {
+            string required = RoomContentResolver.NormalizeTag(requiredTag);
+            if (string.IsNullOrEmpty(required) || roomTags == null)
+                return false;
+            foreach (string roomTag in roomTags)
+                if (string.Equals(
+                        RoomContentResolver.NormalizeTag(roomTag),
+                        required,
+                        StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
         }
 
         public static DistrictMask ToMask(District district)

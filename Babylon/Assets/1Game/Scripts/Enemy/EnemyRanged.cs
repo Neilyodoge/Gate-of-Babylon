@@ -24,7 +24,7 @@ namespace XianTu
         [SerializeField] private float attackRange = 12f;
         [SerializeField] private float preferredRange = 8f;  // 偏好保持的距离
         [SerializeField] private float fleeRange = 4f;       // 太近就后退
-        [SerializeField] private float attackInterval = 2.5f;
+        [SerializeField] private float attackInterval = 2f;
         [SerializeField] private float warningDuration = 0.6f; // 攻击预警时间
 
         [Header("投射物")]
@@ -34,6 +34,7 @@ namespace XianTu
         [SerializeField] private SkillData[] possibleSkillDrops;
 
         private CharacterController _cc;
+        private EnemyNavMotor _navMotor;
         private Transform _target;
         private float _attackTimer;
         private bool _isWarning;
@@ -63,6 +64,9 @@ namespace XianTu
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
+            _navMotor = GetComponent<EnemyNavMotor>();
+            if (_navMotor == null)
+                _navMotor = gameObject.AddComponent<EnemyNavMotor>();
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
@@ -71,6 +75,8 @@ namespace XianTu
 
         private void Start()
         {
+            if (GameConfig.Instance != null)
+                attackInterval = GameConfig.Instance.远程敌人攻击间隔;
             stats.ResetHp();
             _healthBar = EnemyHealthBar.Create(gameObject);
 
@@ -125,7 +131,10 @@ namespace XianTu
                 dodgeVel.y = -9.8f;
                 _cc.Move(dodgeVel * Time.deltaTime);
                 if (_dodgeDuration <= 0)
+                {
                     _isDodging = false;
+                    _navMotor.ResyncAfterForcedMove();
+                }
                 return;
             }
 
@@ -151,9 +160,10 @@ namespace XianTu
             {
                 Vector3 fleeDir = (transform.position - _target.position).normalized;
                 fleeDir.y = 0;
-                Vector3 velocity = fleeDir * stats.moveSpeed;
-                velocity.y = -9.8f;
-                _cc.Move(velocity * Time.deltaTime);
+                _navMotor.MoveTo(
+                    transform.position + fleeDir * 4f,
+                    stats.moveSpeed,
+                    0.05f);
             }
             // 在攻击范围内
             else if (distToTarget <= attackRange && distToTarget >= fleeRange)
@@ -165,9 +175,10 @@ namespace XianTu
                         ? (transform.position - _target.position).normalized
                         : (_target.position - transform.position).normalized;
                     dir.y = 0;
-                    Vector3 velocity = dir * stats.moveSpeed * 0.5f;
-                    velocity.y = -9.8f;
-                    _cc.Move(velocity * Time.deltaTime);
+                    _navMotor.MoveTo(
+                        transform.position + dir * 3f,
+                        stats.moveSpeed * 0.5f,
+                        0.05f);
                 }
 
                 _attackTimer -= Time.deltaTime;
@@ -181,9 +192,7 @@ namespace XianTu
             {
                 Vector3 dir = (_target.position - transform.position).normalized;
                 dir.y = 0;
-                Vector3 velocity = dir * stats.moveSpeed;
-                velocity.y = -9.8f;
-                _cc.Move(velocity * Time.deltaTime);
+                _navMotor.MoveTo(_target.position, stats.moveSpeed, preferredRange);
             }
 
             // 朝向目标
@@ -297,6 +306,7 @@ namespace XianTu
                 Vector3 knockback = (transform.position - attacker.transform.position).normalized * 0.3f;
                 knockback.y = 0;
                 _cc.Move(knockback);
+                _navMotor.ResyncAfterForcedMove();
             }
 
             // 顿帧
@@ -361,7 +371,7 @@ namespace XianTu
         public static EnemyRanged Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
             var prefabs = MonsterPrefabs.Instance;
-            var prefab = prefabs != null ? prefabs.远程敌人Prefab : null;
+            var prefab = prefabs != null ? prefabs.GetEnemyPrefab(EnemyVisualRole.Ranged) : null;
             var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy_Ranged");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");

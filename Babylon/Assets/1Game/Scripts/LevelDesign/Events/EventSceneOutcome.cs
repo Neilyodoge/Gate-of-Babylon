@@ -77,6 +77,22 @@ namespace XianTu
                     CreatePart(root.transform, "残缺召集阵", PrimitiveType.Cylinder,
                         new Vector3(0f, 0.12f, 0f), new Vector3(1.8f, 0.12f, 1.8f), PowerColor);
                     break;
+                case EventSceneResult.CrownLightDisabled:
+                    CreatePart(root.transform, "破碎冠光主镜", PrimitiveType.Cube,
+                        new Vector3(0f, 0.35f, 0f), new Vector3(1.4f, 0.35f, 1.4f), SealColor);
+                    break;
+                case EventSceneResult.CrownLightMisaligned:
+                    CreatePart(root.transform, "偏转冠光镜组", PrimitiveType.Cube,
+                        new Vector3(0.7f, 0.8f, 0f), new Vector3(0.35f, 1.6f, 1.1f), PowerColor);
+                    break;
+                case EventSceneResult.NightLiftRestored:
+                    CreatePart(root.transform, "修复的升降井", PrimitiveType.Cylinder,
+                        new Vector3(0f, 0.12f, 0f), new Vector3(2.2f, 0.12f, 2.2f), RouteColor);
+                    break;
+                case EventSceneResult.NightLiftDropped:
+                    CreatePart(root.transform, "坠落的升降井", PrimitiveType.Cube,
+                        new Vector3(0f, 0.3f, 0f), new Vector3(2.2f, 0.45f, 1.2f), SealColor);
+                    break;
             }
 
             Debug.Log($"[事件场景] 已应用 {result} 的运行时回退表现。");

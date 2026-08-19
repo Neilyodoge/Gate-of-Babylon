@@ -29,7 +29,6 @@ namespace XianTu
             if (_eventID <= 0)
                 throw new System.InvalidOperationException(
                     $"事件房无法解析 EventID：Room={context.Spawn.roomIndex}。");
-            DungeonEventVariantRoot.ActivateOnly(context.ContentRoot, _eventID);
             _interactable = EventRoomInteractable.Create(
                 position,
                 transform,
@@ -80,6 +79,23 @@ namespace XianTu
             _interactable?.Complete();
         }
 
+        public int EventID => _eventID;
+
+        public void DebugMarkCompleted()
+        {
+            if (_completed || _eventID <= 0)
+                return;
+            _completed = true;
+            _interactable?.Complete();
+            _context.OnCompleted?.Invoke();
+            GameEvents.Publish(new GameEvents.RoomCleared
+            {
+                RoomIndex = _context.Spawn.roomIndex,
+                IsEvent = true,
+                IsCombatRoom = false,
+            });
+        }
+
         private void TriggerEvent()
         {
             MapProviders.Current.TryTriggerRoomEvent(CompleteEvent);
@@ -89,6 +105,29 @@ namespace XianTu
         {
             if (_completed)
                 return;
+
+            if (_eventID == 1004
+                && selected != null
+                && selected.FlagName == "bridge_opened_pending")
+            {
+                _interactable?.SetAvailable(false);
+                StartGuardEncounter(
+                    meleeCount: 2,
+                    rangedCount: 1,
+                    includeElite: false,
+                    onCleared: () =>
+                    {
+                        BossFlagSet.Instance.Set("bridge_opened", 1);
+                        FinalizeEvent(new EventOption
+                        {
+                            Text = "校准两侧配重并稳定放下巡礼桥",
+                            FlagName = "bridge_opened",
+                            FlagValue = 1,
+                            SceneResult = EventSceneResult.OpenRoute,
+                        });
+                    });
+                return;
+            }
 
             if (_eventID == 1006
                 && selected != null
@@ -108,6 +147,29 @@ namespace XianTu
                             FlagName = "summon_array_destroyed",
                             FlagValue = 1,
                             SceneResult = EventSceneResult.SummonArrayDestroyed,
+                        });
+                    });
+                return;
+            }
+
+            if (_eventID == 1005
+                && selected != null
+                && selected.FlagName == "crown_light_disabled_pending")
+            {
+                _interactable?.SetAvailable(false);
+                StartGuardEncounter(
+                    meleeCount: 0,
+                    rangedCount: 2,
+                    includeElite: true,
+                    onCleared: () =>
+                    {
+                        BossFlagSet.Instance.Set("crown_light_disabled", 1);
+                        FinalizeEvent(new EventOption
+                        {
+                            Text = "摧毁主镜并击败守光禁卫",
+                            FlagName = "crown_light_disabled",
+                            FlagValue = 1,
+                            SceneResult = EventSceneResult.CrownLightDisabled,
                         });
                     });
                 return;

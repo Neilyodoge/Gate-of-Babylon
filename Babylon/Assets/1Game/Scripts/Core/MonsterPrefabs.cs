@@ -1,4 +1,5 @@
 using UnityEngine;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -22,31 +23,56 @@ namespace XianTu
             }
         }
 
-        [Header("═══ 普通近战小怪 ═══")]
-        [Tooltip("普通近战敌人的模型Prefab（如Creeper）")]
+        [Header("═══ 白昼小怪 ═══")]
+        [Tooltip("白昼普通近战敌人的模型 Prefab")]
         public GameObject 普通小怪Prefab;
 
-        [Header("═══ 远程弓箭手 ═══")]
-        [Tooltip("远程弓箭手敌人的模型Prefab（如Haunt）")]
+        [Tooltip("白昼远程敌人的模型 Prefab")]
         public GameObject 远程敌人Prefab;
 
-        [Header("═══ 冲锋型敌人 ═══")]
-        [Tooltip("冲锋型敌人的模型Prefab（如Lurker）")]
+        [Tooltip("白昼冲锋敌人的模型 Prefab")]
         public GameObject 冲锋敌人Prefab;
 
-        [Header("═══ AOE法师 ═══")]
-        [Tooltip("AOE法师敌人的模型Prefab（如Soul Mage）")]
+        [Tooltip("白昼法师敌人的模型 Prefab")]
         public GameObject 法师敌人Prefab;
 
-        [Header("═══ Boss ═══")]
-        [Tooltip("Boss敌人的模型Prefab（如Dragon Darkness）")]
+        [Header("═══ 永夜小怪 ═══")]
+        public GameObject 永夜普通小怪Prefab;
+        public GameObject 永夜远程敌人Prefab;
+        public GameObject 永夜冲锋敌人Prefab;
+        public GameObject 永夜法师敌人Prefab;
+
+        [Header("═══ 昼夜精英 ═══")]
+        public GameObject 白昼精英Prefab;
+        public GameObject 永夜精英Prefab;
+
+        [Header("═══ 昼夜 Boss ═══")]
+        [Tooltip("白昼 Boss 模型 Prefab")]
         public GameObject Boss敌人Prefab;
 
-        [Header("═══ Boss 多形态 ═══")]
-        [Tooltip("Act2 Boss（幽冥谷守灵 / Dragon Nightfall）")]
+        [Tooltip("永夜 Boss 模型 Prefab")]
         public GameObject Boss_Act2_Prefab;
-        [Tooltip("Act3 Boss（炼狱峰龙魂 / Dragon Dusk）")]
+        [Tooltip("兼容旧 BossID=3；当前默认复用永夜 Boss")]
         public GameObject Boss_Act3_Prefab;
+
+        public GameObject GetEnemyPrefab(EnemyVisualRole role)
+        {
+            bool night = LevelAPhaseRuntime.IsNightMapActive;
+            return role switch
+            {
+                EnemyVisualRole.Ranged => night ? 永夜远程敌人Prefab : 远程敌人Prefab,
+                EnemyVisualRole.Charger => night ? 永夜冲锋敌人Prefab : 冲锋敌人Prefab,
+                EnemyVisualRole.Mage => night ? 永夜法师敌人Prefab : 法师敌人Prefab,
+                _ => night ? 永夜普通小怪Prefab : 普通小怪Prefab,
+            };
+        }
+
+        public GameObject GetElitePrefab()
+        {
+            return LevelAPhaseRuntime.IsNightMapActive
+                ? (永夜精英Prefab != null ? 永夜精英Prefab : 永夜普通小怪Prefab)
+                : (白昼精英Prefab != null ? 白昼精英Prefab : 普通小怪Prefab);
+        }
 
         /// <summary>按 bossID 返回对应 Prefab。1=默认Boss，2=Act2，3=Act3。</summary>
         public GameObject GetBossPrefab(int bossID)
@@ -81,5 +107,13 @@ namespace XianTu
             }
             return go;
         }
+    }
+
+    public enum EnemyVisualRole
+    {
+        Melee,
+        Ranged,
+        Charger,
+        Mage,
     }
 }

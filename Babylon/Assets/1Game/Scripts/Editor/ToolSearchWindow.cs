@@ -191,10 +191,10 @@ namespace XianTu
 
             list.Add(new ToolEntry
             {
-                Name = "⚡ 配置速查面板",
+                Name = "🎮 Game 总控",
                 Category = "Core",
-                Description = "打开配置速查面板，一站式查看和跳转所有配置文件",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑦ 配置速查"),
+                Description = "直接调整并保存当前已接入运行时的游戏参数",
+                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/🎮 Game 总控"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/ConfigDashboard.cs",
                 IsSpecialized = true
             });

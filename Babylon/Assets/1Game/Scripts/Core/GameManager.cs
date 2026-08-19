@@ -531,6 +531,9 @@ namespace XianTu
                     ? roomAuthoring.District
                     : XianTu.LevelDesign.District.Outer,
                 hasDistrict = roomAuthoring != null,
+                roomTags = roomAuthoring != null
+                    ? roomAuthoring.RoomTags
+                    : System.Array.Empty<string>(),
             };
         }
 
@@ -549,6 +552,11 @@ namespace XianTu
                 PlayerController.Instance.transform.position = pos + Vector3.up * 0.1f;
                 if (cc != null) cc.enabled = true;
             }
+        }
+
+        public void TeleportWithinCurrentMap(Vector3 position)
+        {
+            TeleportPlayer(position);
         }
 
         // 防止连续触发RoomCleared导致跳层

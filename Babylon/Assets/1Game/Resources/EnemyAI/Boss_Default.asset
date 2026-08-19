@@ -1,0 +1,156 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 307b9da8f6707b843bc96ad8c23031d6, type: 3}
+  m_Name: Boss_Default
+  m_EditorClassIdentifier: 
+  DecisionInterval: 0.15
+  Abilities:
+  - ID: day_crown_sweep
+    Action: 7
+    CustomActionKey: day_crown_sweep
+    Priority: 65
+    TriggerChance: 1
+    InitialDelay: 2
+    Cooldown: 9
+    MaxUses: -1
+    MinDistance: 2
+    MaxDistance: 14
+    MinHpRatio: 0
+    MaxHpRatio: 0.5
+    RequiredCombatPhase: 2
+    DayOnly: 1
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag:
+    BlockedBossFlag: crown_light_disabled=1
+    BossFlagScope: 1
+  - ID: night_prison_chains
+    Action: 7
+    CustomActionKey: night_prison_chains
+    Priority: 65
+    TriggerChance: 1
+    InitialDelay: 2
+    Cooldown: 10
+    MaxUses: -1
+    MinDistance: 1.5
+    MaxDistance: 14
+    MinHpRatio: 0
+    MaxHpRatio: 0.5
+    RequiredCombatPhase: 2
+    DayOnly: 0
+    NightOnly: 1
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag:
+    BlockedBossFlag:
+    BossFlagScope: 2
+  - ID: leap
+    Action: 3
+    CustomActionKey: 
+    Priority: 50
+    TriggerChance: 1
+    InitialDelay: 2.5
+    Cooldown: 8
+    MaxUses: -1
+    MinDistance: 5
+    MaxDistance: 20
+    MinHpRatio: 0
+    MaxHpRatio: 1
+    RequiredCombatPhase: 0
+    DayOnly: 0
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag: 
+    BlockedBossFlag: 
+    BossFlagScope: 0
+  - ID: charge
+    Action: 1
+    CustomActionKey: 
+    Priority: 40
+    TriggerChance: 1
+    InitialDelay: 1
+    Cooldown: 6
+    MaxUses: -1
+    MinDistance: 2.6
+    MaxDistance: 20
+    MinHpRatio: 0
+    MaxHpRatio: 1
+    RequiredCombatPhase: 0
+    DayOnly: 0
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag: 
+    BlockedBossFlag: 
+    BossFlagScope: 0
+  - ID: shockwave
+    Action: 4
+    CustomActionKey: 
+    Priority: 30
+    TriggerChance: 1
+    InitialDelay: 3
+    Cooldown: 7
+    MaxUses: -1
+    MinDistance: 0
+    MaxDistance: 5
+    MinHpRatio: 0
+    MaxHpRatio: 1
+    RequiredCombatPhase: 0
+    DayOnly: 0
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag: 
+    BlockedBossFlag: 
+    BossFlagScope: 0
+  - ID: area
+    Action: 2
+    CustomActionKey: 
+    Priority: 20
+    TriggerChance: 1
+    InitialDelay: 4
+    Cooldown: 5
+    MaxUses: -1
+    MinDistance: 0
+    MaxDistance: 20
+    MinHpRatio: 0
+    MaxHpRatio: 1
+    RequiredCombatPhase: 2
+    DayOnly: 0
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag: 
+    BlockedBossFlag: crown_light_disabled=1
+    BossFlagScope: 1
+  - ID: melee
+    Action: 0
+    CustomActionKey: 
+    Priority: 10
+    TriggerChance: 1
+    InitialDelay: 0.25
+    Cooldown: 0.9
+    MaxUses: -1
+    MinDistance: 0
+    MaxDistance: 2.5
+    MinHpRatio: 0
+    MaxHpRatio: 1
+    RequiredCombatPhase: 0
+    DayOnly: 0
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag: 
+    BlockedBossFlag: 
+    BossFlagScope: 0

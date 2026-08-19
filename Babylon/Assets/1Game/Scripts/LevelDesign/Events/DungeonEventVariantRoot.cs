@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace XianTu.LevelDesign
 {
@@ -18,10 +20,18 @@ namespace XianTu.LevelDesign
 
         public static void ActivateOnly(Transform contentRoot, int activeEventID)
         {
+            SetActiveEvents(contentRoot, new[] { activeEventID });
+        }
+
+        public static void SetActiveEvents(
+            Transform contentRoot,
+            IReadOnlyCollection<int> activeEventIDs)
+        {
             if (contentRoot == null)
                 return;
             foreach (var variant in contentRoot.GetComponentsInChildren<DungeonEventVariantRoot>(true))
-                variant.gameObject.SetActive(variant.eventID == activeEventID);
+                variant.gameObject.SetActive(
+                    activeEventIDs != null && activeEventIDs.Contains(variant.eventID));
         }
     }
 }

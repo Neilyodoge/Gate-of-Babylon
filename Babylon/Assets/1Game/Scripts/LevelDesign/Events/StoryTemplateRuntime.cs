@@ -28,10 +28,10 @@ namespace XianTu.LevelDesign
             new()
             {
                 Kind = StoryTemplateKind.Route,
-                ID = "Story_桥卫与禁卫阵",
-                DisplayName = "桥卫与禁卫阵",
+                ID = "Story_昼夜机关",
+                DisplayName = "昼夜机关",
                 MandatoryEventID = 1004,
-                TemplateFlag = "story_template_bridge_guard",
+                TemplateFlag = "story_template_day_night_devices",
             },
         };
 

@@ -28,7 +28,8 @@ namespace XianTu
                     spawn.roomIndex,
                     spawn.roomCount,
                     seed,
-                    spawn.hasDistrict ? spawn.district : null);
+                    spawn.hasDistrict ? spawn.district : null,
+                    spawn.roomTags);
                 _state = new RoomRuntimeState
                 {
                     RoomIndex = spawn.roomIndex,

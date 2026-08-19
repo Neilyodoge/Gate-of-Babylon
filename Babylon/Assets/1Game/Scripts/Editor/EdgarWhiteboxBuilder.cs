@@ -75,7 +75,7 @@ namespace XianTu.Editor
 
             Debug.Log(
                 $"<color=#66ff99>[Edgar 白膜]</color> 已生成 {roomSpecs.Count} 个主体模板、" +
-                $"{connectorSpecs.Count} 个连接模板和 12 节点关卡图：{GraphPath}");
+                $"{connectorSpecs.Count} 个连接模板和 13 节点关卡图：{GraphPath}");
             Selection.activeObject = AssetDatabase.LoadAssetAtPath<LevelGraph>(GraphPath);
         }
 
@@ -91,8 +91,11 @@ namespace XianTu.Editor
                 Room("WB_Outer_Battle_DeadEnd", RoomA, District.Outer,
                     new Color(0.24f, 0.48f, 0.68f), MarkerKind.None, 1, "Combat", "DeadEnd"),
                 Room("WB_Outer_Event", RoomC, District.Outer,
-                    new Color(0.12f, 0.65f, 0.72f), MarkerKind.Event, 1,
+                    new Color(0.12f, 0.65f, 0.72f), MarkerKind.Event, 2,
                     "Event", "UpperBranch"),
+                Room("WB_Outer_OptionalAnnex", RoomB, District.Outer,
+                    new Color(0.48f, 0.34f, 0.18f), MarkerKind.None, 1,
+                    "Combat", "OptionalAnnex", "Archive", "DeadEnd"),
                 Room("WB_Outer_Elite", RoomB, District.Outer,
                     new Color(0.88f, 0.44f, 0.12f), MarkerKind.Elite, 2,
                     "Elite", "LowerBranch"),
@@ -200,6 +203,8 @@ namespace XianTu.Editor
                     BuildSemanticSockets(root.transform, bounds, spec.Marker, spec.Tags);
                     BuildEventSceneObjects(root.transform, bounds, spec.Marker);
                     BuildSpawnAreas(root.transform, bounds);
+                    if (spec.Tags.Contains("OptionalAnnex"))
+                        BuildOptionalAnnexProps(root.transform, bounds);
                 }
 
                 PrefabUtility.SaveAsPrefabAsset(root, path);
@@ -488,7 +493,33 @@ namespace XianTu.Editor
                     "Material_02",
                     center + Vector3.right * offsetX,
                     DungeonContentSocketType.Material);
+                if (tags.Contains("OptionalAnnex"))
+                {
+                    CreateContentSocket(
+                        sockets,
+                        "Material_03",
+                        center + Vector3.forward * Mathf.Max(1.2f, bounds.extents.z * 0.3f),
+                        DungeonContentSocketType.Material);
+                }
             }
+        }
+
+        private static void BuildOptionalAnnexProps(Transform root, Bounds bounds)
+        {
+            DestroyChild(root, "OptionalAnnexProps");
+            var props = new GameObject("OptionalAnnexProps").transform;
+            props.SetParent(root, false);
+            Vector3 position = new(
+                bounds.center.x,
+                bounds.min.y + 1f,
+                bounds.center.z + bounds.extents.z * 0.42f);
+            GameObject stele = CreateCube(
+                props,
+                "巡礼记录碑",
+                position,
+                new Vector3(0.8f, 2f, 0.45f),
+                GetOrCreateAccent("PilgrimageRecordStele", new Color(0.62f, 0.38f, 0.16f)));
+            stele.AddComponent<DungeonRecordStele>();
         }
 
         private static void CreateContentSocket(
@@ -618,8 +649,87 @@ namespace XianTu.Editor
                     EventSceneObjectAction.Enable);
             destroyedCore.SetActive(false);
 
+            var crownVariant = new GameObject("Strength_冠光仪").transform;
+            crownVariant.SetParent(sceneObjects, false);
+            crownVariant.gameObject.AddComponent<DungeonEventVariantRoot>().Configure(1005);
+            Vector3 crownCenter = center + Vector3.left * 2.8f;
+            var crownMirror = CreateCube(
+                crownVariant,
+                "冠光仪主镜",
+                crownCenter,
+                new Vector3(0.6f, 2.2f, 1.8f),
+                GetOrCreateAccent("CrownLightMirror", new Color(1f, 0.72f, 0.18f)));
+            Object.DestroyImmediate(crownMirror.GetComponent<Collider>());
+            crownMirror.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.CrownLightDisabled, EventSceneObjectAction.Disable);
+            crownMirror.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.CrownLightMisaligned, EventSceneObjectAction.Disable);
+
+            var brokenCrownMirror = CreateCube(
+                crownVariant,
+                "破碎冠光主镜",
+                crownCenter + Vector3.down * 0.7f,
+                new Vector3(1.6f, 0.35f, 1.4f),
+                GetOrCreateAccent("CrownLightBroken", new Color(0.68f, 0.12f, 0.12f)));
+            Object.DestroyImmediate(brokenCrownMirror.GetComponent<Collider>());
+            brokenCrownMirror.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.CrownLightDisabled, EventSceneObjectAction.Enable);
+            brokenCrownMirror.SetActive(false);
+
+            var misalignedMirror = CreateCube(
+                crownVariant,
+                "偏转冠光镜组",
+                crownCenter + Vector3.right * 1.4f,
+                new Vector3(0.45f, 1.8f, 1.4f),
+                GetOrCreateAccent("CrownLightMisaligned", new Color(0.95f, 0.4f, 0.12f)));
+            Object.DestroyImmediate(misalignedMirror.GetComponent<Collider>());
+            misalignedMirror.transform.rotation = Quaternion.Euler(0f, 35f, 18f);
+            misalignedMirror.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.CrownLightMisaligned, EventSceneObjectAction.Enable);
+            misalignedMirror.SetActive(false);
+
+            var liftVariant = new GameObject("Layout_狱城升降井").transform;
+            liftVariant.SetParent(sceneObjects, false);
+            liftVariant.gameObject.AddComponent<DungeonEventVariantRoot>().Configure(1007);
+            Vector3 liftCenter = center + Vector3.left * 3.2f;
+            var liftSeal = CreateCube(
+                liftVariant,
+                "升降井封锁",
+                liftCenter,
+                new Vector3(2.8f, 2.2f, 0.45f),
+                GetOrCreateAccent("NightLiftSealed", new Color(0.56f, 0.12f, 0.2f)));
+            liftSeal.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.NightLiftRestored, EventSceneObjectAction.Disable);
+            liftSeal.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.NightLiftDropped, EventSceneObjectAction.Disable);
+
+            var liftPlatform = CreateCube(
+                liftVariant,
+                "修复升降台",
+                liftCenter + Vector3.forward * 1.4f + Vector3.down * 0.9f,
+                new Vector3(2.6f, 0.25f, 2.6f),
+                GetOrCreateAccent("NightLiftRestored", new Color(0.18f, 0.62f, 1f)));
+            Object.DestroyImmediate(liftPlatform.GetComponent<Collider>());
+            liftPlatform.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.NightLiftRestored, EventSceneObjectAction.Enable);
+            liftPlatform.SetActive(false);
+
+            var droppedLift = CreateCube(
+                liftVariant,
+                "坠落升降台残骸",
+                liftCenter + Vector3.forward * 1.4f + Vector3.down * 0.7f,
+                new Vector3(2.5f, 0.45f, 1.4f),
+                GetOrCreateAccent("NightLiftDropped", new Color(0.72f, 0.16f, 0.08f)));
+            Object.DestroyImmediate(droppedLift.GetComponent<Collider>());
+            droppedLift.transform.rotation = Quaternion.Euler(0f, 18f, 12f);
+            droppedLift.AddComponent<DungeonEventSceneObject>()
+                .Configure(EventSceneResult.NightLiftDropped, EventSceneObjectAction.Enable);
+            droppedLift.SetActive(false);
+
             bridgeVariant.gameObject.SetActive(false);
             summonVariant.gameObject.SetActive(false);
+            crownVariant.gameObject.SetActive(false);
+            liftVariant.gameObject.SetActive(false);
         }
 
         private static void CreateSpawnArea(
@@ -672,6 +782,7 @@ namespace XianTu.Editor
             var nodes = new Dictionary<string, Room>();
             AddRoom(graph, nodes, "O0", new Vector2(0, 0), prefabs["WB_Outer_Endpoint"]);
             AddRoom(graph, nodes, "O1", new Vector2(150, -100), prefabs["WB_Outer_Event"]);
+            AddRoom(graph, nodes, "B0", new Vector2(150, -220), prefabs["WB_Outer_OptionalAnnex"]);
             AddRoom(graph, nodes, "O2", new Vector2(300, -100), prefabs["WB_Outer_Battle"]);
             AddRoom(graph, nodes, "O3", new Vector2(150, 100), prefabs["WB_Outer_Elite"]);
             AddRoom(graph, nodes, "O4", new Vector2(300, 100), prefabs["WB_Outer_Battle_DeadEnd"]);
@@ -684,7 +795,7 @@ namespace XianTu.Editor
             AddRoom(graph, nodes, "I4", new Vector2(1050, 0), prefabs["WB_Inner_Endpoint"]);
 
             AddConnections(graph, nodes,
-                ("O0", "O2"), ("O0", "O1"), ("O0", "O3"), ("O3", "O4"),
+                ("O0", "O2"), ("O0", "O1"), ("O1", "B0"), ("O0", "O3"), ("O3", "O4"),
                 ("O2", "C0"), ("C0", "C1"), ("C1", "I0"),
                 ("I0", "I3"), ("I3", "I4"), ("I0", "I1"), ("I0", "I2"));
 

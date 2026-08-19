@@ -29,6 +29,22 @@ namespace XianTu.LevelDesign
                 _completedInAct.Add(eventID);
         }
 
+        public bool DebugCompleteEvent(int eventID, EventOption option)
+        {
+            if (eventID <= 0 || option == null
+                || !ConfigDatabase.Instance.StoryEvents.TryGetValue(
+                    eventID,
+                    out StoryEventRow row))
+                return false;
+
+            ApplyTrigger(row, option);
+            _completedInAct.Add(eventID);
+            OnEventCompleted?.Invoke(row, option);
+            Debug.Log(
+                $"[StoryEvent][Debug] 直接完成「{row.Name_CN}」：{option.Text}");
+            return true;
+        }
+
         // ------------------------------------------------------------
         // 入口：尝试触发指定事件
         // ------------------------------------------------------------

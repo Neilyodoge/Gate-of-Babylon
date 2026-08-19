@@ -21,7 +21,12 @@ namespace XianTu
         [Header("AI 参数")]
         [SerializeField] private float detectRange = 12f;
         [SerializeField] private float attackRange = 1.5f;
-        [SerializeField] private float attackInterval = 1.5f;
+        [SerializeField] private float attackInterval = 1f;
+        [SerializeField] private int maxConcurrentMeleeAttackers = 3;
+        [SerializeField] private float postAttackRetreatDuration = 0.55f;
+        [SerializeField] private float tacticalRangeMultiplier = 2.25f;
+        [SerializeField, Range(0f, 1f)] private float tacticalPauseChance = 0.1f;
+        [SerializeField] private Vector2 tacticalDurationRange = new(0.25f, 0.6f);
 
         // AI行为增强
         private float _strafeTimer;       // 绕行计时器
@@ -30,7 +35,12 @@ namespace XianTu
         private bool _isDodging;          // 是否在闪避中
         private float _dodgeDuration;     // 闪避持续时间
         private Vector3 _dodgeDirection;  // 闪避方向
-        private enum AIState { Idle, Chase, Strafe, AttackPrep, Dodge }
+        private float _retreatTimer;
+        private Vector3 _retreatDirection;
+        private float _strafeMoveScale;
+        private bool _hasAttackToken;
+        private Transform _attackTokenTarget;
+        private enum AIState { Idle, Chase, Strafe, AttackPrep, Dodge, Retreat }
         private AIState _aiState = AIState.Idle;
 
         [Header("掉落")]
@@ -40,6 +50,7 @@ namespace XianTu
         [SerializeField] private GameObject hitVFXPrefab;
 
         private CharacterController _cc;
+        private EnemyNavMotor _navMotor;
         private Transform _target;
         private Transform _playerTarget; // 缓存真正的玩家目标（水镜分身嘲讽时临时改打分身）
         private float _attackTimer;
@@ -71,7 +82,7 @@ namespace XianTu
         private GameObject _attackWarning;
         private float _attackPrepTimer;
         private bool _isPreparing;
-        private float _warningDuration = 0.5f;
+        private float _warningDuration = 0.35f;
 
         // 血条
         private EnemyHealthBar _healthBar;
@@ -101,6 +112,9 @@ namespace XianTu
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
+            _navMotor = GetComponent<EnemyNavMotor>();
+            if (_navMotor == null)
+                _navMotor = gameObject.AddComponent<EnemyNavMotor>();
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
@@ -117,6 +131,11 @@ namespace XianTu
                 detectRange = config.敌人检测范围;
                 attackRange = config.敌人攻击范围;
                 attackInterval = config.敌人攻击间隔;
+                maxConcurrentMeleeAttackers = config.同时近战攻击上限;
+                _warningDuration = config.普通近战预警时间;
+                tacticalRangeMultiplier = config.近战战术距离倍率;
+                tacticalPauseChance = config.普通怪观察停顿概率;
+                tacticalDurationRange = config.战术动作持续时间;
             }
 
             stats.ResetHp();
@@ -178,6 +197,7 @@ namespace XianTu
                 if (_dodgeDuration <= 0)
                 {
                     _isDodging = false;
+                    _navMotor.ResyncAfterForcedMove();
                     _aiState = AIState.Chase;
                 }
                 return;
@@ -196,7 +216,8 @@ namespace XianTu
                     _isPreparing = false;
                     DestroyAttackWarning();
                     _attackTimer = attackInterval;
-                    _aiState = AIState.Chase;
+                    ReleaseAttackToken();
+                    StartRetreat();
                 }
                 return;
             }
@@ -215,37 +236,47 @@ namespace XianTu
                         _attackTimer -= Time.deltaTime;
                         if (_attackTimer <= 0)
                         {
-                            StartAttackPrep();
-                            _aiState = AIState.AttackPrep;
+                            if (TryAcquireAttackToken())
+                            {
+                                StartAttackPrep();
+                                _aiState = AIState.AttackPrep;
+                            }
+                            else
+                            {
+                                BeginStrafe();
+                            }
                         }
                         else
                         {
-                            // 攻击CD中绕行
-                            _aiState = AIState.Strafe;
-                            _strafeTimer = Random.Range(0.5f, 1.5f);
-                            _strafeDirection = Random.value > 0.5f ? 1f : -1f;
+                            BeginStrafe();
                         }
                     }
                     else if (distToTarget <= detectRange)
                     {
-                        MoveTowards(_target.position);
+                        if (distToTarget <= attackRange * tacticalRangeMultiplier)
+                            BeginStrafe();
+                        else
+                            MoveTowards(_target.position);
                     }
                     break;
 
                 case AIState.Strafe:
                     _strafeTimer -= Time.deltaTime;
-                    if (_strafeTimer <= 0 || distToTarget > attackRange * 1.5f)
+                    if (_strafeTimer <= 0 || distToTarget > attackRange * (tacticalRangeMultiplier + 0.4f))
                     {
                         _aiState = AIState.Chase;
                         break;
                     }
 
-                    // 绕行移动（围绕玩家侧向移动）
+                    // 近距离不持续黏住玩家：短暂停顿或带少量前压的侧移试探。
                     Vector3 toPlayer = (_target.position - transform.position).normalized;
                     Vector3 strafeDir = Vector3.Cross(Vector3.up, toPlayer) * _strafeDirection;
-                    Vector3 strafeVel = strafeDir * MoveSpeed * 0.6f;
-                    strafeVel.y = -9.8f;
-                    _cc.Move(strafeVel * Time.deltaTime);
+                    float inwardBias = distToTarget > attackRange * 1.15f ? 0.35f : 0f;
+                    Vector3 tacticalDir = (strafeDir + toPlayer * inwardBias).normalized;
+                    _navMotor.MoveTo(
+                        transform.position + tacticalDir * 2f,
+                        MoveSpeed * _strafeMoveScale,
+                        0.05f);
 
                     // 绕行中仍然检查攻击
                     if (distToTarget <= attackRange)
@@ -253,14 +284,30 @@ namespace XianTu
                         _attackTimer -= Time.deltaTime;
                         if (_attackTimer <= 0)
                         {
-                            StartAttackPrep();
-                            _aiState = AIState.AttackPrep;
+                            if (TryAcquireAttackToken())
+                            {
+                                StartAttackPrep();
+                                _aiState = AIState.AttackPrep;
+                            }
                         }
                     }
                     break;
 
                 case AIState.AttackPrep:
                     // 由_isPreparing处理
+                    break;
+
+                case AIState.Retreat:
+                    _retreatTimer -= Time.deltaTime;
+                    _navMotor.MoveTo(
+                        transform.position + _retreatDirection * 2f,
+                        MoveSpeed * 0.75f,
+                        0.05f);
+                    if (_retreatTimer <= 0f)
+                    {
+                        _aiState = AIState.Chase;
+                        BeginStrafe();
+                    }
                     break;
             }
 
@@ -297,11 +344,63 @@ namespace XianTu
 
         private void MoveTowards(Vector3 targetPos)
         {
-            Vector3 dir = (targetPos - transform.position).normalized;
-            dir.y = 0;
-            Vector3 velocity = dir * MoveSpeed;
-            velocity.y = -9.8f;
-            _cc.Move(velocity * Time.deltaTime);
+            _navMotor.MoveTo(targetPos, MoveSpeed, attackRange * 0.85f);
+        }
+
+        private void BeginStrafe()
+        {
+            _aiState = AIState.Strafe;
+            _strafeTimer = Random.Range(
+                Mathf.Min(tacticalDurationRange.x, tacticalDurationRange.y),
+                Mathf.Max(tacticalDurationRange.x, tacticalDurationRange.y));
+            _strafeDirection = (GetInstanceID() & 1) == 0 ? 1f : -1f;
+            _strafeMoveScale = Random.value < tacticalPauseChance
+                ? 0f
+                : Random.Range(0.35f, 0.65f);
+        }
+
+        private bool TryAcquireAttackToken()
+        {
+            if (_target == null)
+                return false;
+
+            bool acquired = EnemyCombatCoordinator.TryAcquireAttackToken(
+                gameObject,
+                _target,
+                maxConcurrentMeleeAttackers);
+            if (acquired)
+            {
+                _hasAttackToken = true;
+                _attackTokenTarget = _target;
+            }
+            return acquired;
+        }
+
+        private void ReleaseAttackToken()
+        {
+            if (!_hasAttackToken)
+                return;
+            EnemyCombatCoordinator.ReleaseAttackToken(gameObject, _attackTokenTarget);
+            _hasAttackToken = false;
+            _attackTokenTarget = null;
+        }
+
+        private void StartRetreat()
+        {
+            if (_target == null)
+            {
+                _aiState = AIState.Chase;
+                return;
+            }
+
+            Vector3 away = transform.position - _target.position;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.01f)
+                away = -transform.forward;
+            float side = (GetInstanceID() & 1) == 0 ? 0.35f : -0.35f;
+            _retreatDirection = (away.normalized + transform.right * side).normalized;
+            _retreatTimer = postAttackRetreatDuration;
+            _aiState = AIState.Retreat;
         }
 
         private void StartAttackPrep()
@@ -435,6 +534,7 @@ namespace XianTu
             _stunTimer = 0.3f;
             _isPreparing = false;
             DestroyAttackWarning();
+            ReleaseAttackToken();
 
             // 受击后有概率闪避（30%概率，当血量低于50%时提高到50%）
             float dodgeChance = stats.currentHp < stats.maxHp * 0.5f ? 0.5f : 0.3f;
@@ -450,6 +550,7 @@ namespace XianTu
                 Vector3 knockback = (transform.position - attacker.transform.position).normalized * 0.5f;
                 knockback.y = 0;
                 _cc.Move(knockback);
+                _navMotor.ResyncAfterForcedMove();
             }
 
             // 顿帧
@@ -470,6 +571,7 @@ namespace XianTu
             gameObject.tag = "Untagged";
 
             DestroyAttackWarning();
+            ReleaseAttackToken();
 
             // 掉落功法
             TryDropSkill();
@@ -542,7 +644,7 @@ namespace XianTu
         public static EnemyBase Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
             var prefabs = MonsterPrefabs.Instance;
-            var prefab = prefabs != null ? prefabs.普通小怪Prefab : null;
+            var prefab = prefabs != null ? prefabs.GetEnemyPrefab(EnemyVisualRole.Melee) : null;
             var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");
@@ -598,6 +700,13 @@ namespace XianTu
         public void SetHitVFXPrefab(GameObject prefab)
         {
             hitVFXPrefab = prefab;
+        }
+
+        private void OnDestroy()
+        {
+            ReleaseAttackToken();
+            EnemyCombatCoordinator.Unregister(gameObject);
+            DestroyAttackWarning();
         }
 
         /// <summary>设置所有Renderer的颜色</summary>

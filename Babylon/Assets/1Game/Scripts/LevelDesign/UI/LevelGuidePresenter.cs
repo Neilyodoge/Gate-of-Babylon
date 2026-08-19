@@ -7,7 +7,7 @@ namespace XianTu.LevelDesign
     /// <summary>聚合关卡阶段、事件分配和选项后果，供 Tab 与基地情报碑显示。</summary>
     public static class LevelGuidePresenter
     {
-        private static readonly int[] LevelAEventIDs = { 1004, 1006 };
+        private static readonly int[] LevelAEventIDs = { 1004, 1005, 1007, 1006 };
 
         public enum FlowOptionState
         {
@@ -56,16 +56,19 @@ namespace XianTu.LevelDesign
                     || row?.Options == null)
                     continue;
 
-                string node = assignments.FirstOrDefault(x => x.Value == eventID).Key;
+                string node = ResolveEventNode(assignments, eventID);
                 bool assigned = !string.IsNullOrWhiteSpace(node);
                 bool mandatory = IsMandatoryEvent(eventID, storyId);
                 bool completed = StoryEventService.Instance.IsCompletedInAct(eventID)
                                  || (assigned
                                      && LevelAPhaseRuntime.HasRecordedOutcome(node, eventID));
-                bool phaseMatches = eventID == 1004 ? !nightPhase : nightPhase;
+                bool dayEvent = eventID == 1004 || eventID == 1005;
+                bool layoutEvent = eventID == 1004 || eventID == 1007;
+                bool phaseMatches = dayEvent ? !nightPhase : nightPhase;
                 bool eventAvailable = assigned && !completed && phaseMatches;
                 string status = assigned
-                    ? $"{node} · {(eventID == 1004 ? "白昼 Layout" : "永夜 Strength")}"
+                    ? $"{node} · {(dayEvent ? "白昼" : "永夜")} " +
+                      $"{(layoutEvent ? "Layout" : "Strength")}"
                     : "本局未出现";
                 status += completed
                     ? " · 已处理"
@@ -84,9 +87,7 @@ namespace XianTu.LevelDesign
                     if (option == null || string.IsNullOrWhiteSpace(option.Text))
                         continue;
 
-                    bool selected = completed
-                                    && !string.IsNullOrWhiteSpace(option.FlagName)
-                                    && BossFlagSet.Instance.GetValue(option.FlagName) == option.FlagValue;
+                    bool selected = IsOptionSelected(completed, option);
                     bool affordable = option.CostID <= 0 || shards >= option.CostID;
                     FlowOptionState optionState = selected
                         ? FlowOptionState.Selected
@@ -99,7 +100,7 @@ namespace XianTu.LevelDesign
                         FlowOptionState.Selected => "已选择",
                         FlowOptionState.Available => "当前可选",
                         _ when !assigned => "本局不可选",
-                        _ when !phaseMatches => eventID == 1004
+                        _ when !phaseMatches => dayEvent
                             ? "仅白昼可处理"
                             : "仅永夜可处理",
                         _ when completed => "事件已处理",
@@ -161,7 +162,7 @@ namespace XianTu.LevelDesign
                     .Append('\n');
             }
 
-            builder.Append("<color=#d8c48f>“现”立即生效；“夜”带入永夜。</color>\n");
+            builder.Append("<color=#d8c48f>每个阶段固定 1 个 Layout 与 1 个 Strength 事件。</color>\n");
 
             foreach (int eventID in LevelAEventIDs)
             {
@@ -169,7 +170,7 @@ namespace XianTu.LevelDesign
                     || row?.Options == null)
                     continue;
 
-                string node = assignments.FirstOrDefault(x => x.Value == eventID).Key;
+                string node = ResolveEventNode(assignments, eventID);
                 bool assigned = !string.IsNullOrWhiteSpace(node);
                 bool mandatory = IsMandatoryEvent(eventID, storyId);
                 bool completed = StoryEventService.Instance.IsCompletedInAct(eventID);
@@ -226,6 +227,30 @@ namespace XianTu.LevelDesign
                     .Replace("保持默认", "默认");
         }
 
+        private static string ResolveEventNode(
+            IReadOnlyDictionary<string, int> assignments,
+            int eventID)
+        {
+            if (MapProviders.Current is EdgarMapProvider edgar
+                && edgar.TryGetEventNode(eventID, out string nodeName))
+                return nodeName;
+            return assignments.FirstOrDefault(x => x.Value == eventID).Key;
+        }
+
+        private static bool IsOptionSelected(bool completed, EventOption option)
+        {
+            if (!completed || option == null || string.IsNullOrWhiteSpace(option.FlagName))
+                return false;
+            string resolvedFlag = option.FlagName switch
+            {
+                "bridge_opened_pending" => "bridge_opened",
+                "crown_light_disabled_pending" => "crown_light_disabled",
+                "summon_array_destroyed_pending" => "summon_array_destroyed",
+                _ => option.FlagName,
+            };
+            return BossFlagSet.Instance.GetValue(resolvedFlag) == option.FlagValue;
+        }
+
         private static string CompactImmediate(EventOption option)
         {
             return StoryEventOptionFormatter.DescribeImmediate(option)
@@ -237,12 +262,19 @@ namespace XianTu.LevelDesign
         {
             string scene = option.FlagName switch
             {
+                "bridge_opened_pending" => "清增援后，封藏室昼夜开放",
                 "bridge_opened" => "巡礼桥昼夜开放",
-                "bridge_sabotaged" => "白昼临时通桥，永夜坍塌",
-                "bridge_kept_closed" => "巡礼桥保持封锁",
+                "bridge_sabotaged" => "白昼进封藏室，永夜坍塌",
+                "bridge_kept_closed" => "放弃桥后封藏室",
+                "crown_light_disabled_pending" => "清守光禁卫后禁用冠光",
+                "crown_light_misaligned" => "冠光只锁定Boss脚下",
+                "crown_light_intact" => "冠光继续追踪玩家",
                 "summon_array_destroyed_pending" => "击败失控禁卫后禁用召唤",
                 "summon_array_outer_broken" => "Boss 改召禁卫队长",
                 "summon_array_intact" => "Boss 保留禁卫小队召唤",
+                "night_lift_restored" => "升降井双向连接中庭",
+                "night_lift_dropped" => "升降井单向返回中庭",
+                "night_lift_sealed" => "升降井保持封锁",
                 "route_opened" => "安全通路",
                 "route_forced" => "破口警戒",
                 "route_ignored" => "通路封锁",
@@ -259,6 +291,12 @@ namespace XianTu.LevelDesign
                 "summon_array_destroyed_pending" => "Boss不再召唤",
                 "summon_array_outer_broken" => "Boss召单精英",
                 "summon_array_intact" => "Boss召普通小队",
+                "crown_light_disabled_pending" => "摄政官失去冠光AOE",
+                "crown_light_misaligned" => "冠光AOE不再追踪",
+                "crown_light_intact" => "冠光AOE保持默认",
+                "night_lift_restored" => "双向跨区捷径",
+                "night_lift_dropped" => "单向返程捷径",
+                "night_lift_sealed" => "标准路线",
                 "route_forced" => "Boss攻+10% 移+5%",
                 "facility_powered" => "Boss攻-10%",
                 "facility_salvaged" => "Boss血+10%",

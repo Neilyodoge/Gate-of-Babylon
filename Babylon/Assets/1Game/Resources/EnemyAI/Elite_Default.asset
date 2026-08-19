@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 307b9da8f6707b843bc96ad8c23031d6, type: 3}
+  m_Name: Elite_Default
+  m_EditorClassIdentifier: 
+  DecisionInterval: 0.15
+  Abilities:
+  - ID: elite_counter_lunge
+    Action: 7
+    CustomActionKey: elite_counter_lunge
+    Priority: 60
+    TriggerChance: 1
+    InitialDelay: 0
+    Cooldown: 6
+    MaxUses: -1
+    MinDistance: 1
+    MaxDistance: 8
+    MinHpRatio: 0
+    MaxHpRatio: 1
+    RequiredCombatPhase: 0
+    DayOnly: 0
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag:
+    BlockedBossFlag:
+    BossFlagScope: 0
+  - ID: melee
+    Action: 0
+    CustomActionKey: 
+    Priority: 10
+    TriggerChance: 1
+    InitialDelay: 0.25
+    Cooldown: 0.9
+    MaxUses: -1
+    MinDistance: 0
+    MaxDistance: 2
+    MinHpRatio: 0
+    MaxHpRatio: 1
+    RequiredCombatPhase: 0
+    DayOnly: 0
+    NightOnly: 0
+    MinNearbyAllies: -1
+    MaxNearbyAllies: -1
+    RequiredBossFlag: 
+    BlockedBossFlag: 
+    BossFlagScope: 0

@@ -152,7 +152,7 @@ namespace XianTu.LevelDesign
         [Range(0, 100)]
         public int EventTriggerRate;
         [InspectorName("房间标签")]
-        [Tooltip("用于筛选首领和房间预制体；工具中显示为字符串列表。")]
+        [Tooltip("该内容要求房间模板拥有的标签；全部命中才进入候选，标签越专用优先级越高。")]
         public string[] PrefabTags;
         [InspectorName("最小图深度")]
         public int MinGraphDepth;
@@ -237,6 +237,14 @@ namespace XianTu.LevelDesign
         SummonArrayDestroyed = 5,
         [InspectorName("召集阵外环已破坏")]
         SummonArrayOuterBroken = 6,
+        [InspectorName("冠光仪主镜已摧毁")]
+        CrownLightDisabled = 7,
+        [InspectorName("冠光仪镜组已偏转")]
+        CrownLightMisaligned = 8,
+        [InspectorName("永夜升降井已修复")]
+        NightLiftRestored = 9,
+        [InspectorName("永夜升降井已坠落")]
+        NightLiftDropped = 10,
     }
 
     public enum StoryEventImpactKind

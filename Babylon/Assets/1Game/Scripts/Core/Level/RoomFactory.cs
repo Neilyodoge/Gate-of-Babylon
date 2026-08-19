@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using XianTu.LevelDesign;
 
@@ -37,6 +38,8 @@ namespace XianTu
         /// <summary>实体房模板声明的区域；反向出生时不能再按房间索引推断区域。</summary>
         public District district;
         public bool hasDistrict;
+        /// <summary>实体房模板声明的内容筛选标签。</summary>
+        public IReadOnlyList<string> roomTags;
     }
 
     /// <summary>按类型创建房间的工厂契约。</summary>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Edgar.Unity;
 using UnityEngine;
+using XianTu.LevelDesign;
 
 namespace XianTu
 {
@@ -20,33 +21,57 @@ namespace XianTu
         private DungeonGeneratorGrid3D _generator;
         private GameObject _generatedRoot;
         private GameObject _triggerRoot;
+        private DungeonGraphComposition _composition;
+        private DungeonLayoutCandidate _currentLayout;
         private int _activeRoom = -1;
         private static Material _combatGateMaterial;
+        private static Material _bridgeClosedMaterial;
+        private static Material _bridgeOpenMaterial;
 
         public IReadOnlyList<EdgarRoomPlacement> Rooms => _rooms;
         public int RoomCount => _rooms.Count;
         public bool IsReady => _generatedRoot != null && _rooms.Count > 0;
+        public GameObject GeneratedRoot => _generatedRoot;
         public int WorldRotationDegrees { get; private set; }
+        public string CurrentLayoutID { get; private set; } = "Layout_A";
+        public DungeonLayoutCandidate CurrentLayout => _currentLayout;
         public int ConfiguredRoomCount
         {
             get
             {
-                var graph = Resources.Load<LevelGraph>(LevelGraphPath);
+                var graph = ResolveConfiguredGraph();
                 return graph != null ? graph.Rooms.Count : 0;
             }
         }
 
-        public bool Generate(int seed, string preferredStartNode)
+        public bool Generate(
+            int seed,
+            string preferredStartNode,
+            int maxLayoutAttempts = 64,
+            int generationTimeoutMs = 10000)
         {
             Clear();
+            maxLayoutAttempts = Mathf.Max(1, maxLayoutAttempts);
+            generationTimeoutMs = Mathf.Max(250, generationTimeoutMs);
 
-            var graph = Resources.Load<LevelGraph>(LevelGraphPath);
+            var graph = SelectLevelGraph(
+                seed,
+                out DungeonLayoutCandidate selectedLayout,
+                out string layoutID);
             var settings = Resources.Load<GeneratorSettingsGrid3D>(GeneratorSettingsPath);
             if (graph == null || settings == null)
             {
                 Debug.LogError($"[Edgar] 缺少原型资源：{LevelGraphPath} / {GeneratorSettingsPath}");
                 return false;
             }
+            CurrentLayoutID = layoutID;
+            _currentLayout = selectedLayout;
+            _composition = DungeonGraphComposer.Compose(
+                graph,
+                DungeonGenerationProfile.Instance,
+                seed,
+                layoutID);
+            graph = _composition.Graph;
 
             _generator = GetComponent<DungeonGeneratorGrid3D>();
             bool reactivateAfterSetup = false;
@@ -71,7 +96,7 @@ namespace XianTu
             {
                 GeneratorSettings = settings,
                 MinimumRoomDistance = 1,
-                Timeout = 10000,
+                Timeout = generationTimeoutMs,
             };
             _generator.PostProcessingConfig = new PostProcessingConfigGrid3D
             {
@@ -85,7 +110,6 @@ namespace XianTu
             {
                 DungeonGeneratorPayloadGrid3D payload = null;
                 Exception lastGenerationError = null;
-                const int maxLayoutAttempts = 64;
                 for (int attempt = 0; attempt < maxLayoutAttempts; attempt++)
                 {
                     int layoutSeed = (int)(
@@ -97,7 +121,9 @@ namespace XianTu
                     try
                     {
                         var candidate = (DungeonGeneratorPayloadGrid3D)_generator.Generate();
-                        if (HasRequiredLandmarkRelationships(candidate.GeneratedLevel.RoomInstances))
+                        if (HasRequiredLandmarkRelationships(
+                                candidate.GeneratedLevel.RoomInstances,
+                                selectedLayout))
                         {
                             payload = candidate;
                             break;
@@ -130,6 +156,7 @@ namespace XianTu
                 ValidateConnectedDoorClearance(payload.GeneratedLevel.RoomInstances);
                 Debug.Log(
                     $"<color=#66ccff>[Edgar] Grid3D 实体地牢生成完成：{_rooms.Count} 个房间，" +
+                    $"Layout={CurrentLayoutID}，" +
                     $"Scale={DungeonScale:F1}，Rotation={WorldRotationDegrees}°，" +
                     $"RunSeed={seed}，LayoutSeed={payload.Seed}</color>");
                 return IsReady;
@@ -143,8 +170,12 @@ namespace XianTu
         }
 
         private static bool HasRequiredLandmarkRelationships(
-            IReadOnlyList<RoomInstanceGrid3D> instances)
+            IReadOnlyList<RoomInstanceGrid3D> instances,
+            DungeonLayoutCandidate layout)
         {
+            if (layout != null && !layout.EnforceLegacyLandmarkRelationships)
+                return true;
+
             var positions = new Dictionary<string, Vector3>();
             foreach (var instance in instances)
             {
@@ -197,6 +228,30 @@ namespace XianTu
             return false;
         }
 
+        public bool TryGetInjectedRoomInfo(
+            string nodeName,
+            out DungeonInjectedRoomInfo info)
+        {
+            if (_composition != null
+                && !string.IsNullOrEmpty(nodeName)
+                && _composition.InjectedRooms.TryGetValue(nodeName, out info))
+                return true;
+            info = null;
+            return false;
+        }
+
+        public bool TryGetBuildingAssignment(
+            string nodeName,
+            out DungeonBuildingAssignmentInfo info)
+        {
+            if (_composition != null
+                && !string.IsNullOrEmpty(nodeName)
+                && _composition.BuildingAssignments.TryGetValue(nodeName, out info))
+                return true;
+            info = null;
+            return false;
+        }
+
         public bool TryGetContentSocketPosition(
             int roomIndex,
             DungeonContentSocketType socketType,
@@ -238,6 +293,14 @@ namespace XianTu
                 SetRoomLocked(_activeRoom, false);
         }
 
+        public bool RebuildNavigation()
+        {
+            if (_generatedRoot == null)
+                return false;
+            Physics.SyncTransforms();
+            return DungeonNavMeshRuntime.BuildFor(_generatedRoot)?.IsBuilt == true;
+        }
+
         public void Clear()
         {
             RoomRuntimeController.ResetRunState();
@@ -250,6 +313,54 @@ namespace XianTu
             if (_generatedRoot != null)
                 DestroyRuntimeObject(_generatedRoot);
             _generatedRoot = null;
+            _composition?.Dispose();
+            _composition = null;
+            _currentLayout = null;
+            CurrentLayoutID = "Layout_A";
+        }
+
+        private static LevelGraph ResolveConfiguredGraph()
+        {
+            DungeonGenerationProfile profile = DungeonGenerationProfile.Instance;
+            if (profile?.Layouts != null)
+            {
+                foreach (DungeonLayoutCandidate layout in profile.Layouts)
+                    if (layout != null && layout.Enabled && layout.Weight > 0
+                        && layout.LevelGraph != null)
+                        return layout.LevelGraph;
+            }
+            return Resources.Load<LevelGraph>(LevelGraphPath);
+        }
+
+        public static int GetConfiguredRoomCount(int seed)
+        {
+            DungeonLayoutCandidate selected =
+                DungeonGenerationProfile.Instance?.SelectLayout(seed);
+            LevelGraph graph = selected?.LevelGraph ?? Resources.Load<LevelGraph>(LevelGraphPath);
+            return graph != null ? graph.Rooms.Count : 0;
+        }
+
+        public static DungeonLayoutCandidate GetConfiguredLayout(int seed)
+        {
+            return DungeonGenerationProfile.Instance?.SelectLayout(seed);
+        }
+
+        private static LevelGraph SelectLevelGraph(
+            int seed,
+            out DungeonLayoutCandidate selectedLayout,
+            out string layoutID)
+        {
+            DungeonGenerationProfile profile = DungeonGenerationProfile.Instance;
+            selectedLayout = profile?.SelectLayout(seed);
+            if (selectedLayout?.LevelGraph == null)
+            {
+                layoutID = "Layout_A";
+                return Resources.Load<LevelGraph>(LevelGraphPath);
+            }
+            layoutID = string.IsNullOrWhiteSpace(selectedLayout.ID)
+                ? selectedLayout.LevelGraph.name
+                : selectedLayout.ID;
+            return selectedLayout.LevelGraph;
         }
 
         private static void DestroyRuntimeObject(GameObject target)
@@ -285,19 +396,20 @@ namespace XianTu
                     regularRooms.Add(instance);
             }
 
-            // 房间索引同时被内容表和 RoomTrigger 使用，按关卡节点语义排序而非生成器字典顺序。
-            // 反向出生时整条顺序反转，使 GameManager 的第 0 房始终是本局降落端点。
+            // 房间索引同时被内容表和 RoomTrigger 使用。按实体连接图离降落点的深度排序，
+            // 使任意 Flow 和分支节点都不再依赖 O0/I4 这类固定节点命名。
+            Dictionary<RoomInstanceGrid3D, int> graphDepths =
+                BuildGraphDepths(regularRooms, preferredStartNode);
             regularRooms.Sort((a, b) =>
             {
-                int aRank = GetTraversalRank(GetNodeName(a), preferredStartNode);
-                int bRank = GetTraversalRank(GetNodeName(b), preferredStartNode);
+                int aRank = graphDepths.TryGetValue(a, out int aDepth)
+                    ? aDepth
+                    : int.MaxValue;
+                int bRank = graphDepths.TryGetValue(b, out int bDepth)
+                    ? bDepth
+                    : int.MaxValue;
                 if (aRank != bRank) return aRank.CompareTo(bRank);
-                int z = a.RoomTemplateInstance.transform.position.z.CompareTo(
-                    b.RoomTemplateInstance.transform.position.z);
-                return z != 0
-                    ? z
-                    : a.RoomTemplateInstance.transform.position.x.CompareTo(
-                        b.RoomTemplateInstance.transform.position.x);
+                return string.CompareOrdinal(GetNodeName(a), GetNodeName(b));
             });
 
             _triggerRoot = new GameObject("Edgar 房间触发器");
@@ -322,6 +434,67 @@ namespace XianTu
             }
         }
 
+        private static Dictionary<RoomInstanceGrid3D, int> BuildGraphDepths(
+            IReadOnlyList<RoomInstanceGrid3D> rooms,
+            string startNodeName)
+        {
+            var result = new Dictionary<RoomInstanceGrid3D, int>();
+            RoomInstanceGrid3D start = null;
+            foreach (RoomInstanceGrid3D room in rooms)
+            {
+                if (GetNodeName(room) == startNodeName)
+                {
+                    start = room;
+                    break;
+                }
+            }
+            if (start == null && rooms.Count > 0)
+                start = rooms[0];
+            if (start == null)
+                return result;
+
+            var queue = new Queue<RoomInstanceGrid3D>();
+            result[start] = 0;
+            queue.Enqueue(start);
+            while (queue.Count > 0)
+            {
+                RoomInstanceGrid3D current = queue.Dequeue();
+                int nextDepth = result[current] + 1;
+                foreach (RoomInstanceGrid3D neighbor in EnumerateConnectedRooms(current))
+                {
+                    if (neighbor == null || neighbor.IsCorridor || result.ContainsKey(neighbor))
+                        continue;
+                    result[neighbor] = nextDepth;
+                    queue.Enqueue(neighbor);
+                }
+            }
+            return result;
+        }
+
+        private static IEnumerable<RoomInstanceGrid3D> EnumerateConnectedRooms(
+            RoomInstanceGrid3D source)
+        {
+            var visited = new HashSet<RoomInstanceGrid3D> { source };
+            var queue = new Queue<RoomInstanceGrid3D>();
+            queue.Enqueue(source);
+            while (queue.Count > 0)
+            {
+                RoomInstanceGrid3D current = queue.Dequeue();
+                foreach (DoorInstanceGrid3D door in current.Doors)
+                {
+                    RoomInstanceGrid3D neighbor = door.ConnectedRoomInstance;
+                    if (neighbor == null || !visited.Add(neighbor))
+                        continue;
+                    if (neighbor.IsCorridor)
+                    {
+                        queue.Enqueue(neighbor);
+                        continue;
+                    }
+                    yield return neighbor;
+                }
+            }
+        }
+
         private void ApplySeededDungeonOrientation(int seed)
         {
             if (_generatedRoot == null)
@@ -331,32 +504,6 @@ namespace XianTu
             WorldRotationDegrees = quarterTurns * 90;
             _generatedRoot.transform.rotation =
                 Quaternion.Euler(0f, WorldRotationDegrees, 0f);
-        }
-
-        private static int GetTraversalRank(string nodeName, string preferredStartNode)
-        {
-            string[] order =
-            {
-                "O0", "O1", "O2", "O3", "O4", "C0",
-                "C1", "I0", "I1", "I2", "I3", "I4",
-            };
-            int rank = Array.IndexOf(order, nodeName);
-            if (rank < 0) return int.MaxValue;
-
-            int preferredRank = Array.IndexOf(order, preferredStartNode);
-            if (preferredRank < 0)
-                return rank;
-            if (rank == preferredRank)
-                return 0;
-
-            bool reverse = preferredStartNode.StartsWith("I", StringComparison.Ordinal);
-            int directionalRank = reverse ? order.Length - 1 - rank : rank;
-            int directionalPreferred = reverse
-                ? order.Length - 1 - preferredRank
-                : preferredRank;
-            return directionalRank < directionalPreferred
-                ? directionalRank + 1
-                : directionalRank;
         }
 
         private static string GetNodeName(RoomInstanceGrid3D instance)
@@ -597,6 +744,12 @@ namespace XianTu
                         Mathf.Max(0.5f, handler.Width * cell.x),
                         Mathf.Max(1f, handler.Height * cell.y),
                         0.5f);
+                    var obstacle = gateObject.AddComponent<UnityEngine.AI.NavMeshObstacle>();
+                    obstacle.shape = UnityEngine.AI.NavMeshObstacleShape.Box;
+                    obstacle.center = collider.center;
+                    obstacle.size = collider.size;
+                    obstacle.carving = true;
+                    obstacle.carveOnlyStationary = false;
 
                     var visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     visual.name = "__CombatGateVisual";
@@ -614,6 +767,156 @@ namespace XianTu
                     Destroy(gate.gameObject);
                 }
             }
+        }
+
+        public void SetOptionalBranchAccess(
+            string sourceNodeName,
+            string targetNodeName,
+            bool open)
+        {
+            if (string.IsNullOrWhiteSpace(sourceNodeName)
+                || string.IsNullOrWhiteSpace(targetNodeName))
+                return;
+            if (!TryGetPlacementByNode(sourceNodeName, out EdgarRoomPlacement eventRoom)
+                || !TryGetPlacementByNode(targetNodeName, out EdgarRoomPlacement annexRoom))
+                throw new InvalidOperationException(
+                    $"可选分支缺少 {sourceNodeName} 或 {targetNodeName} 节点。");
+
+            var door = FindDoorTowards(eventRoom.Instance, annexRoom.Instance);
+            if (door?.DoorHandler == null)
+                throw new InvalidOperationException(
+                    $"无法解析 {sourceNodeName} → {targetNodeName} 的可选分支连接。");
+
+            Transform handler = door.DoorHandler.transform;
+            Transform gate = handler.Find("__PilgrimageBridgeGate");
+            Transform lowered = handler.Find("__PilgrimageBridgeLowered");
+            if (open)
+            {
+                if (gate != null)
+                    gate.gameObject.SetActive(false);
+                if (lowered == null)
+                    CreateLoweredBridgeVisual(door.DoorHandler);
+                else
+                    lowered.gameObject.SetActive(true);
+            }
+            else
+            {
+                if (lowered != null)
+                    lowered.gameObject.SetActive(false);
+                if (gate == null)
+                    CreateClosedBridgeGate(door.DoorHandler);
+                else
+                    gate.gameObject.SetActive(true);
+            }
+            Physics.SyncTransforms();
+        }
+
+        private bool TryGetPlacementByNode(string nodeName, out EdgarRoomPlacement placement)
+        {
+            foreach (EdgarRoomPlacement candidate in _rooms)
+            {
+                if (candidate.NodeName != nodeName)
+                    continue;
+                placement = candidate;
+                return true;
+            }
+            placement = default;
+            return false;
+        }
+
+        private static DoorInstanceGrid3D FindDoorTowards(
+            RoomInstanceGrid3D from,
+            RoomInstanceGrid3D target)
+        {
+            if (from == null || target == null)
+                return null;
+            foreach (var door in from.Doors)
+            {
+                RoomInstanceGrid3D neighbor = door.ConnectedRoomInstance;
+                if (neighbor == target)
+                    return door;
+                if (neighbor == null || !neighbor.IsCorridor)
+                    continue;
+                foreach (var corridorDoor in neighbor.Doors)
+                    if (corridorDoor.ConnectedRoomInstance == target)
+                        return door;
+            }
+            return null;
+        }
+
+        private static void CreateClosedBridgeGate(DoorHandlerGrid3D handler)
+        {
+            var gate = new GameObject("__PilgrimageBridgeGate");
+            gate.transform.SetParent(handler.transform, false);
+            var cell = handler.GeneratorSettings != null
+                ? handler.GeneratorSettings.CellSize
+                : Vector3.one;
+            Vector3 size = new(
+                Mathf.Max(1.5f, handler.Width * cell.x + 1.2f),
+                Mathf.Max(2.5f, handler.Height * cell.y + 1f),
+                1.2f);
+            var collider = gate.AddComponent<BoxCollider>();
+            collider.size = size;
+            var obstacle = gate.AddComponent<UnityEngine.AI.NavMeshObstacle>();
+            obstacle.shape = UnityEngine.AI.NavMeshObstacleShape.Box;
+            obstacle.size = size;
+            obstacle.carving = true;
+            obstacle.carveOnlyStationary = false;
+            var modifier = gate.AddComponent<Unity.AI.Navigation.NavMeshModifierVolume>();
+            modifier.size = size + new Vector3(0.8f, 0f, 0.8f);
+            modifier.area = UnityEngine.AI.NavMesh.GetAreaFromName("Not Walkable");
+
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            visual.name = "升起的巡礼桥";
+            visual.transform.SetParent(gate.transform, false);
+            visual.transform.localScale = size;
+            Collider visualCollider = visual.GetComponent<Collider>();
+            if (visualCollider != null)
+            {
+                visualCollider.enabled = false;
+                Destroy(visualCollider);
+            }
+            visual.GetComponent<Renderer>().sharedMaterial = GetBridgeMaterial(false);
+        }
+
+        private static void CreateLoweredBridgeVisual(DoorHandlerGrid3D handler)
+        {
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            visual.name = "__PilgrimageBridgeLowered";
+            visual.transform.SetParent(handler.transform, false);
+            var cell = handler.GeneratorSettings != null
+                ? handler.GeneratorSettings.CellSize
+                : Vector3.one;
+            visual.transform.localPosition = new Vector3(0f, -0.8f, 1.5f);
+            visual.transform.localScale = new Vector3(
+                Mathf.Max(0.5f, handler.Width * cell.x),
+                0.18f,
+                3f);
+            Collider collider = visual.GetComponent<Collider>();
+            if (collider != null)
+            {
+                collider.enabled = false;
+                Destroy(collider);
+            }
+            visual.GetComponent<Renderer>().sharedMaterial = GetBridgeMaterial(true);
+        }
+
+        private static Material GetBridgeMaterial(bool open)
+        {
+            Material cached = open ? _bridgeOpenMaterial : _bridgeClosedMaterial;
+            if (cached != null)
+                return cached;
+            Color color = open
+                ? new Color(0.32f, 0.7f, 0.28f)
+                : new Color(0.58f, 0.2f, 0.08f);
+            cached = MaterialHelper.CreateLitEmissive(color * 0.45f, color * 1.4f);
+            cached.name = open ? "巡礼桥_已放下" : "巡礼桥_封锁";
+            cached.hideFlags = HideFlags.DontSave;
+            if (open)
+                _bridgeOpenMaterial = cached;
+            else
+                _bridgeClosedMaterial = cached;
+            return cached;
         }
 
         private static Material GetCombatGateMaterial()

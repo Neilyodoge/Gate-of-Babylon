@@ -21,7 +21,7 @@ namespace XianTu
         [Header("AI 参数")]
         [SerializeField] private float castRange = 13f;
         [SerializeField] private float preferredRange = 9f;
-        [SerializeField] private float attackInterval = 3.5f;
+        [SerializeField] private float attackInterval = 2.8f;
         [SerializeField] private float warningDuration = 1.0f;
         [SerializeField] private float aoeRadius = 2.5f;
 
@@ -29,6 +29,7 @@ namespace XianTu
         [SerializeField] private SkillData[] possibleSkillDrops;
 
         private CharacterController _cc;
+        private EnemyNavMotor _navMotor;
         private Transform _target;
         private float _attackTimer;
         private float _stunTimer;
@@ -55,6 +56,9 @@ namespace XianTu
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
+            _navMotor = GetComponent<EnemyNavMotor>();
+            if (_navMotor == null)
+                _navMotor = gameObject.AddComponent<EnemyNavMotor>();
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
@@ -63,6 +67,8 @@ namespace XianTu
 
         private void Start()
         {
+            if (GameConfig.Instance != null)
+                attackInterval = GameConfig.Instance.法师敌人攻击间隔;
             stats.ResetHp();
             _healthBar = EnemyHealthBar.Create(gameObject);
             if (PlayerController.Instance != null)
@@ -113,9 +119,10 @@ namespace XianTu
             {
                 Vector3 fleeDir = (transform.position - _target.position).normalized;
                 fleeDir.y = 0;
-                Vector3 velocity = fleeDir * stats.moveSpeed;
-                velocity.y = -9.8f;
-                _cc.Move(velocity * Time.deltaTime);
+                _navMotor.MoveTo(
+                    transform.position + fleeDir * 4f,
+                    stats.moveSpeed,
+                    0.05f);
             }
             else if (distToTarget > castRange)
             {
@@ -139,11 +146,7 @@ namespace XianTu
 
         private void MoveTowards(Vector3 targetPos)
         {
-            Vector3 dir = (targetPos - transform.position).normalized;
-            dir.y = 0;
-            Vector3 velocity = dir * stats.moveSpeed;
-            velocity.y = -9.8f;
-            _cc.Move(velocity * Time.deltaTime);
+            _navMotor.MoveTo(targetPos, stats.moveSpeed, castRange * 0.8f);
         }
 
         private void StartCasting()
@@ -312,6 +315,7 @@ namespace XianTu
                 Vector3 knockback = (transform.position - attacker.transform.position).normalized * 0.4f;
                 knockback.y = 0;
                 _cc.Move(knockback);
+                _navMotor.ResyncAfterForcedMove();
             }
 
             if (HitStop.Instance != null) HitStop.Instance.TriggerNormal();
@@ -328,6 +332,8 @@ namespace XianTu
             float teleportDist = Random.Range(4f, 7f);
             Vector3 targetPos = transform.position + awayDir * teleportDist
                 + new Vector3(Random.Range(-3f, 3f), 0, Random.Range(-3f, 3f));
+            if (!_navMotor.TryGetNavigablePosition(targetPos, out targetPos, 5f))
+                return;
 
             // 起点特效
             var startVfx = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -357,6 +363,7 @@ namespace XianTu
             _cc.enabled = false;
             transform.position = targetPos;
             _cc.enabled = true;
+            _navMotor.ResyncAfterForcedMove();
 
             Debug.Log("<color=magenta>法师瞬移！</color>");
         }
@@ -413,7 +420,7 @@ namespace XianTu
         public static EnemyMage Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
             var prefabs = MonsterPrefabs.Instance;
-            var prefab = prefabs != null ? prefabs.法师敌人Prefab : null;
+            var prefab = prefabs != null ? prefabs.GetEnemyPrefab(EnemyVisualRole.Mage) : null;
             var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy_Mage");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");

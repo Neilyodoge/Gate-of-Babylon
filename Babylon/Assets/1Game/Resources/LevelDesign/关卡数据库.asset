@@ -253,18 +253,18 @@ MonoBehaviour:
     Type: 1
     ImpactKind: 1
     PrereqFlag: 
-    Text_CN: "\u6865\u536B\u961F\u957F\u5012\u4E0B\u540E\uFF0C\u5DE1\u793C\u6865\u7684\u94A5\u5319\u4E0E\u673A\u6784\u5F52\u4F60\u5904\u7F6E\u3002\u6865\u6881\u53EA\u8FDE\u63A5\u4E00\u6761\u9AD8\u4EF7\u503C\u652F\u8DEF\uFF0C\u6807\u51C6\u4E3B\u8DEF\u59CB\u7EC8\u53EF\u901A\u3002"
+    Text_CN: "\u65AD\u6865\u5BF9\u5CB8\u7684\u5DE1\u793C\u5C01\u85CF\u5BA4\u5DF2\u5728\u672C\u5C40\u751F\u6210\uFF0C\u4F46\u5F53\u524D\u65E0\u6CD5\u8FDB\u5165\u3002\u51FB\u8D25\u6865\u536B\u53D6\u5F97\u94A5\u5319\u540E\uFF0C\u53EF\u6821\u51C6\u914D\u91CD\u7A33\u5B9A\u653E\u6865\u3001\u65A9\u65AD\u9501\u94FE\u4E34\u65F6\u653E\u6865\uFF0C\u6216\u7EF4\u6301\u5C01\u9501\u3002"
     Options:
-    - Text: "\u4F7F\u7528\u94A5\u5319\uFF0C\u7A33\u5B9A\u5F00\u542F\u5DE1\u793C\u6865"
-      FlagName: bridge_opened
+    - Text: "\u6821\u51C6\u4E24\u4FA7\u914D\u91CD\uFF0C\u8FCE\u6218\u589E\u63F4\u5E76\u7A33\u5B9A\u653E\u6865"
+      FlagName: bridge_opened_pending
       FlagValue: 1
       RewardID: 0
       CostID: 0
       KarmaChange: 0
       DaoxinChange: 2
       LifespanChange: 0
-      SceneResult: 1
-    - Text: "\u4E34\u65F6\u653E\u6865\u5E76\u7834\u574F\u673A\u6784"
+      SceneResult: 0
+    - Text: "\u65A9\u65AD\u9501\u94FE\uFF0C\u7ACB\u5373\u653E\u6865\uFF08\u4EC5\u767D\u663C\u6709\u6548\uFF09"
       FlagName: bridge_sabotaged
       FlagValue: 1
       RewardID: 0
@@ -273,8 +273,42 @@ MonoBehaviour:
       DaoxinChange: 0
       LifespanChange: 0
       SceneResult: 4
-    - Text: "\u4FDD\u6301\u5DE1\u793C\u6865\u5C01\u9501"
+    - Text: "\u4FDD\u6301\u5C01\u9501\uFF0C\u653E\u5F03\u6865\u540E\u652F\u8DEF"
       FlagName: bridge_kept_closed
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+      SceneResult: 0
+  - ID: 1005
+    Name_CN: "\u51A0\u5149\u4EEA"
+    Type: 1
+    ImpactKind: 0
+    PrereqFlag: 
+    Text_CN: "\u52A0\u5195\u4EEA\u5F0F\u9057\u7559\u7684\u51A0\u5149\u955C\u7EC4\u4ECD\u5728\u4E3A\u6700\u540E\u6444\u653F\u5B98\u6821\u51C6\u8303\u56F4\u653B\u51FB\u3002\u4F60\u53EF\u4EE5\u6467\u6BC1\u4E3B\u955C\u3001\u504F\u8F6C\u955C\u7EC4\uFF0C\u6216\u4FDD\u6301\u539F\u72B6\u3002"
+    Options:
+    - Text: "\u6467\u6BC1\u4E3B\u955C\uFF0C\u8FCE\u6218\u5B88\u5149\u7981\u536B"
+      FlagName: crown_light_disabled_pending
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 2
+      LifespanChange: 0
+      SceneResult: 0
+    - Text: "\u504F\u8F6C\u51A0\u5149\u955C\u7EC4"
+      FlagName: crown_light_misaligned
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+      SceneResult: 8
+    - Text: "\u4FDD\u6301\u51A0\u5149\u4EEA\u5B8C\u6574"
+      FlagName: crown_light_intact
       FlagValue: 1
       RewardID: 0
       CostID: 0
@@ -309,6 +343,40 @@ MonoBehaviour:
       SceneResult: 6
     - Text: "\u4FDD\u6301\u53EC\u96C6\u9635\u5B8C\u6574"
       FlagName: summon_array_intact
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+      SceneResult: 0
+  - ID: 1007
+    Name_CN: "\u72F1\u57CE\u5347\u964D\u4E95"
+    Type: 1
+    ImpactKind: 1
+    PrereqFlag: 
+    Text_CN: "\u6C38\u591C\u663E\u9732\u4E86\u88AB\u5C01\u6B7B\u7684\u72F1\u57CE\u5347\u964D\u4E95\u3002\u4FEE\u590D\u673A\u6784\u53EF\u53CC\u5411\u5F80\u8FD4\u738B\u57CE\u4E2D\u5EAD\uFF1B\u65A9\u65AD\u914D\u91CD\u53EA\u80FD\u987A\u4E95\u8FD4\u56DE\u4E2D\u5EAD\u3002"
+    Options:
+    - Text: "\u4FEE\u590D\u5347\u964D\u4E95\u673A\u6784"
+      FlagName: night_lift_restored
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 0
+      DaoxinChange: 0
+      LifespanChange: 0
+      SceneResult: 9
+    - Text: "\u65A9\u65AD\u914D\u91CD\uFF0C\u8BA9\u5347\u964D\u53F0\u5760\u843D"
+      FlagName: night_lift_dropped
+      FlagValue: 1
+      RewardID: 0
+      CostID: 0
+      KarmaChange: 1
+      DaoxinChange: 0
+      LifespanChange: 0
+      SceneResult: 10
+    - Text: "\u4FDD\u6301\u5347\u964D\u4E95\u5C01\u9501"
+      FlagName: night_lift_sealed
       FlagValue: 1
       RewardID: 0
       CostID: 0

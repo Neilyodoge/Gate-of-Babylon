@@ -32,12 +32,19 @@ namespace XianTu.LevelDesign
 
             return option.FlagName switch
             {
+                "bridge_opened_pending" => "击败配重机关增援后，封藏室在白昼与永夜均可进入",
                 "bridge_opened" => "巡礼桥在白昼与永夜保持开放",
-                "bridge_sabotaged" => "白昼临时通桥；永夜机构失效并坍塌",
-                "bridge_kept_closed" => "巡礼桥保持封锁，标准主路不受影响",
+                "bridge_sabotaged" => "白昼可进入封藏室；永夜桥梁坍塌并重新封锁",
+                "bridge_kept_closed" => "放弃桥后封藏室，标准主路不受影响",
+                "crown_light_disabled_pending" => "击败守光禁卫后，最后摄政官失去冠光范围技",
+                "crown_light_misaligned" => "最后摄政官的冠光范围技改为锁定自身脚下",
+                "crown_light_intact" => "最后摄政官保留追踪玩家的冠光范围技",
                 "summon_array_destroyed_pending" => "击败失控禁卫后，永夜 Boss 失去召唤机制",
                 "summon_array_outer_broken" => "永夜 Boss 每次只召唤一名禁卫队长",
                 "summon_array_intact" => "永夜 Boss 保留召唤普通禁卫小队的机制",
+                "night_lift_restored" => "开启事件房与王城中庭之间的双向快捷通道",
+                "night_lift_dropped" => "开启事件房返回王城中庭的单向快捷通道",
+                "night_lift_sealed" => "升降井保持封锁，继续使用标准路线",
                 "route_opened" => "保留安全通路；若为主事件，Boss 数值不变",
                 "route_forced" => "保留破口并提高警戒；若为主事件，Boss 攻击+10%、移速+5%",
                 "route_ignored" => "通路保持默认封锁状态，Boss 数值不变",
@@ -85,6 +92,8 @@ namespace XianTu.LevelDesign
                 parts.Add($"寿元{Signed(option.LifespanChange)}");
             if (option.SceneResult != EventSceneResult.None)
                 parts.Add(DescribeSceneResult(option.SceneResult));
+            if (option.FlagName == "bridge_opened_pending")
+                parts.Add("需击败配重机关增援");
             return parts;
         }
 
@@ -98,6 +107,10 @@ namespace XianTu.LevelDesign
                 EventSceneResult.BridgeSabotaged => "临时放下桥梁并破坏机构",
                 EventSceneResult.SummonArrayDestroyed => "摧毁禁卫召集阵",
                 EventSceneResult.SummonArrayOuterBroken => "破坏召集阵外环",
+                EventSceneResult.CrownLightDisabled => "摧毁冠光仪主镜",
+                EventSceneResult.CrownLightMisaligned => "偏转冠光仪镜组",
+                EventSceneResult.NightLiftRestored => "修复狱城升降井",
+                EventSceneResult.NightLiftDropped => "斩断升降井配重",
                 _ => "场景发生变化",
             };
         }

@@ -24,13 +24,14 @@ namespace XianTu
         [SerializeField] private float chargePrepTime = 1.0f;  // 蓄力时间
         [SerializeField] private float chargeSpeed = 18f;
         [SerializeField] private float chargeDuration = 0.5f;
-        [SerializeField] private float chargeInterval = 4f;
+        [SerializeField] private float chargeInterval = 3.2f;
         [SerializeField] private float meleeDamageRange = 1.8f;
 
         [Header("掉落")]
         [SerializeField] private SkillData[] possibleSkillDrops;
 
         private CharacterController _cc;
+        private EnemyNavMotor _navMotor;
         private Transform _target;
         private float _attackTimer;
         private float _stunTimer;
@@ -56,6 +57,9 @@ namespace XianTu
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
+            _navMotor = GetComponent<EnemyNavMotor>();
+            if (_navMotor == null)
+                _navMotor = gameObject.AddComponent<EnemyNavMotor>();
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
@@ -64,6 +68,8 @@ namespace XianTu
 
         private void Start()
         {
+            if (GameConfig.Instance != null)
+                chargeInterval = GameConfig.Instance.冲锋敌人攻击间隔;
             stats.ResetHp();
             _healthBar = EnemyHealthBar.Create(gameObject);
             if (PlayerController.Instance != null)
@@ -201,6 +207,7 @@ namespace XianTu
 
         private void EndCharge()
         {
+            _navMotor.ResyncAfterForcedMove();
             _state = ChargerState.Stunned;
             _stateTimer = 1f; // 冲锋后硬直1秒
             RestoreColors();
@@ -208,11 +215,7 @@ namespace XianTu
 
         private void MoveTowards(Vector3 targetPos)
         {
-            Vector3 dir = (targetPos - transform.position).normalized;
-            dir.y = 0;
-            Vector3 velocity = dir * stats.moveSpeed;
-            velocity.y = -9.8f;
-            _cc.Move(velocity * Time.deltaTime);
+            _navMotor.MoveTo(targetPos, stats.moveSpeed, chargeRange * 0.65f);
         }
 
         // ========== 预警指示器 ==========
@@ -304,6 +307,7 @@ namespace XianTu
                 Vector3 knockback = (transform.position - attacker.transform.position).normalized * 0.3f;
                 knockback.y = 0;
                 _cc.Move(knockback);
+                _navMotor.ResyncAfterForcedMove();
             }
 
             if (HitStop.Instance != null)
@@ -365,7 +369,7 @@ namespace XianTu
         public static EnemyCharger Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
             var prefabs = MonsterPrefabs.Instance;
-            var prefab = prefabs != null ? prefabs.冲锋敌人Prefab : null;
+            var prefab = prefabs != null ? prefabs.GetEnemyPrefab(EnemyVisualRole.Charger) : null;
             var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy_Charger");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");

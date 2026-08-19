@@ -1,0 +1,21 @@
+# 《仙途秘境》代码与文档属于分析范围；共享资源和 Unity 生成目录不建立代码图。
+Babylon/Assets/ArtRes/**
+Babylon/Assets/Effect/**
+Babylon/Assets/PostProcess/**
+Babylon/Assets/RenderSetting/**
+Babylon/Assets/Scene/**
+Babylon/Assets/Screenshots/**
+Babylon/Assets/Shader/**
+Babylon/Assets/Tools/**
+Babylon/Assets/URPBaseSample/**
+Babylon/Packages/**
+Babylon/Library/**
+Babylon/Logs/**
+Babylon/MemoryCaptures/**
+Babylon/Temp/**
+Babylon/UserSettings/**
+Babylon/ProjectSettings/**
+Babylon/.vs/**
+Builds/**
+.cursor/**
+嗯之宝库/**

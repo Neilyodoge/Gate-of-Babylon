@@ -93,7 +93,34 @@ namespace XianTu
 
         [Tooltip("敌人两次攻击之间的间隔时间（秒）。越小攻击越频繁。")]
         [Range(0.5f, 5f)]
-        public float 敌人攻击间隔 = 1.5f;
+        public float 敌人攻击间隔 = 1f;
+
+        [Header("═══ 敌人 AI 节奏 ═══")]
+        [Range(1, 6)]
+        public int 同时近战攻击上限 = 3;
+        [Range(0.1f, 1.5f)]
+        public float 普通近战预警时间 = 0.35f;
+        [Range(0.3f, 4f)]
+        public float 精英近战攻击间隔 = 0.9f;
+        [Range(0.1f, 1.5f)]
+        public float 精英近战预警时间 = 0.32f;
+        [Range(0.5f, 6f)]
+        public float 远程敌人攻击间隔 = 2f;
+        [Range(0.5f, 8f)]
+        public float 法师敌人攻击间隔 = 2.8f;
+        [Range(0.5f, 8f)]
+        public float 冲锋敌人攻击间隔 = 3.2f;
+        [Range(0.3f, 4f)]
+        public float Boss近战攻击间隔 = 0.9f;
+        [Range(1.1f, 4f)]
+        public float 近战战术距离倍率 = 2.25f;
+        [Range(0f, 0.8f)]
+        public float 普通怪观察停顿概率 = 0.1f;
+        [Range(0f, 0.8f)]
+        public float 精英观察停顿概率 = 0.08f;
+        [Range(0f, 0.8f)]
+        public float Boss观察停顿概率 = 0.08f;
+        public Vector2 战术动作持续时间 = new(0.25f, 0.6f);
 
         // ==================== 难度曲线 ====================
         [Header("═══ 难度曲线 ═══")]

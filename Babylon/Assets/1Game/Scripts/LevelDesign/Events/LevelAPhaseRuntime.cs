@@ -12,7 +12,7 @@ namespace XianTu.LevelDesign
     /// <summary>无暮王城双阶段的最小持久状态入口。</summary>
     public static class LevelAPhaseRuntime
     {
-        public const int MaxPendingOutcomes = 2;
+        public const int MaxPendingOutcomes = 4;
 
         public static bool IsNightPending => State.phase == (int)LevelAPhase.Night
                                              && State.dayCompleted
@@ -20,7 +20,8 @@ namespace XianTu.LevelDesign
         public static bool IsNightMapActive { get; private set; }
         public static LevelAPhase CurrentPhase =>
             IsNightPending ? LevelAPhase.Night : LevelAPhase.Day;
-        public static string CurrentStoryTemplateId => State.storyTemplateId ?? "";
+        public static string CurrentStoryTemplateId =>
+            StoryTemplateRuntime.Current?.ID ?? "Story_昼夜机关";
 
         private static LevelAProgressState State
         {
@@ -141,7 +142,9 @@ namespace XianTu.LevelDesign
             var lines = new List<string>();
             foreach (var outcome in State.pendingOutcomes)
             {
-                if (outcome == null || string.IsNullOrWhiteSpace(outcome.recapText))
+                if (outcome == null
+                    || (outcome.eventId != 1004 && outcome.eventId != 1005)
+                    || string.IsNullOrWhiteSpace(outcome.recapText))
                     continue;
                 lines.Add(outcome.recapText);
             }
@@ -182,9 +185,15 @@ namespace XianTu.LevelDesign
                 "bridge_opened" => "巡礼桥已稳定开启",
                 "bridge_sabotaged" => "巡礼桥机构已被破坏",
                 "bridge_kept_closed" => "巡礼桥保持封锁",
+                "crown_light_disabled" => "冠光仪主镜已被摧毁",
+                "crown_light_misaligned" => "冠光仪镜组已被偏转",
+                "crown_light_intact" => "冠光仪保持完整",
                 "summon_array_destroyed" => "禁卫召集阵已被摧毁",
                 "summon_array_outer_broken" => "召集阵外环已被破坏",
                 "summon_array_intact" => "禁卫召集阵保持完整",
+                "night_lift_restored" => "狱城升降井已恢复双向运行",
+                "night_lift_dropped" => "升降井已坠落并形成单向捷径",
+                "night_lift_sealed" => "狱城升降井保持封锁",
                 _ => string.IsNullOrWhiteSpace(option.Text)
                     ? "上次行动已影响永夜"
                     : option.Text,

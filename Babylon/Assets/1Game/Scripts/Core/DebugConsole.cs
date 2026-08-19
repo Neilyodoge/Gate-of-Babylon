@@ -314,6 +314,23 @@ namespace XianTu
                 TogglePanel();
         }
 
+        private void CompleteLayoutEvent()
+        {
+            if (MapProviders.Current is not EdgarMapProvider edgar)
+            {
+                AddLog("<color=red>× 当前不是 Edgar 秘境，无法完成路线事件</color>");
+                return;
+            }
+
+            bool success = edgar.DebugCompleteLayoutEvent(out string message);
+            AddLog(success
+                ? $"<color=#80e09b>✓ {message}</color>"
+                : $"<color=#ff9a76>× {message}</color>");
+            RefreshStatus();
+            if (_guidePanelGo != null && _guidePanelGo.activeSelf)
+                RebuildEventFlow();
+        }
+
         /// <summary>大量增加灵力碎片</summary>
         private void AddShardsLarge()
         {
@@ -665,6 +682,10 @@ namespace XianTu
             CreateSectionHeader(contentGo.transform, "【 信息 】");
             CreateButton(contentGo.transform, "📜 事件提示",
                 new Color(0.12f, 0.38f, 0.48f), ToggleLevelGuide);
+
+            CreateSectionHeader(contentGo.transform, "【 关卡事件 Debug 】");
+            CreateButton(contentGo.transform, "✓ 直接完成路线事件（开放）",
+                new Color(0.18f, 0.48f, 0.32f), CompleteLayoutEvent);
 
             CreateSectionHeader(contentGo.transform, "【 战斗调试 】");
             CreateButton(contentGo.transform, "🛡 不掉血", new Color(0.45f, 0.4f, 0.15f), ToggleGodMode);

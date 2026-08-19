@@ -75,7 +75,9 @@ namespace XianTu
                     ? config.ResolveBossID(
                         _context.Content.DistrictEnum,
                         _context.EncounterSeed,
-                        _context.Content.PrefabTags,
+                        RoomContentResolver.MergeNormalizedTags(
+                            _context.Spawn.roomTags,
+                            _context.Content.PrefabTags),
                         _context.Spawn.bossActId)
                     : _context.Spawn.bossActId;
                 if (_context.State != null)
@@ -103,7 +105,8 @@ namespace XianTu
 
         private void HandleCleared()
         {
-            if (_context.RoomType == RoomType.Battle)
+            if (_context.RoomType == RoomType.Battle
+                || IsOptionalAnnex(_context.ContentRoot))
                 SpawnRoomMaterials(_context);
             _context.OnCompleted?.Invoke();
         }
@@ -165,6 +168,20 @@ namespace XianTu
                     && Vector3.SqrMagnitude(pickup.transform.position - point) <= 2.25f)
                     return true;
             }
+            return false;
+        }
+
+        private static bool IsOptionalAnnex(Transform contentRoot)
+        {
+            if (contentRoot == null)
+                return false;
+            DungeonRoomAuthoring authoring =
+                contentRoot.GetComponentInChildren<DungeonRoomAuthoring>(true);
+            if (authoring?.RoomTags == null)
+                return false;
+            foreach (string tag in authoring.RoomTags)
+                if (tag == "OptionalAnnex")
+                    return true;
             return false;
         }
     }

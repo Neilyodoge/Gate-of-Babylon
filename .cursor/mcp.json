@@ -2,10 +2,22 @@
   "mcpServers": {
     "unity": {
       "command": "npx",
-      "args": ["-y", "anklebreaker-unity-mcp@latest"],
+      "args": [
+        "-y",
+        "anklebreaker-unity-mcp@latest"
+      ],
       "env": {
         "UNITY_BRIDGE_PORT": "7890"
       }
+    },
+    "code-review-graph": {
+      "command": "uvx",
+      "args": [
+        "code-review-graph",
+        "serve"
+      ],
+      "cwd": "D:\\other\\Fork\\Gate-of-Babylon",
+      "type": "stdio"
     }
   }
 }

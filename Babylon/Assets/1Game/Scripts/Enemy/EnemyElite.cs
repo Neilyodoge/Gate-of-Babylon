@@ -27,7 +27,7 @@ namespace XianTu
     /// 头顶有金色"精英"标识和词缀名称
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public class EnemyElite : MonoBehaviour, IDamageable
+    public class EnemyElite : MonoBehaviour, IDamageable, IEnemyAbilityExecutor
     {
         [Header("属性")]
         [SerializeField] private CombatStats stats = new()
@@ -41,7 +41,24 @@ namespace XianTu
         [Header("AI 参数")]
         [SerializeField] private float detectRange = 15f;
         [SerializeField] private float attackRange = 2f;
-        [SerializeField] private float attackInterval = 1.2f;
+        [SerializeField] private float attackInterval = 0.9f;
+        [SerializeField] private int maxConcurrentMeleeAttackers = 3;
+        [SerializeField] private EnemyAbilityProfile abilityProfile;
+        [SerializeField] private float tacticalRangeMultiplier = 2.25f;
+        [SerializeField, Range(0f, 1f)] private float tacticalPauseChance = 0.08f;
+        [SerializeField] private Vector2 tacticalDurationRange = new(0.22f, 0.55f);
+
+        [Header("精英闪避")]
+        [SerializeField] private float dodgeOpeningProtection = 3f;
+        [SerializeField] private Vector2 dodgeCooldownRange = new(6f, 8f);
+        [SerializeField, Range(0f, 1f)] private float dodgeTriggerChance = 0.4f;
+        [SerializeField] private float dodgeSilenceGuarantee = 10f;
+        [SerializeField] private int dodgeMissesBeforeGuarantee = 2;
+        [SerializeField] private float dodgeDistance = 2.75f;
+        [SerializeField] private float dodgeDuration = 0.3f;
+        [SerializeField] private Vector2 dodgeInvulnerableWindow = new(0.08f, 0.23f);
+        [SerializeField] private float dodgeRecovery = 0.25f;
+        [SerializeField] private float meleeThreatRange = 4.5f;
 
         [Header("精英词缀")]
         [SerializeField] private EliteAffix affix1;
@@ -51,9 +68,31 @@ namespace XianTu
         [SerializeField] private SkillData[] possibleSkillDrops;
 
         private CharacterController _cc;
+        private EnemyNavMotor _navMotor;
         private Transform _target;
         private float _attackTimer;
         private float _stunTimer;
+        private float _spawnedAt;
+        private EnemyAbilityPlanner _abilityPlanner;
+
+        // 受控闪避：只由有效威胁触发，带冷却、概率与保底。
+        private bool _isDodging;
+        private float _dodgeElapsed;
+        private float _dodgeCooldown;
+        private float _timeSinceLastDodge;
+        private float _dodgeRecoveryTimer;
+        private int _eligibleThreatMisses;
+        private bool _pendingHitThreat;
+        private GameObject _pendingThreatSource;
+        private int _recentHitCount;
+        private float _recentHitWindow;
+        private float _tacticalTimer;
+        private float _tacticalDirection;
+        private float _tacticalMoveScale;
+        private Vector3 _dodgeDirection;
+        private bool _hasAttackToken;
+        private bool _counterReady;
+        private bool _isUsingCoreAbility;
 
         // 受击表现
         private Renderer[] _renderers;
@@ -64,7 +103,7 @@ namespace XianTu
         private GameObject _attackWarning;
         private float _attackPrepTimer;
         private bool _isPreparing;
-        private float _warningDuration = 0.4f;
+        private float _warningDuration = 0.32f;
 
         // 血条和名牌
         private EnemyHealthBar _healthBar;
@@ -89,14 +128,46 @@ namespace XianTu
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
+            _navMotor = GetComponent<EnemyNavMotor>();
+            if (_navMotor == null)
+                _navMotor = gameObject.AddComponent<EnemyNavMotor>();
             _renderers = GetComponentsInChildren<Renderer>();
             _originalColors = new Color[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
                 _originalColors[i] = MaterialHelper.SafeGetColor(_renderers[i].material);
+            _spawnedAt = Time.time;
+            if (abilityProfile == null)
+                abilityProfile = Resources.Load<EnemyAbilityProfile>("EnemyAI/Elite_Default");
+            if (abilityProfile != null)
+                _abilityPlanner = new EnemyAbilityPlanner(abilityProfile, this);
+        }
+
+        private void OnEnable()
+        {
+            GameEvents.Subscribe<GameEvents.ComboStepChanged>(OnPlayerComboChanged);
+            GameEvents.Subscribe<GameEvents.SkillCastStarted>(OnPlayerSkillCastStarted);
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.Unsubscribe<GameEvents.ComboStepChanged>(OnPlayerComboChanged);
+            GameEvents.Unsubscribe<GameEvents.SkillCastStarted>(OnPlayerSkillCastStarted);
         }
 
         private void Start()
         {
+            var config = GameConfig.Instance;
+            if (config != null)
+            {
+                attackInterval = config.精英近战攻击间隔;
+                maxConcurrentMeleeAttackers = config.同时近战攻击上限;
+                _warningDuration = config.精英近战预警时间;
+                tacticalRangeMultiplier = config.近战战术距离倍率;
+                tacticalPauseChance = config.精英观察停顿概率;
+                tacticalDurationRange = config.战术动作持续时间;
+                _abilityPlanner?.SetCooldownOverride("melee", attackInterval);
+            }
+
             stats.ResetHp();
             _healthBar = EnemyHealthBar.Create(gameObject);
 
@@ -192,6 +263,15 @@ namespace XianTu
         {
             if (!stats.IsAlive || _target == null) return;
 
+            UpdateDodgeTimers();
+            if (_isDodging)
+            {
+                UpdateDodge();
+                return;
+            }
+            if (_isUsingCoreAbility)
+                return;
+
             // 受击闪烁恢复
             if (_hitFlashTimer > 0)
             {
@@ -207,6 +287,15 @@ namespace XianTu
                 return;
             }
 
+            if (_pendingHitThreat)
+            {
+                _pendingHitThreat = false;
+                RegisterDodgeThreat(_pendingThreatSource, false);
+                _pendingThreatSource = null;
+                if (_isDodging)
+                    return;
+            }
+
             // 名牌面向相机
             if (_eliteTag != null && Camera.main != null)
                 _eliteTag.transform.rotation = Quaternion.LookRotation(
@@ -217,6 +306,20 @@ namespace XianTu
                 _lightningTimer -= Time.deltaTime;
 
             float distToTarget = Vector3.Distance(transform.position, _target.position);
+
+            if (_abilityPlanner != null)
+            {
+                float hpRatio = stats.maxHp > 0f ? stats.currentHp / stats.maxHp : 1f;
+                int nearbyAllies = CountNearbyAllies(8f);
+                var context = new EnemyAbilityContext(
+                    distToTarget,
+                    hpRatio,
+                    1,
+                    nearbyAllies,
+                    LevelDesign.LevelAPhaseRuntime.IsNightMapActive);
+                if (_abilityPlanner.TryDecide(context))
+                    return;
+            }
 
             // 攻击预警阶段
             if (_isPreparing)
@@ -229,6 +332,7 @@ namespace XianTu
                     _isPreparing = false;
                     DestroyAttackWarning();
                     _attackTimer = attackInterval;
+                    ReleaseAttackToken();
                 }
                 return;
             }
@@ -237,11 +341,31 @@ namespace XianTu
             {
                 _attackTimer -= Time.deltaTime;
                 if (_attackTimer <= 0)
-                    StartAttackPrep();
+                {
+                    if (EnemyCombatCoordinator.TryAcquireAttackToken(
+                        gameObject,
+                        _target,
+                        maxConcurrentMeleeAttackers))
+                    {
+                        _hasAttackToken = true;
+                        StartAttackPrep();
+                    }
+                    else
+                    {
+                        StrafeAroundTarget();
+                    }
+                }
+                else
+                {
+                    StrafeAroundTarget();
+                }
             }
             else if (distToTarget <= detectRange)
             {
-                MoveTowards(_target.position);
+                if (distToTarget <= attackRange * tacticalRangeMultiplier)
+                    StrafeAroundTarget();
+                else
+                    MoveTowards(_target.position);
             }
 
             // 朝向目标
@@ -253,11 +377,387 @@ namespace XianTu
 
         private void MoveTowards(Vector3 targetPos)
         {
-            Vector3 dir = (targetPos - transform.position).normalized;
-            dir.y = 0;
-            Vector3 velocity = dir * stats.moveSpeed;
+            _navMotor.MoveTo(targetPos, stats.moveSpeed, attackRange * 0.85f);
+        }
+
+        private void StrafeAroundTarget()
+        {
+            if (_target == null)
+                return;
+
+            _tacticalTimer -= Time.deltaTime;
+            if (_tacticalTimer <= 0f)
+            {
+                _tacticalTimer = Random.Range(
+                    Mathf.Min(tacticalDurationRange.x, tacticalDurationRange.y),
+                    Mathf.Max(tacticalDurationRange.x, tacticalDurationRange.y));
+                _tacticalDirection = Random.value < 0.5f ? -1f : 1f;
+                _tacticalMoveScale = Random.value < tacticalPauseChance
+                    ? 0f
+                    : Random.Range(0.4f, 0.7f);
+            }
+
+            Vector3 toTarget = _target.position - transform.position;
+            toTarget.y = 0f;
+            if (toTarget.sqrMagnitude < 0.01f)
+                return;
+
+            float distance = toTarget.magnitude;
+            Vector3 side = Vector3.Cross(Vector3.up, toTarget.normalized) * _tacticalDirection;
+            float inwardBias = distance > attackRange * 1.15f ? 0.3f : 0f;
+            Vector3 direction = (side + toTarget.normalized * inwardBias).normalized;
+            _navMotor.MoveTo(
+                transform.position + direction * 2f,
+                stats.moveSpeed * _tacticalMoveScale,
+                0.05f);
+        }
+
+        private void UpdateDodgeTimers()
+        {
+            _timeSinceLastDodge += Time.deltaTime;
+            if (_dodgeCooldown > 0f)
+                _dodgeCooldown -= Time.deltaTime;
+            if (_dodgeRecoveryTimer > 0f)
+                _dodgeRecoveryTimer -= Time.deltaTime;
+            if (_recentHitWindow > 0f)
+            {
+                _recentHitWindow -= Time.deltaTime;
+                if (_recentHitWindow <= 0f)
+                    _recentHitCount = 0;
+            }
+        }
+
+        private void OnPlayerComboChanged(GameEvents.ComboStepChanged evt)
+        {
+            if (!evt.IsAttacking || !stats.IsAlive || PlayerController.Instance == null)
+                return;
+            RegisterDodgeThreat(PlayerController.Instance.gameObject, true);
+        }
+
+        private void OnPlayerSkillCastStarted(GameEvents.SkillCastStarted evt)
+        {
+            if (!stats.IsAlive || PlayerController.Instance == null || evt.Skill == null)
+                return;
+
+            float distance = Vector3.Distance(transform.position, PlayerController.Instance.transform.position);
+            bool threatensHere = evt.Skill.skillType switch
+            {
+                SkillType.AreaDamage => distance <= Mathf.Max(meleeThreatRange, evt.Skill.aoeRadius + 1.5f),
+                SkillType.Zone => distance <= Mathf.Max(meleeThreatRange, evt.Skill.aoeRadius + 1.5f),
+                SkillType.Projectile => distance <= detectRange && IsPlayerFacingThisElite(),
+                SkillType.Dash => distance <= meleeThreatRange + 1.5f,
+                _ => false
+            };
+            if (threatensHere)
+            {
+                bool requireFrontal = evt.Skill.skillType == SkillType.Projectile
+                                      || evt.Skill.skillType == SkillType.Dash;
+                RegisterDodgeThreat(PlayerController.Instance.gameObject, requireFrontal);
+            }
+        }
+
+        private bool IsPlayerFacingThisElite()
+        {
+            Transform player = PlayerController.Instance != null
+                ? PlayerController.Instance.transform
+                : null;
+            if (player == null)
+                return false;
+
+            Vector3 toElite = transform.position - player.position;
+            toElite.y = 0f;
+            return toElite.sqrMagnitude > 0.01f
+                   && Vector3.Dot(player.forward, toElite.normalized) >= 0.25f;
+        }
+
+        private void RegisterDodgeThreat(GameObject source, bool requireFrontalThreat)
+        {
+            if (!CanStartDodge() || source == null)
+                return;
+
+            float distance = Vector3.Distance(transform.position, source.transform.position);
+            if (distance > meleeThreatRange && requireFrontalThreat)
+                return;
+            if (requireFrontalThreat && !IsPlayerFacingThisElite())
+                return;
+
+            bool guaranteed = _eligibleThreatMisses >= dodgeMissesBeforeGuarantee
+                              || _timeSinceLastDodge >= dodgeSilenceGuarantee;
+            if (!guaranteed && Random.value > dodgeTriggerChance)
+            {
+                _eligibleThreatMisses++;
+                return;
+            }
+
+            if (TryResolveSafeDodgeDirection(source.transform.position, out Vector3 direction))
+                StartDodge(direction);
+        }
+
+        private bool CanStartDodge()
+        {
+            return stats.IsAlive
+                   && Time.time - _spawnedAt >= dodgeOpeningProtection
+                   && _dodgeCooldown <= 0f
+                   && _dodgeRecoveryTimer <= 0f
+                   && _stunTimer <= 0f
+                   && !_isPreparing
+                   && !_isDodging;
+        }
+
+        private bool TryResolveSafeDodgeDirection(Vector3 threatPosition, out Vector3 direction)
+        {
+            Vector3 away = transform.position - threatPosition;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.01f)
+                away = -transform.forward;
+            away.Normalize();
+
+            Vector3 side = Vector3.Cross(Vector3.up, away);
+            if ((GetInstanceID() & 1) != 0)
+                side = -side;
+
+            Vector3[] candidates =
+            {
+                side,
+                -side,
+                (away + side * 0.35f).normalized,
+                (away - side * 0.35f).normalized,
+                away
+            };
+
+            foreach (Vector3 candidate in candidates)
+            {
+                if (IsDodgePathSafe(candidate))
+                {
+                    direction = candidate;
+                    return true;
+                }
+            }
+
+            direction = Vector3.zero;
+            return false;
+        }
+
+        private bool IsDodgePathSafe(Vector3 direction)
+        {
+            CharacterController controller = _cc != null ? _cc : GetComponent<CharacterController>();
+            if (controller == null)
+                return false;
+
+            float radius = Mathf.Max(0.15f, controller.radius * 0.85f);
+            float halfHeight = Mathf.Max(radius, controller.height * 0.5f - radius);
+            Vector3 center = transform.position + controller.center;
+            Vector3 bottom = center + Vector3.down * halfHeight;
+            Vector3 top = center + Vector3.up * halfHeight;
+            RaycastHit[] hits = Physics.CapsuleCastAll(
+                bottom,
+                top,
+                radius,
+                direction,
+                dodgeDistance,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider == null || hit.transform.IsChildOf(transform))
+                    continue;
+                return false;
+            }
+
+            Vector3 destination = transform.position + direction * dodgeDistance;
+            return Physics.Raycast(
+                destination + Vector3.up * 1.5f,
+                Vector3.down,
+                out _,
+                3.5f,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+        }
+
+        private void StartDodge(Vector3 direction)
+        {
+            ReleaseAttackToken();
+            _isPreparing = false;
+            DestroyAttackWarning();
+            _isDodging = true;
+            _dodgeElapsed = 0f;
+            _dodgeDirection = direction;
+            _eligibleThreatMisses = 0;
+            _timeSinceLastDodge = 0f;
+            _dodgeCooldown = Random.Range(
+                Mathf.Min(dodgeCooldownRange.x, dodgeCooldownRange.y),
+                Mathf.Max(dodgeCooldownRange.x, dodgeCooldownRange.y));
+            SetAllRenderersColor(new Color(0.35f, 0.85f, 1f, 0.75f));
+        }
+
+        private void UpdateDodge()
+        {
+            if (_cc == null)
+                _cc = GetComponent<CharacterController>();
+            if (_cc == null)
+            {
+                _isDodging = false;
+                return;
+            }
+
+            _dodgeElapsed += Time.deltaTime;
+            float speed = dodgeDistance / Mathf.Max(0.05f, dodgeDuration);
+            Vector3 velocity = _dodgeDirection * speed;
             velocity.y = -9.8f;
             _cc.Move(velocity * Time.deltaTime);
+
+            if (_dodgeElapsed < dodgeDuration)
+                return;
+
+            _isDodging = false;
+            _dodgeRecoveryTimer = dodgeRecovery;
+            _counterReady = true;
+            _navMotor.ResyncAfterForcedMove();
+            RestoreColors();
+        }
+
+        private bool IsInDodgeInvulnerability()
+        {
+            return _isDodging
+                   && _dodgeElapsed >= dodgeInvulnerableWindow.x
+                   && _dodgeElapsed <= dodgeInvulnerableWindow.y;
+        }
+
+        private void ReleaseAttackToken()
+        {
+            if (!_hasAttackToken)
+                return;
+            EnemyCombatCoordinator.ReleaseAttackToken(gameObject, _target);
+            _hasAttackToken = false;
+        }
+
+        private int CountNearbyAllies(float radius)
+        {
+            int count = 0;
+            Collider[] hits = Physics.OverlapSphere(
+                transform.position,
+                radius,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            var roots = new System.Collections.Generic.HashSet<Transform>();
+            foreach (Collider hit in hits)
+            {
+                Transform root = hit.transform.root;
+                if (root == transform.root || !roots.Add(root))
+                    continue;
+                if (root.GetComponent<EnemyBase>() != null
+                    || root.GetComponent<EnemyElite>() != null
+                    || root.GetComponent<EnemyBoss>() != null)
+                    count++;
+            }
+            return count;
+        }
+
+        bool IEnemyAbilityExecutor.IsAbilityLocked =>
+            _isPreparing
+            || _isDodging
+            || _isUsingCoreAbility
+            || _stunTimer > 0f
+            || _dodgeRecoveryTimer > 0f;
+
+        bool IEnemyAbilityExecutor.TryExecuteAbility(EnemyAbilityRule rule)
+        {
+            switch (rule.Action)
+            {
+                case EnemyAbilityAction.Melee:
+                    if (_target == null
+                        || !EnemyCombatCoordinator.TryAcquireAttackToken(
+                            gameObject,
+                            _target,
+                            maxConcurrentMeleeAttackers))
+                        return false;
+                    _hasAttackToken = true;
+                    StartAttackPrep();
+                    return true;
+                case EnemyAbilityAction.Dodge:
+                    if (_target == null
+                        || !TryResolveSafeDodgeDirection(_target.position, out Vector3 direction))
+                        return false;
+                    StartDodge(direction);
+                    return true;
+                case EnemyAbilityAction.Custom:
+                    if (rule.CustomActionKey != "elite_counter_lunge"
+                        || !_counterReady
+                        || _target == null)
+                        return false;
+                    StartCoroutine(CounterLunge());
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private System.Collections.IEnumerator CounterLunge()
+        {
+            _counterReady = false;
+            _isUsingCoreAbility = true;
+            ReleaseAttackToken();
+            Vector3 direction = _target.position - transform.position;
+            direction.y = 0f;
+            direction = direction.sqrMagnitude > 0.01f ? direction.normalized : transform.forward;
+
+            GameObject warning = CreateCounterWarning(direction);
+            SetAllRenderersColor(new Color(0.3f, 0.9f, 1f));
+            yield return new WaitForSeconds(0.55f);
+
+            bool hit = false;
+            float timer = 0.24f;
+            while (timer > 0f && stats.IsAlive)
+            {
+                timer -= Time.deltaTime;
+                Vector3 velocity = direction * stats.moveSpeed * 3.2f;
+                velocity.y = -9.8f;
+                _cc.Move(velocity * Time.deltaTime);
+
+                if (!hit && _target != null
+                    && Vector3.Distance(transform.position, _target.position) <= attackRange * 1.35f)
+                {
+                    IDamageable damageable = _target.GetComponent<IDamageable>();
+                    if (damageable != null)
+                    {
+                        float defense = damageable.Stats != null ? damageable.Stats.defense : 0f;
+                        var (damage, _) = stats.CalcSkillDamage(defense, 1.35f);
+                        damageable.OnDamage(damage, transform.position, gameObject);
+                        hit = true;
+                    }
+                }
+                yield return null;
+            }
+
+            if (warning != null)
+                Destroy(warning);
+            _navMotor.ResyncAfterForcedMove();
+            RestoreColors();
+            _dodgeRecoveryTimer = Mathf.Max(_dodgeRecoveryTimer, 0.35f);
+            _isUsingCoreAbility = false;
+        }
+
+        private GameObject CreateCounterWarning(Vector3 direction)
+        {
+            var warning = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            warning.name = "[Warning] EliteCounterLunge";
+            warning.transform.position = transform.position + direction * 2.5f + Vector3.up * 0.06f;
+            warning.transform.rotation = Quaternion.LookRotation(direction);
+            warning.transform.localScale = new Vector3(0.8f, 0.08f, 5f);
+            Collider collider = warning.GetComponent<Collider>();
+            if (collider != null)
+                Destroy(collider);
+            Renderer renderer = warning.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                var material = new Material(MaterialHelper.GetLitShader());
+                material.color = new Color(0.2f, 0.85f, 1f, 0.35f);
+                material.EnableKeyword("_EMISSION");
+                material.SetColor("_EmissionColor", new Color(0.1f, 0.7f, 1f) * 2f);
+                renderer.material = material;
+            }
+            return warning;
         }
 
         private void StartAttackPrep()
@@ -423,6 +923,18 @@ namespace XianTu
         public void OnDamage(float damage, Vector3 hitPoint, GameObject attacker)
         {
             if (!stats.IsAlive) return;
+            if (IsInDodgeInvulnerability())
+            {
+                GameEvents.Publish(new GameEvents.DamageNumberRequested
+                {
+                    WorldPosition = transform.position + Vector3.up * 1.5f,
+                    Damage = 0f,
+                    IsCrit = false,
+                    IsPlayerDamage = false,
+                    SpecialTag = "闪避"
+                });
+                return;
+            }
 
             float actual = stats.TakeDamage(damage);
 
@@ -445,6 +957,18 @@ namespace XianTu
             _stunTimer = stunTime;
             _isPreparing = false;
             DestroyAttackWarning();
+            ReleaseAttackToken();
+
+            if (_recentHitWindow <= 0f)
+                _recentHitCount = 0;
+            _recentHitCount++;
+            _recentHitWindow = 1f;
+            if (_recentHitCount >= 2)
+            {
+                _pendingHitThreat = true;
+                _pendingThreatSource = attacker;
+                _recentHitCount = 0;
+            }
 
             if (attacker != null)
             {
@@ -452,6 +976,7 @@ namespace XianTu
                 Vector3 knockback = (transform.position - attacker.transform.position).normalized * knockbackForce;
                 knockback.y = 0;
                 _cc.Move(knockback);
+                _navMotor.ResyncAfterForcedMove();
             }
 
             if (HitStop.Instance != null)
@@ -533,8 +1058,7 @@ namespace XianTu
             SkillData[] skillDrops = null)
         {
             var prefabs = MonsterPrefabs.Instance;
-            // 精英怪使用普通小怪Prefab但放大
-            var prefab = prefabs != null ? prefabs.普通小怪Prefab : null;
+            var prefab = prefabs != null ? prefabs.GetElitePrefab() : null;
             var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy_Elite");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");
@@ -600,6 +1124,8 @@ namespace XianTu
 
         private void OnDestroy()
         {
+            ReleaseAttackToken();
+            EnemyCombatCoordinator.Unregister(gameObject);
             DestroyAttackWarning();
         }
 

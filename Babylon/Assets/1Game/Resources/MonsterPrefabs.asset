@@ -12,10 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e668a7bd8959a3e4693a3353b1ebfdb6, type: 3}
   m_Name: MonsterPrefabs
   m_EditorClassIdentifier: 
-  "\u666E\u901A\u5C0F\u602APrefab": {fileID: 7092166590737220422, guid: 2fd6d6c14fb243743a0b5a4e363a7592, type: 3}
-  "\u8FDC\u7A0B\u654C\u4EBAPrefab": {fileID: 3434728605036859870, guid: ddac70f8069b6e642a93d864c92beca7, type: 3}
-  "\u51B2\u950B\u654C\u4EBAPrefab": {fileID: 8866050419410387341, guid: ef1ce2ba2eea93644ad671d274a90acd, type: 3}
-  "\u6CD5\u5E08\u654C\u4EBAPrefab": {fileID: 4381662266584662169, guid: 473fd7f4807f0ff44ba075c57c8e0910, type: 3}
-  "Boss\u654C\u4EBAPrefab": {fileID: 29666394940913172, guid: 32a31c60827cb7b4dacea823c9a33f95, type: 3}
-  Boss_Act2_Prefab: {fileID: 2488614154046801509, guid: c24f091d97b67fa458193d14d82b9927, type: 3}
-  Boss_Act3_Prefab: {fileID: 6871454928475388035, guid: de202835daed4824f9e3e594518e17af, type: 3}
+  "\u666E\u901A\u5C0F\u602APrefab": {fileID: 4500650752388227998, guid: 0b03e479c7fca4442a59733e7331b62b, type: 3}
+  "\u8FDC\u7A0B\u654C\u4EBAPrefab": {fileID: 664594864121111097, guid: 16da4a053627b744f85332ba79954570, type: 3}
+  "\u51B2\u950B\u654C\u4EBAPrefab": {fileID: 4676400058130256158, guid: d30c86eddb7bbc04ab95ca501f742155, type: 3}
+  "\u6CD5\u5E08\u654C\u4EBAPrefab": {fileID: 5309985965037920087, guid: a835ba2d44cfc2240b570dec7ad62dbb, type: 3}
+  "\u6C38\u591C\u666E\u901A\u5C0F\u602APrefab": {fileID: 396957971486117036, guid: 262b77d90252a4644bbf966ce20bbc3b, type: 3}
+  "\u6C38\u591C\u8FDC\u7A0B\u654C\u4EBAPrefab": {fileID: 6407828810904512162, guid: c91dd7ccf8838d645948c59dcb64c070, type: 3}
+  "\u6C38\u591C\u51B2\u950B\u654C\u4EBAPrefab": {fileID: 3416781836090426037, guid: 41c9637a5fe01534383418b63037fb9c, type: 3}
+  "\u6C38\u591C\u6CD5\u5E08\u654C\u4EBAPrefab": {fileID: 1817132000145828706, guid: 4ef3a517e99dbf941a3eaf68071b2783, type: 3}
+  "\u767D\u663C\u7CBE\u82F1Prefab": {fileID: 8103047323686921746, guid: 29cf59cbc4a8a0a4d900a25d9fa8451b, type: 3}
+  "\u6C38\u591C\u7CBE\u82F1Prefab": {fileID: 6472824295475837060, guid: bbe43d157cff3fb4bbe904b1d61a913a, type: 3}
+  "Boss\u654C\u4EBAPrefab": {fileID: 1064432413971120358, guid: 1ecfdc32f1431284d8ed8d07d508467a, type: 3}
+  Boss_Act2_Prefab: {fileID: 4751565321244342354, guid: 2ee10997c0e82c148b36d2b214b2f22e, type: 3}
+  Boss_Act3_Prefab: {fileID: 4751565321244342354, guid: 2ee10997c0e82c148b36d2b214b2f22e, type: 3}
