@@ -1,0 +1,37 @@
+---
+description: 在跨文件分析、代码审查和影响评估时自动使用 code-review-graph
+alwaysApply: true
+---
+
+# Code Review Graph 自动调用
+
+## 应当优先调用
+
+遇到以下任务时，在大范围搜索或读取文件前先使用 `code-review-graph`：
+
+- 分析类、方法或系统的调用方、依赖方、继承关系或测试关系。
+- 审查跨文件改动、评估爆炸半径、判断哪些流程和测试受影响。
+- 定位涉及多个系统的 Bug，或追踪跨文件执行链。
+- 解释项目架构、模块边界、耦合热点或为新成员梳理代码。
+- 计划会修改多个脚本的重构。
+
+优先选择最窄的工具和上下文：
+
+- 普通结构查询：`get_minimal_context_tool`、`query_graph_tool`。
+- 改动审查：`detect_changes_tool`、`get_review_context_tool`。
+- 影响范围：`get_impact_radius_tool`、`get_affected_flows_tool`。
+- 架构分析：`get_architecture_overview_tool`。
+
+若代码图明显过期且任务依赖最新结构，先调用 `build_or_update_graph_tool`。
+
+## 不应强制调用
+
+- 已知文件路径、精确符号定义或单文件小修改，直接搜索和读取更高效。
+- 纯文案、配置值查询、Unity 场景或 Prefab 状态，应使用普通工具或 Unity MCP。
+- 图结果是静态启发式信息；UnityEvent、Inspector 引用、反射和运行时行为必须结合 Unity MCP 或运行验证。
+
+## 项目范围与安全
+
+- 默认只分析 `Babylon/Assets/1Game/` 和 `docs/`，不要把共享工具库纳入结论。
+- 自动查询可以执行；不要通过 CRG 自动应用重构或修改源码。
+- MCP 不可用或结果不足时，退回精确搜索和必要的文件读取，不要阻塞任务。
