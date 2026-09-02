@@ -24,6 +24,27 @@ alwaysApply: true
 
 若代码图明显过期且任务依赖最新结构，先调用 `build_or_update_graph_tool`。
 
+## ProjectR改前／改后检查
+
+跨文件程序改动按 [`docs/game/architecture/变更影响检查.md`](../../docs/game/architecture/变更影响检查.md) 执行：
+
+1. 改前查询入口符号的调用方／被调用方，并对计划文件做三跳影响检查。
+2. 标记一个主模块和全部受影响模块；模块ID见 [`程序模块规划.md`](../../docs/game/architecture/程序模块规划.md)。
+3. 改后刷新图，对实际改动文件重新检查，不以计划文件代替。
+4. 影响超过20个游戏文件、跨3个以上模块或触及公共契约时，拆小批次并保留开关／适配器。
+5. 删除Legacy前再次检查待删文件的调用方和受影响流程。
+
+MCP不可用时，可在项目根目录使用本地CLI回退：
+
+```powershell
+uvx code-review-graph update --brief --repo "D:\other\Fork\Gate-of-Babylon"
+uvx code-review-graph query callers_of "<qualified_name>" --repo "D:\other\Fork\Gate-of-Babylon"
+uvx code-review-graph query callees_of "<qualified_name>" --repo "D:\other\Fork\Gate-of-Babylon"
+uvx code-review-graph impact --files <files...> --depth 3 --max-results 100 --repo "D:\other\Fork\Gate-of-Babylon"
+```
+
+当前工作区不能提供可靠Git diff时，不强制使用 `detect-changes`，直接将实际改动文件传给impact。
+
 ## 不应强制调用
 
 - 已知文件路径、精确符号定义或单文件小修改，直接搜索和读取更高效。
@@ -32,6 +53,6 @@ alwaysApply: true
 
 ## 项目范围与安全
 
-- 默认只分析 `Babylon/Assets/1Game/` 和 `docs/`，不要把共享工具库纳入结论。
+- 默认只分析 `Babylon/Assets/1Game/Scripts/` 和 `docs/`；第三方Edgar源码、旧StsMap和共享工具库只作为背景，不纳入ProjectR模块结论。
 - 自动查询可以执行；不要通过 CRG 自动应用重构或修改源码。
 - MCP 不可用或结果不足时，退回精确搜索和必要的文件读取，不要阻塞任务。

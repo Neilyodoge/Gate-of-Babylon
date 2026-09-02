@@ -1,8 +1,110 @@
-# 📝 《秘境探索》修改记录（CHANGELOG）
+# 📝 ProjectR 修改记录（CHANGELOG）
 
 > **用途**：按时间/版本记录**已做的改动**（设计决策 + 代码落地）。最新在上。
 > **配套**：未来要做的看 [开发待办](design/开发待办.md)；设计权威看 [GDD](design/GDD_秘境探索.md)。
 > **维护约定**：每完成一波改动，在顶部按日期/版本追加一节；细节可链接到 GDD 对应章节。
+
+---
+
+## ProjectR P1.2术法充能状态拆分（2026-09-02）
+
+- 新增纯C# `SkillChargeRuntime`，统一维护Q／E／R当前充能、最大层数、逐层恢复计时、额外层数和按比例冷却缩减。
+- `PlayerCombat`删除五组并行状态数组，改为充能运行时门面；公开 `GetMaxCharges / GetCurrentCharges`和 `SkillCooldownUpdate`事件合同保持不变。
+- 保留既有语义：多层充能逐层恢复、清零计时后下一帧恢复一层、加减上限时重新充满、总冷却时长供HUD显示。
+- 契约测试扩为14项并全部通过；Unity编译0错误。Demo1运行时反射装备现有Q技能后验证充能从1降至0，控制台无错误。
+- G1尚未通过：术法效果体、蓄力输入、武器、身法和表现层仍待拆分。
+
+---
+
+## 旧产品编辑器菜单清理（2026-09-02）
+
+- 删除无代码调用方的 `Demo1DataCreator.cs`及其专用说明文档，移除F1工具面板中的Demo1创建／自动配置入口。
+- 旧关卡白盒、Edgar生成面板和KayKit怪物生成器保留代码但移除菜单入口；关卡策划冻结期间不再暴露可误触的生成命令。
+- 配置、导表、相机、TMP和ProjectR测试等有效工具迁至顶级 `ProjectR/`菜单；旧模块、旧灵物、旧术法与Edgar资产创建入口集中到 `ProjectR/Legacy/`。
+- 更新常驻项目规则：ProjectR为当前项目代号，禁止新增 `仙途秘境/`菜单；`XianTu`命名空间仅为序列化兼容保留。
+- 清理内部文档中已删除工具的入口与搭建步骤。代码搜索确认 `1Game`全部C#中已不存在「仙途秘境」字符串，包括MenuItem、CreateAssetMenu、AddComponentMenu、Inspector标题和运行提示。
+- Unity编译0错误；新菜单运行ProjectR契约测试10/10通过，旧测试菜单路径执行失败，确认旧顶级菜单命令已注销。
+
+---
+
+## ProjectR P1.1术法载体入口（2026-09-02）
+
+- 新增 `SkillCarrierAction`与双向术法槽位映射，将Q／E／R统一为 `CarrierContext → CarrierResult`执行合同。
+- `PlayerCombat`的普通按键、Auto消费和蓄力释放三个调用点改经 `ExecuteSkill`路由；`EnableCarrierRuntime=false`时直接执行原路径。
+- 开关启用时，术法载体仍委托同一个Legacy `UseSkill`效果体，先验证调用合同和回滚能力，不提前搬动技能效果、充能或模块增强逻辑。
+- 载体契约不再依赖Legacy `EffectRole / ShapeMode`，由适配器显式映射为独立枚举，避免 `M-CARRIER → M-LEGACY`反向依赖。
+- 契约测试扩为10项并全部通过；Unity编译0错误，Demo1 Play Mode运行10秒无错误。G1尚未通过，默认开关保持关闭。
+
+---
+
+## ProjectR P0程序底座与首批Legacy清理（2026-09-02）
+
+- 新增载体槽位、执行上下文、执行结果和 `ICarrierAction`，以及与旧 `ChainConfig`隔离的只读增强快照。
+- 新增 `CircuitEvent`、来源引用、器灵实例GUID、标签掩码、因果链ID和深度契约；P0只定义数据，不发布事件。
+- 新增 `LegacyModuleChainAdapter`与只读增强Provider；没有修改 `PlayerCombat`、`ModuleSlotManager`、`GameManager`、`GameEvents`或关卡代码。
+- `GameConfig / FeatureFlags`新增载体、回路和生态三个默认关闭开关；生态开关在关卡策划冻结期间禁止接线。
+- 新增并执行8项Editor契约测试；Unity编译0错误，Demo1进入Play Mode运行10秒无错误。
+- 删除24个无反向依赖的旧UITK／化身UI资源、废弃UITK字体资产与2个缺失源文件的`.meta`残桩，以及`UIBuiltins`、`ChineseFontHelper`、旧模块池扩容工具和18个孤儿灵物生成器。
+- 删除无外部Unity依赖的Mori法系主角资源包、AnimatorController和菜单入口；保留当前唯一主角档案，后续由The Archer主角资源替换。
+
+---
+
+## The Archer角色、怪物与Boss迁移范围确认（2026-09-02）
+
+- 将The Archer主角模型、骨骼／Avatar、动画、材质与纹理列为必需迁移资源。
+- 将垂直切片采用的普通怪物美术与配套表现列为必需迁移资源。
+- 选定Boss按“美术、动画、VFX／音频、阶段和招式逻辑”整体迁移；逻辑逐个提取依赖并适配现有敌人、伤害、对象池和事件框架。
+- 保持选择性迁移边界：不引入The Archer关卡、成长、存档、Ability枚举、静态服务定位器和对象池架构。
+- 关卡冻结期间只验证Boss独立战斗，不确定其关卡位置、强制性、出口关系或探索削弱方式。
+
+---
+
+## ProjectR关卡策划暂缓（2026-09-02）
+
+- 将关卡结构、蜂巢生态、首个区域、房间规模、推进、多目标出口和灾相关卡规则标记为策划冻结草案。
+- 冻结期间不继续细化，不进入程序、美术、场景或配表实施；待后续关卡专题讨论确认后再解除。
+- GDD、蜂巢系统规格、开发待办和项目驾驶舱已同步；结契、器灵存档和洞府等非关卡议题仍可独立讨论。
+
+---
+
+## ProjectR程序模块与影响跟进机制（2026-09-02）
+
+- 基于本地code-review-graph刷新并复核战斗、存档和地图三条中心链：模块链三跳影响约40个额外文件，存档主链约36个，地图Provider约45个；确定不直接替换中心类。
+- 新增[程序模块规划](architecture/程序模块规划.md)，建立 `M-INPUT / M-CARRIER / M-SPIRIT / M-CIRCUIT / M-COMBAT / M-DUNGEON / M-ECOLOGY / M-ENCOUNTER / M-SAVE / M-UI / M-CORE / M-LEGACY` 十二个模块边界。
+- 固化P0～P5渐进拆分路线与G1～G7切换闸门；战斗、存档和蜂巢系统均采用新模块旁路、Legacy适配、验收后删除。
+- 新增[变更影响检查](architecture/变更影响检查.md)，定义code-review-graph改前／改后查询、三跳影响检查、Unity静态图盲区、跨模块流程验收和检查单模板。
+- 同步程序架构说明、开发待办、垂直切片、项目驾驶舱与Cursor规则；本阶段不改C#、Prefab和Unity资产。
+
+---
+
+## 中文文档命名与概念层合并（2026-09-02）
+
+- 将 `docs/concepts/ProjectR.md` 中的产品定位、设计取舍和主要风险并入ProjectR GDD，删除不再需要的独立概念目录文档。
+- 新建文档统一使用中文规范名：`垂直切片计划.md`、`游戏测试清单.md`、`旧版秘境探索归档.md`。
+- 更新全部仓库内引用，README与ADR等通用约定名、ProjectR与The Archer等专名继续保留。
+
+---
+
+## ProjectR 文档重构（2026-09-02）
+
+- 将 `GDD_秘境探索.md` 原路径重写为 ProjectR 可执行总纲；旧文件名继续保留以避免历史链接和 Unity `.meta` 断裂。
+- 新增 `旧版秘境探索归档.md`，集中记录旧产品演变、模块链、无暮王城、关卡、Boss、局外系统、实现资产和 ProjectR 复用边界；完整旧正文继续由 Git 历史与历史快照保存。
+- 新增器灵与结契、载体与回路、蜂巢秘境与灾相、洞府与局外成长4份系统规格。
+- 新增技术架构入口和3份ADR，冻结“保留当前工程与Edgar底座”“事件因果链回路”“The Archer选择性迁移”三项决策。
+- 新增4–6个月垂直切片里程碑和Playtest清单；旧系统改为通过切换闸门后再删除。
+- 重写 `docs/game/README.md` 为项目驾驶舱，并新增 `docs/README.md` 与 `docs/concepts/README.md`，统一概念、设计、架构、交付、测试和历史入口。
+- 无暮王城去向与奖励交付模式继续保留为开放决策，未在文档重构中默认拍板。
+
+---
+
+## ProjectR 产品方向与重制迁移待办（2026-09-02）
+
+- 确认 ProjectR 全面取代现有《仙途秘境》产品方向；最终名称未定前使用 ProjectR 代号，暂不进行全局命名空间重命名。
+- 完成ProjectR概念与 `GDD_秘境探索.md` 对账：现有模块增强链、强制 Boss、无暮王城双阶段和旧局外解锁不再作为后续产品主轴；基础战斗、Edgar 区域图、房间状态、事件结果、撤离缓冲与存档框架列为复用基础。
+- 在 `开发待办.md` 顶部新增 ProjectR 专区，记录 GDD 重写、器灵/载体/回路、蜂巢生态、结契/洞府、The Archer 选择性迁移及最终切换闸门；旧方向待办整体冻结为历史实现记录。
+- The Archer 迁移范围收敛为敌人/Boss 美术与招式模式、投射物原型、单房波次编排和战斗反馈；明确不迁线性 Stage、停步自动射箭、Ability/三选一、Armory、旧存档和对象池源码。
+- The Archer 美术目标目录确定为 `Babylon/Assets/1Game/ArtRes/Package/Character/TheArcherRog/`；逻辑只以隔离适配或按现有 ProjectR/敌人框架重写的形式接入。
+- 对象池对比后决定保留现有 `ObjectPool`，后续补稳定键、预热、租借版本、防重复回收和统一重置合同，不引入模板池的已知生命周期风险。
 
 ---
 
@@ -1125,7 +1227,7 @@
 
 ## V0.1.14 · 去修仙重构（移除叙事系统 + 进度线中性化）（2026-07-02）
 
-代码层系统性清除「修仙」残留：局外洞府/局外系统整体移除，事件/惩罚系统删除，纵向进度线中性化为通用等级/经验词汇。分四阶推进，每阶均编译通过；R4 经 Play 模式冒烟测试（0 error / 0 warning）。归档见 [GDD §10.3](design/GDD_秘境探索.md)。
+代码层系统性清除「修仙」残留：局外洞府/局外系统整体移除，事件/惩罚系统删除，纵向进度线中性化为通用等级/经验词汇。分四阶推进，每阶均编译通过；R4 经 Play 模式冒烟测试（0 error / 0 warning）。该旧版记录现见[统一归档](design/旧版秘境探索归档.md)。
 
 ### R1 · 移除洞府/局外系统
 - 删除：`SpiritVeinSystem` / `SpiritVeinModule` / `SpiritVeinPickup` / `MeditationChamber` / `SpiritBeastCompanion` / `SpiritBeastGarden` / `CaveOpportunitySystem` / `CaveOpportunityUI`(uxml/uss) / `LingTian` / `ForgeRoom`（含 .meta）。
@@ -1147,7 +1249,7 @@
 ### R5 · 配置层清理（P0 待办）
 - **死代码 Avatar 配置链删除**：`AvatarBaseRow/Table`、`ConfigDatabase.Avatars`/`GetAvatar`/加载调用、导表 `ParseAvatarBaseRow`、`Avatar_Base_Config.json`+`.csv`（含 .meta）。`Avatar` 配表仅被加载从未被消费，`StartTemplate` SO 已完全取代化身开局。
 - **玩家可见 UI 去已删系统词**：`CharacterSelectUITK` 副标题「法修御灵远击」→「法修远程轰击」；`法修` 角色档案 `roleTag`「远程·御灵」→「远程·法修」、`description` 御灵→远程（含编辑器 `Demo1DataCreator` 同步）。
-- **保留**：`ItemInRun`(灵物，事件奖励在用) / `SkillBase`(功法，SkillTuning 在用) 配表及 `灵物/功法` 世界观词、`修仙/秘境` 品牌词——均属活系统或已确认保留，未动；对应字段迁移列为待定（见 [开发待办 P0](design/开发待办.md#p0--文档与配置对齐)）。
+- **保留**：`ItemInRun`(灵物，事件奖励在用) / `SkillBase`(功法，SkillTuning 在用) 配表及 `灵物/功法` 世界观词、`修仙/秘境` 品牌词——均属当时活系统或确认保留项；后续状态见[开发待办](design/开发待办.md)。
 - 验证：编译 0 error。
 
 ---
@@ -1251,7 +1353,7 @@
 - 独立宝石系统删除，迁移为 **改造件 / 符文**。
 - 秘术系统从当前规划删除。
 - `开发待办.md`、`Demo路线图.md`、`功法设计表.md`、`灵物设计表.md`、`隐藏组合表.md` 已按 v0.6 方向重写。
-- `设定_御灵五系.md`、`设定_化身.md` 改为历史素材库，不再作为现行规则。
+- `设定_御灵五系（草案）.md`、`设定_化身.md` 改为历史素材库，不再作为现行规则。
 
 ---
 
@@ -1406,7 +1508,7 @@ GDD 对照审计后的一轮系统实装，覆盖 7 项 gap。
 
 ## v0.6 · 设计收敛：砍系叠层 + 局外一棵树 + 货币统一「灵力」（2026-06-09）
 
-策划讨论后的减法（详见 [设定_御灵五系.md](design/设定_御灵五系.md) §3/§5/§7 与 v0.6 取舍记录）。
+策划讨论后的减法（详见 [设定_御灵五系（草案）.md](design/设定_御灵五系（草案）.md) §3/§5/§7 与 v0.6 取舍记录）。
 
 **设计决策**
 - **砍掉"系叠层 / 御灵之路 in-run 系 tag 构筑"**：与现有"灵物分类协同(`SynergySystem` 30 条)+功法"重复、与局外成长树冲突、非必需。局内构筑沿用现有系统。合技 / `ElementTag`升格 一并取消。
@@ -1442,7 +1544,7 @@ GDD 对照审计后的一轮系统实装，覆盖 7 项 gap。
 
 ## v0.6 · 阶段C 核心：系精通 + 境界重定位 + 成长页（2026-06-09）
 
-局外成长地基落地（[设定_御灵五系.md](design/设定_御灵五系.md) §5/§7）。
+局外成长地基落地（[设定_御灵五系（草案）.md](design/设定_御灵五系（草案）.md) §5/§7）。
 
 **关键决策**
 - 精通点由「境界突破」发放（里程碑制）；**天赋仍花悟性**（保留现有系统、让悟性有意义），精通点专用于系精通。
