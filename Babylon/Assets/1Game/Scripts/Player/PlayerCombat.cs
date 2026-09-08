@@ -9,7 +9,7 @@ namespace XianTu
     /// Q：功法技能槽位
     /// </summary>
     [RequireComponent(typeof(PlayerAnimator))]
-    public class PlayerCombat : MonoBehaviour
+    public class PlayerCombat : MonoBehaviour, ISkillEffectHost, IImmediateSkillEffectHost, IWorldSkillEffectHost, IDashSkillEffectHost, IAreaSkillEffectHost, IProjectileSkillEffectHost, ISkillChargeEffectHost, IMeleeAttackHost, IBasicAttackEffectHost
     {
         [Header("近战攻击")]
         [SerializeField] private float meleeRange = 2.5f;
@@ -40,18 +40,21 @@ namespace XianTu
         private PlayerController _player;
         private PlayerAnimator _playerAnim;
         private ModuleSlotManager _moduleSlots;
+        private SkillCarrierAction _skillCarrierAction;
+        private SkillEffectExecutor _skillEffectExecutor;
+        private ImmediateSkillEffectRuntime _immediateSkillEffects;
+        private WorldSkillEffectRuntime _worldSkillEffects;
+        private DashSkillEffectRuntime _dashSkillEffects;
+        private AreaSkillEffectRuntime _areaSkillEffects;
+        private ProjectileSkillEffectRuntime _projectileSkillEffects;
+        private SkillChargeEffectCoordinator _chargeEffects;
+        private MeleeAttackRuntime _meleeAttackRuntime;
+        private BasicAttackEffectRuntime _basicAttackEffects;
+        private WeaponCarrierAction _weaponCarrierAction;
 
-        // 技能充能系统（每个槽位独立充能）
-        private int[] _skillCharges = new int[3];       // 当前充能层数
-        private int[] _skillMaxCharges = new int[3];    // 最大充能层数
-        private float[] _skillRechargeTimer = new float[3]; // 充能恢复计时器
-        private float[] _skillRechargeDuration = new float[3]; // 每层充能恢复时间
-        private int[] _chargeBonusFromItems = new int[3]; // 额外充能层数
+        private readonly SkillChargeRuntime _skillCharges = new();
 
-        // 蓄力系统
-        private int _chargingSlot = -1;          // 当前正在蓄力的技能槽位（-1=未蓄力）
-        private float _chargeTimer = 0f;          // 蓄力计时器
-        private int _currentChargeLevel = 1;      // 当前蓄力等级
+        private readonly SkillChargeInputRuntime _chargeInput = new();
         private float _originalMoveSpeed;         // 蓄力前的移速（用于恢复）
         private bool _chargeMoveSpeedApplied;     // 是否已应用蓄力减速
 
@@ -108,6 +111,21 @@ namespace XianTu
         {
             _player = GetComponent<PlayerController>();
             _playerAnim = GetComponent<PlayerAnimator>();
+            if (FeatureFlags.EnableCircuitRuntime &&
+                GetComponent<SpiritTalentRunController>() == null)
+            {
+                gameObject.AddComponent<SpiritTalentRunController>();
+            }
+            if (FeatureFlags.EnableCircuitRuntime &&
+                GetComponent<FirstSpiritCircuitController>() == null)
+            {
+                gameObject.AddComponent<FirstSpiritCircuitController>();
+            }
+            if (FeatureFlags.EnableCircuitRuntime &&
+                GetComponent<StarterSpiritCarrierController>() == null)
+            {
+                gameObject.AddComponent<StarterSpiritCarrierController>();
+            }
         }
 
         public ModuleSlotManager ModuleSlots => _moduleSlots;
@@ -143,7 +161,7 @@ namespace XianTu
         {
             if (!_player.Stats.IsAlive || _player.IsDashing)
             {
-                if (_chargingSlot >= 0)
+                if (_chargeInput.IsCharging)
                     CancelCharging();
                 return;
             }
@@ -158,13 +176,17 @@ namespace XianTu
         /// <summary>取消蓄力（不释放技能）</summary>
         private void CancelCharging()
         {
-            if (_chargingSlot < 0) return;
+            if (!_chargeInput.IsCharging) return;
 
-            int slot = _chargingSlot;
+            int slot = _chargeInput.SlotIndex;
+            if (_chargeEffects != null && _chargeEffects.SessionActive)
+            {
+                _chargeEffects.Cancel(slot, _chargeInput.Reset);
+                return;
+            }
+
             RestoreChargeMoveSpeed();
-            _chargingSlot = -1;
-            _chargeTimer = 0f;
-            _currentChargeLevel = 1;
+            _chargeInput.Reset();
 
             GameEvents.Publish(new GameEvents.SkillChargeProgress
             {
@@ -182,6 +204,42 @@ namespace XianTu
         /// <summary>鼠标左键触发近战连招</summary>
         private void HandleMeleeAttack()
         {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                HandleMeleeAttackLegacy();
+                return;
+            }
+
+            _weaponCarrierAction ??=
+                new WeaponCarrierAction(TryRequestBasicAttack);
+            var context = new CarrierContext(
+                CarrierSlot.Weapon,
+                1,
+                null,
+                Time.deltaTime);
+            _weaponCarrierAction.Execute(context);
+        }
+
+        private bool TryRequestBasicAttack()
+        {
+            _meleeAttackRuntime ??= new MeleeAttackRuntime(this);
+            var mouse = Mouse.current;
+            bool attackPressed =
+                mouse != null && mouse.leftButton.wasPressedThisFrame;
+            bool pointerOverSkillSlot =
+                SkillBarUI.Instance != null &&
+                SkillBarUI.Instance.IsMouseOverSlot ||
+                SpiritCircuitHUD.IsAttachmentSelectionActive ||
+                StarterSpiritChoiceUI.IsOpen;
+            return _meleeAttackRuntime.TryRequestAttack(
+                attackPressed,
+                _player.DashRequestedThisFrame,
+                pointerOverSkillSlot,
+                _player.Stats.attackSpeed);
+        }
+
+        private void HandleMeleeAttackLegacy()
+        {
             var mouse = Mouse.current;
             if (mouse != null && mouse.leftButton.wasPressedThisFrame)
             {
@@ -189,7 +247,11 @@ namespace XianTu
                 if (_player.DashRequestedThisFrame) return;
 
                 // 鼠标在UI槽位上时不攻击（拖拽或点击槽位）
-                if (SkillBarUI.Instance != null && SkillBarUI.Instance.IsMouseOverSlot) return;
+                if (SkillBarUI.Instance != null &&
+                    SkillBarUI.Instance.IsMouseOverSlot ||
+                    SpiritCircuitHUD.IsAttachmentSelectionActive ||
+                    StarterSpiritChoiceUI.IsOpen)
+                    return;
 
                 _playerAnim.RequestAttack(_player.Stats.attackSpeed);
             }
@@ -197,6 +259,18 @@ namespace XianTu
 
         /// <summary>在攻击判定窗口内检测敌人</summary>
         private void CheckMeleeHit()
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CheckMeleeHitLegacy();
+                return;
+            }
+
+            _meleeAttackRuntime ??= new MeleeAttackRuntime(this);
+            _meleeAttackRuntime.TickHitWindow();
+        }
+
+        private void CheckMeleeHitLegacy()
         {
             // 远程主角：普攻不做近战扇形判定，伤害由 OnSlashVFXRequested 发射的投射物结算
             if (_rangedBasic) return;
@@ -251,7 +325,11 @@ namespace XianTu
                         if (HeavenEarthShift.IsActive)
                         {
                             float heal = damage * 0.5f;
+                            float oldHp = _player.Stats.currentHp;
                             _player.Stats.currentHp = Mathf.Min(_player.Stats.maxHp, _player.Stats.currentHp + heal);
+                            RecordPlayerHealing(
+                                heal,
+                                _player.Stats.currentHp - oldHp);
                             GameEvents.Publish(new GameEvents.HealthChanged { CurrentHp = _player.Stats.currentHp, MaxHp = _player.Stats.maxHp });
                             GameEvents.Publish(new GameEvents.DamageNumberRequested { WorldPosition = hitPoint + Vector3.up * 1.5f, Damage = heal, SpecialTag = "挪移·治疗" });
                             SpawnHitVFX(hitPoint);
@@ -293,13 +371,51 @@ namespace XianTu
             }
         }
 
+        bool IMeleeAttackHost.IsRangedBasic => _rangedBasic;
+        bool IMeleeAttackHost.IsHitWindowOpen => _playerAnim.IsHitWindowOpen;
+        int IMeleeAttackHost.ComboStep => _playerAnim.ComboStep;
+
+        void IMeleeAttackHost.RequestMeleeAttack(float attackSpeed)
+            => _playerAnim.RequestAttack(attackSpeed);
+
+        void IMeleeAttackHost.DrawMeleeRange(bool activeWindow)
+        {
+            if (!showDebugVisuals)
+                return;
+
+            DrawAttackRange(activeWindow
+                ? new Color(1f, 0.2f, 0.1f, 1f)
+                : new Color(1f, 0.5f, 0.1f, 0.3f));
+        }
+
+        MeleeHitResult IMeleeAttackHost.ResolveMeleeHits(int comboStep)
+        {
+            _basicAttackEffects ??= new BasicAttackEffectRuntime(this);
+            return _basicAttackEffects.ResolveMeleeHits(comboStep);
+        }
+
+        void IMeleeAttackHost.PublishMeleeHit(
+            int comboStep,
+            MeleeHitResult result)
+        {
+            GameEvents.Publish(new GameEvents.MeleeHitConnected
+            {
+                ComboStep = comboStep,
+                HitPoint = result.FirstHitPoint,
+                Target = result.FirstTarget as GameObject
+            });
+        }
+
+        void IMeleeAttackHost.ReduceCooldownOnComboFinisher()
+            => ReduceRandomSkillCooldown(0.10f);
+
         /// <summary>立即把全部 3 个技能槽 CD 清零（顿悟时刻 / 灵机一动 buff 用）。</summary>
         public void ResetAllCooldowns()
         {
             SkillData[] skills = { skillQ, skillE, skillR };
             for (int i = 0; i < 3; i++)
             {
-                _skillRechargeTimer[i] = 0f;
+                _skillCharges.ResetTimer(i);
                 PublishSkillChargeUpdate(i, skills[i]);
             }
         }
@@ -313,7 +429,7 @@ namespace XianTu
             System.Collections.Generic.List<int> activeSlots = null;
             for (int i = 0; i < 3; i++)
             {
-                if (_skillRechargeTimer[i] > 0.01f)
+                if (_skillCharges.IsRecharging(i))
                 {
                     activeSlots ??= new System.Collections.Generic.List<int>();
                     activeSlots.Add(i);
@@ -322,8 +438,7 @@ namespace XianTu
             if (activeSlots == null || activeSlots.Count == 0) return;
 
             int pickSlot = activeSlots[Random.Range(0, activeSlots.Count)];
-            float before = _skillRechargeTimer[pickSlot];
-            _skillRechargeTimer[pickSlot] = Mathf.Max(0f, _skillRechargeTimer[pickSlot] - before * percent);
+            float reduced = _skillCharges.ReduceRemainingByPercent(pickSlot, percent);
 
             // 同步刷新 HUD
             SkillData[] skills = { skillQ, skillE, skillR };
@@ -334,7 +449,7 @@ namespace XianTu
             {
                 WorldPosition = transform.position + Vector3.up * 2.4f,
                 Damage = 0,
-                SpecialTag = $"-{(before * percent):F1}s CD"
+                SpecialTag = $"-{reduced:F1}s CD"
             });
         }
 
@@ -377,6 +492,147 @@ namespace XianTu
             return transform.position + aimRot * localOffset;
         }
 
+        Vector3 IBasicAttackEffectHost.MeleeOrigin
+            => GetAimRelativeWorldPos(
+                attackOrigin,
+                transform.position + Vector3.up * 0.8f);
+        Vector3 IBasicAttackEffectHost.AimDirection => _player.AimDirection;
+        Vector3 IBasicAttackEffectHost.ForwardFallback => transform.forward;
+        float IBasicAttackEffectHost.MeleeRange => meleeRange;
+        float IBasicAttackEffectHost.MeleeHalfAngle => meleeAngle * 0.5f;
+        bool IBasicAttackEffectHost.ConvertMeleeDamageToHealing
+            => HeavenEarthShift.IsActive;
+        Vector3 IBasicAttackEffectHost.RangedProjectileOrigin
+            => GetAimRelativeWorldPos(
+                attackOrigin,
+                transform.position + _player.AimDirection * 0.6f +
+                Vector3.up * 0.9f);
+        float IBasicAttackEffectHost.RangedProjectileSpeed => _basicProjSpeed;
+        float IBasicAttackEffectHost.RangedDamageMultiplier => _basicDamageMul;
+        ElementTag IBasicAttackEffectHost.RangedElement => _basicElement;
+
+        System.Collections.Generic.IReadOnlyList<BasicAttackTarget>
+            IBasicAttackEffectHost.FindBasicAttackTargets(
+                Vector3 origin,
+                float range)
+        {
+            var colliders = Physics.OverlapSphere(origin, range, enemyLayer);
+            var targets =
+                new System.Collections.Generic.List<BasicAttackTarget>(
+                    colliders.Length);
+            foreach (var collider in colliders)
+            {
+                var damageable = collider.GetComponent<IDamageable>();
+                float defense = damageable?.Stats != null
+                    ? damageable.Stats.defense
+                    : 0f;
+                targets.Add(new BasicAttackTarget(
+                    collider,
+                    collider.gameObject,
+                    collider.transform.position,
+                    collider.ClosestPoint(origin),
+                    defense,
+                    damageable != null));
+            }
+
+            return targets;
+        }
+
+        float IBasicAttackEffectHost.GetBasicComboMultiplier(int comboStep)
+            => GetComboDamageMultiplier(comboStep);
+
+        float IBasicAttackEffectHost.CalculateBasicDamage(float targetDefense)
+        {
+            var (damage, _) = _player.Stats.CalcMeleeDamage(targetDefense);
+            return damage;
+        }
+
+        void IBasicAttackEffectHost.ApplyBasicDamage(
+            BasicAttackTarget target,
+            float damage)
+        {
+            if (target.Handle is not Collider collider)
+                return;
+
+            var damageable = collider.GetComponent<IDamageable>();
+            damageable?.OnDamage(
+                damage,
+                target.HitPoint,
+                gameObject);
+        }
+
+        void IBasicAttackEffectHost.ApplyConvertedBasicHealing(
+            float healAmount,
+            Vector3 hitPoint)
+        {
+            float oldHp = _player.Stats.currentHp;
+            _player.Stats.currentHp = Mathf.Min(
+                _player.Stats.maxHp,
+                _player.Stats.currentHp + healAmount);
+            RecordPlayerHealing(
+                healAmount,
+                _player.Stats.currentHp - oldHp);
+            GameEvents.Publish(new GameEvents.HealthChanged
+            {
+                CurrentHp = _player.Stats.currentHp,
+                MaxHp = _player.Stats.maxHp
+            });
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = hitPoint + Vector3.up * 1.5f,
+                Damage = healAmount,
+                SpecialTag = "挪移·治疗"
+            });
+        }
+
+        void IBasicAttackEffectHost.PlayBasicHitVisual(Vector3 hitPoint)
+            => SpawnHitVFX(hitPoint);
+
+        void IBasicAttackEffectHost.SpawnBasicProjectile(
+            Vector3 position,
+            Vector3 direction,
+            float speed,
+            float damage,
+            ElementTag element)
+        {
+            if (_basicProjPrefab != null)
+            {
+                Quaternion rotation = Quaternion.LookRotation(direction);
+                GameObject instance = ObjectPool.Instance != null
+                    ? ObjectPool.Instance.Get(
+                        _basicProjPrefab,
+                        position,
+                        rotation)
+                    : Instantiate(
+                        _basicProjPrefab,
+                        position,
+                        rotation);
+                var projectile = instance.GetComponent<Projectile>();
+                projectile?.Initialize(
+                    damage,
+                    direction,
+                    speed,
+                    0,
+                    0,
+                    element,
+                    _player,
+                    _player.Stats.armorPenPercent);
+            }
+            else if (showDebugVisuals)
+            {
+                CreateDebugProjectile(
+                    position,
+                    direction,
+                    speed,
+                    damage,
+                    1f,
+                    element);
+            }
+        }
+
+        void IBasicAttackEffectHost.ReduceBasicCooldownOnFinisher()
+            => ReduceRandomSkillCooldown(0.10f);
+
         // ==================== 特效 ====================
 
         /// <summary>动画事件触发刀光特效</summary>
@@ -384,6 +640,7 @@ namespace XianTu
         {
             // 重置判定状态（新的一段攻击开始）
             _hasHitThisSwing = false;
+            _meleeAttackRuntime?.ResetSwing();
 
             // 远程主角（法系）：挥击动画到点 → 发射一枚法术投射物
             if (_rangedBasic)
@@ -417,6 +674,18 @@ namespace XianTu
         /// 伤害走近战公式（含连招段倍率），命中时由 Projectile 结算目标防御/穿甲。
         /// </summary>
         private void FireBasicProjectile()
+        {
+            if (FeatureFlags.EnableCarrierRuntime)
+            {
+                _basicAttackEffects ??= new BasicAttackEffectRuntime(this);
+                _basicAttackEffects.FireRangedBasic(_playerAnim.ComboStep);
+                return;
+            }
+
+            FireBasicProjectileLegacy();
+        }
+
+        private void FireBasicProjectileLegacy()
         {
             Vector3 spawnPos = GetAimRelativeWorldPos(
                 attackOrigin, transform.position + _player.AimDirection * 0.6f + Vector3.up * 0.9f);
@@ -502,6 +771,9 @@ namespace XianTu
         /// </summary>
         private void HandleSkills()
         {
+            if (StarterSpiritChoiceUI.IsOpen)
+                return;
+
             var kb = Keyboard.current;
             if (kb == null) return;
 
@@ -509,10 +781,11 @@ namespace XianTu
             var keys = new[] { kb.qKey, kb.eKey, kb.rKey };
 
             // 蓄力中（旧 SkillData 兼容）
-            if (_chargingSlot >= 0)
+            if (_chargeInput.IsCharging)
             {
-                var skill = skills[_chargingSlot];
-                var key = keys[_chargingSlot];
+                int chargingSlot = _chargeInput.SlotIndex;
+                var skill = skills[chargingSlot];
+                var key = keys[chargingSlot];
 
                 if (skill == null || !key.isPressed)
                 {
@@ -520,19 +793,16 @@ namespace XianTu
                     return;
                 }
 
-                _chargeTimer += Time.deltaTime;
-                int newLevel = skill.GetChargeLevel(_chargeTimer);
-                if (newLevel != _currentChargeLevel)
+                if (_chargeInput.Advance(Time.deltaTime, skill.chargeLv2Time, skill.chargeLv3Time))
                 {
-                    _currentChargeLevel = newLevel;
-                    Debug.Log($"<color=yellow>蓄力等级提升 → Lv{_currentChargeLevel}！</color>");
+                    Debug.Log($"<color=yellow>蓄力等级提升 → Lv{_chargeInput.ChargeLevel}！</color>");
                 }
 
                 GameEvents.Publish(new GameEvents.SkillChargeProgress
                 {
-                    SlotIndex = _chargingSlot,
-                    ChargeTime = _chargeTimer,
-                    ChargeLevel = _currentChargeLevel,
+                    SlotIndex = chargingSlot,
+                    ChargeTime = _chargeInput.ElapsedTime,
+                    ChargeLevel = _chargeInput.ChargeLevel,
                     IsCharging = true
                 });
                 return;
@@ -541,7 +811,7 @@ namespace XianTu
             // ===== V.08 统一：按键 → 释放核心技能 → 若链 Proc 则注入增强 + 消费 =====
             for (int i = 0; i < 3; i++)
             {
-                if (skills[i] == null || _skillCharges[i] <= 0) continue;
+                if (skills[i] == null || _skillCharges.GetCurrentCharges(i) <= 0) continue;
                 if (!keys[i].wasPressedThisFrame) continue;
 
                 // 蓄力技能：进入蓄力状态，增强在 ReleaseChargedSkill 时注入
@@ -556,7 +826,7 @@ namespace XianTu
                 bool willEnhance = _moduleSlots != null && _moduleSlots.HasChain(i) && _moduleSlots.IsProc(i);
                 if (willEnhance) BeginEnhancement(i);
 
-                bool cast = UseSkill(skills[i], i, 1);
+                bool cast = ExecuteSkill(skills[i], i, 1);
                 if (cast)
                 {
                     ConsumeSkillCharge(i, skills[i]);
@@ -581,9 +851,9 @@ namespace XianTu
             if (slot < 0 || slot >= 3) return;
             SkillData[] skills = { skillQ, skillE, skillR };
             var skill = skills[slot];
-            if (skill == null || _skillCharges[slot] <= 0)
+            if (skill == null || _skillCharges.GetCurrentCharges(slot) <= 0)
             {
-                Debug.Log($"<color=yellow>[Auto] 槽 {slot} 无可用核心技能或充能，跳过自动释放</color>");
+                Debug.Log($"<color=yellow>[Auto] 槽 {slot} 无可用术法或充能，跳过自动释放</color>");
                 return;
             }
 
@@ -592,7 +862,7 @@ namespace XianTu
             if (priority == AnimationPriority.Die || priority == AnimationPriority.Evade) return;
 
             BeginEnhancement(slot);
-            bool cast = UseSkill(skill, slot, 1);
+            bool cast = ExecuteSkill(skill, slot, 1);
             if (cast)
             {
                 ConsumeSkillCharge(slot, skill);
@@ -804,9 +1074,14 @@ namespace XianTu
         /// <summary>开始蓄力</summary>
         private void StartCharging(int slotIndex, SkillData skill)
         {
-            _chargingSlot = slotIndex;
-            _chargeTimer = 0f;
-            _currentChargeLevel = 1;
+            _chargeInput.Start(slotIndex);
+            if (FeatureFlags.EnableCarrierRuntime)
+            {
+                _chargeEffects ??= new SkillChargeEffectCoordinator(this);
+                _chargeEffects.Begin(slotIndex, skill);
+                return;
+            }
+
             _chargeMoveSpeedApplied = false;
 
             // 应用蓄力减速
@@ -831,35 +1106,35 @@ namespace XianTu
         /// <summary>释放蓄力技能</summary>
         private void ReleaseChargedSkill()
         {
-            if (_chargingSlot < 0) return;
+            if (!_chargeInput.IsCharging) return;
 
-            int slot = _chargingSlot;
-            int chargeLevel = _currentChargeLevel;
+            SkillChargeRelease release = _chargeInput.Stop();
+            int slot = release.SlotIndex;
+            int chargeLevel = release.ChargeLevel;
             SkillData[] skills = { skillQ, skillE, skillR };
             var skill = skills[slot];
 
-            // 恢复移速
-            RestoreChargeMoveSpeed();
-
-            // 重置蓄力状态
-            _chargingSlot = -1;
-            _chargeTimer = 0f;
-            _currentChargeLevel = 1;
-
-            // 发布蓄力结束事件
-            GameEvents.Publish(new GameEvents.SkillChargeProgress
+            if (_chargeEffects != null && _chargeEffects.SessionActive)
             {
-                SlotIndex = slot,
-                ChargeTime = 0f,
-                ChargeLevel = 1,
-                IsCharging = false
-            });
+                _chargeEffects.Complete(slot);
+            }
+            else
+            {
+                RestoreChargeMoveSpeed();
+                GameEvents.Publish(new GameEvents.SkillChargeProgress
+                {
+                    SlotIndex = slot,
+                    ChargeTime = 0f,
+                    ChargeLevel = 1,
+                    IsCharging = false
+                });
+            }
 
             if (skill == null) { _chargeEnhPending = false; ClearEnhancement(); return; }
 
             // 释放技能（带蓄力等级）+ V.08 增强注入
             if (_chargeEnhPending) BeginEnhancement(slot);
-            if (UseSkill(skill, slot, chargeLevel))
+            if (ExecuteSkill(skill, slot, chargeLevel))
             {
                 ConsumeSkillCharge(slot, skill);
 
@@ -896,35 +1171,61 @@ namespace XianTu
             }
         }
 
+        bool ISkillChargeEffectHost.CanAdjustMovement => _player != null;
+
+        float ISkillChargeEffectHost.MoveSpeed
+        {
+            get => _player != null ? _player.Stats.moveSpeed : 0f;
+            set
+            {
+                if (_player != null)
+                    _player.Stats.moveSpeed = value;
+            }
+        }
+
+        void ISkillChargeEffectHost.PublishChargeProgress(
+            int slotIndex,
+            float chargeTime,
+            int chargeLevel,
+            bool isCharging)
+        {
+            GameEvents.Publish(new GameEvents.SkillChargeProgress
+            {
+                SlotIndex = slotIndex,
+                ChargeTime = chargeTime,
+                ChargeLevel = chargeLevel,
+                IsCharging = isCharging
+            });
+        }
+
+        void ISkillChargeEffectHost.LogChargeEffect(string message)
+            => Debug.Log(message);
+
+        private static float GetRechargeTime(SkillData skill)
+        {
+            return skill.chargeTime > 0f ? skill.chargeTime : SkillTuning.EffectiveCooldown(skill);
+        }
+
         /// <summary>消耗一层技能充能</summary>
         private void ConsumeSkillCharge(int slotIndex, SkillData skill)
         {
-            _skillCharges[slotIndex]--;
-            // 如果充能未满且没在恢复中，开始恢复
-            if (_skillCharges[slotIndex] < _skillMaxCharges[slotIndex] && _skillRechargeTimer[slotIndex] <= 0)
-            {
-                float rechargeTime = skill.chargeTime > 0 ? skill.chargeTime : SkillTuning.EffectiveCooldown(skill);
-
-                _skillRechargeTimer[slotIndex] = rechargeTime;
-                _skillRechargeDuration[slotIndex] = rechargeTime;
-            }
-
-            // 发布充能更新事件
+            _skillCharges.Consume(slotIndex, GetRechargeTime(skill));
             PublishSkillChargeUpdate(slotIndex, skill);
         }
 
         /// <summary>发布技能充能更新事件</summary>
         private void PublishSkillChargeUpdate(int slotIndex, SkillData skill)
         {
-            float rechargeProgress = _skillRechargeTimer[slotIndex] > 0 && _skillRechargeDuration[slotIndex] > 0
-                ? 1f - (_skillRechargeTimer[slotIndex] / _skillRechargeDuration[slotIndex])
-                : 1f;
+            float remainingTime = _skillCharges.GetRemainingTime(slotIndex);
+            float rechargeDuration = _skillCharges.GetRechargeDuration(slotIndex);
 
             GameEvents.Publish(new GameEvents.SkillCooldownUpdate
             {
                 SlotIndex = slotIndex,
-                RemainingTime = _skillRechargeTimer[slotIndex],
-                TotalCooldown = _skillRechargeDuration[slotIndex] > 0 ? _skillRechargeDuration[slotIndex] : (skill != null ? SkillTuning.EffectiveCooldown(skill) : 1f)
+                RemainingTime = remainingTime,
+                TotalCooldown = rechargeDuration > 0f
+                    ? rechargeDuration
+                    : (skill != null ? SkillTuning.EffectiveCooldown(skill) : 1f)
             });
         }
 
@@ -932,18 +1233,9 @@ namespace XianTu
         private void InitSkillCharges(int slotIndex, SkillData skill)
         {
             if (skill != null)
-            {
-                int baseCharges = Mathf.Max(1, skill.maxCharges);
-                _skillMaxCharges[slotIndex] = Mathf.Clamp(baseCharges + _chargeBonusFromItems[slotIndex], 1, 3);
-                _skillCharges[slotIndex] = _skillMaxCharges[slotIndex];
-            }
+                _skillCharges.Initialize(slotIndex, Mathf.Max(1, skill.maxCharges));
             else
-            {
-                _skillMaxCharges[slotIndex] = 1;
-                _skillCharges[slotIndex] = 1;
-            }
-            _skillRechargeTimer[slotIndex] = 0;
-            _skillRechargeDuration[slotIndex] = 0;
+                _skillCharges.InitializeEmpty(slotIndex);
         }
 
         // ==================== 充能加成 ====================
@@ -952,17 +1244,13 @@ namespace XianTu
         public void AddChargeBonus(int skillSlotIndex, int bonus)
         {
             if (skillSlotIndex < 0 || skillSlotIndex >= 3) return;
-            _chargeBonusFromItems[skillSlotIndex] += bonus;
-            // 重新初始化充能
+            _skillCharges.AddBonus(skillSlotIndex, bonus);
             SkillData[] skills = { skillQ, skillE, skillR };
             if (skills[skillSlotIndex] != null)
             {
-                int oldCharges = _skillCharges[skillSlotIndex];
                 InitSkillCharges(skillSlotIndex, skills[skillSlotIndex]);
-                // 保持当前充能不减少
-                _skillCharges[skillSlotIndex] = Mathf.Max(oldCharges, _skillCharges[skillSlotIndex]);
                 PublishSkillChargeUpdate(skillSlotIndex, skills[skillSlotIndex]);
-                Debug.Log($"<color=green>技能{skillSlotIndex}充能上限+{bonus} → {_skillMaxCharges[skillSlotIndex]}层</color>");
+                Debug.Log($"<color=green>技能{skillSlotIndex}充能上限+{bonus} → {_skillCharges.GetMaxCharges(skillSlotIndex)}层</color>");
             }
         }
 
@@ -970,14 +1258,13 @@ namespace XianTu
         public void RemoveChargeBonus(int skillSlotIndex, int bonus)
         {
             if (skillSlotIndex < 0 || skillSlotIndex >= 3) return;
-            _chargeBonusFromItems[skillSlotIndex] = Mathf.Max(0, _chargeBonusFromItems[skillSlotIndex] - bonus);
-            // 重新初始化充能
+            _skillCharges.RemoveBonus(skillSlotIndex, bonus);
             SkillData[] skills = { skillQ, skillE, skillR };
             if (skills[skillSlotIndex] != null)
             {
                 InitSkillCharges(skillSlotIndex, skills[skillSlotIndex]);
                 PublishSkillChargeUpdate(skillSlotIndex, skills[skillSlotIndex]);
-                Debug.Log($"<color=gray>技能{skillSlotIndex}充能上限-{bonus} → {_skillMaxCharges[skillSlotIndex]}层</color>");
+                Debug.Log($"<color=gray>技能{skillSlotIndex}充能上限-{bonus} → {_skillCharges.GetMaxCharges(skillSlotIndex)}层</color>");
             }
         }
 
@@ -985,103 +1272,93 @@ namespace XianTu
         public int GetMaxCharges(int slotIndex)
         {
             if (slotIndex < 0 || slotIndex >= 3) return 1;
-            return _skillMaxCharges[slotIndex];
+            return _skillCharges.GetMaxCharges(slotIndex);
         }
 
         /// <summary>获取技能槽位的当前充能层数</summary>
         public int GetCurrentCharges(int slotIndex)
         {
             if (slotIndex < 0 || slotIndex >= 3) return 0;
-            return _skillCharges[slotIndex];
+            return _skillCharges.GetCurrentCharges(slotIndex);
         }
 
         /// <summary>是否正在蓄力</summary>
-        public bool IsCharging => _chargingSlot >= 0;
+        public bool IsCharging => _chargeInput.IsCharging;
 
         /// <summary>当前蓄力的技能槽位</summary>
-        public int ChargingSlot => _chargingSlot;
+        public int ChargingSlot => _chargeInput.SlotIndex;
 
         /// <summary>当前蓄力等级</summary>
-        public int CurrentChargeLevel => _currentChargeLevel;
+        public int CurrentChargeLevel => _chargeInput.ChargeLevel;
 
         /// <summary>使用技能（返回是否成功释放）</summary>
+        private bool ExecuteSkill(SkillData skill, int slotIndex, int chargeLevel)
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+                return UseSkill(skill, slotIndex, chargeLevel);
+
+            _skillCarrierAction ??= new SkillCarrierAction(UseSkill);
+            var context = new CarrierContext(
+                CarrierSlotMapping.TechniqueFromIndex(slotIndex),
+                chargeLevel,
+                skill,
+                Time.deltaTime);
+            return _skillCarrierAction.Execute(context).CastStarted;
+        }
+
+        /// <summary>术法载体门面；开关关闭时回退Legacy分发，启用时进入独立效果执行器。</summary>
         private bool UseSkill(SkillData skill, int slotIndex, int chargeLevel = 1)
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+                return UseSkillLegacy(skill, slotIndex, chargeLevel);
+
+            _skillEffectExecutor ??= new SkillEffectExecutor(this);
+            float enhancementMultiplier = _enhActive ? _enhDamageMul : 1f;
+            return _skillEffectExecutor.Execute(skill, slotIndex, chargeLevel, enhancementMultiplier);
+        }
+
+        private bool UseSkillLegacy(SkillData skill, int slotIndex, int chargeLevel)
         {
             if (skill == null) return false;
 
-            // v0.3.3 融合层：发布技能开始事件（金化身灵压窗口订阅）
-            GameEvents.Publish(new GameEvents.SkillCastStarted
-            {
-                SlotIndex = slotIndex,
-                Skill = skill
-            });
-
-            // Buff类技能立即生效，不需要播放技能动画
+            ((ISkillEffectHost)this).PublishSkillCastStarted(skill, slotIndex);
             if (skill.skillType == SkillType.Buff)
             {
-                Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
+                LogSkillCast(skill, 1);
                 CastBuffSkill(skill, slotIndex);
                 return true;
             }
 
-            // Heal类技能也立即生效
             if (skill.skillType == SkillType.Heal)
             {
-                Debug.Log($"<color=cyan>释放功法：{skill.skillName}</color>");
+                LogSkillCast(skill, 1);
                 CastHealSkill(skill);
                 return true;
             }
 
-            // 计算技能释放速度：优先使用技能自身配置，否则使用全局配置
-            float castSpeed = skill.castSpeed > 0.01f ? skill.castSpeed : 1f;
-            var config = GameConfig.Instance;
-            if (config != null && Mathf.Approximately(castSpeed, 1f))
-                castSpeed = config.技能释放速度;
+            if (!TryBeginSkillCast(skill))
+                return false;
 
-            // 根据配置决定是否播放技能动画
-            if (skill.playAnimation)
-            {
-                // 尝试播放技能动画（遵循优先级系统）
-                if (!_playerAnim.PlaySkill(castSpeed)) return false;
-            }
-            else
-            {
-                // 不播放动画：仅检查当前状态是否允许释放（不能在死亡/闪避中释放）
-                var priority = _playerAnim.CurrentPriority;
-                if (priority == AnimationPriority.Die || priority == AnimationPriority.Evade)
-                    return false;
-            }
-
-            // 计算蓄力加成
-            float chargeDmgMul = skill.GetChargeDamageMultiplier(chargeLevel);
-            float chargeRadiusMul = skill.GetChargeRadiusMultiplier(chargeLevel);
-
-            // V.08：Enhancement 增强注入伤害倍率
-            if (_enhActive) chargeDmgMul *= _enhDamageMul;
-
-            string chargeSuffix = chargeLevel > 1 ? $" [蓄力Lv{chargeLevel}]" : "";
-            Debug.Log($"<color=cyan>释放功法：{skill.skillName}{chargeSuffix}</color>");
+            float damageMultiplier = skill.GetChargeDamageMultiplier(chargeLevel);
+            if (_enhActive)
+                damageMultiplier *= _enhDamageMul;
+            float radiusMultiplier = skill.GetChargeRadiusMultiplier(chargeLevel);
+            LogSkillCast(skill, chargeLevel);
 
             switch (skill.skillType)
             {
                 case SkillType.AreaDamage:
-                    CastAreaSkill(skill, chargeDmgMul, chargeRadiusMul, slotIndex);
+                    CastAreaSkill(skill, damageMultiplier, radiusMultiplier, slotIndex);
                     break;
                 case SkillType.Projectile:
-                    CastProjectileSkill(skill, chargeDmgMul);
+                    CastProjectileSkill(skill, damageMultiplier);
                     break;
                 case SkillType.Dash:
                     CastDashSkill(skill);
                     break;
-                case SkillType.Buff:
-                    CastBuffSkill(skill, slotIndex);
-                    break;
                 case SkillType.Zone:
-                    CastZoneSkill(skill, chargeDmgMul);
+                    CastZoneSkill(skill, damageMultiplier);
                     break;
-                case SkillType.Heal:
-                    CastHealSkill(skill);
-                    return true; // Heal不需要动画
                 case SkillType.Summon:
                     CastSummonSkill(skill);
                     break;
@@ -1089,6 +1366,58 @@ namespace XianTu
 
             return true;
         }
+
+        void ISkillEffectHost.PublishSkillCastStarted(SkillData skill, int slotIndex)
+        {
+            GameEvents.Publish(new GameEvents.SkillCastStarted
+            {
+                SlotIndex = slotIndex,
+                Skill = skill
+            });
+        }
+
+        bool ISkillEffectHost.TryBeginSkillCast(SkillData skill)
+            => TryBeginSkillCast(skill);
+
+        private bool TryBeginSkillCast(SkillData skill)
+        {
+            float castSpeed = skill.castSpeed > 0.01f ? skill.castSpeed : 1f;
+            var config = GameConfig.Instance;
+            if (config != null && Mathf.Approximately(castSpeed, 1f))
+                castSpeed = config.技能释放速度;
+
+            if (skill.playAnimation)
+                return _playerAnim.PlaySkill(castSpeed);
+
+            var priority = _playerAnim.CurrentPriority;
+            return priority != AnimationPriority.Die && priority != AnimationPriority.Evade;
+        }
+
+        void ISkillEffectHost.LogSkillCast(SkillData skill, int chargeLevel)
+            => LogSkillCast(skill, chargeLevel);
+
+        private static void LogSkillCast(SkillData skill, int chargeLevel)
+        {
+            string chargeSuffix = chargeLevel > 1 ? $" [蓄力Lv{chargeLevel}]" : "";
+            Debug.Log($"<color=cyan>释放术法：{skill.skillName}{chargeSuffix}</color>");
+        }
+
+        void ISkillEffectHost.CastArea(SkillData skill, float damageMultiplier, float radiusMultiplier, int slotIndex)
+            => CastAreaSkill(skill, damageMultiplier, radiusMultiplier, slotIndex);
+
+        void ISkillEffectHost.CastProjectile(SkillData skill, float damageMultiplier)
+            => CastProjectileSkill(skill, damageMultiplier);
+
+        void ISkillEffectHost.CastDash(SkillData skill) => CastDashSkill(skill);
+
+        void ISkillEffectHost.CastBuff(SkillData skill, int slotIndex) => CastBuffSkill(skill, slotIndex);
+
+        void ISkillEffectHost.CastZone(SkillData skill, float damageMultiplier)
+            => CastZoneSkill(skill, damageMultiplier);
+
+        void ISkillEffectHost.CastHeal(SkillData skill) => CastHealSkill(skill);
+
+        void ISkillEffectHost.CastSummon(SkillData skill) => CastSummonSkill(skill);
 
         // ==================== 模块链效果执行 ====================
 
@@ -1269,6 +1598,7 @@ namespace XianTu
             float oldHp = _player.Stats.currentHp;
             _player.Stats.currentHp = Mathf.Min(_player.Stats.currentHp + heal, _player.Stats.maxHp);
             float actual = _player.Stats.currentHp - oldHp;
+            RecordPlayerHealing(heal, actual);
 
             GameEvents.Publish(new GameEvents.HealthChanged
             {
@@ -1445,6 +1775,22 @@ namespace XianTu
         /// <summary>范围伤害技能（如落石术），支持蓄力倍率</summary>
         private void CastAreaSkill(SkillData skill, float damageMul = 1f, float radiusMul = 1f, int slotIndex = -1)
         {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CastAreaSkillLegacy(skill, damageMul, radiusMul, slotIndex);
+                return;
+            }
+
+            _areaSkillEffects ??= new AreaSkillEffectRuntime(this);
+            _areaSkillEffects.Cast(skill, damageMul, radiusMul, slotIndex);
+        }
+
+        private void CastAreaSkillLegacy(
+            SkillData skill,
+            float damageMul,
+            float radiusMul,
+            int slotIndex)
+        {
             var cam = Camera.main;
             if (cam == null) return;
 
@@ -1570,8 +1916,263 @@ namespace XianTu
             }
         }
 
+        bool IAreaSkillEffectHost.EnhancementActive => _enhActive;
+        float IAreaSkillEffectHost.EnhancementRadiusMultiplier => _enhRadiusMult;
+        bool IAreaSkillEffectHost.HasSustainedEnhancement => _enhSustained;
+        bool IAreaSkillEffectHost.HasDelayedBlastEnhancement => _enhDelayedBlast;
+        float IAreaSkillEffectHost.TotalPlayerDamage => RunCombatStats.TotalPlayerDamage;
+
+        bool IAreaSkillEffectHost.TryGetAreaTarget(out Vector3 worldPosition)
+        {
+            worldPosition = transform.position;
+            var cam = Camera.main;
+            var mouse = Mouse.current;
+            if (cam == null || mouse == null)
+                return false;
+
+            Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+            var groundPlane = new Plane(Vector3.up, transform.position);
+            if (!groundPlane.Raycast(ray, out float distance))
+                return false;
+
+            worldPosition = ray.GetPoint(distance);
+            return true;
+        }
+
+        ElementTag IAreaSkillEffectHost.ResolveAreaElement(SkillData skill)
+            => EnhElem(skill);
+
+        void IAreaSkillEffectHost.PlayAreaVisual(
+            SkillData skill,
+            Vector3 position,
+            float visualScale,
+            float actualRadius,
+            ElementTag element)
+        {
+            if (skill.vfxPrefab != null)
+            {
+                GameObject vfx;
+                if (ObjectPool.Instance != null)
+                {
+                    vfx = ObjectPool.Instance.Get(
+                        skill.vfxPrefab,
+                        position,
+                        Quaternion.identity);
+                    ObjectPool.Instance.Return(vfx, skill.vfxDuration);
+                }
+                else
+                {
+                    vfx = Instantiate(
+                        skill.vfxPrefab,
+                        position,
+                        Quaternion.identity);
+                    Destroy(vfx, skill.vfxDuration);
+                }
+
+                if (visualScale > 1f)
+                    vfx.transform.localScale *= visualScale;
+            }
+            else if (showDebugVisuals)
+            {
+                FxFactory.SpawnElementBurst(
+                    position + Vector3.up * 0.05f,
+                    element,
+                    actualRadius,
+                    Mathf.Max(0.4f, skill.vfxDuration * 0.8f));
+            }
+        }
+
+        System.Collections.Generic.IReadOnlyList<AreaSkillTarget>
+            IAreaSkillEffectHost.FindAreaTargets(Vector3 position, float radius)
+        {
+            var colliders = Physics.OverlapSphere(position, radius, enemyLayer);
+            var targets =
+                new System.Collections.Generic.List<AreaSkillTarget>(colliders.Length);
+            foreach (var hit in colliders)
+            {
+                var damageable = hit.GetComponent<IDamageable>();
+                float defense = damageable?.Stats != null
+                    ? damageable.Stats.defense
+                    : 0f;
+                targets.Add(new AreaSkillTarget(
+                    hit,
+                    hit.transform.position,
+                    defense,
+                    damageable != null));
+            }
+
+            return targets;
+        }
+
+        float IAreaSkillEffectHost.CalculateAreaDamage(
+            SkillData skill,
+            float targetDefense)
+        {
+            float skillBase =
+                SkillTuning.EffectiveBaseDamage(skill) +
+                _player.Stats.attackDamage * skill.damageScaling;
+            var (damage, _) = _player.Stats.CalcSkillDamage(
+                targetDefense,
+                skillBase / Mathf.Max(1f, _player.Stats.attackDamage));
+            return damage;
+        }
+
+        float IAreaSkillEffectHost.CalculateAreaBaseMultiplier(SkillData skill)
+        {
+            float skillBase =
+                SkillTuning.EffectiveBaseDamage(skill) +
+                _player.Stats.attackDamage * skill.damageScaling;
+            return skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
+        }
+
+        void IAreaSkillEffectHost.ApplyAreaDamage(
+            AreaSkillTarget target,
+            float damage)
+        {
+            if (target.Handle is not Collider hit)
+                return;
+
+            var damageable = hit.GetComponent<IDamageable>();
+            damageable?.OnDamage(damage, hit.transform.position, gameObject);
+        }
+
+        void IAreaSkillEffectHost.TrackAreaEnhancementTarget(
+            AreaSkillTarget target)
+        {
+            if (target.Handle is Collider hit)
+                _enhHitTargets.Add(hit.gameObject);
+        }
+
+        bool IAreaSkillEffectHost.RollAreaChance(float probability)
+            => Random.value < probability;
+
+        void IAreaSkillEffectHost.ApplyAreaFreeze(
+            AreaSkillTarget target,
+            float duration)
+        {
+            if (target.Handle is Collider hit)
+                SkillModifierApplier.ApplyFreeze(hit.gameObject, duration);
+        }
+
+        void IAreaSkillEffectHost.PublishAreaHit(
+            SkillData skill,
+            int slotIndex,
+            AreaSkillTarget target)
+        {
+            if (target.Handle is not Collider hit)
+                return;
+
+            GameEvents.Publish(new GameEvents.SkillHitConnected
+            {
+                SlotIndex = slotIndex,
+                Skill = skill,
+                HitPoint = hit.transform.position,
+                Target = hit.gameObject
+            });
+        }
+
+        void IAreaSkillEffectHost.ApplyAreaElementImpact(
+            ElementTag element,
+            Vector3 position,
+            System.Collections.Generic.IReadOnlyList<AreaSkillTarget> targets)
+        {
+            SkillModifierApplier.ApplyElementImpact(
+                element,
+                position,
+                AreaTargetColliders(targets),
+                _player);
+        }
+
+        void IAreaSkillEffectHost.ApplyAreaSlotModifiers(
+            SkillData skill,
+            int slotIndex,
+            Vector3 position,
+            float radius,
+            System.Collections.Generic.IReadOnlyList<AreaSkillTarget> targets)
+        {
+            SkillModifierApplier.ApplyAreaSkill(
+                skill,
+                slotIndex,
+                position,
+                radius,
+                AreaTargetColliders(targets),
+                _player,
+                enemyLayer);
+        }
+
+        void IAreaSkillEffectHost.SpawnSustainedArea(
+            Vector3 position,
+            float radius,
+            float damageMultiplier,
+            ElementTag element)
+        {
+            var zone = ActiveSkillZone.SpawnCustom(
+                position,
+                _player,
+                enemyLayer,
+                radius,
+                4f,
+                0.5f,
+                damageMultiplier,
+                element);
+            if (zone == null)
+                return;
+
+            zone.SetEnhancement(_enhCfg, element, 1f);
+            if (_enhCfg.addBurn || _enhCfg.addFreeze || _enhCfg.addPoison)
+                _enhWorldDelegated = true;
+        }
+
+        void IAreaSkillEffectHost.SpawnDelayedArea(
+            Vector3 position,
+            float radius,
+            float damageMultiplier,
+            ElementTag element)
+        {
+            bool hasStatus =
+                _enhCfg.addBurn || _enhCfg.addFreeze || _enhCfg.addPoison;
+            DelayedAreaBlast.Spawn(
+                position,
+                0.8f,
+                radius,
+                _player,
+                enemyLayer,
+                damageMultiplier,
+                element,
+                _enhCfg,
+                hasStatus);
+            if (hasStatus)
+                _enhWorldDelegated = true;
+        }
+
+        private static System.Collections.Generic.List<Collider> AreaTargetColliders(
+            System.Collections.Generic.IReadOnlyList<AreaSkillTarget> targets)
+        {
+            var colliders =
+                new System.Collections.Generic.List<Collider>(targets.Count);
+            foreach (AreaSkillTarget target in targets)
+            {
+                if (target.Handle is Collider collider)
+                    colliders.Add(collider);
+            }
+
+            return colliders;
+        }
+
         /// <summary>区域技能（混沌吞噬/天罡北斗阵/九天玄火阵/冥河召唤）：召唤一个持续作用区域。</summary>
         private void CastZoneSkill(SkillData skill, float damageMul = 1f)
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CastZoneSkillLegacy(skill, damageMul);
+                return;
+            }
+
+            _worldSkillEffects ??= new WorldSkillEffectRuntime(this);
+            _worldSkillEffects.CastZone(skill, damageMul);
+        }
+
+        private void CastZoneSkillLegacy(SkillData skill, float damageMul)
         {
             Vector3 spawnPos = transform.position;
             if (!skill.zoneFollowPlayer)
@@ -1622,6 +2223,18 @@ namespace XianTu
 
         /// <summary>投射物技能（支持多发散射），支持蓄力倍率</summary>
         private void CastProjectileSkill(SkillData skill, float damageMul = 1f)
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CastProjectileSkillLegacy(skill, damageMul);
+                return;
+            }
+
+            _projectileSkillEffects ??= new ProjectileSkillEffectRuntime(this);
+            _projectileSkillEffects.Cast(skill, damageMul);
+        }
+
+        private void CastProjectileSkillLegacy(SkillData skill, float damageMul)
         {
             Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
             Vector3 dir = _player.AimDirection;
@@ -1711,6 +2324,98 @@ namespace XianTu
             }
         }
 
+        Vector3 IProjectileSkillEffectHost.ProjectileOrigin
+            => attackOrigin != null
+                ? attackOrigin.position
+                : transform.position + Vector3.up * 0.8f;
+
+        Vector3 IProjectileSkillEffectHost.AimDirection => _player.AimDirection;
+        bool IProjectileSkillEffectHost.EnhancementActive => _enhActive;
+        bool IProjectileSkillEffectHost.TargetFarthest => _enhTargetFarthest;
+        bool IProjectileSkillEffectHost.SurroundPattern => _enhSurround;
+        bool IProjectileSkillEffectHost.RingPattern => _enhShape == ShapeMode.Ring;
+        bool IProjectileSkillEffectHost.WallPattern => _enhShape == ShapeMode.Wall;
+        bool IProjectileSkillEffectHost.ImpactZone => _enhShape == ShapeMode.Zone;
+        float IProjectileSkillEffectHost.ProjectileCountMultiplier
+            => _enhProjectileMult;
+        int IProjectileSkillEffectHost.ExtraProjectiles => _enhExtraProjectiles;
+
+        bool IProjectileSkillEffectHost.TryGetFarthestTargetDirection(
+            Vector3 origin,
+            float maxRange,
+            out Vector3 direction)
+            => TryFindFarthestEnemyDir(origin, maxRange, out direction);
+
+        float IProjectileSkillEffectHost.CalculateProjectileDamage(SkillData skill)
+        {
+            float skillBase =
+                SkillTuning.EffectiveBaseDamage(skill) +
+                _player.Stats.attackDamage * skill.damageScaling;
+            float skillMultiplier =
+                skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
+            var (damage, _) =
+                _player.Stats.CalcSkillDamage(0f, skillMultiplier);
+            return damage;
+        }
+
+        ElementTag IProjectileSkillEffectHost.ResolveProjectileElement(
+            SkillData skill)
+            => EnhElem(skill);
+
+        void IProjectileSkillEffectHost.SpawnProjectile(
+            SkillData skill,
+            Vector3 position,
+            Vector3 direction,
+            float damage,
+            ElementTag element,
+            bool applyEnhancement,
+            bool impactZone)
+        {
+            Projectile projectile = null;
+            if (skill.projectilePrefab != null)
+            {
+                GameObject instance = ObjectPool.Instance != null
+                    ? ObjectPool.Instance.Get(
+                        skill.projectilePrefab,
+                        position,
+                        Quaternion.LookRotation(direction))
+                    : Instantiate(
+                        skill.projectilePrefab,
+                        position,
+                        Quaternion.LookRotation(direction));
+                projectile = instance.GetComponent<Projectile>();
+                projectile?.Initialize(
+                    damage,
+                    direction,
+                    skill.projectileSpeed,
+                    0,
+                    0,
+                    element,
+                    _player,
+                    _player.Stats.armorPenPercent);
+            }
+            else if (showDebugVisuals)
+            {
+                projectile = CreateDebugProjectile(
+                    position,
+                    direction,
+                    skill.projectileSpeed,
+                    damage,
+                    skill.vfxDuration,
+                    element);
+            }
+
+            if (!applyEnhancement || projectile == null)
+                return;
+
+            projectile.SetEnhancement(_enhCfg);
+            if (_enhChainCount > 0)
+                projectile.SetChain(_enhChainCount, enemyLayer);
+            if (impactZone)
+                ApplyImpactZone(projectile, damage, element);
+            _enhWorldDelegated = true;
+        }
+
         /// <summary>形态改造·火域：为投射物挂上命中落点小型持续区域（程序化，复用 ActiveSkillZone）。</summary>
         private void ApplyImpactZone(Projectile projectile, float damage, ElementTag element)
         {
@@ -1721,6 +2426,18 @@ namespace XianTu
 
         /// <summary>增益技能（如金钟罩）</summary>
         private void CastBuffSkill(SkillData skill, int slotIndex = -1)
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CastBuffSkillLegacy(skill, slotIndex);
+                return;
+            }
+
+            _immediateSkillEffects ??= new ImmediateSkillEffectRuntime(this);
+            _immediateSkillEffects.CastBuff(skill, slotIndex);
+        }
+
+        private void CastBuffSkillLegacy(SkillData skill, int slotIndex)
         {
             // 金蝉脱壳：武装"受致命伤拦截"，不走常规属性增益
             if (skill.armLethalGuard)
@@ -1819,28 +2536,8 @@ namespace XianTu
             for (int i = 0; i < 3; i++)
             {
                 if (skills[i] == null) continue;
-                if (_skillCharges[i] >= _skillMaxCharges[i]) continue;
-
-                _skillRechargeTimer[i] -= Time.deltaTime;
-                if (_skillRechargeTimer[i] <= 0)
-                {
-                    // 恢复一层充能
-                    _skillCharges[i]++;
-                    // 如果还没满，继续充能下一层
-                    if (_skillCharges[i] < _skillMaxCharges[i])
-                    {
-                        float rechargeTime = skills[i].chargeTime > 0 ? skills[i].chargeTime : SkillTuning.EffectiveCooldown(skills[i]);
-
-                        _skillRechargeTimer[i] = rechargeTime;
-                        _skillRechargeDuration[i] = rechargeTime;
-                    }
-                    else
-                    {
-                        _skillRechargeTimer[i] = 0;
-                    }
-                }
-
-                PublishSkillChargeUpdate(i, skills[i]);
+                if (_skillCharges.Tick(i, Time.deltaTime, GetRechargeTime(skills[i])))
+                    PublishSkillChargeUpdate(i, skills[i]);
             }
         }
 
@@ -2148,6 +2845,18 @@ namespace XianTu
         /// <summary>位移技能（如土遁术、缩地成寸）</summary>
         private void CastDashSkill(SkillData skill)
         {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CastDashSkillLegacy(skill);
+                return;
+            }
+
+            _dashSkillEffects ??= new DashSkillEffectRuntime(this);
+            _dashSkillEffects.Cast(skill);
+        }
+
+        private void CastDashSkillLegacy(SkillData skill)
+        {
             Vector3 dir = _player.AimDirection;
             float distance = skill.dashDistance > 0 ? skill.dashDistance : 8f;
             Vector3 startPos = transform.position;
@@ -2224,13 +2933,139 @@ namespace XianTu
             Debug.Log($"<color=cyan>土遁！位移 {Vector3.Distance(startPos, targetPos):F1} 米</color>");
         }
 
+        Vector3 IDashSkillEffectHost.Origin => transform.position;
+        Vector3 IDashSkillEffectHost.AimDirection => _player.AimDirection;
+
+        Vector3 IDashSkillEffectHost.ResolveDashDestination(
+            Vector3 start,
+            Vector3 direction,
+            float distance)
+        {
+            if (Physics.Raycast(
+                    start + Vector3.up * 0.5f,
+                    direction,
+                    out RaycastHit wallHit,
+                    distance))
+            {
+                return wallHit.point - direction * 0.5f;
+            }
+
+            return start + direction * distance;
+        }
+
+        void IDashSkillEffectHost.ShowDashTrail(
+            SkillData skill,
+            Vector3 start,
+            Vector3 destination)
+        {
+            if (!showDebugVisuals)
+                return;
+
+            Color trailColor = skill.elementTag != ElementTag.None
+                ? SkillModifierApplier.ColorOf(skill.elementTag)
+                : new Color(0.6f, 0.4f, 0.2f, 0.5f);
+            trailColor.a = 0.5f;
+            CreateDebugDashTrail(start, destination, trailColor);
+        }
+
+        void IDashSkillEffectHost.MoveTo(Vector3 destination)
+        {
+            var controller = GetComponent<CharacterController>();
+            if (controller != null)
+            {
+                controller.enabled = false;
+                transform.position = destination;
+                controller.enabled = true;
+                return;
+            }
+
+            transform.position = destination;
+        }
+
+        void IDashSkillEffectHost.SetInvincible(float duration)
+        {
+            if (PlayerController.Instance != null)
+                PlayerController.Instance.SetInvincible(duration);
+        }
+
+        void IDashSkillEffectHost.ApplyDashTrailDamage(
+            SkillData skill,
+            Vector3 start,
+            Vector3 destination)
+        {
+            float skillBase =
+                SkillTuning.EffectiveBaseDamage(skill) +
+                _player.Stats.attackDamage * skill.damageScaling;
+            float skillMultiplier =
+                skillBase / Mathf.Max(1f, _player.Stats.attackDamage);
+            var hits = Physics.OverlapCapsule(
+                start + Vector3.up * 0.5f,
+                destination + Vector3.up * 0.5f,
+                1.5f,
+                enemyLayer);
+            foreach (var hit in hits)
+            {
+                var damageable = hit.GetComponent<IDamageable>();
+                if (damageable == null)
+                    continue;
+
+                float defense = damageable.Stats != null
+                    ? damageable.Stats.defense
+                    : 0f;
+                var (damage, _) =
+                    _player.Stats.CalcSkillDamage(defense, skillMultiplier);
+                damageable.OnDamage(damage, hit.transform.position, gameObject);
+            }
+        }
+
+        void IDashSkillEffectHost.PlayDashVisual(
+            SkillData skill,
+            Vector3 destination)
+        {
+            if (skill.vfxPrefab == null)
+                return;
+
+            if (ObjectPool.Instance != null)
+            {
+                GameObject vfx = ObjectPool.Instance.Get(
+                    skill.vfxPrefab,
+                    destination,
+                    Quaternion.identity);
+                ObjectPool.Instance.Return(vfx, skill.vfxDuration);
+            }
+            else
+            {
+                GameObject vfx = Instantiate(
+                    skill.vfxPrefab,
+                    destination,
+                    Quaternion.identity);
+                Destroy(vfx, skill.vfxDuration);
+            }
+        }
+
+        void IDashSkillEffectHost.LogDash(string message)
+            => Debug.Log(message);
+
         /// <summary>治疗技能（如回春术）</summary>
         private void CastHealSkill(SkillData skill)
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CastHealSkillLegacy(skill);
+                return;
+            }
+
+            _immediateSkillEffects ??= new ImmediateSkillEffectRuntime(this);
+            _immediateSkillEffects.CastHeal(skill);
+        }
+
+        private void CastHealSkillLegacy(SkillData skill)
         {
             float healAmount = skill.healAmount + _player.Stats.attackDamage * skill.healScaling;
             float oldHp = _player.Stats.currentHp;
             _player.Stats.currentHp = Mathf.Min(_player.Stats.currentHp + healAmount, _player.Stats.maxHp);
             float actualHeal = _player.Stats.currentHp - oldHp;
+            RecordPlayerHealing(healAmount, actualHeal);
 
             // 发布血量变化事件
             GameEvents.Publish(new GameEvents.HealthChanged
@@ -2270,8 +3105,205 @@ namespace XianTu
             Debug.Log($"<color=green>回春术！恢复 {actualHeal:F0} 生命值</color>");
         }
 
+        float IImmediateSkillEffectHost.AttackDamage => _player.Stats.attackDamage;
+        float IImmediateSkillEffectHost.CurrentHealth => _player.Stats.currentHp;
+        float IImmediateSkillEffectHost.MaxHealth => _player.Stats.maxHp;
+
+        void IImmediateSkillEffectHost.SetCurrentHealth(float value)
+            => _player.Stats.currentHp = value;
+
+        void IImmediateSkillEffectHost.RecordHealing(
+            float requestedHeal,
+            float actualHeal)
+            => RecordPlayerHealing(requestedHeal, actualHeal);
+
+        private void RecordPlayerHealing(
+            float requestedHeal,
+            float actualHeal)
+        {
+            RunCombatStats.AddPlayerHealing(
+                requestedHeal,
+                actualHeal,
+                new CircuitEntityRef(
+                    _player.gameObject.GetInstanceID(),
+                    null,
+                    System.Guid.Empty,
+                    new StableConfigId("legacy.player"),
+                    default));
+        }
+
+        void IImmediateSkillEffectHost.ArmLethalGuard(float duration)
+        {
+            var guard = _player.GetComponent<LethalGuard>();
+            if (guard == null)
+                guard = _player.gameObject.AddComponent<LethalGuard>();
+            guard.Arm(duration);
+        }
+
+        void IImmediateSkillEffectHost.ActivateHeavenEarthShift(float duration)
+        {
+            var shift = _player.GetComponent<HeavenEarthShift>();
+            if (shift == null)
+                shift = _player.gameObject.AddComponent<HeavenEarthShift>();
+            shift.Activate(duration);
+        }
+
+        void IImmediateSkillEffectHost.ApplyBuffStatus(StatusEffect effect)
+        {
+            var status = _player.GetComponent<StatusEffectController>();
+            if (status != null)
+                status.Apply(effect);
+        }
+
+        void IImmediateSkillEffectHost.ApplyBuffSlotModifiers(SkillData skill, int slotIndex)
+        {
+            SkillModifierApplier.ApplyAreaSkill(
+                skill,
+                slotIndex,
+                transform.position,
+                Mathf.Max(2.5f, skill.aoeRadius),
+                null,
+                _player,
+                enemyLayer);
+        }
+
+        void IImmediateSkillEffectHost.PlayImmediateVisual(
+            SkillData skill,
+            ImmediateSkillVisual visual,
+            Color fallbackColor)
+        {
+            if (skill.vfxPrefab != null)
+            {
+                if (ObjectPool.Instance != null)
+                {
+                    GameObject vfx = ObjectPool.Instance.Get(
+                        skill.vfxPrefab,
+                        transform.position,
+                        Quaternion.identity);
+                    ObjectPool.Instance.Return(vfx, skill.vfxDuration);
+                }
+                else
+                {
+                    GameObject vfx = Instantiate(
+                        skill.vfxPrefab,
+                        transform.position,
+                        Quaternion.identity);
+                    Destroy(vfx, skill.vfxDuration);
+                }
+            }
+            else if (showDebugVisuals)
+            {
+                if (visual == ImmediateSkillVisual.Heal)
+                    CreateDebugHealIndicator(skill.vfxDuration);
+                else
+                    CreateDebugShieldIndicator(skill.vfxDuration, fallbackColor);
+            }
+        }
+
+        void IImmediateSkillEffectHost.PublishHealthChanged()
+        {
+            GameEvents.Publish(new GameEvents.HealthChanged
+            {
+                CurrentHp = _player.Stats.currentHp,
+                MaxHp = _player.Stats.maxHp
+            });
+        }
+
+        void IImmediateSkillEffectHost.PublishHealNumber(float actualHeal)
+        {
+            GameEvents.Publish(new GameEvents.DamageNumberRequested
+            {
+                WorldPosition = transform.position + Vector3.up * 2f,
+                Damage = actualHeal,
+                SpecialTag = "治疗"
+            });
+        }
+
+        void IImmediateSkillEffectHost.LogImmediateSkill(string message)
+            => Debug.Log(message);
+
+        Vector3 IWorldSkillEffectHost.Origin => transform.position;
+        Vector3 IWorldSkillEffectHost.AimDirection => _player.AimDirection;
+
+        bool IWorldSkillEffectHost.TryGetGroundPointer(out Vector3 worldPosition)
+        {
+            worldPosition = transform.position;
+            var cam = Camera.main;
+            var mouse = Mouse.current;
+            if (cam == null || mouse == null)
+                return false;
+
+            Ray ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+            var groundPlane = new Plane(Vector3.up, transform.position);
+            if (!groundPlane.Raycast(ray, out float distance))
+                return false;
+
+            worldPosition = ray.GetPoint(distance);
+            return true;
+        }
+
+        void IWorldSkillEffectHost.SpawnZone(
+            SkillData skill,
+            Vector3 position,
+            float damageMultiplier)
+        {
+            var zone = ActiveSkillZone.Spawn(
+                skill,
+                position,
+                _player,
+                enemyLayer,
+                damageMultiplier);
+            if (_enhActive && zone != null)
+            {
+                zone.SetEnhancement(_enhCfg, _enhElement, _enhRadiusMult);
+                if (_enhCfg.addBurn || _enhCfg.addFreeze || _enhCfg.addPoison)
+                    _enhWorldDelegated = true;
+            }
+        }
+
+        void IWorldSkillEffectHost.SpawnDecoy(Vector3 position, float duration)
+            => WaterMirrorDecoy.Spawn(position, duration);
+
+        float IWorldSkillEffectHost.BuildSummonDamage(float attackRatio, float flatDamage)
+        {
+            var (damage, _) = _player.Stats.BuildSummonDamage(attackRatio, flatDamage);
+            return damage;
+        }
+
+        void IWorldSkillEffectHost.SpawnSummon(
+            SkillData skill,
+            Vector3 position,
+            float damage,
+            float duration)
+        {
+            if (skill.vfxPrefab != null)
+            {
+                GameObject summon = Instantiate(skill.vfxPrefab, position, Quaternion.identity);
+                Destroy(summon, duration);
+            }
+            else if (showDebugVisuals)
+            {
+                StartCoroutine(DebugSummonCoroutine(position, damage, duration));
+            }
+        }
+
+        void IWorldSkillEffectHost.LogWorldSkill(string message)
+            => Debug.Log(message);
+
         /// <summary>召唤技能（如傀儡术）</summary>
         private void CastSummonSkill(SkillData skill)
+        {
+            if (!FeatureFlags.EnableCarrierRuntime)
+            {
+                CastSummonSkillLegacy(skill);
+                return;
+            }
+
+            _worldSkillEffects ??= new WorldSkillEffectRuntime(this);
+            _worldSkillEffects.CastSummon(skill);
+        }
+
+        private void CastSummonSkillLegacy(SkillData skill)
         {
             // 水镜术：嘲讽分身（吸引敌人，不参与战斗）
             if (skill.summonIsDecoy)

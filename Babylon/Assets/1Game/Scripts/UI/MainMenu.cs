@@ -6,7 +6,7 @@ using TMPro;
 namespace XianTu
 {
     /// <summary>
-    /// 主菜单（V0.4.6 改 uGUI+TMP）—— 启动入口 + 返回主菜单。
+    /// ProjectR主菜单——启动入口与返回主菜单。
     ///
     /// UI 用 UGuiKit 代码化构建：屏幕空间 Overlay Canvas（sortingOrder=100），
     /// 全屏遮罩 + 居中标题/副标题/按钮列 + 底部存档信息/版本号。
@@ -139,22 +139,22 @@ namespace XianTu
             UGuiKit.CreateScrim(_root.transform);
 
             // 居中内容列
-            var center = UGuiKit.CreatePanel(_root.transform, "Center", new Vector2(480f, 10f), new Color(0, 0, 0, 0));
+            var center = UGuiKit.CreatePanel(_root.transform, "Center", new Vector2(720f, 10f), new Color(0, 0, 0, 0));
             var vfit = center.gameObject.AddComponent<ContentSizeFitter>();
             vfit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             UGuiKit.AddVLayout(center, 14f, new RectOffset(0, 0, 0, 0), TextAnchor.UpperCenter);
 
-            var title = UGuiKit.CreateText(center, "仙 途 秘 境", 64, UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            var title = UGuiKit.CreateText(center, "P R O J E C T  R", 64, UGuiKit.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
             SetPreferredHeight(title, 80f);
 
-            var subtitle = UGuiKit.CreateText(center, "闯秘境修仙 · 搜打撤 · 洞府养成", 22, UGuiKit.TextDim);
+            var subtitle = UGuiKit.CreateText(center, "器灵结契 · 载体回路 · 蜂巢探索", 22, UGuiKit.TextDim);
             SetPreferredHeight(subtitle, 34f);
 
             AddSpacer(center, 12f);
 
-            MakeMenuButton(center, "进入基地", StartWithTemplate, UGuiKit.BtnPrimary);
-            _continueBtn = MakeMenuButton(center, "继续修行", ContinueGame, UGuiKit.BtnNormal, out _continueLabel);
-            MakeMenuButton(center, "角色信息", () => PlayerInfoPanel.Show(), UGuiKit.BtnNormal);
+            MakeMenuButton(center, "进入洞府", StartWithTemplate, UGuiKit.BtnPrimary);
+            _continueBtn = MakeMenuButton(center, "继续探索", ContinueGame, UGuiKit.BtnNormal, out _continueLabel);
+            MakeMenuButton(center, "角色状态", () => PlayerInfoPanel.Show(), UGuiKit.BtnNormal);
             MakeMenuButton(center, "图鉴", () => CodexUITK.Show(), UGuiKit.BtnNormal);
             MakeMenuButton(center, "设置", () => SettingsUI.Show(), UGuiKit.BtnNormal);
             MakeMenuButton(center, "退出游戏", QuitGame, UGuiKit.BtnWarn);
@@ -168,7 +168,7 @@ namespace XianTu
             srt.sizeDelta = new Vector2(900f, 30f);
 
             // 版本号
-            var version = UGuiKit.CreateText(_root.transform, "V0.4.6 · 2026-07", 18, new Color(0.5f, 0.53f, 0.6f, 1f), TextAlignmentOptions.BottomRight);
+            var version = UGuiKit.CreateText(_root.transform, "Prototype · P1.2 · 2026-09", 18, new Color(0.5f, 0.53f, 0.6f, 1f), TextAlignmentOptions.BottomRight);
             var vrt = (RectTransform)version.transform;
             vrt.anchorMin = new Vector2(1f, 0f); vrt.anchorMax = new Vector2(1f, 0f);
             vrt.pivot = new Vector2(1f, 0f);
@@ -220,7 +220,7 @@ namespace XianTu
             if (_continueBtn != null)
                 UGuiKit.SetButtonEnabled(_continueBtn, hasSave, UGuiKit.BtnNormal);
             if (_continueLabel != null)
-                _continueLabel.text = hasSave ? "继续冒险" : "继续冒险（无存档）";
+                _continueLabel.text = hasSave ? "继续探索" : "继续探索（无存档）";
 
             if (_saveInfo != null)
             {
@@ -229,11 +229,11 @@ namespace XianTu
                     var data = SaveSystem.Instance.Data;
                     int skills = data.unlockedSkillIds?.Count ?? 0;
                     int modules = data.unlockedModuleIds?.Count ?? 0;
-                    _saveInfo.text = $"通关 {data.totalRunsCompleted}　·　阵亡 {data.totalDeaths}　·　解锁技能 {skills} / 模块 {modules}";
+                    _saveInfo.text = $"完成探索 {data.totalRunsCompleted}　·　失败 {data.totalDeaths}　·　已发现术法 {skills} / 回路构件 {modules}";
                 }
                 else if (hasSave)
                 {
-                    _saveInfo.text = "已有存档 — 点击「进入基地」选择存档";
+                    _saveInfo.text = "已有存档 — 点击「进入洞府」选择存档";
                 }
                 else _saveInfo.text = "";
             }

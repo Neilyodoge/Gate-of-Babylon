@@ -19,7 +19,7 @@ namespace XianTu
     public class ScripturePavilion : CaveModule
     {
         public override string ModuleName => "藏经阁";
-        public override string ModuleIcon => "📜";
+        public override string ModuleIcon => "书";
         public override string ModuleRole => "残页 → 永久功法 + 起手携带";
         public override Color ModuleColor => new Color(0.85f, 0.75f, 0.5f);
 
@@ -124,7 +124,7 @@ namespace XianTu
             var panel = UGuiKit.CreatePanel(_ui.transform, "Panel", new Vector2(780f, 560f), UGuiKit.Panel);
             UGuiKit.AddVLayout(panel, 8f, new RectOffset(22, 22, 16, 16), TextAnchor.UpperCenter);
 
-            var title = UGuiKit.CreateText(panel, "📜 藏经阁 · 残页拼合，功法永传", 20, ModuleColor, TextAlignmentOptions.Center, FontStyles.Bold);
+            var title = UGuiKit.CreateText(panel, "藏经阁 · 残页拼合，术法留存", 20, ModuleColor, TextAlignmentOptions.Center, FontStyles.Bold);
             UGuiKit.SetHeight(title, 30f);
             _infoLabel = UGuiKit.CreateText(panel, "", 12, new Color(0.75f, 0.78f, 0.85f), TextAlignmentOptions.Center);
             UGuiKit.SetHeight(_infoLabel, 22f);
@@ -244,13 +244,13 @@ namespace XianTu
                 string label;
                 if (entry.requiresShard)
                 {
-                    if (canAssemble) label = $"📜 拼合（古籍残页 ×{PagesPerSkill} + 道韵碎片 ×{ShardsPerHighTier}）";
+                    if (canAssemble) label = $"拼合（古籍残页 ×{PagesPerSkill} + 道韵碎片 ×{ShardsPerHighTier}）";
                     else if (!hasPages) label = $"残页不足（{pages}/{PagesPerSkill}）";
                     else label = $"道韵碎片不足（{shards}/{ShardsPerHighTier}）";
                 }
                 else
                 {
-                    label = canAssemble ? $"📜 拼合（古籍残页 ×{PagesPerSkill}）" : $"残页不足（{pages}/{PagesPerSkill}）";
+                    label = canAssemble ? $"拼合（古籍残页 ×{PagesPerSkill}）" : $"残页不足（{pages}/{PagesPerSkill}）";
                 }
 
                 var captured = entry;

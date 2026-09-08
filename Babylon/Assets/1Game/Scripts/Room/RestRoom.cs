@@ -166,7 +166,17 @@ namespace XianTu
             {
                 var stats = PlayerController.Instance.Stats;
                 float healAmount = stats.maxHp * 0.5f; // 恢复50%最大生命
+                float oldHp = stats.currentHp;
                 stats.Heal(healAmount);
+                RunCombatStats.AddPlayerHealing(
+                    healAmount,
+                    stats.currentHp - oldHp,
+                    new CircuitEntityRef(
+                        PlayerController.Instance.gameObject.GetInstanceID(),
+                        null,
+                        System.Guid.Empty,
+                        new StableConfigId("legacy.player"),
+                        default));
 
                 GameEvents.Publish(new GameEvents.HealthChanged
                 {

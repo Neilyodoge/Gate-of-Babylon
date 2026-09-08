@@ -32,7 +32,6 @@ namespace XianTu.Editor
             public Dictionary<string, string> TemplateOverrides = new();
         }
 
-        [MenuItem("仙途秘境/关卡工具/生成多 Flow 关卡图", false, 302)]
         public static void Build()
         {
             EnsureFolder(FlowRoot);

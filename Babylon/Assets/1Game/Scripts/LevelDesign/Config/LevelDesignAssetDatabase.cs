@@ -5,7 +5,7 @@ namespace XianTu.LevelDesign
 {
     [CreateAssetMenu(
         fileName = "关卡数据库",
-        menuName = "仙途秘境/关卡/关卡数据库")]
+        menuName = "ProjectR/Legacy/关卡/关卡数据库")]
     public sealed class LevelDesignAssetDatabase : ScriptableObject
     {
         public const string ResourcePath = "LevelDesign/关卡数据库";

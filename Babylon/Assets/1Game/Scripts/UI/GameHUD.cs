@@ -9,7 +9,7 @@ namespace XianTu
 {
     /// <summary>
     /// 游戏 HUD —— 完整的战斗界面
-    /// 包含：血条（带动画）、技能CD、闪避CD、连招指示器、敌人计数、境界信息、
+    /// 包含：血条（带动画）、技能CD、闪避CD、连招指示器、敌人计数、区域进度、
     ///       消息提示、死亡/通关面板
     /// </summary>
     public class GameHUD : MonoBehaviour
@@ -20,7 +20,7 @@ namespace XianTu
         [SerializeField] private Image hpDamageFill;      // 受伤延迟条（红色）
         [SerializeField] private TextMeshProUGUI hpText;
 
-        [Header("境界信息")]
+        [Header("区域进度")]
         [SerializeField] private TextMeshProUGUI realmText;
         [SerializeField] private TextMeshProUGUI levelText;
 
@@ -97,6 +97,8 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
             GameEvents.Subscribe<GameEvents.GameWon>(OnGameWon);
             GameEvents.Subscribe<GameEvents.ResourceChanged>(OnResourceChanged);
+            GameEvents.Subscribe<GameEvents.StarterSpiritAttachmentChanged>(
+                OnStarterSpiritAttachmentChanged);
 
             // 初始化显示
             if (PlayerController.Instance != null)
@@ -178,11 +180,11 @@ namespace XianTu
             if (hpFillImage != null)
             {
                 if (ratio > 0.6f)
-                    hpFillImage.color = new Color(0.2f, 0.85f, 0.35f);
+                    hpFillImage.color = new Color(0.86f, 0.30f, 0.20f);
                 else if (ratio > 0.3f)
-                    hpFillImage.color = new Color(1f, 0.75f, 0.15f);
+                    hpFillImage.color = new Color(0.92f, 0.52f, 0.18f);
                 else
-                    hpFillImage.color = new Color(0.9f, 0.2f, 0.2f);
+                    hpFillImage.color = new Color(0.72f, 0.12f, 0.10f);
             }
         }
 
@@ -202,19 +204,18 @@ namespace XianTu
             hpDamageFill.fillAmount = _damageBarRatio;
         }
 
-        // ==================== 境界 ====================
+        // ==================== 区域进度 ====================
 
         private void OnRealmBreakthrough(GameEvents.RealmBreakthrough evt)
         {
-            // realmText = 境名（第一层/第二层/第三层）；levelText = 境内进度（第 X/N 关）。
-            // 三关统一用同一套文案，避免「只提示第几层、不提示第几关」的困惑。
+            // RealmBreakthrough仍是兼容事件名；玩家界面只显示区域与探索进度。
             if (realmText != null)
                 realmText.text = evt.RealmName;
             if (levelText != null)
             {
                 var gm = GameManager.Instance;
                 if (gm != null)
-                    levelText.text = $"第 {gm.CurrentRoomInLevel + 1}/{gm.TotalRoomsInLevel} 关";
+                    levelText.text = $"进度 {gm.CurrentRoomInLevel + 1}/{gm.TotalRoomsInLevel}";
                 else
                     levelText.text = "";
             }
@@ -235,11 +236,13 @@ namespace XianTu
                     if (evt.RemainingTime > 0)
                         skillQCooldownText.text = $"{evt.RemainingTime:F1}";
                     else
-                        skillQCooldownText.text = "Q";
+                        skillQCooldownText.text = "";
                 }
                 if (skillQIcon != null)
                 {
-                    Color readyColor = GetSkillSlotIconColor(0);
+                    Color readyColor = skillQIcon.sprite != null
+                        ? Color.white
+                        : GetSkillSlotIconColor(0);
                     skillQIcon.color = evt.RemainingTime > 0 ? new Color(0.3f, 0.3f, 0.3f, 0.5f) : readyColor;
                 }
             }
@@ -252,11 +255,13 @@ namespace XianTu
                     if (evt.RemainingTime > 0)
                         skillECooldownText.text = $"{evt.RemainingTime:F1}";
                     else
-                        skillECooldownText.text = "E";
+                        skillECooldownText.text = "";
                 }
                 if (skillEIcon != null)
                 {
-                    Color readyColor = GetSkillSlotIconColor(1);
+                    Color readyColor = skillEIcon.sprite != null
+                        ? Color.white
+                        : GetSkillSlotIconColor(1);
                     skillEIcon.color = evt.RemainingTime > 0 ? new Color(0.3f, 0.3f, 0.3f, 0.5f) : readyColor;
                 }
             }
@@ -269,11 +274,13 @@ namespace XianTu
                     if (evt.RemainingTime > 0)
                         skillRCooldownText.text = $"{evt.RemainingTime:F1}";
                     else
-                        skillRCooldownText.text = "R";
+                        skillRCooldownText.text = "";
                 }
                 if (skillRIcon != null)
                 {
-                    Color readyColor = GetSkillSlotIconColor(2);
+                    Color readyColor = skillRIcon.sprite != null
+                        ? Color.white
+                        : GetSkillSlotIconColor(2);
                     skillRIcon.color = evt.RemainingTime > 0 ? new Color(0.3f, 0.3f, 0.3f, 0.5f) : readyColor;
                 }
             }
@@ -308,7 +315,7 @@ namespace XianTu
                 if (evt.RemainingTime > 0.05f)
                     dashCooldownText.text = $"{evt.RemainingTime:F1}";
                 else
-                    dashCooldownText.text = "闪避";
+                    dashCooldownText.text = "";
             }
         }
 
@@ -324,9 +331,10 @@ namespace XianTu
             if (dashCooldownText != null)
             {
                 if (evt.MaxCharges > 1)
-                    dashCooldownText.text = $"闪避 {evt.CurrentCharges}/{evt.MaxCharges}";
+                    dashCooldownText.text = evt.CurrentCharges.ToString();
                 else
-                    dashCooldownText.text = evt.CurrentCharges > 0 ? "闪避" : "充能中";
+                    dashCooldownText.text =
+                        evt.CurrentCharges > 0 ? "" : "…";
             }
         }
 
@@ -402,6 +410,28 @@ namespace XianTu
                 ShowMessage($"<color=#88CCFF>获得碎片 +{evt.Delta}</color>");
         }
 
+        private void OnStarterSpiritAttachmentChanged(
+            GameEvents.StarterSpiritAttachmentChanged evt)
+        {
+            string carrier = evt.Carrier switch
+            {
+                CarrierSlot.Weapon => "武器 · LMB",
+                CarrierSlot.TechniqueQ => "术法 · Q",
+                CarrierSlot.Mobility => "身法 · SPACE",
+                _ => "载体"
+            };
+            string spirit = evt.SpeciesId ==
+                FirstSpiritCircuitContent.SparkRaccoonSpecies
+                    ? "火花狸"
+                    : evt.SpeciesId ==
+                      FirstSpiritCircuitContent.EchoOwlSpecies
+                        ? "响响鸮"
+                        : "弹弹胶";
+            ShowMessage(
+                $"<color=#F2B45E>{spirit}已附着到{carrier}</color>" +
+                "  <color=#B8AD91>脱战按1/2/3换挂</color>");
+        }
+
         // ==================== 房间清理 ====================
 
         private void OnRoomCleared(GameEvents.RoomCleared evt)
@@ -421,8 +451,13 @@ namespace XianTu
                 if (deathSubText != null)
                 {
                     string realm = GameManager.Instance != null ? GameManager.Instance.CurrentRealmName : "未知";
-                    int level = GameManager.Instance != null ? GameManager.Instance.CurrentLevel + 1 : 0;
-                    deathSubText.text = $"止步于 {realm} · 第 {level} 层";
+                    int room = GameManager.Instance != null
+                        ? GameManager.Instance.CurrentRoomInLevel + 1
+                        : 0;
+                    deathSubText.text =
+                        room > 0
+                            ? $"止步于 {realm} · 探索进度 {room}"
+                            : $"止步于 {realm}";
                 }
             }
         }
@@ -472,6 +507,8 @@ namespace XianTu
             GameEvents.Unsubscribe<GameEvents.ComboStepChanged>(OnComboStepChanged);
             GameEvents.Unsubscribe<GameEvents.GameWon>(OnGameWon);
             GameEvents.Unsubscribe<GameEvents.ResourceChanged>(OnResourceChanged);
+            GameEvents.Unsubscribe<GameEvents.StarterSpiritAttachmentChanged>(
+                OnStarterSpiritAttachmentChanged);
         }
     }
 }

@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a82ea286a1267ac42ab33e68b45fde60, type: 3}
+  m_Name: ProjectRUITheme
+  m_EditorClassIdentifier: 
+  sparkRaccoon: {fileID: 21300000, guid: ce3407c6ded7b7446b3d210603900be2, type: 3}
+  echoOwl: {fileID: 21300000, guid: 4395155d5effb55469c945907cfcb500, type: 3}
+  bounceGel: {fileID: 21300000, guid: a2832b9ed691b0c46a63609f6a0a8d92, type: 3}
+  weapon: {fileID: 21300000, guid: 85373c9ff2af2c74982f62e16aa22460, type: 3}
+  techniqueQ: {fileID: 21300000, guid: 6b434260368b1304a8b2fb9d2ca14acb, type: 3}
+  lockedTechniqueE: {fileID: 21300000, guid: e51b391a27677c34f922b60ea76ddc0e, type: 3}
+  lockedTechniqueR: {fileID: 21300000, guid: 563c2f1bdcc48f94d812b36cc5e253fa, type: 3}
+  mobility: {fileID: 21300000, guid: 3aafab94bbd3e3644a0eeb0864cc15fb, type: 3}
+  health: {fileID: 21300000, guid: d0d5c6051b076b445a823989b5fa83c3, type: 3}
+  healthFrame: {fileID: 21300000, guid: a848fac9ece5a6d4b8f67b4e5467c9d4, type: 3}
+  spiritFrame: {fileID: 21300000, guid: 503fbd720ddd49d48b5613036370c334, type: 3}
+  skillFrame: {fileID: 21300000, guid: d5b2e8341f22ed8409d5aa39270e792f, type: 3}
+  skillFrameActive: {fileID: 21300000, guid: 66bc506b965d83843a4b1853173a7dcf, type: 3}
+  skillFrameLocked: {fileID: 21300000, guid: 26dcb6a253476db4f9525784acc529e0, type: 3}
+  keycap: {fileID: 21300000, guid: bb634934b149a564da10ca64426faf5b, type: 3}
+  tooltipPanel: {fileID: 21300000, guid: b4bc4ed76a5f45c46a0f16faba943ac0, type: 3}
+  circuitConnector: {fileID: 21300000, guid: 9f7f862f6df721547b9de6b7e6d74655, type: 3}
+  statusPips: {fileID: 21300000, guid: 2a2282d8d4cfcdf419c851e2cb1fe86a, type: 3}
+  talentTreePanel: {fileID: 21300000, guid: ce6531740e191b84e810702aaa867b59, type: 3}
+  sparkTalentAtlas: {fileID: 2800000, guid: 0ac49f10c592dbd438f37b8a088154cb, type: 3}
+  echoTalentAtlas: {fileID: 2800000, guid: dc7bf3ccccd624946945ad2314cd508f, type: 3}
+  gelTalentAtlas: {fileID: 2800000, guid: 5147ebfa2377f5048a2948f7dc5195de, type: 3}
+  sparkTalentIllustration: {fileID: 21300000, guid: 0abe1d05b0194774b84f4792edf62f33, type: 3}
+  echoTalentIllustration: {fileID: 21300000, guid: f0d1b1f01de602c4bb72881e5518d63f, type: 3}
+  gelTalentIllustration: {fileID: 21300000, guid: 875c0fd61ee57674d8cbdf3b9eecdcbe, type: 3}

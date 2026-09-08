@@ -53,7 +53,6 @@ namespace XianTu.Editor
             Stairs,
         }
 
-        [MenuItem("仙途秘境/关卡工具/生成 Edgar 白膜关卡")]
         public static void Build()
         {
             if (AssetDatabase.IsValidFolder(TargetRoot))

@@ -14,7 +14,7 @@ namespace XianTu
 
         private Vector2 _scrollPosition;
 
-        [MenuItem("仙途秘境/🎮 Game 总控", false, 0)]
+        [MenuItem("ProjectR/配置/运行参数总控", false, 0)]
         public static void ShowWindow()
         {
             var window = GetWindow<ConfigDashboard>("🎮 Game 总控");
@@ -25,7 +25,7 @@ namespace XianTu
         private void OnGUI()
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("🎮 仙途秘境 · Game 总控", EditorStyles.boldLabel);
+            GUILayout.Label("🎮 ProjectR · 运行参数总控", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("保存", EditorStyles.toolbarButton, GUILayout.Width(52f)))
                 SaveAll();
@@ -183,7 +183,7 @@ namespace XianTu
             if (elite != null)
             {
                 EditorGUILayout.Space(4f);
-                EditorGUILayout.LabelField("精英核心技能冷却", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("精英主要能力冷却", EditorStyles.boldLabel);
                 DrawAbilityCooldown(elite, "elite_counter_lunge", "闪避反击");
             }
         }

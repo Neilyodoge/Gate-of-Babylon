@@ -9,7 +9,7 @@ namespace XianTu.EditorTools
     /// <summary>
     /// 一次性工具：从 NotoSansSC-Regular.otf 生成 TMP 动态字体资产（CJK 按需生成字形），
     /// 供 uGUI+TMP UI 使用。生成到 Resources/Fonts/NotoSansSC SDF.asset。
-    /// 菜单：仙途秘境/UI/生成中文 TMP 字体资产。
+    /// 菜单：ProjectR/UI/生成中文 TMP 字体资产。
     /// </summary>
     public static class TMPFontAssetCreator
     {
@@ -19,7 +19,7 @@ namespace XianTu.EditorTools
         private const string EssentialPkg = "Library/PackageCache/com.unity.textmeshpro@3.0.7/Package Resources/TMP Essential Resources.unitypackage";
 
         /// <summary>静默导入 TMP 必需资源（生成 Assets/TextMesh Pro/Resources/TMP Settings.asset 等）。</summary>
-        [MenuItem("仙途秘境/UI/导入 TMP 必需资源")]
+        [MenuItem("ProjectR/UI/导入 TMP 必需资源")]
         public static void ImportTMPEssentials()
         {
             if (TMP_Settings.instance != null)
@@ -36,7 +36,7 @@ namespace XianTu.EditorTools
             Debug.Log("[TMP] 已静默导入 TMP 必需资源: " + EssentialPkg);
         }
 
-        [MenuItem("仙途秘境/UI/生成中文 TMP 字体资产")]
+        [MenuItem("ProjectR/UI/生成中文 TMP 字体资产")]
         public static void CreateChineseTMPFont()
         {
             var otf = AssetDatabase.LoadAssetAtPath<Font>(OtfPath);

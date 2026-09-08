@@ -6,7 +6,7 @@ namespace Edgar.Unity
     /// <summary>
     /// Set of room templates that can be stored inside a scriptable object.
     /// </summary>
-    [CreateAssetMenu(fileName = "房间模板集合", menuName = "仙途秘境/Edgar/房间模板集合")]
+    [CreateAssetMenu(fileName = "房间模板集合", menuName = "ProjectR/Legacy/关卡/Edgar房间模板集合")]
     public class RoomTemplatesSet : ScriptableObject
     {
         [InspectorName("房间模板")]

@@ -1251,6 +1251,11 @@ namespace XianTu
         {
             if (!stats.IsAlive) return;
             float actual = stats.TakeDamage(damage);
+            LegacyCombatResultRecorder.RecordPlayerDamage(
+                attacker,
+                gameObject,
+                damage,
+                actual);
 
             GameEvents.Publish(new GameEvents.DamageNumberRequested
             {

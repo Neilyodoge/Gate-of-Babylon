@@ -154,7 +154,7 @@ namespace XianTu
             var slots = PlayerSlots();
             if (slots != null && slots.InCombat)
             {
-                Debug.Log("<color=red>战斗中无法打开模块装配！</color>");
+                Debug.Log("<color=red>战斗中无法打开回路装配！</color>");
                 return;
             }
             OpenInternal();
@@ -316,7 +316,7 @@ namespace XianTu
                 if (_chainBoxTitle[s] != null)
                 {
                     string chainPart = valid ? chain.DisplayName : (hasAny ? "装配中…" : "空链");
-                    _chainBoxTitle[s].text = $"<color=#9aa0b0>全息链：</color>{chainPart}  {BuildChainStatus(chain)}";
+                    _chainBoxTitle[s].text = $"<color=#9aa0b0>当前回路：</color>{chainPart}  {BuildChainStatus(chain)}";
                 }
                 if (_chainPreview[s] != null)
                 {
@@ -402,9 +402,9 @@ namespace XianTu
             if (m == null)
             {
                 if (_descIconBg != null) _descIconBg.gameObject.SetActive(false);
-                if (_descTitle != null) _descTitle.text = "<color=#9fb3d0>模块详情</color>";
+                if (_descTitle != null) _descTitle.text = "<color=#9fb3d0>构件详情</color>";
                 if (_descTags != null) _descTags.text = "";
-                if (_descBody != null) _descBody.text = "<color=#7a8090>把鼠标移到左侧模块或链槽位上查看说明。\n拖拽模块到发绿的槽位即可装入。</color>";
+                if (_descBody != null) _descBody.text = "<color=#7a8090>把鼠标移到左侧构件或回路槽位上查看说明。\n拖拽构件到发绿的槽位即可装入。</color>";
             }
             else
             {
@@ -671,7 +671,7 @@ namespace XianTu
                 Vector3 dropPos = player.transform.position + player.transform.forward * 2f
                     + new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f));
                 ModulePickup.Spawn(_selected, dropPos);
-                Debug.Log($"<color=yellow>丢弃模块：{_selected.displayName}</color>");
+                Debug.Log($"<color=yellow>丢弃回路构件：{_selected.displayName}</color>");
             }
             _selected = null;
             RefreshAll();
@@ -713,9 +713,9 @@ namespace XianTu
             // 顶部标题栏
             var header = CreatePanel(card.transform, "Header",
                 new Vector2(0f, 0.928f), new Vector2(1f, 1f), new Color(0.11f, 0.14f, 0.24f, 1f));
-            CreateText(header.transform, "Title", "技能装配台",
+            CreateText(header.transform, "Title", "载体回路装配",
                 new Vector2(0.012f, 0.42f), new Vector2(0.45f, 1f), 22, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft);
-            CreateText(header.transform, "Sub", "拖拽模块到槽位装配 · 点击选中再点槽位 · M / Esc 关闭",
+            CreateText(header.transform, "Sub", "拖拽构件接入回路 · 点击选中再点槽位 · M / Esc 关闭",
                 new Vector2(0.012f, 0f), new Vector2(0.5f, 0.46f), 12, new Color(0.6f, 0.66f, 0.8f), FontStyle.Normal, TextAnchor.MiddleLeft);
 
             // 顶部居中 toast 药丸
@@ -742,7 +742,7 @@ namespace XianTu
             var panel = CreatePanel(card, "BagPanel",
                 new Vector2(0.01f, 0.012f), new Vector2(0.255f, 0.918f), CSubPanel);
 
-            CreateText(panel.transform, "BagTitle", "模块背包",
+            CreateText(panel.transform, "BagTitle", "回路构件",
                 new Vector2(0.04f, 0.955f), new Vector2(0.6f, 0.998f), 16, new Color(0.8f, 0.9f, 1f), FontStyle.Bold, TextAnchor.MiddleLeft);
             _invCountLabel = CreateText(panel.transform, "BagCount", "数量：0",
                 new Vector2(0.55f, 0.955f), new Vector2(0.965f, 0.998f), 13, new Color(0.6f, 0.66f, 0.8f), FontStyle.Normal, TextAnchor.MiddleRight).GetComponent<TextMeshProUGUI>();
@@ -791,7 +791,7 @@ namespace XianTu
             scroll.content = _invContent;
 
             _invEmptyLabel = CreateText(viewport.transform, "Empty",
-                "背包为空\n用 Debug「发放全部模块」\n或在关卡中拾取\n（已装槽位可拖回此处卸下）",
+                "背包为空\n用 Debug「发放全部构件」\n或在探索中拾取\n（已装槽位可拖回此处卸下）",
                 new Vector2(0.05f, 0.35f), new Vector2(0.95f, 0.65f), 13, new Color(0.5f, 0.53f, 0.62f)).GetComponent<TextMeshProUGUI>();
             _invEmptyLabel.gameObject.SetActive(false);
         }
@@ -983,7 +983,7 @@ namespace XianTu
             var panel = CreatePanel(card, "DetailPanel",
                 new Vector2(0.758f, 0.012f), new Vector2(0.99f, 0.918f), CSubPanel);
 
-            CreateText(panel.transform, "DetailTitle", "模块详情",
+            CreateText(panel.transform, "DetailTitle", "构件详情",
                 new Vector2(0.05f, 0.955f), new Vector2(0.95f, 0.998f), 16, new Color(0.85f, 0.92f, 1f), FontStyle.Bold, TextAnchor.MiddleLeft);
 
             // 大图标
@@ -1002,7 +1002,7 @@ namespace XianTu
                 Vector2.zero, Vector2.one, 30, Color.white, FontStyle.Bold).GetComponent<TextMeshProUGUI>();
             iconBg.SetActive(false);
 
-            _descTitle = CreateText(panel.transform, "Name", "<color=#9fb3d0>模块详情</color>",
+            _descTitle = CreateText(panel.transform, "Name", "<color=#9fb3d0>构件详情</color>",
                 new Vector2(0.37f, 0.88f), new Vector2(0.96f, 0.95f), 16, Color.white, FontStyle.Bold, TextAnchor.LowerLeft).GetComponent<TextMeshProUGUI>();
             _descTags = CreateText(panel.transform, "Tags", "",
                 new Vector2(0.37f, 0.79f), new Vector2(0.96f, 0.87f), 12, new Color(0.8f, 0.82f, 0.9f), FontStyle.Normal, TextAnchor.UpperLeft).GetComponent<TextMeshProUGUI>();
@@ -1022,7 +1022,7 @@ namespace XianTu
                 new Vector2(0.05f, 0.205f), new Vector2(0.96f, 0.495f), new Color(0.05f, 0.06f, 0.1f, 0.8f));
             helpBg.GetComponent<Image>().raycastTarget = false;
             CreateText(helpBg.transform, "Help",
-                "• 拖拽装入：左键按住模块拖到槽位\n• 点击装入：先点模块选中，再点槽位\n• 卸下：点槽位的 ✕，或把槽位模块拖回背包\n• 互换：槽位之间互拖即可交换\n• 触发器→效果器 成链即激活；改造件可选",
+                "• 拖拽装入：左键按住构件拖到槽位\n• 点击装入：先点构件选中，再点槽位\n• 卸下：点槽位的 ✕，或把槽位构件拖回背包\n• 互换：槽位之间互拖即可交换\n• 触发器→效果器接通后激活；改造件可选",
                 new Vector2(0.04f, 0.04f), new Vector2(0.97f, 0.96f), 11, new Color(0.7f, 0.75f, 0.85f), FontStyle.Normal, TextAnchor.UpperLeft);
 
             // 卸下全部链
@@ -1036,7 +1036,7 @@ namespace XianTu
                 new Vector2(0.05f, 0.025f), new Vector2(0.96f, 0.10f), new Color(0.45f, 0.16f, 0.16f, 0.95f));
             _discardBtn = discardGo.AddComponent<Button>();
             _discardBtn.onClick.AddListener(DiscardSelected);
-            _discardLabel = CreateText(discardGo.transform, "L", "丢弃选中模块", Vector2.zero, Vector2.one, 14, new Color(1f, 0.7f, 0.7f), FontStyle.Bold).GetComponent<TextMeshProUGUI>();
+            _discardLabel = CreateText(discardGo.transform, "L", "丢弃选中构件", Vector2.zero, Vector2.one, 14, new Color(1f, 0.7f, 0.7f), FontStyle.Bold).GetComponent<TextMeshProUGUI>();
         }
 
         // ==================== 图标块 ====================

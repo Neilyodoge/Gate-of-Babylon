@@ -8,6 +8,9 @@ namespace XianTu
     /// </summary>
     public class PlayerResources : MonoBehaviour
     {
+        private static readonly StableConfigId ShardMetric =
+            new("combat.player.resource.shards");
+
         /// <summary>灵力碎片数量</summary>
         private int _spiritShards;
 
@@ -26,6 +29,11 @@ namespace XianTu
         {
             if (amount <= 0) return;
             _spiritShards += amount;
+            RunCombatStats.AddPlayerResource(
+                ShardMetric,
+                amount,
+                amount,
+                LegacyCombatResultRecorder.BuildPlayerTarget(gameObject));
 
             GameEvents.Publish(new GameEvents.ResourceChanged
             {
@@ -39,8 +47,22 @@ namespace XianTu
         /// <summary>消耗灵力碎片（返回是否成功）</summary>
         public bool SpendShards(int amount)
         {
-            if (amount <= 0 || _spiritShards < amount) return false;
+            if (amount <= 0) return false;
+            if (_spiritShards < amount)
+            {
+                RunCombatStats.AddPlayerResource(
+                    ShardMetric,
+                    -amount,
+                    0f,
+                    LegacyCombatResultRecorder.BuildPlayerTarget(gameObject));
+                return false;
+            }
             _spiritShards -= amount;
+            RunCombatStats.AddPlayerResource(
+                ShardMetric,
+                -amount,
+                -amount,
+                LegacyCombatResultRecorder.BuildPlayerTarget(gameObject));
 
             GameEvents.Publish(new GameEvents.ResourceChanged
             {

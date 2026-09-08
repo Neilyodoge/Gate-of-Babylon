@@ -5,9 +5,9 @@ namespace XianTu
     /// <summary>
     /// 全局游戏配置 —— ScriptableObject
     /// 集中管理所有可调属性，方便在 Inspector 中快速修改
-    /// 菜单：Assets → Create → 仙途秘境 → 游戏配置
+    /// 菜单：Assets → Create → ProjectR → 配置 → 游戏配置
     /// </summary>
-    [CreateAssetMenu(fileName = "GameConfig", menuName = "仙途秘境/游戏配置")]
+    [CreateAssetMenu(fileName = "GameConfig", menuName = "ProjectR/配置/游戏配置")]
     public class GameConfig : ScriptableObject
     {
         // ========== 单例访问 ==========
@@ -124,29 +124,29 @@ namespace XianTu
 
         // ==================== 难度曲线 ====================
         [Header("═══ 难度曲线 ═══")]
-        [Tooltip("第一层（练气期）战斗房间的敌人数量。")]
+        [Tooltip("初始区域战斗房间的敌人数量。")]
         public int 基础敌人数量 = 3;
 
-        [Tooltip("每深入一层额外增加的敌人数。实际数量=基础数量+层数×此值。")]
+        [Tooltip("每推进一个Legacy区域额外增加的敌人数。实际数量=基础数量+区域索引×此值。")]
         public int 每层增加敌人数 = 2;
 
-        [Tooltip("每层敌人血量的增长系数。0.3表示每层血量增加30%（第2层=1.3倍，第3层=1.6倍…）。")]
+        [Tooltip("每推进一个Legacy区域的敌人血量增长系数。0.3表示每次增加30%。")]
         [Range(0.1f, 1f)]
         public float 每层血量倍率 = 0.3f;
 
-        [Tooltip("每层敌人伤害的增长系数。0.2表示每层伤害增加20%。")]
+        [Tooltip("每推进一个Legacy区域的敌人伤害增长系数。0.2表示每次增加20%。")]
         [Range(0.1f, 1f)]
         public float 每层伤害倍率 = 0.2f;
 
         // ==================== 房间 ====================
         [Header("═══ 房间尺寸 ═══")]
-        [Tooltip("所有层战斗房间的固定边长（单位）。房间为正方形，不随层数变化。")]
+        [Tooltip("所有区域战斗房间的固定边长（单位）。")]
         [Range(20f, 60f)]
         public float 房间大小 = 35f;
 
         // ==================== 精英怪 ====================
         [Header("═══ 精英怪 ═══")]
-        [Tooltip("精英怪出现的最低层数（0=第1层就可能出现）。")]
+        [Tooltip("精英怪出现的最低Legacy区域索引（0=初始区域即可出现）。")]
         [Range(0, 5)]
         public int 精英怪最低层数 = 2;
 
@@ -202,6 +202,16 @@ namespace XianTu
         [Header("═══ V.03 范围开关（详见 GDD「V.03 范围确认」）═══")]
         [Tooltip("局外洞府 meta（闭关石室·本体境界 / 灵脉 / 机缘事件 等 v0.5.4 系统）。常规启用；取消勾选则整套暂缓。")]
         public bool 启用洞府meta = true;
+
+        [Header("═══ ProjectR 运行时开关 ═══")]
+        [Tooltip("使用统一载体运行时执行武器、术法和身法。默认启用；取消勾选可回退Legacy路径。")]
+        public bool 启用载体运行时 = true;
+
+        [Tooltip("使用器灵源／应／化回路运行时。P2通过G2前保持关闭。")]
+        public bool 启用回路运行时 = false;
+
+        [Tooltip("使用蜂巢生态运行时。当前关卡策划冻结，禁止启用或接线。")]
+        public bool 启用生态运行时 = false;
 
         // ==================== Debug 爆率覆盖 ====================
         private static bool _debugMaxSkillDropRate = false;

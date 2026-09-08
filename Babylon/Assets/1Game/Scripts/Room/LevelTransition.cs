@@ -48,7 +48,7 @@ namespace XianTu
             _fadeOverlay.SetActive(false);
         }
 
-        /// <summary>立即销毁当前传送门（用于"渡劫失利强制撤离"等场景）</summary>
+        /// <summary>立即销毁当前传送门（用于失败后强制结束等场景）。</summary>
         public void RemovePortal()
         {
             if (_portal != null)

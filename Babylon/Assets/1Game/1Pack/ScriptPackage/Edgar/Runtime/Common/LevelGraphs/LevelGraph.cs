@@ -6,7 +6,7 @@ namespace Edgar.Unity
     /// <summary>
     ///     Represents a level graph.
     /// </summary>
-    [CreateAssetMenu(fileName = "关卡图", menuName = "仙途秘境/Edgar/关卡图")]
+    [CreateAssetMenu(fileName = "关卡图", menuName = "ProjectR/Legacy/关卡/Edgar关卡图")]
     public class LevelGraph : ScriptableObject
     {
         /// <summary>

@@ -23,7 +23,7 @@ namespace XianTu
         /// <summary>模块名（显示在 NpcHeadCard 上）</summary>
         public abstract string ModuleName { get; }
         /// <summary>模块图标（显示在 NpcHeadCard 上）</summary>
-        public virtual string ModuleIcon => "✦";
+        public virtual string ModuleIcon => "点";
         /// <summary>模块角色描述（显示在 NpcHeadCard 副标题）</summary>
         public abstract string ModuleRole { get; }
         /// <summary>主题色</summary>

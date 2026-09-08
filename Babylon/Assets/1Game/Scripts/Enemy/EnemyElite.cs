@@ -233,7 +233,7 @@ namespace XianTu
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
             var text = textGo.AddComponent<TMPro.TextMeshProUGUI>();
-            text.text = $"⚔ 精英 · {GetAffixName(affix1)} / {GetAffixName(affix2)}";
+            text.text = $"精英 · {GetAffixName(affix1)} / {GetAffixName(affix2)}";
             text.fontSize = 20;
             if (UGuiKit.CjkFont != null) text.font = UGuiKit.CjkFont;
             text.color = new Color(1f, 0.85f, 0.2f);
@@ -937,6 +937,11 @@ namespace XianTu
             }
 
             float actual = stats.TakeDamage(damage);
+            LegacyCombatResultRecorder.RecordPlayerDamage(
+                attacker,
+                gameObject,
+                damage,
+                actual);
 
             GameEvents.Publish(new GameEvents.DamageNumberRequested
             {
@@ -1007,7 +1012,7 @@ namespace XianTu
                     if (minion != null && possibleSkillDrops != null)
                         minion.SetSkillDrops(possibleSkillDrops);
                 }
-                Debug.Log("<color=yellow>⚔ 精英怪分裂！</color>");
+                Debug.Log("<color=yellow>[精英] 分裂！</color>");
             }
 
             GameEvents.Publish(new GameEvents.EnemyKilled
@@ -1021,7 +1026,7 @@ namespace XianTu
             if (HitStop.Instance != null)
                 HitStop.Instance.TriggerKill();
 
-            Debug.Log("<color=yellow>⚔ 精英怪被击败！</color>");
+            Debug.Log("<color=yellow>[精英] 已被击败！</color>");
             StartCoroutine(DeathAnimation());
         }
 
@@ -1118,7 +1123,7 @@ namespace XianTu
             elite.stats.currentHp = elite.stats.maxHp;
             if (skillDrops != null) elite.possibleSkillDrops = skillDrops;
 
-            Debug.Log($"<color=yellow>⚔ 精英怪出现！词缀：{GetAffixName(elite.affix1)} + {GetAffixName(elite.affix2)}</color>");
+            Debug.Log($"<color=yellow>[精英] 出现！词缀：{GetAffixName(elite.affix1)} + {GetAffixName(elite.affix2)}</color>");
             return elite;
         }
 

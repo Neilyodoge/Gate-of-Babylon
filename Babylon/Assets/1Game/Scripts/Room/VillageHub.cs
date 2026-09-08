@@ -27,7 +27,7 @@ namespace XianTu
             var prefab = Resources.Load<GameObject>(WhiteboxResourcePath);
             if (prefab == null)
                 throw new InvalidOperationException(
-                    $"缺少基地 Prefab：Resources/{WhiteboxResourcePath}.prefab。请执行“仙途秘境/关卡工具/生成基地白盒”。");
+                    $"缺少基地 Prefab：Resources/{WhiteboxResourcePath}.prefab。旧白盒生成菜单已随关卡策划冻结隐藏。");
 
             _roomVisuals = Instantiate(prefab, transform);
             _roomVisuals.name = "VillageHubVisuals";
@@ -249,16 +249,28 @@ namespace XianTu
         {
             if (_headCard != null)
             {
-                bool wantHint = IsRoutedActive && !ModuleAssemblyUI.IsVisible;
+                bool wantHint =
+                    IsRoutedActive &&
+                    !ModuleAssemblyUI.IsVisible &&
+                    !SpiritCircuitOverviewUI.IsVisible;
                 _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
-            if (ModuleAssemblyUI.IsVisible) return;
+            if (ModuleAssemblyUI.IsVisible ||
+                SpiritCircuitOverviewUI.IsVisible)
+            {
+                return;
+            }
 
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)
-                ModuleAssemblyUI.Instance?.Toggle();
+            {
+                if (FeatureFlags.EnableCarrierRuntime)
+                    SpiritCircuitOverviewUI.Instance?.Toggle();
+                else
+                    ModuleAssemblyUI.Instance?.Toggle();
+            }
         }
 
         private void OnPlayerEnter()
@@ -371,7 +383,7 @@ namespace XianTu
             _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
             {
                 displayName = continueNight ? "无暮王城 · 永夜待续" : "秘境之门",
-                icon = "✦",
+                icon = "门",
                 roleSub = continueNight
                     ? LevelAPhaseRuntime.BuildEntrySummary()
                     : "入秘境 · 进入第一关",
@@ -415,12 +427,19 @@ namespace XianTu
 
             if (_headCard != null)
             {
-                bool wantHint = IsRoutedActive && !ModuleAssemblyUI.IsVisible;
+                bool wantHint =
+                    IsRoutedActive &&
+                    !ModuleAssemblyUI.IsVisible &&
+                    !SpiritCircuitOverviewUI.IsVisible;
                 _headCard.SetHintVisible(wantHint);
             }
 
             if (!IsRoutedActive) return;
-            if (ModuleAssemblyUI.IsVisible) return;
+            if (ModuleAssemblyUI.IsVisible ||
+                SpiritCircuitOverviewUI.IsVisible)
+            {
+                return;
+            }
 
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame)

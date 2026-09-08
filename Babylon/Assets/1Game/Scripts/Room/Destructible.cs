@@ -41,7 +41,16 @@ namespace XianTu
         {
             if (_destroyed) return;
 
+            float oldHp = currentHp;
             currentHp -= damage;
+            float actual = Mathf.Min(
+                Mathf.Max(0f, oldHp),
+                Mathf.Max(0f, damage));
+            LegacyCombatResultRecorder.RecordPlayerDamage(
+                attacker,
+                gameObject,
+                damage,
+                actual);
 
             // 受击闪白
             foreach (var r in _renderers)

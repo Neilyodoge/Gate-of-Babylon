@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Map
@@ -19,7 +19,7 @@ namespace Map
         public int extraPaths;
         public List<MapLayer> layers;
 
-        [Header("仙途秘境：按总房间预算生成三路线")]
+        [Header("ProjectR Legacy：按总房间预算生成三路线")]
         [Tooltip("开启后不再把 Layers 数量当成每条路线长度，而是把 totalNodeCount 个节点拆到 routeCount 条长短不同的路线。")]
         public bool useRouteBudget;
         [Min(2)] public int routeCount = 3;

@@ -101,60 +101,10 @@ namespace XianTu
             // ---- 核心系统 (Core) ----
             list.Add(new ToolEntry
             {
-                Name = "配置 Tags 和 Layers",
-                Category = "Core",
-                Description = "自动配置项目所需的 Tags 和 Layers（Player/Enemy/Projectile 等）",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/① 配置 Tags 和 Layers"),
-                ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "创建 Demo1 测试数据",
-                Category = "Core",
-                Description = "一键创建技能数据（落石术/金钟罩）和灵物数据等 ScriptableObject 资产",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/② 创建 Demo1 测试数据"),
-                ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "创建 Animator Controller",
-                Category = "Core",
-                Description = "自动创建玩家 Animator Controller，包含 Idle/Walk/Attack/Skill/Hit/Evade 状态",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/③ 创建 Animator Controller"),
-                ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "自动配置 Demo1 场景",
-                Category = "Core",
-                Description = "自动配置当前场景：添加 Demo1Setup、设置相机、灯光、后处理等",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/④ 自动配置 Demo1 场景"),
-                ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "创建 Demo1 场景文件",
-                Category = "Core",
-                Description = "在 Assets/1Game/Scenes 下创建 Demo1.unity 场景文件",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑤ 创建 Demo1 场景文件"),
-                ScriptPath = "Assets/1Game/Scripts/Editor/Demo1DataCreator.cs",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
                 Name = "创建游戏配置 (GameConfig)",
                 Category = "Core",
                 Description = "创建 GameConfig ScriptableObject，集中管理所有游戏数值",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑤ 创建游戏配置 (GameConfig)"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("ProjectR/配置/创建游戏配置"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/GameConfigEditor.cs",
                 IsSpecialized = true
             });
@@ -164,7 +114,7 @@ namespace XianTu
                 Name = "选中游戏配置",
                 Category = "Core",
                 Description = "在 Inspector 中选中并高亮 GameConfig 资产，方便快速修改数值",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/⑥ 选中游戏配置"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("ProjectR/配置/选中游戏配置"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/GameConfigEditor.cs",
                 IsSpecialized = true
             });
@@ -194,7 +144,7 @@ namespace XianTu
                 Name = "🎮 Game 总控",
                 Category = "Core",
                 Description = "直接调整并保存当前已接入运行时的游戏参数",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/🎮 Game 总控"),
+                OnClick = () => EditorApplication.ExecuteMenuItem("ProjectR/配置/运行参数总控"),
                 ScriptPath = "Assets/1Game/Scripts/Editor/ConfigDashboard.cs",
                 IsSpecialized = true
             });
@@ -278,17 +228,6 @@ namespace XianTu
             // ---- 房间与关卡 (Room) ----
             list.Add(new ToolEntry
             {
-                Name = "关卡配置与房间预制体工具",
-                Category = "Room",
-                Description = "中文配置小怪、区域、首领、房间、遭遇、剧情和阶段；制作房间有效范围、怪物刷新范围和内容标记点。",
-                OnClick = () => EditorApplication.ExecuteMenuItem("仙途秘境/关卡工具/关卡配置与房间预制体"),
-                ScriptPath = "Assets/1Game/Scripts/Editor/LevelDesignAuthoringWindow.cs",
-                MenuPath = "仙途秘境/关卡工具/关卡配置与房间预制体",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
                 Name = "定位 RoomBuilder 脚本",
                 Category = "Room",
                 OnClick = () => PingScript("Assets/1Game/Scripts/Room/RoomBuilder.cs"),
@@ -318,7 +257,7 @@ namespace XianTu
             // ---- 文档 (Docs) ----
             list.Add(new ToolEntry
             {
-                Name = "⚡ 配置速查表",
+                Name = "配置速查表",
                 Category = "Docs",
                 OnClick = () => PingScript("Assets/1Game/Docs/配置速查表.md"),
                 ScriptPath = "Assets/1Game/Docs/配置速查表.md",
@@ -392,16 +331,6 @@ namespace XianTu
                 OnClick = () => PingScript("Assets/1Game/Docs/资源_功法配置指南.md"),
                 ScriptPath = "Assets/1Game/Docs/资源_功法配置指南.md",
                 Description = "如何创建功法 SO 数据，技能类型、数值配置、VFX 关联",
-                IsSpecialized = true
-            });
-
-            list.Add(new ToolEntry
-            {
-                Name = "数据创建工具说明",
-                Category = "Docs",
-                OnClick = () => PingScript("Assets/1Game/Docs/资源_数据创建工具说明.md"),
-                ScriptPath = "Assets/1Game/Docs/资源_数据创建工具说明.md",
-                Description = "Demo1DataCreator 编辑器工具的使用方法，一键创建/更新所有测试数据",
                 IsSpecialized = true
             });
 

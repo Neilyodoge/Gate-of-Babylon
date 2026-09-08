@@ -5,17 +5,14 @@ using XianTu.LevelDesign;
 namespace XianTu
 {
     /// <summary>
-    /// 游戏管理器 —— 控制整局游戏流程
-    /// V0.4：线性推进 6 层，每层 10+ 个房间（统一结构），通关所有房间后进入下一层。
-    /// 新增准备房间 → 技能三选一 → 战斗开始。
+    /// 游戏管理器——控制当前Legacy区域序列与房间流程。
     /// </summary>
     public class GameManager : MonoBehaviour
     {
         public static GameManager Instance { get; private set; }
 
-        [Header("层数配置")]
-        // V0.4.1：3 层结构（每层 12 关 × 3 路线）
-        private readonly string[] _realmNames = { "第一层", "第二层", "第三层" };
+        [Header("区域序列（Legacy兼容索引）")]
+        private readonly string[] _realmNames = { "区域 A", "区域 B", "区域 C" };
 
         [Header("难度曲线")]
         [SerializeField] private int baseEnemyCount = 3;
@@ -114,7 +111,7 @@ namespace XianTu
         public static bool EnableWorldDrops = true;
 
         public int TotalRoomsInLevel => _levelRooms != null && _currentLevel < _levelRooms.Count ? _levelRooms[_currentLevel].Count : 1;
-        public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "巅峰";
+        public string CurrentRealmName => _currentLevel < _realmNames.Length ? _realmNames[_currentLevel] : "未知区域";
 
         private void InitModuleSystem()
         {
@@ -353,7 +350,7 @@ namespace XianTu
             string layoutStr = "";
             for (int i = 0; i < _levelRooms.Count; i++)
             {
-                string name = i < _realmNames.Length ? _realmNames[i] : $"层{i + 1}";
+                string name = i < _realmNames.Length ? _realmNames[i] : $"区域 {i + 1}";
                 layoutStr += $"[{name}:";
                 foreach (var rt in _levelRooms[i])
                     layoutStr += $" {rt}";
@@ -717,6 +714,7 @@ namespace XianTu
                         temperingRaw = CultivationSystem.Instance.CommitOnExtract(victoryMul);
                     int matCount = CaveInventory.Instance.TotalPendingCount;
                     CaveInventory.Instance.CommitCurrentRun();
+                    CommitSpiritTalentExpedition(true);
 
                     string realmName = _currentLevel < _realmNames.Length
                         ? _realmNames[_currentLevel]
@@ -747,7 +745,7 @@ namespace XianTu
                 _activeEdgarRoomIndex = -1;
                 _defeatedEdgarBosses = 0;
                 MapProviders.Current.OnEnterRealm(_currentLevel);
-                Debug.Log($"<color=magenta>═══ 进入下一层：{CurrentRealmName} ═══</color>");
+                Debug.Log($"<color=magenta>═══ 进入新区域：{CurrentRealmName} ═══</color>");
                 EnterNextRoomWithChoice();
             }
 
@@ -778,10 +776,10 @@ namespace XianTu
             if (LevelTransition.Instance != null)
             {
                 bool isFinalExit = LevelAPhaseRuntime.IsNightPending || isLastRealm;
-                string title = isFinalExit ? "通关结算门" : "前往下一层";
+                string title = isFinalExit ? "通关结算门" : "前往下一区域";
                 string purpose = isFinalExit
                     ? "结算本次通关并返回基地"
-                    : $"进入下一层：{_realmNames[Mathf.Min(_currentLevel + 1, _realmNames.Length - 1)]}";
+                    : $"进入下一区域：{_realmNames[Mathf.Min(_currentLevel + 1, _realmNames.Length - 1)]}";
                 LevelTransition.Instance.SpawnPortal(portalPos, CompleteLevel, title, purpose);
             }
             else
@@ -821,6 +819,7 @@ namespace XianTu
                 temperingRaw = CultivationSystem.Instance.CommitOnExtract(stageMultiplier);
             int matCount = CaveInventory.Instance.TotalPendingCount;
             CaveInventory.Instance.CommitCurrentRun();
+            CommitSpiritTalentExpedition(false);
 
             ExtractResultPanel.Show(
                 _currentLevel,
@@ -881,6 +880,7 @@ namespace XianTu
             int qiCompensation = CaveInventory.Instance.AbandonCurrentRun(0.10f);
 
             SaveSystem.Instance.Data.totalDeaths++;
+            CommitSpiritTalentExpedition(false);
 
             SaveSystem.Instance.Save();
 
@@ -895,6 +895,17 @@ namespace XianTu
                     _gameOver = false;
                     Debug.Log($"<color=#ff8866>[GameManager] 死亡结算完成 · 回到基地（补偿 {qiCompensation} 资源）</color>");
                 });
+        }
+
+        private static void CommitSpiritTalentExpedition(bool keyVictory)
+        {
+            if (!FeatureFlags.EnableCircuitRuntime)
+                return;
+
+            SpiritTalentPermanentProgression.CommitActiveExpedition(
+                SaveSystem.Instance.Data,
+                keyVictory);
+            SaveSystem.Instance.Save();
         }
 
         private void OnEnemyKilled(GameEvents.EnemyKilled evt)
@@ -1088,7 +1099,7 @@ namespace XianTu
         {
             _currentLevel = Mathf.Clamp(level, 0, _realmNames.Length - 1);
             _gameOver = false;
-            Debug.Log($"<color=magenta>[Debug] 设置层数为 {_currentLevel}（{CurrentRealmName}）</color>");
+            Debug.Log($"<color=magenta>[Debug] 设置区域索引为 {_currentLevel}（{CurrentRealmName}）</color>");
         }
     }
 }

@@ -6,7 +6,7 @@ namespace Edgar.Unity
     /// <summary>
     /// Basic implementation of door sockets. Two sockets are compatible if they are the same instances.
     /// </summary>
-    [CreateAssetMenu(menuName = "仙途秘境/Edgar/门 Socket", fileName = "门Socket")]
+    [CreateAssetMenu(menuName = "ProjectR/Legacy/关卡/Edgar门 Socket", fileName = "门Socket")]
     public class DoorSocket : DoorSocketBase
     {
         [InspectorName("显示颜色")]

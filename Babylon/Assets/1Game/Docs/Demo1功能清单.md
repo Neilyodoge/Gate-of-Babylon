@@ -1,6 +1,6 @@
 # Demo1 功能清单
 
-> 本文档记录 Demo1（《仙途秘境》Roguelike 原型）的功能完成状态。
+> 本文档记录ProjectR迁移所承载的Legacy Demo1功能状态，不代表当前产品设计。
 > 最后更新：2026-04-15
 
 ---
@@ -108,7 +108,6 @@
 | 配置系统 | `GameConfig.cs` | ScriptableObject 集中管理所有数值 |
 | 场景搭建（编排） | `Demo1Setup.cs`（瘦 Bootstrap） | 持有配置，按序调度 `SystemsBuilder`/`GameplayBuilder`/`HudBuilder`；美术对象（相机/光/后处理 Volume）改为场景「Art」节点预置 |
 | 场景搭建（分类 Builder） | `SystemsBuilder.cs` / `GameplayBuilder.cs` / `HudBuilder.cs` | 分别构建 Systems / Gameplay / UI 类别对象并挂到对应场景节点下 |
-| 编辑器工具 | `Demo1DataCreator.cs` | 菜单命令一键创建测试数据 / 配置场景 |
 | Debug控制台 | `DebugConsole.cs` | Tab键打开，无敌/锁血/一击必杀/爆率拉满/房间跳转/时间缩放等 |
 | 材质辅助工具 | `MaterialHelper.cs` | 自动处理URP/Standard/Legacy Shader兼容 |
 | 怪物模型配置 | `MonsterPrefabs.cs` | 5种敌人类型的Prefab引用（为空用胶囊体） |
@@ -198,7 +197,6 @@ Assets/1Game/
 │   │   └── TopDownCamera.cs
 │   ├── Editor/          # 编辑器工具
 │   │   ├── ConfigDashboard.cs
-│   │   ├── Demo1DataCreator.cs
 │   │   ├── GameConfigEditor.cs
 │   │   └── ToolSearchWindow.cs
 │   ├── Enemy/           # 敌人 AI
@@ -249,9 +247,8 @@ Assets/1Game/
 │   ├── 程序_Debug与工具说明.md       ← Debug控制台+编辑器工具
 │   ├── 程序_数据流与生命周期.md      ← 启动/运行/清理流程
 │   ├── 资源_灵物配置指南.md          ← 灵物 SO 创建指南
-│   ├── 资源_功法配置指南.md          ← 功法 SO 创建指南
-│   └── 资源_数据创建工具说明.md      ← 编辑器工具使用说明
-└── Data/                # 数据资产（由 Demo1DataCreator 生成）
+│   └── 资源_功法配置指南.md          ← 功法 SO 创建指南
+└── Data/                # Legacy兼容数据资产
     ├── Skills/
     ├── Items/
     └── GameConfig.asset

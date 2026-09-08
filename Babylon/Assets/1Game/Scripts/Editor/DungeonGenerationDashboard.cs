@@ -25,7 +25,6 @@ namespace XianTu.Editor
         private bool _previewBridgeOpen;
         private int _previewLiftMode;
 
-        [MenuItem("仙途秘境/关卡工具/布局、注入与节奏校验", false, 301)]
         public static void ShowWindow()
         {
             var window = GetWindow<DungeonGenerationDashboard>("地牢生成总控");

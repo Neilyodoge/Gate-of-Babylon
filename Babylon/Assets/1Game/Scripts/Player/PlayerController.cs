@@ -10,7 +10,7 @@ namespace XianTu
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(PlayerAnimator))]
-    public class PlayerController : MonoBehaviour, IDamageable
+    public class PlayerController : MonoBehaviour, IDamageable, IEvadeCommandHost
     {
         [Header("属性")]
         [SerializeField] private CombatStats stats = new();
@@ -39,6 +39,8 @@ namespace XianTu
         private int _dashMaxCharges = 2;
         private float _dashRechargeTimer;
         private float _dashRechargeDuration = 1.5f; // 每层充能恢复时间
+        private EvadeCommandRuntime _evadeRuntime;
+        private MobilityCarrierAction _mobilityCarrierAction;
 
         // 无敌帧
         private bool _invincible;
@@ -66,28 +68,38 @@ namespace XianTu
         // 属性接口
         public CombatStats Stats => stats;
         /// <summary>本帧是否请求了闪避（供 PlayerCombat 检查，避免同帧攻击抢占闪避）</summary>
-        public bool DashRequestedThisFrame => _dashRequestedThisFrame;
+        private bool UseEvadeRuntime
+            => FeatureFlags.EnableCarrierRuntime && _evadeRuntime != null;
+        public bool DashRequestedThisFrame
+            => UseEvadeRuntime
+                ? _evadeRuntime.RequestedThisFrame
+                : _dashRequestedThisFrame;
         public Vector3 AimDirection => _aimDirection;
-        public bool IsDashing => _isDashing;
-        public int DashCharges => _dashCharges;
-        public int DashMaxCharges => _dashMaxCharges;
-        public int MaxDashCharges => _dashMaxCharges;
+        public bool IsDashing
+            => UseEvadeRuntime ? _evadeRuntime.IsDashing : _isDashing;
+        public int DashCharges
+            => UseEvadeRuntime ? _evadeRuntime.Charges : _dashCharges;
+        public int DashMaxCharges
+            => UseEvadeRuntime ? _evadeRuntime.MaxCharges : _dashMaxCharges;
+        public int MaxDashCharges => DashMaxCharges;
 
         /// <summary>调整闪避充能上限（顿悟时刻 / RealmReward 用）</summary>
         public void SetMaxDashCharges(int newMax)
         {
             _dashMaxCharges = Mathf.Max(1, newMax);
             if (_dashCharges > _dashMaxCharges) _dashCharges = _dashMaxCharges;
+            _evadeRuntime?.SetMaxCharges(newMax);
         }
 
-        /// <summary>把闪避充能补满（顿悟时刻 / 渡劫后用）</summary>
+        /// <summary>把闪避充能补满（特殊奖励或阶段结算后使用）。</summary>
         public void RestoreDashCharge()
         {
             _dashCharges = _dashMaxCharges;
+            _evadeRuntime?.RestoreCharges();
         }
 
         private bool _dashDisabled;
-        /// <summary>开关闪避能力（渡劫期间禁用闪避用）</summary>
+        /// <summary>开关闪避能力（特殊战斗规则使用）。</summary>
         public void SetDashEnabled(bool enabled)
         {
             _dashDisabled = !enabled;
@@ -115,6 +127,13 @@ namespace XianTu
                 _dashRechargeDuration = config.闪避冷却时间;
             }
 
+            _evadeRuntime = new EvadeCommandRuntime(this);
+            _evadeRuntime.Configure(
+                dashDistance,
+                dashDuration,
+                _dashMaxCharges,
+                _dashRechargeDuration);
+
             if (GetComponent<StatusEffectController>() == null)
                 gameObject.AddComponent<StatusEffectController>();
         }
@@ -139,6 +158,15 @@ namespace XianTu
         /// <summary>处理缓冲的闪避请求</summary>
         private void OnBufferedEvade(GameEvents.BufferedEvadeRequested evt)
         {
+            if (UseEvadeRuntime)
+            {
+                _evadeRuntime.HandleBuffered(
+                    stats.IsAlive,
+                    _moveInput,
+                    _aimDirection);
+                return;
+            }
+
             if (!stats.IsAlive || _dashCharges <= 0) return;
             ExecuteDash();
         }
@@ -172,7 +200,15 @@ namespace XianTu
             if (!stats.IsAlive) return;
 
             // 每帧开始重置闪避请求标记
-            _dashRequestedThisFrame = false;
+            if (UseEvadeRuntime)
+                _evadeRuntime.BeginFrame();
+            else
+                _dashRequestedThisFrame = false;
+            if (StarterSpiritChoiceUI.IsOpen)
+            {
+                _moveInput = Vector3.zero;
+                return;
+            }
 
             // 当攻击/技能结束后自动解锁朝向
             if (_aimLocked && _playerAnim.CurrentPriority < AnimationPriority.Attack)
@@ -190,7 +226,7 @@ namespace XianTu
         /// <summary>WASD 移动输入</summary>
         private void HandleMovementInput()
         {
-            if (_isDashing) return;
+            if (IsDashing) return;
 
             var kb = Keyboard.current;
             if (kb == null) { _moveInput = Vector3.zero; return; }
@@ -252,8 +288,21 @@ namespace XianTu
         /// <summary>闪避（Space）—— 哈迪斯风格：最高优先级，可打断一切动作，支持多层充能</summary>
         private void HandleDash()
         {
+            if (UseEvadeRuntime)
+            {
+                _mobilityCarrierAction ??=
+                    new MobilityCarrierAction(TryRequestEvade);
+                var context = new CarrierContext(
+                    CarrierSlot.Mobility,
+                    1,
+                    null,
+                    Time.deltaTime);
+                _mobilityCarrierAction.Execute(context);
+                return;
+            }
+
             if (_isDashing) return;
-            if (_dashDisabled) return;  // v0.5 渡劫期间禁用
+            if (_dashDisabled) return;
 
             var kb = Keyboard.current;
             if (kb != null && kb.spaceKey.wasPressedThisFrame)
@@ -270,6 +319,17 @@ namespace XianTu
 
                 ExecuteDash();
             }
+        }
+
+        private bool TryRequestEvade()
+        {
+            var keyboard = Keyboard.current;
+            return _evadeRuntime.HandleInput(
+                keyboard != null &&
+                keyboard.spaceKey.wasPressedThisFrame,
+                _dashDisabled,
+                _moveInput,
+                _aimDirection);
         }
 
         /// <summary>执行闪避（可由输入或缓冲触发）</summary>
@@ -310,7 +370,11 @@ namespace XianTu
             float dt = Time.deltaTime;
 
             // 闪避充能恢复
-            if (_dashCharges < _dashMaxCharges)
+            if (UseEvadeRuntime)
+            {
+                _evadeRuntime.TickRecharge(dt);
+            }
+            else if (_dashCharges < _dashMaxCharges)
             {
                 _dashRechargeTimer -= dt;
                 if (_dashRechargeTimer <= 0)
@@ -348,7 +412,15 @@ namespace XianTu
         {
             Vector3 velocity;
 
-            if (_isDashing)
+            if (UseEvadeRuntime &&
+                _evadeRuntime.TickDash(
+                    Time.deltaTime,
+                    transform.position,
+                    out velocity))
+            {
+                // 身法运行时已给出本帧闪避速度。
+            }
+            else if (!UseEvadeRuntime && _isDashing)
             {
                 velocity = _dashDirection * (dashDistance / dashDuration);
                 _dashTimer -= Time.deltaTime;
@@ -413,7 +485,7 @@ namespace XianTu
         private void UpdateAnimation()
         {
             // 始终传递真实的移动速度，让 Animator 在动作结束时能正确判断下一个状态
-            float speed = _isDashing ? 0 : _moveInput.magnitude;
+            float speed = IsDashing ? 0 : _moveInput.magnitude;
 
             // 计算本地空间的移动方向（用于 BlendTree）
             float moveX = 0, moveZ = 0;
@@ -425,6 +497,55 @@ namespace XianTu
             }
 
             _playerAnim.SetMovement(speed, moveX, moveZ);
+        }
+
+        bool IEvadeCommandHost.TryPlayEvade()
+        {
+            return _playerAnim.PlayEvade();
+        }
+
+        void IEvadeCommandHost.BufferEvade()
+        {
+            _playerAnim.BufferEvade();
+        }
+
+        void IEvadeCommandHost.SetEvadeInvincible(float duration)
+        {
+            SetInvincible(duration);
+        }
+
+        void IEvadeCommandHost.PublishEvadeCharge(
+            int currentCharges,
+            int maxCharges,
+            float rechargeProgress)
+        {
+            GameEvents.Publish(new GameEvents.DashChargeUpdate
+            {
+                CurrentCharges = currentCharges,
+                MaxCharges = maxCharges,
+                RechargeProgress = rechargeProgress
+            });
+        }
+
+        void IEvadeCommandHost.PublishEvadeFinished(
+            Vector3 endPosition,
+            Vector3 direction)
+        {
+            GameEvents.Publish(new GameEvents.DodgeFinished
+            {
+                EndPosition = endPosition,
+                EndDirection = direction
+            });
+        }
+
+        private CircuitEntityRef BuildPlayerDiagnosticTarget()
+        {
+            return new CircuitEntityRef(
+                gameObject.GetInstanceID(),
+                null,
+                System.Guid.Empty,
+                new StableConfigId("legacy.player"),
+                default);
         }
 
         // ========== IDamageable 实现 ==========
@@ -463,11 +584,24 @@ namespace XianTu
                         });
                     }
                 }
+                RunCombatStats.AddPlayerDefense(
+                    damage,
+                    Mathf.Max(0f, damage),
+                    BuildPlayerDiagnosticTarget());
                 return;
             }
 
             // 扣血
             float actual = stats.TakeDamage(damage);
+            CircuitEntityRef playerTarget = BuildPlayerDiagnosticTarget();
+            RunCombatStats.AddPlayerDamageTaken(
+                damage,
+                actual,
+                playerTarget);
+            RunCombatStats.AddPlayerDefense(
+                damage,
+                Mathf.Max(0f, damage - actual),
+                playerTarget);
 
             // 发布伤害飘字事件
             GameEvents.Publish(new GameEvents.DamageNumberRequested

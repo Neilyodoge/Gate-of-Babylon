@@ -14,7 +14,7 @@ namespace Edgar.Unity
     /// The shorter name just does not feel right to me. This handler component is referenced/store in multiple
     /// place and it would be confusing if it was named just "Door" instead of "DoorHandler".
     /// </remarks>
-    [AddComponentMenu("仙途秘境/Edgar Grid3D/门设置")]
+    [AddComponentMenu("ProjectR/Legacy/关卡/Edgar/门设置")]
     public class DoorHandlerGrid3D : MonoBehaviour
     {
         /// <summary>

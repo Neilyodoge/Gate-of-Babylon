@@ -1,0 +1,24 @@
+# ProjectR UI美术目录
+
+- `Generated/Source/`：确认方向的AI生成原图／图集。
+- `Generated/HUD/`：透明底HUD框体、键位签、连接线和状态装饰。
+- `Generated/Icons/`：透明底三宠、载体和状态单图标。
+- `Generated/TalentTree/`：天赋树纸张底板、三宠正式18节点图标图集与三张大幅灵宠插画；均已清理生成图中的白底／棋盘格，运行时通过主题资产读取。
+- `Generated/TalentTree/SparkTalentIcons18.png`：火花狸正式图标，按界面视觉槽位以3列×6行排列。
+- `Generated/TalentTree/EchoTalentIcons18.png`、`GelTalentIcons18.png`：响响鸮与弹弹胶正式18节点图标。
+- `Generated/TalentTree/SparkRaccoonFull.png`、`EchoOwlFull.png`、`BounceGelFull.png`：树状界面左下大幅灵宠插画。
+- `References/`：已确认或待比较的整屏视觉基准，不作为运行时直接切图。
+- 后续正式资源沿用同名Sprite替换，禁止放入共享 `Assets/ArtRes`。
+- 运行时引用集中在 `Resources/UI/ProjectR/ProjectRUITheme.asset`，代码不得散写图片路径。
+- 图标保持暖色手绘、深棕描边、低压迫感；技能载体是主体，灵宠头像只作为边缘挂件。
+- `References/SpiritTalentTree_BaseV1.png`：18节点天赋网络的基础布局与节点语法基准。
+- `References/SpiritTalentTree_RoundCuteV2.png`：保持同一布局的圆润可爱画风候选，确认后再拆分正式节点与框体资源。
+- `References/SpiritTalentTree_ApprovedArtV1.png`：用户最终指定的天赋树唯一美术权威；布局、灵宠插画、节点语法、详情卡和视觉层级均以此图验收。
+- `References/SpiritTalentTree_Implemented12NodeV1.png`：P2.19C2运行态截图，用于对照概念基准与当前12节点实机落地差异。
+- `References/SpiritTalentTree_ImplementedPreciseV2.png`：P2.19C3资源化还原截图，作为当前实机视觉状态。
+- `References/SpiritTalentTree_ImplementedApprovedV1.png`：按唯一美术权威纠偏后的运行态截图。
+- `References/SpiritTalentTree_Spark18RuntimeV1.png`：火花狸正式18节点、多前置连线和完整图标的运行态截图。
+- `References/SpiritTalentTree_Echo18RuntimeV1.png`、`SpiritTalentTree_Gel18RuntimeV1.png`：另两宠正式18节点运行态截图。
+- `References/SpiritCircuitOverview_RuntimeV1.png`：P2.20B只读回路总览基线截图；用于后续三宠交互和正式美术精修对照。
+- `References/SpiritCircuitOverview_ThreePetRuntimeV1.png`：P2.20C三宠卡片、五动作槽和附着结构预演的功能基线截图。
+- `References/SpiritCircuitStageHUD_RuntimeV1.png`：P2.20D火花待接倒计时与下一动作槽高亮的运行态基线。

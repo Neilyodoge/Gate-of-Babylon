@@ -97,7 +97,7 @@ namespace XianTu
             UGuiKit.SetHeight(title, 56f);
 
             MakeBtn(panel, "继续游戏", Hide, UGuiKit.BtnPrimary);
-            MakeBtn(panel, "角色信息", () => { Hide(); PlayerInfoPanel.Show(); }, UGuiKit.BtnNormal);
+            MakeBtn(panel, "角色状态", () => { Hide(); PlayerInfoPanel.Show(); }, UGuiKit.BtnNormal);
             MakeBtn(panel, "图鉴", () => { Hide(); CodexUITK.Show(); }, UGuiKit.BtnNormal);
             // #9：手动存档按钮（与自动存档同一底层：写入当前活跃存档槽）
             var saveBtn = UGuiKit.CreateButton(panel.transform, "存档", OnSaveClicked, UGuiKit.BtnNormal, 28, new Vector2(404f, 52f));
@@ -206,6 +206,7 @@ namespace XianTu
         private static bool IsBlockedByOtherUI()
         {
             if (ModuleAssemblyUI.IsVisible) return true;
+            if (SpiritCircuitOverviewUI.IsVisible) return true;
             if (PlayerInfoPanel.IsVisible) return true;
             if (CodexUITK.IsVisible) return true;
             if (SettingsUI.IsVisible) return true;

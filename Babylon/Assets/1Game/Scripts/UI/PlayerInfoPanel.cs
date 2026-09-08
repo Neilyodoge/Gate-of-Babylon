@@ -71,7 +71,7 @@ namespace XianTu
             // 标题行
             var header = UGuiKit.CreateRow(panel, 10f, 40f);
             header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
-            var title = UGuiKit.CreateText(header, "角色信息", 28, new Color(0.92f, 0.9f, 0.82f), TextAlignmentOptions.Left, FontStyles.Bold);
+            var title = UGuiKit.CreateText(header, "角色状态", 28, new Color(0.92f, 0.9f, 0.82f), TextAlignmentOptions.Left, FontStyles.Bold);
             UGuiKit.SetHeight(title, 40f); title.GetComponent<LayoutElement>().preferredWidth = 560f;
             var close = UGuiKit.CreateButton(header, "✕", Hide, UGuiKit.BtnNormal, 20, new Vector2(40f, 40f));
             UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 40f); close.GetComponent<LayoutElement>().preferredWidth = 40f;
@@ -90,7 +90,7 @@ namespace XianTu
             UGuiKit.CreateSectionTitle(_content, "成长信息");
             _growthContainer = UGuiKit.CreateGrid(_content, new Vector2(150f, 54f), new Vector2(8f, 8f), 4);
 
-            UGuiKit.CreateSectionTitle(_content, "当前增强链");
+            UGuiKit.CreateSectionTitle(_content, "当前回路");
             _chainContainer = new GameObject("Chains", typeof(RectTransform)).GetComponent<RectTransform>();
             _chainContainer.SetParent(_content, false);
             var cv = _chainContainer.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -157,7 +157,7 @@ namespace XianTu
             var gm = GameManager.Instance;
             if (gm != null)
             {
-                UGuiKit.CreateStatCard(_growthContainer, "当前层", gm.CurrentRealmName, new Color(0.8f, 0.9f, 0.7f));
+                UGuiKit.CreateStatCard(_growthContainer, "当前区域", gm.CurrentRealmName, new Color(0.8f, 0.9f, 0.7f));
                 float elapsed = gm.RunElapsedSeconds;
                 if (elapsed > 0f)
                 {
@@ -189,7 +189,7 @@ namespace XianTu
             var mgr = player.GetComponent<ModuleSlotManager>();
             if (mgr == null)
             {
-                UGuiKit.CreateText(_chainContainer, "（模块系统未初始化）", 13, new Color(0.6f, 0.6f, 0.65f), TextAlignmentOptions.Left);
+                UGuiKit.CreateText(_chainContainer, "（回路系统未初始化）", 13, new Color(0.6f, 0.6f, 0.65f), TextAlignmentOptions.Left);
                 return;
             }
 
@@ -238,7 +238,13 @@ namespace XianTu
 
             if (kb.cKey.wasPressedThisFrame)
             {
-                if (MainMenu.IsVisible || PauseMenu.IsVisible || ModuleAssemblyUI.IsVisible) return;
+                if (MainMenu.IsVisible ||
+                    PauseMenu.IsVisible ||
+                    ModuleAssemblyUI.IsVisible ||
+                    SpiritCircuitOverviewUI.IsVisible)
+                {
+                    return;
+                }
                 Toggle();
                 return;
             }

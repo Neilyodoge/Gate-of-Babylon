@@ -12,6 +12,9 @@ namespace XianTu
     /// </summary>
     public class InsightSystem : MonoBehaviour
     {
+        private static readonly StableConfigId RunInsightMetric =
+            new("combat.player.resource.run-insight");
+
         private static InsightSystem _instance;
         public static InsightSystem Instance
         {
@@ -43,6 +46,11 @@ namespace XianTu
             if (amount <= 0) return;
             int real = Mathf.Max(1, amount);
             RunInsight += real;
+            RunCombatStats.AddPlayerResource(
+                RunInsightMetric,
+                real,
+                real,
+                LegacyCombatResultRecorder.BuildPlayerTarget(gameObject));
 
             GameEvents.Publish(new GameEvents.InsightChanged
             {

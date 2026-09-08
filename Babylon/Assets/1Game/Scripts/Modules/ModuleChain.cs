@@ -5,7 +5,7 @@ namespace XianTu
     /// <summary>
     /// 模块链的编译产物——包含执行所需的全部参数，
     /// 由 Trigger + Effect + Modifier 合成后缓存。
-    /// V.08：链是核心技能的增强器，ChainConfig 描述"消费时给核心技能附加什么"。
+    /// Legacy链作为术法载体增强器，ChainConfig描述消费时附加的效果。
     /// </summary>
     public struct ChainConfig
     {

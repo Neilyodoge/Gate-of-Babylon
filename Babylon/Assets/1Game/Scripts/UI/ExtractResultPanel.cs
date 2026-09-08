@@ -14,12 +14,15 @@ namespace XianTu
         private GameObject _root;
         private TextMeshProUGUI _realmLabel;
         private TextMeshProUGUI _bonusLabel;
+        private TextMeshProUGUI _statsLabel;
+        private Button _statsButton;
+        private TextMeshProUGUI _statsButtonLabel;
         private RectTransform _rows;
         private Button _confirmBtn;
         private TextMeshProUGUI _confirmLabel;
         private System.Action _onConfirm;
 
-        /// <summary>层深倍率：layer 0=100%, 1=115%, 2=130% ... 5=175%</summary>
+        /// <summary>兼容旧进度索引的区域结算倍率。</summary>
         public static float LayerMultiplier(int layerIndex)
             => 1f + 0.15f * Mathf.Max(0, layerIndex);
 
@@ -63,6 +66,27 @@ namespace XianTu
             _bonusLabel = UGuiKit.CreateText(panel, "", 15, new Color(0.7f, 0.78f, 0.9f), TextAlignmentOptions.Center);
             UGuiKit.SetHeight(_bonusLabel, 24f);
 
+            _statsButton = UGuiKit.CreateButton(
+                panel,
+                "查看战斗统计",
+                ToggleStats,
+                out _statsButtonLabel,
+                UGuiKit.Panel,
+                17,
+                new Vector2(280f, 42f));
+            UGuiKit.SetHeight(
+                _statsButton.GetComponent<RectTransform>(),
+                42f);
+            _statsLabel = UGuiKit.CreateText(
+                panel,
+                "",
+                15,
+                UGuiKit.TextMain,
+                TextAlignmentOptions.TopLeft);
+            _statsLabel.enableWordWrapping = true;
+            UGuiKit.SetHeight(_statsLabel, 190f);
+            _statsLabel.gameObject.SetActive(false);
+
             _confirmBtn = UGuiKit.CreateButton(panel, "返回基地", OnConfirm, out _confirmLabel, UGuiKit.BtnPrimary, 20, new Vector2(280f, 50f));
             UGuiKit.SetHeight(_confirmBtn.GetComponent<RectTransform>(), 50f);
 
@@ -98,7 +122,7 @@ namespace XianTu
                 _ => "结算"
             };
 
-            _realmLabel.text = $"{endLabel} · {realmName}（第 {layerIndex + 1} 层）";
+            _realmLabel.text = $"{endLabel} · {realmName}";
 
             for (int i = _rows.childCount - 1; i >= 0; i--) Destroy(_rows.GetChild(i).gameObject);
 
@@ -117,12 +141,19 @@ namespace XianTu
             }
 
             _bonusLabel.text = totalMul > 1.001f
-                ? $"总倍率 ×{totalMul:F2}（结算 ×{expMul:F1} · 层深 ×{layerMul:F2}）"
+                ? $"总倍率 ×{totalMul:F2}（结算 ×{expMul:F1} · 区域进度 ×{layerMul:F2}）"
                 : totalMul < 0.999f
                     ? $"总倍率 ×{totalMul:F2}（死亡 ×{expMul:F1}）"
                     : "基础倍率";
 
             _confirmLabel.text = "返回基地";
+            _statsLabel.text =
+                SpiritCircuitOverviewUI.BuildStatsText(
+                    RunCombatStats.Results);
+            _statsLabel.gameObject.SetActive(false);
+            _statsButton.gameObject.SetActive(
+                RunCombatStats.Results.Count > 0);
+            _statsButtonLabel.text = "查看战斗统计";
 
             _root.SetActive(true);
             Time.timeScale = 0f;
@@ -133,6 +164,14 @@ namespace XianTu
             if (_root != null) _root.SetActive(false);
             Time.timeScale = 1f;
             _onConfirm?.Invoke();
+        }
+
+        private void ToggleStats()
+        {
+            bool show = !_statsLabel.gameObject.activeSelf;
+            _statsLabel.gameObject.SetActive(show);
+            _statsButtonLabel.text =
+                show ? "收起战斗统计" : "查看战斗统计";
         }
 
         private void AddRow(string label, string value)

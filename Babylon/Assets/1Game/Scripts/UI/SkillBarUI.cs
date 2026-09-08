@@ -97,6 +97,13 @@ namespace XianTu
 
         private void HandleDrag()
         {
+            if (SpiritCircuitHUD.IsAttachmentSelectionActive)
+            {
+                if (_isDragging)
+                    EndDrag();
+                return;
+            }
+
             var mouse = UnityEngine.InputSystem.Mouse.current;
             if (mouse == null) return;
 
@@ -271,70 +278,120 @@ namespace XianTu
                 var borderImg = borderTf?.GetComponent<Image>();
                 var iconImg = iconTf?.GetComponent<Image>();
                 var cdText = cdTextTf?.GetComponent<TextMeshProUGUI>();
+                var carrierGlyph =
+                    skillSlotRTs[i].Find("CarrierGlyph")
+                        ?.GetComponent<TextMeshProUGUI>();
+                bool hasFormalIcon =
+                    iconImg != null &&
+                    iconImg.sprite != null;
+                bool hasFormalFrame =
+                    slotImg != null &&
+                    slotImg.sprite != null &&
+                    slotImg.sprite.name.StartsWith(
+                        "SkillFrame",
+                        System.StringComparison.Ordinal);
 
                 var nameLabelTf = skillSlotRTs[i].Find("SkillNameLabel");
-                TextMeshProUGUI nameLabel = null;
-                if (nameLabelTf == null)
-                {
-                    var nameLabelGo = new GameObject("SkillNameLabel");
-                    nameLabelGo.transform.SetParent(skillSlotRTs[i], false);
-                    var nlRT = nameLabelGo.AddComponent<RectTransform>();
-                    nlRT.anchorMin = new Vector2(0.5f, 0);
-                    nlRT.anchorMax = new Vector2(0.5f, 0);
-                    nlRT.pivot = new Vector2(0.5f, 1);
-                    nlRT.anchoredPosition = new Vector2(0, -2);
-                    nlRT.sizeDelta = new Vector2(100, 16);
-                    nameLabel = nameLabelGo.AddComponent<TextMeshProUGUI>();
-                    nameLabel.fontSize = 11;
-                    if (UGuiKit.CjkFont != null) nameLabel.font = UGuiKit.CjkFont;
-                    nameLabel.alignment = TextAlignmentOptions.Center;
-                    nameLabel.fontStyle = FontStyles.Bold;
-                    nameLabel.raycastTarget = false;
-                    nameLabel.enableWordWrapping = false;
-                    nameLabel.overflowMode = TextOverflowModes.Overflow;
-                    nameLabel.outlineColor = new Color(0, 0, 0, 0.9f);
-                    nameLabel.outlineWidth = 0.2f;
-                }
-                else
-                {
-                    nameLabel = nameLabelTf.GetComponent<TextMeshProUGUI>();
-                }
+                TextMeshProUGUI nameLabel =
+                    nameLabelTf?.GetComponent<TextMeshProUGUI>();
+                if (nameLabel != null)
+                    nameLabel.gameObject.SetActive(false);
 
                 if (skill != null)
                 {
                     Color c = GetRarityColor(skill.rarity);
 
                     if (slotImg != null)
-                        slotImg.color = new Color(c.r * 0.5f, c.g * 0.5f, c.b * 0.5f, 0.9f);
+                    {
+                        slotImg.color = hasFormalFrame
+                            ? Color.white
+                            : new Color(
+                                0.14f + c.r * 0.18f,
+                                0.17f + c.g * 0.13f,
+                                0.14f + c.b * 0.10f,
+                                0.92f);
+                    }
                     if (borderImg != null)
-                        borderImg.color = new Color(c.r, c.g, c.b, 0.8f);
+                    {
+                        borderImg.color = hasFormalFrame
+                            ? Color.white
+                            : Color.Lerp(
+                                new Color(
+                                    0.82f,
+                                    0.68f,
+                                    0.40f,
+                                    0.72f),
+                                c,
+                                0.35f);
+                    }
                     if (iconImg != null)
-                        iconImg.color = new Color(c.r, c.g, c.b, 0.25f);
+                    {
+                        iconImg.color = hasFormalIcon
+                            ? Color.white
+                            : new Color(c.r, c.g, c.b, 0.16f);
+                    }
                     if (cdText != null)
                         cdText.color = Color.white;
-                    if (nameLabel != null)
+                    if (carrierGlyph != null)
                     {
-                        string displayName = skill.skillName.Length <= 4
-                            ? skill.skillName : skill.skillName.Substring(0, 4);
-                        nameLabel.text = displayName;
-                        nameLabel.color = c;
-                        nameLabel.gameObject.SetActive(true);
+                        carrierGlyph.gameObject.SetActive(!hasFormalIcon);
+                        carrierGlyph.text = string.IsNullOrEmpty(
+                            skill.skillName)
+                            ? "术"
+                            : skill.skillName.Substring(0, 1);
+                        carrierGlyph.color = Color.Lerp(
+                            new Color(0.94f, 0.84f, 0.65f),
+                            c,
+                            0.35f);
                     }
                 }
                 else
                 {
                     if (slotImg != null)
-                        slotImg.color = new Color(0.08f, 0.08f, 0.12f, 0.35f);
-                    if (borderImg != null)
-                        borderImg.color = new Color(0.25f, 0.25f, 0.3f, 0.25f);
-                    if (iconImg != null)
-                        iconImg.color = new Color(0.3f, 0.3f, 0.3f, 0.05f);
-                    if (cdText != null)
-                        cdText.color = new Color(0.4f, 0.4f, 0.45f, 0.5f);
-                    if (nameLabel != null)
                     {
-                        nameLabel.text = "";
-                        nameLabel.gameObject.SetActive(false);
+                        slotImg.color = hasFormalFrame
+                            ? Color.white
+                            : new Color(
+                                0.12f,
+                                0.18f,
+                                0.17f,
+                                0.82f);
+                    }
+                    if (borderImg != null)
+                    {
+                        borderImg.color = hasFormalFrame
+                            ? Color.clear
+                            : new Color(
+                                0.52f,
+                                0.45f,
+                                0.30f,
+                                0.38f);
+                    }
+                    if (iconImg != null)
+                    {
+                        iconImg.color = hasFormalIcon
+                            ? new Color(0.78f, 0.76f, 0.66f, 0.48f)
+                            : new Color(
+                                0.72f,
+                                0.68f,
+                                0.56f,
+                                0.06f);
+                    }
+                    if (cdText != null)
+                        cdText.color = new Color(
+                            0.78f,
+                            0.72f,
+                            0.60f,
+                            0.55f);
+                    if (carrierGlyph != null)
+                    {
+                        carrierGlyph.gameObject.SetActive(!hasFormalIcon);
+                        carrierGlyph.text = "术";
+                        carrierGlyph.color = new Color(
+                            0.66f,
+                            0.62f,
+                            0.52f,
+                            0.58f);
                     }
                 }
             }

@@ -47,10 +47,10 @@ namespace XianTu
             obstacleB = new(0.40f, 0.28f, 0.18f)
         };
 
-        /// <summary>6 个境界各自的配色（练气→渡劫，色调逐境递进）</summary>
+        /// <summary>6个Legacy区域层级配色，色调随深度递进。</summary>
         public static readonly RoomPalette[] RealmPalettes =
         {
-            // 0 练气期 —— 青翠竹林
+            // 0 第一层 —— 青翠竹林
             new()
             {
                 ground = new(0.10f, 0.16f, 0.14f),
@@ -64,7 +64,7 @@ namespace XianTu
                 obstacleA = new(0.18f, 0.30f, 0.22f),
                 obstacleB = new(0.26f, 0.42f, 0.28f)
             },
-            // 1 筑基期 —— 寒潭蓝
+            // 1 第二层 —— 寒潭蓝
             new()
             {
                 ground = new(0.10f, 0.14f, 0.20f),
@@ -78,7 +78,7 @@ namespace XianTu
                 obstacleA = new(0.20f, 0.26f, 0.36f),
                 obstacleB = new(0.26f, 0.36f, 0.50f)
             },
-            // 2 金丹期 —— 丹炉橙
+            // 2 第三层 —— 暖橙
             new()
             {
                 ground = new(0.20f, 0.13f, 0.10f),
@@ -92,7 +92,7 @@ namespace XianTu
                 obstacleA = new(0.36f, 0.20f, 0.14f),
                 obstacleB = new(0.50f, 0.28f, 0.16f)
             },
-            // 3 元婴期 —— 紫雾秘境（旧默认色）
+            // 3 第四层 —— 紫雾
             new()
             {
                 ground = new(0.12f, 0.14f, 0.18f),
@@ -106,7 +106,7 @@ namespace XianTu
                 obstacleA = new(0.25f, 0.20f, 0.30f),
                 obstacleB = new(0.35f, 0.20f, 0.30f)
             },
-            // 4 化神期 —— 血煞红黑
+            // 4 第五层 —— 深红
             new()
             {
                 ground = new(0.13f, 0.08f, 0.10f),
@@ -120,7 +120,7 @@ namespace XianTu
                 obstacleA = new(0.26f, 0.12f, 0.14f),
                 obstacleB = new(0.40f, 0.18f, 0.18f)
             },
-            // 5 渡劫期 —— 天劫银白
+            // 5 第六层 —— 银白
             new()
             {
                 ground = new(0.16f, 0.16f, 0.20f),
@@ -139,7 +139,7 @@ namespace XianTu
         /// <summary>当前正在构建房间的调色板（线程不安全，仅主线程使用）</summary>
         private static RoomPalette _palette = RealmPalettes[3];
 
-        /// <summary>根据境界索引取调色板，越界回落到第 0 境</summary>
+        /// <summary>根据层级索引取调色板，越界回落到第一层。</summary>
         public static RoomPalette GetRealmPalette(int realmIndex)
         {
             if (RealmPalettes == null || RealmPalettes.Length == 0) return null;

@@ -242,7 +242,7 @@ namespace XianTu.LevelDesign
 
     [CreateAssetMenu(
         fileName = "地牢生成总控",
-        menuName = "仙途秘境/关卡/地牢生成总控")]
+        menuName = "ProjectR/Legacy/关卡/地牢生成总控")]
     public sealed class DungeonGenerationProfile : ScriptableObject
     {
         public const string ResourcePath = "LevelDesign/EdgarGrid3D/地牢生成总控";

@@ -7,7 +7,7 @@ namespace XianTu
     ///
     /// 跟 <see cref="Time.time"/> 的区别：
     /// - Unity Time.time：基于真实时间，玩家不在线时不流逝（场景重启会重置）
-    /// - GameTime.Time：游戏内"修仙历"时间，跨场景持久化，支持加速 / 暂停
+    /// - GameTime.Time：游戏内世界时间，跨场景持久化，支持加速/暂停
     ///
     /// 洞府模块（灵田生长、炼丹、炼器）用 GameTime 而非 Time.time。
     /// 战斗系统继续用 Time.time（避免大规模替换）。

@@ -487,8 +487,12 @@ namespace XianTu
             bool isCrit = actual > damage * 0.9f && damage > stats.attackDamage; // 简单判断是否暴击
 
             // 累计本局玩家总伤害（轮回一击按此结算）
-            if (attacker != null && PlayerController.Instance != null && attacker == PlayerController.Instance.gameObject)
-                RunCombatStats.AddPlayerDamage(actual);
+            LegacyCombatResultRecorder.RecordPlayerDamage(
+                attacker,
+                gameObject,
+                damage,
+                actual,
+                countTowardRunTotal: true);
 
             // 发布伤害飘字事件
             GameEvents.Publish(new GameEvents.DamageNumberRequested

@@ -5,7 +5,7 @@ using TMPro;
 namespace XianTu
 {
     /// <summary>
-    /// UI 类别构建器：GameCanvas + GameHUD（血条 / 境界 / 敌人计数 / 技能栏 / 连招 / 碎片 / 消息 / 死亡&通关面板 / 小地图）。
+    /// UI 类别构建器：GameCanvas + GameHUD（血条 / 区域进度 / 敌人计数 / 技能栏 / 连招 / 碎片 / 消息 / 死亡&通关面板 / 小地图）。
     /// 挂在场景「UI」根节点上，由 <see cref="Demo1Setup"/> 调用；GameCanvas 挂到本节点下。
     /// </summary>
     public class HudBuilder : MonoBehaviour
@@ -25,27 +25,34 @@ namespace XianTu
             canvasGo.AddComponent<GraphicRaycaster>();
 
             var hud = canvasGo.AddComponent<GameHUD>();
+            ProjectRUITheme uiTheme = ProjectRUITheme.Instance;
 
             // ========== 左上角：血条区域 ==========
             var hpPanel = CreateUIImage(canvasGo.transform, "HpPanel",
                 new Vector2(0, 1), new Vector2(0, 1),
-                new Vector2(20, -65), new Vector2(340, -15),
-                new Color(0, 0, 0, 0));
+                new Vector2(18, -72), new Vector2(248, -16),
+                Color.white);
+            Image hpPanelImage = hpPanel.GetComponent<Image>();
+            if (uiTheme?.HealthFrame != null)
+            {
+                hpPanelImage.sprite = uiTheme.HealthFrame;
+                hpPanelImage.type = Image.Type.Simple;
+            }
 
             var hpBarBg = CreateUIImage(hpPanel.transform, "HpBarBg",
                 Vector2.zero, Vector2.one,
-                new Vector2(0, 0), new Vector2(0, 0),
-                new Color(0.1f, 0.1f, 0.15f, 0.9f));
+                new Vector2(42, 17), new Vector2(-12, -17),
+                new Color(0.20f, 0.16f, 0.11f, 0.88f));
 
             var hpBarBorder = CreateUIImage(hpPanel.transform, "HpBarBorder",
                 Vector2.zero, Vector2.one,
-                new Vector2(-1, -1), new Vector2(1, 1),
-                new Color(0.4f, 0.4f, 0.5f, 0.6f));
+                new Vector2(41, 16), new Vector2(-11, -16),
+                new Color(0.88f, 0.74f, 0.48f, 0.72f));
             hpBarBorder.GetComponent<Image>().raycastTarget = false;
 
             var hpDamageFill = CreateUIImage(hpPanel.transform, "HpDamageFill",
                 Vector2.zero, new Vector2(1, 1),
-                new Vector2(3, 3), new Vector2(-3, -3),
+                new Vector2(44, 19), new Vector2(-14, -19),
                 new Color(0.85f, 0.15f, 0.15f, 0.8f));
             hpDamageFill.GetComponent<Image>().type = Image.Type.Filled;
             hpDamageFill.GetComponent<Image>().fillMethod = Image.FillMethod.Horizontal;
@@ -55,8 +62,8 @@ namespace XianTu
             var hpSliderRt = hpSliderGo.AddComponent<RectTransform>();
             hpSliderRt.anchorMin = Vector2.zero;
             hpSliderRt.anchorMax = Vector2.one;
-            hpSliderRt.offsetMin = new Vector2(3, 3);
-            hpSliderRt.offsetMax = new Vector2(-3, -3);
+            hpSliderRt.offsetMin = new Vector2(44, 19);
+            hpSliderRt.offsetMax = new Vector2(-14, -19);
 
             var slider = hpSliderGo.AddComponent<Slider>();
             slider.interactable = false;
@@ -73,12 +80,12 @@ namespace XianTu
             var hpFill = CreateUIImage(fillArea.transform, "Fill",
                 Vector2.zero, Vector2.one,
                 Vector2.zero, Vector2.zero,
-                new Color(0.2f, 0.85f, 0.35f));
+                new Color(0.78f, 0.25f, 0.16f));
             slider.fillRect = hpFill.GetComponent<RectTransform>();
             slider.value = 1f;
 
-            var hpText = CreateUIText(hpPanel.transform, "HpText", "100 / 100", 16,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var hpText = CreateUIText(hpPanel.transform, "HpText", "100 / 100", 13,
+                Vector2.zero, Vector2.one, new Vector2(42, 0), new Vector2(-12, 0));
             hpText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
             var hpTextOutline = hpText.AddComponent<Outline>();
             hpTextOutline.effectColor = new Color(0, 0, 0, 0.8f);
@@ -89,13 +96,27 @@ namespace XianTu
             SetPrivateField(hud, "hpDamageFill", hpDamageFill.GetComponent<Image>());
             SetPrivateField(hud, "hpText", hpText.GetComponent<TextMeshProUGUI>());
 
-            // ========== 顶部中央：境界信息 ==========
+            var activeSpiritRoot = CreateUIImage(
+                canvasGo.transform,
+                "ActiveSpiritStatus",
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(18f, -290f),
+                new Vector2(90f, -82f),
+                Color.clear);
+            var activeSpiritHud =
+                activeSpiritRoot.AddComponent<ActiveSpiritStatusHUD>();
+            activeSpiritHud.Configure(
+                activeSpiritRoot.GetComponent<RectTransform>());
+            canvasGo.AddComponent<SpiritTalentChoiceHUD>();
+
+            // ========== 顶部中央：区域进度 ==========
             var realmPanel = CreateUIImage(canvasGo.transform, "RealmPanel",
                 new Vector2(0.5f, 1), new Vector2(0.5f, 1),
                 new Vector2(-100, -55), new Vector2(100, -10),
                 new Color(0, 0, 0, 0));
 
-            var realmText = CreateUIText(realmPanel.transform, "RealmText", "练气期", 26,
+            var realmText = CreateUIText(realmPanel.transform, "RealmText", "探索区域", 26,
                 new Vector2(0, 0.5f), new Vector2(1, 1),
                 Vector2.zero, Vector2.zero);
             var realmTxt = realmText.GetComponent<TextMeshProUGUI>();
@@ -106,7 +127,7 @@ namespace XianTu
             realmOutline.effectColor = new Color(0, 0, 0, 0.6f);
             realmOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
-            var levelText = CreateUIText(realmPanel.transform, "LevelText", "第 1 层", 16,
+            var levelText = CreateUIText(realmPanel.transform, "LevelText", "进度 --", 16,
                 new Vector2(0, 0), new Vector2(1, 0.5f),
                 Vector2.zero, Vector2.zero);
             var levelTxt = levelText.GetComponent<TextMeshProUGUI>();
@@ -122,7 +143,7 @@ namespace XianTu
                 new Vector2(-180, -110), new Vector2(-20, -75),
                 new Color(0.15f, 0.1f, 0.1f, 0.7f));
 
-            var enemyIcon = CreateUIText(enemyPanel.transform, "EnemyIcon", "☠", 22,
+            var enemyIcon = CreateUIText(enemyPanel.transform, "EnemyIcon", "敌", 18,
                 new Vector2(0, 0), new Vector2(0.25f, 1),
                 Vector2.zero, Vector2.zero);
             enemyIcon.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
@@ -139,24 +160,24 @@ namespace XianTu
             // ========== 底部中央：技能栏 + 模块链状态 ==========
             var skillBarContainer = CreateUIImage(canvasGo.transform, "SkillBarContainer",
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                new Vector2(-480, 5), new Vector2(480, 230),
+                new Vector2(-340, 4), new Vector2(340, 144),
                 new Color(0, 0, 0, 0));
 
             var skillBarUI = skillBarContainer.AddComponent<SkillBarUI>();
 
-            float skillSize = 68f;
-            float skillY = 110f;
+            float skillSize = 84f;
+            float skillY = 70f;
 
             Color[] skillColors = {
-                new Color(0.08f, 0.08f, 0.12f, 0.35f),
-                new Color(0.08f, 0.08f, 0.12f, 0.35f),
-                new Color(0.08f, 0.08f, 0.12f, 0.35f),
-                new Color(0.2f, 0.8f, 0.6f, 0.85f),
-                new Color(0.7f, 0.7f, 0.7f, 0.7f)
+                new Color(0.12f, 0.18f, 0.17f, 0.86f),
+                new Color(0.12f, 0.18f, 0.17f, 0.86f),
+                new Color(0.12f, 0.18f, 0.17f, 0.86f),
+                new Color(0.24f, 0.36f, 0.28f, 0.86f),
+                new Color(0.45f, 0.25f, 0.14f, 0.88f)
             };
-            string[] skillLabels = { "Q", "E", "R", "闪避", "攻击" };
-            float[] skillXPositions = { -290f, -145f, 0f, 145f, 290f };
-
+            string[] skillLabels = { "Q", "E", "R", "SPACE", "LMB" };
+            string[] carrierGlyphs = { "术", "术", "术", "步", "刃" };
+            float[] skillXPositions = { -102f, 0f, 102f, 204f, -204f };
             var skillSlotRTs = new RectTransform[5];
 
             for (int s = 0; s < 5; s++)
@@ -169,24 +190,70 @@ namespace XianTu
                     new Vector2(sx - halfSkill, skillY - halfSkill),
                     new Vector2(sx + halfSkill, skillY + halfSkill),
                     skillColors[s]);
+                Image skillSlotImage = skillSlot.GetComponent<Image>();
+                Sprite slotFrame = s == 1 || s == 2
+                    ? uiTheme?.SkillFrameLocked
+                    : uiTheme?.SkillFrame;
+                if (slotFrame != null)
+                {
+                    skillSlotImage.sprite = slotFrame;
+                    skillSlotImage.type = Image.Type.Simple;
+                    skillSlotImage.preserveAspect = true;
+                    skillSlotImage.color = Color.white;
+                }
                 skillSlotRTs[s] = skillSlot.GetComponent<RectTransform>();
 
                 var skillBorder = CreateUIImage(skillSlot.transform, $"SkillBorder_{s}",
                     Vector2.zero, Vector2.one,
-                    new Vector2(-2, -2), new Vector2(2, 2),
-                    new Color(0.6f, 0.65f, 0.7f, 0.5f));
-                skillBorder.GetComponent<Image>().raycastTarget = false;
+                    new Vector2(-3, -3), new Vector2(3, 3),
+                    new Color(1f, 1f, 1f, 0f));
+                Image skillBorderImage = skillBorder.GetComponent<Image>();
+                skillBorderImage.raycastTarget = false;
+                if (uiTheme?.SkillFrameActive != null)
+                {
+                    skillBorderImage.sprite = uiTheme.SkillFrameActive;
+                    skillBorderImage.type = Image.Type.Simple;
+                    skillBorderImage.preserveAspect = true;
+                }
 
                 var skillIcon = CreateUIImage(skillSlot.transform, $"SkillIcon_{s}",
                     Vector2.zero, Vector2.one,
-                    new Vector2(4, 4), new Vector2(-4, -4),
-                    new Color(1, 1, 1, 0.15f));
+                    new Vector2(15, 15), new Vector2(-15, -15),
+                    new Color(0.92f, 0.82f, 0.60f, 0.16f));
+                Image skillIconImage = skillIcon.GetComponent<Image>();
+                Sprite carrierIcon = uiTheme?.CarrierIcon(s);
+                if (carrierIcon != null)
+                {
+                    skillIconImage.sprite = carrierIcon;
+                    skillIconImage.type = Image.Type.Simple;
+                    skillIconImage.preserveAspect = true;
+                    skillIconImage.color = Color.white;
+                }
+
+                var carrierGlyph = CreateUIText(
+                    skillSlot.transform,
+                    "CarrierGlyph",
+                    carrierGlyphs[s],
+                    20,
+                    Vector2.zero,
+                    Vector2.one,
+                    Vector2.zero,
+                    Vector2.zero);
+                var carrierGlyphText =
+                    carrierGlyph.GetComponent<TextMeshProUGUI>();
+                carrierGlyphText.alignment =
+                    TextAlignmentOptions.Center;
+                carrierGlyphText.fontStyle = FontStyles.Bold;
+                carrierGlyphText.color =
+                    new Color(0.94f, 0.84f, 0.65f, 0.9f);
+                carrierGlyph.SetActive(carrierIcon == null);
 
                 var cdFill = CreateUIImage(skillSlot.transform, $"SkillCD_{s}",
                     Vector2.zero, Vector2.one,
                     new Vector2(2, 2), new Vector2(-2, -2),
                     new Color(0, 0, 0, 0.7f));
                 var cdFillImg = cdFill.GetComponent<Image>();
+                cdFillImg.sprite = uiTheme?.SkillFrame;
                 cdFillImg.type = Image.Type.Filled;
                 cdFillImg.fillMethod = Image.FillMethod.Radial360;
                 cdFillImg.fillOrigin = (int)Image.Origin360.Top;
@@ -194,7 +261,7 @@ namespace XianTu
                 cdFillImg.fillAmount = 0;
 
                 var cdText = CreateUIText(skillSlot.transform, $"SkillCDText_{s}",
-                    skillLabels[s], 18,
+                    "", 14,
                     Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 var cdTxt = cdText.GetComponent<TextMeshProUGUI>();
                 cdTxt.alignment = TextAlignmentOptions.Center;
@@ -203,22 +270,50 @@ namespace XianTu
                 cdOutline.effectColor = new Color(0, 0, 0, 0.8f);
                 cdOutline.effectDistance = new Vector2(1, -1);
 
+                var keyCap = CreateUIImage(
+                    skillBarContainer.transform,
+                    $"KeyCap_{s}",
+                    new Vector2(0.5f, 0),
+                    new Vector2(0.5f, 0),
+                    new Vector2(sx - 22f, 7f),
+                    new Vector2(sx + 22f, 25f),
+                    Color.white);
+                Image keyCapImage = keyCap.GetComponent<Image>();
+                if (uiTheme?.Keycap != null)
+                {
+                    keyCapImage.sprite = uiTheme.Keycap;
+                    keyCapImage.type = Image.Type.Simple;
+                }
+                var keyText = CreateUIText(
+                    keyCap.transform,
+                    "Key",
+                    skillLabels[s],
+                    s == 3 ? 8 : 9,
+                    Vector2.zero,
+                    Vector2.one,
+                    Vector2.zero,
+                    Vector2.zero);
+                var keyTxt = keyText.GetComponent<TextMeshProUGUI>();
+                keyTxt.alignment = TextAlignmentOptions.Center;
+                keyTxt.fontStyle = FontStyles.Bold;
+                keyTxt.color = new Color(0.24f, 0.18f, 0.12f);
+
                 switch (s)
                 {
                     case 0:
                         SetPrivateField(hud, "skillQCooldownFill", cdFillImg);
                         SetPrivateField(hud, "skillQCooldownText", cdTxt);
-                        SetPrivateField(hud, "skillQIcon", skillIcon.GetComponent<Image>());
+                        SetPrivateField(hud, "skillQIcon", skillIconImage);
                         break;
                     case 1:
                         SetPrivateField(hud, "skillECooldownFill", cdFillImg);
                         SetPrivateField(hud, "skillECooldownText", cdTxt);
-                        SetPrivateField(hud, "skillEIcon", skillIcon.GetComponent<Image>());
+                        SetPrivateField(hud, "skillEIcon", skillIconImage);
                         break;
                     case 2:
                         SetPrivateField(hud, "skillRCooldownFill", cdFillImg);
                         SetPrivateField(hud, "skillRCooldownText", cdTxt);
-                        SetPrivateField(hud, "skillRIcon", skillIcon.GetComponent<Image>());
+                        SetPrivateField(hud, "skillRIcon", skillIconImage);
                         break;
                     case 3:
                         SetPrivateField(hud, "dashCooldownFill", cdFillImg);
@@ -231,12 +326,12 @@ namespace XianTu
                     var chainLabel = CreateUIText(skillBarContainer.transform, $"ChainLabel_{s}",
                         "", 11,
                         new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                        new Vector2(sx - 60, skillY - halfSkill - 18),
-                        new Vector2(sx + 60, skillY - halfSkill - 2));
+                        new Vector2(sx - 48, skillY + halfSkill + 2),
+                        new Vector2(sx + 48, skillY + halfSkill + 14));
                     var chainTxt = chainLabel.GetComponent<TextMeshProUGUI>();
                     chainTxt.alignment = TextAlignmentOptions.Center;
                     chainTxt.color = new Color(0.4f, 0.9f, 0.8f, 0.7f);
-                    chainTxt.fontSize = 11;
+                    chainTxt.fontSize = 9;
                     chainTxt.enableWordWrapping = false;
                     var chainOutline = chainLabel.AddComponent<Outline>();
                     chainOutline.effectColor = new Color(0, 0, 0, 0.8f);
@@ -245,11 +340,14 @@ namespace XianTu
             }
 
             SetPrivateField(skillBarUI, "skillSlotRTs", skillSlotRTs);
+            var spiritCircuitHUD =
+                skillBarContainer.AddComponent<SpiritCircuitHUD>();
+            spiritCircuitHUD.Configure(skillSlotRTs);
 
             // ========== 连招指示器（技能栏上方） ==========
             var comboPanel = CreateUIImage(canvasGo.transform, "ComboPanel",
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
-                new Vector2(-40, 178), new Vector2(40, 198),
+                new Vector2(-40, 128), new Vector2(40, 140),
                 new Color(0, 0, 0, 0));
 
             var comboIndicators = new Image[3];
@@ -258,17 +356,25 @@ namespace XianTu
                 float x = (i - 1) * 22f;
                 var dot = CreateUIImage(comboPanel.transform, $"ComboDot_{i}",
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    new Vector2(x - 7, -7), new Vector2(x + 7, 7),
-                    new Color(0.3f, 0.3f, 0.3f, 0.5f));
+                    new Vector2(x - 4, -4), new Vector2(x + 4, 4),
+                    new Color(0.30f, 0.24f, 0.16f, 0.55f));
                 comboIndicators[i] = dot.GetComponent<Image>();
             }
             SetPrivateField(hud, "comboIndicators", comboIndicators);
 
-            // ========== 模块链装配 UI + Proc 指示 ==========
-            canvasGo.AddComponent<ModuleAssemblyUI>();
-            var procOverlay = canvasGo.AddComponent<ModuleChainProcOverlay>();
-            procOverlay.SetSkillSlots(skillSlotRTs);
-            canvasGo.AddComponent<ProcBarsHUD>();
+            // ========== ProjectR回路总览 / Legacy模块链回退 ==========
+            if (FeatureFlags.EnableCarrierRuntime)
+            {
+                canvasGo.AddComponent<SpiritCircuitOverviewUI>();
+            }
+            else
+            {
+                canvasGo.AddComponent<ModuleAssemblyUI>();
+                var procOverlay =
+                    canvasGo.AddComponent<ModuleChainProcOverlay>();
+                procOverlay.SetSkillSlots(skillSlotRTs);
+                canvasGo.AddComponent<ProcBarsHUD>();
+            }
 
             // ========== 左下角：碎片计数 ==========
             var shardPanel = CreateUIImage(canvasGo.transform, "ShardPanel",
@@ -276,7 +382,7 @@ namespace XianTu
                 new Vector2(20, 55), new Vector2(160, 90),
                 new Color(0.1f, 0.1f, 0.18f, 0.7f));
 
-            var shardIcon = CreateUIText(shardPanel.transform, "ShardIcon", "✦", 18,
+            var shardIcon = CreateUIText(shardPanel.transform, "ShardIcon", "碎", 16,
                 new Vector2(0, 0), new Vector2(0.25f, 1),
                 Vector2.zero, Vector2.zero);
             shardIcon.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
@@ -304,7 +410,7 @@ namespace XianTu
 
             // ========== 底部：操作提示 ==========
             var controlsHint = CreateUIText(canvasGo.transform, "ControlsHint",
-            "WASD 移动  |  左键挥刀  |  Q/E/R 技能  |  Space 闪避  |  F 拾取  |  M 模块装配  |  C 角色信息  |  ESC 暂停", 12,
+            "", 10,
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(-380, 2), new Vector2(380, 14));
             var hintTxt = controlsHint.GetComponent<TextMeshProUGUI>();
@@ -349,7 +455,7 @@ namespace XianTu
             title.GetComponent<TextMeshProUGUI>().color = new Color(0.8f, 0.7f, 0.5f);
 
             var legendText = CreateUIText(canvasTransform, "MinimapLegend",
-                "⚔战斗  ⚡精英  ?事件  $商店  ♥休息  ☠Boss", 10,
+                "战斗  精英  ?事件  $商店  休息  BOSS", 10,
                 new Vector2(1, 1), new Vector2(1, 1),
                 new Vector2(-220, -72), new Vector2(-20, -57));
             legendText.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Center;
@@ -506,5 +612,6 @@ namespace XianTu
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             field?.SetValue(obj, value);
         }
+
     }
 }

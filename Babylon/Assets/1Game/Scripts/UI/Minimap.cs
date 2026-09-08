@@ -134,13 +134,13 @@ namespace XianTu
         {
             return type switch
             {
-                RoomType.Battle => "⚔",
-                RoomType.Elite => "⚡",
+                RoomType.Battle => "战",
+                RoomType.Elite => "精",
                 RoomType.Event => "?",
                 RoomType.Shop => "$",
                 RoomType.Rest => "♥",
                 RoomType.Treasure => "★",
-                RoomType.Boss => "☠",
+                RoomType.Boss => "王",
                 RoomType.Upgrade => "↑",
                 RoomType.Landing => "◇",
                 _ => "·"

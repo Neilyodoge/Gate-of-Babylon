@@ -45,7 +45,6 @@ namespace XianTu.Editor
         private bool _hideRendererWhenConverting;
         private readonly List<string> _validationMessages = new();
 
-        [MenuItem("仙途秘境/关卡工具/关卡配置与房间预制体", false, 300)]
         public static void ShowWindow()
         {
             var window = GetWindow<LevelDesignAuthoringWindow>("关卡制作工具");

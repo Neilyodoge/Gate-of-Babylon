@@ -101,13 +101,13 @@ namespace XianTu.LevelDesign
         [InspectorName("秘境编号")]
         public int ActID;
         [InspectorName("各层敌人数值倍率")]
-        [Tooltip("数组第1项对应第1层；未配置的层按1倍处理。")]
+        [Tooltip("数组第1项对应Legacy区域索引0；未配置区域按1倍处理。")]
         public float[] EnemyScaleMul;
         [InspectorName("各层模块稀有度偏移")]
-        [Tooltip("数组第1项对应第1层；填写稀有模块权重的百分比增量。")]
+        [Tooltip("数组第1项对应Legacy区域索引0；填写稀有构件权重的百分比增量。")]
         public int[] ModuleRarityBias;
         [InspectorName("各层是否提供阶段返回")]
-        [Tooltip("数组第1项对应第1层；0表示没有，1表示提供返回点。")]
+        [Tooltip("数组第1项对应Legacy区域索引0；0表示没有，1表示提供返回点。")]
         public int[] HasStageReturn;
 
         public float GetEnemyScale(int floor)

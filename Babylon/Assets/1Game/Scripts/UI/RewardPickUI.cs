@@ -200,8 +200,8 @@ namespace XianTu
         private void PopulateSkills(SkillData[] skills)
         {
             ClearRow();
-            _titleLabel.text = "技能奖励";
-            _subtitleLabel.text = "选择一个技能装备（已满则需替换）";
+            _titleLabel.text = "术法载体";
+            _subtitleLabel.text = "选择一项术法装入载体槽（已满则需替换）";
             foreach (var s in skills)
             {
                 if (s == null) continue;
@@ -212,8 +212,8 @@ namespace XianTu
         private void PopulateModules(ModuleDef[] modules)
         {
             ClearRow();
-            _titleLabel.text = "模块奖励";
-            _subtitleLabel.text = "选择一个模块装备到增强链";
+            _titleLabel.text = "回路构件";
+            _subtitleLabel.text = "选择一个构件接入当前回路";
             foreach (var m in modules)
             {
                 if (m == null) continue;
@@ -305,7 +305,7 @@ namespace XianTu
                 if (sk == null) continue;
                 int slot = i;
                 int refundShards = PlayerResources.GetDecomposeShards(sk.rarity);
-                var btn = UGuiKit.CreateButton(slotRow, $"替换 [{slotNames[slot]}] {sk.skillName}\n→ 折算 ✦{refundShards}",
+                var btn = UGuiKit.CreateButton(slotRow, $"替换 [{slotNames[slot]}] {sk.skillName}\n→ 折算 {refundShards}碎片",
                     () => ConfirmReplace(slot), new Color(0.15f, 0.15f, 0.22f, 0.95f), 14, new Vector2(200f, 70f));
                 UGuiKit.SetHeight(btn.GetComponent<RectTransform>(), 70f);
             }
@@ -331,7 +331,7 @@ namespace XianTu
             if (refund > 0 && PlayerResources.Instance != null)
             {
                 PlayerResources.Instance.AddShards(refund);
-                Debug.Log($"<color=#ffcc33>[RewardPick] 替换技能，旧 {oldSkill.skillName} 折算 ✦{refund} 碎片</color>");
+                Debug.Log($"<color=#ffcc33>[RewardPick] 替换术法，旧 {oldSkill.skillName} 折算 {refund} 碎片</color>");
             }
 
             Debug.Log($"<color=#66ff99>[RewardPick] 替换装备 {_pendingReplaceSkill.skillName} → 槽位 {slot}</color>");
@@ -359,10 +359,10 @@ namespace XianTu
                 if (inventory == null)
                     inventory = player.gameObject.AddComponent<ModuleInventory>();
                 inventory.Add(mod);
-                Debug.Log($"<color=#ffcc33>[RewardPick] 模块槽位已满，{mod.displayName} 已放入背包，请按 [M] 手动装配</color>");
+                Debug.Log($"<color=#ffcc33>[RewardPick] 回路槽位已满，{mod.displayName} 已放入背包，请按 [M] 手动装配</color>");
             }
 
-            Debug.Log($"<color=#66ff99>[RewardPick] 选择模块 {mod.displayName}（{mod.category}）</color>");
+            Debug.Log($"<color=#66ff99>[RewardPick] 选择回路构件 {mod.displayName}（{mod.category}）</color>");
             Close();
         }
 
@@ -477,7 +477,7 @@ namespace XianTu
         {
             ModuleCategory.Trigger => "触发器", ModuleCategory.Effect => "效果器",
             ModuleCategory.Modifier => "改造件", ModuleCategory.Universal => "万能件",
-            _ => "模块"
+            _ => "构件"
         };
     }
 }

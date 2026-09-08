@@ -20,7 +20,7 @@ namespace XianTu
     /// 功法（技能）数据定义
     /// Demo1 采用纯 CD 模型，不涉及灵力消耗
     /// </summary>
-    [CreateAssetMenu(fileName = "NewSkill", menuName = "仙途秘境/功法数据")]
+    [CreateAssetMenu(fileName = "NewSkill", menuName = "ProjectR/Legacy/旧术法数据")]
     public class SkillData : ScriptableObject
     {
         [Header("基础信息")]

@@ -10,7 +10,6 @@ namespace XianTu.Editor
         private const string MaterialFolder = RootFolder + "/Materials";
         private const string PrefabPath = RootFolder + "/WB_VillageHub.prefab";
 
-        [MenuItem("仙途秘境/关卡工具/生成基地白盒", false, 80)]
         public static void Build()
         {
             EnsureFolder("Assets/1Game/Resources/LevelDesign", "VillageHub");

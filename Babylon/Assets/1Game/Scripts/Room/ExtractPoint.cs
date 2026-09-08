@@ -59,7 +59,7 @@ namespace XianTu
             _headCard = NpcHeadCard.Attach(transform, new NpcHeadCard.Config
             {
                 displayName = "出梦点",
-                icon = "✦",
+                icon = "返",
                 roleSub = "撤离回洞府",
                 hintText = "按 [F] 蓄力 5s · 撤离",
                 themeColor = new Color(0.8f, 0.85f, 1f),

@@ -189,7 +189,7 @@ namespace XianTu.LevelDesign
 
     [CreateAssetMenu(
         fileName = "怪物与首领生成配置",
-        menuName = "仙途秘境/关卡/关卡生成配置")]
+        menuName = "ProjectR/Legacy/关卡/关卡生成配置")]
     public sealed class DungeonLevelAuthoringConfig : ScriptableObject
     {
         private const string ResourcePath = "LevelDesign/怪物与首领生成配置";

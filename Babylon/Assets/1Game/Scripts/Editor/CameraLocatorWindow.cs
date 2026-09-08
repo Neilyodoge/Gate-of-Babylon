@@ -8,7 +8,7 @@ namespace XianTu.Editor
     {
         private Camera _targetCamera;
 
-        [MenuItem("仙途秘境/开发工具/相机定位器")]
+        [MenuItem("ProjectR/开发工具/相机定位器")]
         private static void Open()
         {
             var window = GetWindow<CameraLocatorWindow>("相机定位器");
@@ -16,7 +16,7 @@ namespace XianTu.Editor
             window.Show();
         }
 
-        [MenuItem("仙途秘境/开发工具/场景视图定位到主相机 _F8")]
+        [MenuItem("ProjectR/开发工具/场景视图定位到主相机 _F8")]
         private static void LocateMainCamera()
         {
             Camera camera = FindMainCamera();

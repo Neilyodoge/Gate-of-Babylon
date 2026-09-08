@@ -190,7 +190,7 @@ namespace XianTu
 
     // ==================== 模块定义 ====================
 
-    [CreateAssetMenu(fileName = "NewModule", menuName = "仙途秘境/模块定义")]
+    [CreateAssetMenu(fileName = "NewModule", menuName = "ProjectR/Legacy/模块定义")]
     public class ModuleDef : ScriptableObject
     {
         [Header("基础信息")]
@@ -232,7 +232,7 @@ namespace XianTu
         // ==================== Effect params ====================
         [Header("效果器参数（category == Effect 或 Universal）")]
         public EffectType effectType;
-        [Tooltip("V.08 效果器角色：Enhancement 改核心技能（damage=倍率）；Addon spawn 独立效果（damage=附加伤害）")]
+        [Tooltip("Legacy效果器角色：Enhancement改术法载体（damage=倍率）；Addon生成独立效果（damage=附加伤害）")]
         public EffectRole effectRole = EffectRole.Enhancement;
         public float baseDamage = 25f;
         public float damageScaling = 0.5f;

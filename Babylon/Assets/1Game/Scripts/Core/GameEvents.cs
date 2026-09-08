@@ -4,6 +4,13 @@ using UnityEngine;
 
 namespace XianTu
 {
+    public enum SpiritCircuitPendingStage
+    {
+        Heating = 0,
+        AwaitingEcho = 1,
+        AwaitingGel = 2,
+    }
+
     /// <summary>
     /// 轻量级全局事件系统，用于模块间解耦通信
     /// </summary>
@@ -67,6 +74,87 @@ namespace XianTu
             public float RawDamage;
             /// <summary>攻击者 GameObject（可空）</summary>
             public UnityEngine.GameObject Attacker;
+        }
+
+        /// <summary>玩家造成伤害并完成目标扣血后的只读结果。</summary>
+        public struct PlayerDamageResolved
+        {
+            public UnityEngine.GameObject Attacker;
+            public UnityEngine.GameObject Target;
+            public float RequestedAmount;
+            public float AppliedAmount;
+            public CircuitEntityRef TargetRef;
+            public bool IsPlayerOwnedDamage;
+        }
+
+        /// <summary>首批三宠联动推进，供调试与后续UI消费。</summary>
+        public struct FirstPetCircuitAdvanced
+        {
+            public bool ChainStarted;
+            public int Heat;
+            public int HeatRequired;
+            public int EmittedEvents;
+            public ulong CausalChainId;
+            public SpiritCircuitPendingStage PendingStage;
+            public CarrierSlot NextCarrier;
+            public float RemainingSeconds;
+        }
+
+        /// <summary>初契灵宠在安全状态下更换载体。</summary>
+        public struct StarterSpiritAttachmentChanged
+        {
+            public System.Guid SpiritInstanceId;
+            public StableConfigId SpeciesId;
+            public CarrierSlot Carrier;
+        }
+
+        /// <summary>三宠编队在安全状态下完成改附。</summary>
+        public struct SpiritLoadoutChanged
+        {
+            public System.Guid SpiritInstanceId;
+            public StableConfigId SpeciesId;
+            public CarrierSlot Carrier;
+            public SpiritAttachmentPattern Pattern;
+        }
+
+        /// <summary>初契灵宠的单宠载体效果推进或实际启动。</summary>
+        public struct StarterSpiritCarrierAdvanced
+        {
+            public System.Guid SpiritInstanceId;
+            public StableConfigId SpeciesId;
+            public CarrierSlot Carrier;
+            public bool Activated;
+            public int Progress;
+        }
+
+        /// <summary>灵宠获得局内经验或天赋点。</summary>
+        public struct SpiritTalentProgressed
+        {
+            public System.Guid SpiritInstanceId;
+            public StableConfigId SpeciesId;
+            public int Level;
+            public int Experience;
+            public int ExperienceToNextPoint;
+            public int UnspentPoints;
+            public int GainedLevels;
+            public string Reason;
+        }
+
+        /// <summary>灵宠在本局点亮一个天赋节点。</summary>
+        public struct SpiritTalentActivated
+        {
+            public System.Guid SpiritInstanceId;
+            public StableConfigId SpeciesId;
+            public StableConfigId TalentId;
+            public int UnspentPoints;
+        }
+
+        /// <summary>安全阶段退还某只灵宠的本局天赋点。</summary>
+        public struct SpiritTalentsReset
+        {
+            public System.Guid SpiritInstanceId;
+            public StableConfigId SpeciesId;
+            public int RefundedPoints;
         }
 
         /// <summary>玩家死亡</summary>

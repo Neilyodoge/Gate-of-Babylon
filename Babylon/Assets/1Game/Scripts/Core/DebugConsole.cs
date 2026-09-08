@@ -156,7 +156,7 @@ namespace XianTu
                 var stats = PlayerController.Instance.Stats;
                 stats.damageReduction = _godMode ? 1f : (GameConfig.Instance != null ? GameConfig.Instance.玩家减伤比例 : 0f);
             }
-            AddLog(_godMode ? "<color=yellow>✦ 无敌模式 开启</color>" : "<color=gray>✦ 无敌模式 关闭</color>");
+            AddLog(_godMode ? "<color=yellow>[无敌] 开启</color>" : "<color=gray>[无敌] 关闭</color>");
             RefreshStatus();
         }
 
@@ -166,7 +166,7 @@ namespace XianTu
             _lockHp = !_lockHp;
             if (_lockHp && PlayerController.Instance != null)
                 _lockedHpValue = PlayerController.Instance.Stats.currentHp;
-            AddLog(_lockHp ? $"<color=yellow>✦ 锁血模式 开启（锁定在 {_lockedHpValue:F0}）</color>" : "<color=gray>✦ 锁血模式 关闭</color>");
+            AddLog(_lockHp ? $"<color=yellow>[锁血] 开启（锁定在 {_lockedHpValue:F0}）</color>" : "<color=gray>[锁血] 关闭</color>");
             RefreshStatus();
         }
 
@@ -198,7 +198,7 @@ namespace XianTu
                     stats.attackDamage = _originalAttack;
                 }
             }
-            AddLog(_oneHitKill ? "<color=red>⚔ 一击必杀 开启</color>" : "<color=gray>⚔ 一击必杀 关闭</color>");
+            AddLog(_oneHitKill ? "<color=red>[一击必杀] 开启</color>" : "<color=gray>[一击必杀] 关闭</color>");
             RefreshStatus();
         }
 
@@ -240,7 +240,7 @@ namespace XianTu
                     count++;
                 }
             }
-            AddLog($"<color=red>☠ 已击杀 {count} 个敌人</color>");
+            AddLog($"<color=red>[清场] 已击杀 {count} 个敌人</color>");
         }
 
         /// <summary>跳转到商店房间</summary>
@@ -256,7 +256,7 @@ namespace XianTu
         {
             if (GameManager.Instance == null) return;
             GameManager.Instance.DebugGotoRoom(RoomType.Battle);
-            AddLog("<color=orange>⚔ 跳转到战斗房间</color>");
+            AddLog("<color=orange>[战斗] 跳转到战斗房间</color>");
         }
 
         /// <summary>跳转到Boss房间</summary>
@@ -267,14 +267,14 @@ namespace XianTu
             {
                 bool success = GameManager.Instance.DebugGotoEdgarRoom(RoomType.Boss);
                 AddLog(success
-                    ? "<color=red>☠ 已直达本局真实 Boss 房</color>"
+                    ? "<color=red>[Boss] 已直达本局真实 Boss 房</color>"
                     : "<color=red>× 未找到本局 Boss 节点</color>");
                 if (success)
                     TogglePanel();
                 return;
             }
             GameManager.Instance.DebugGotoRoom(RoomType.Boss);
-            AddLog("<color=red>☠ 跳转到Boss房间</color>");
+            AddLog("<color=red>[Boss] 跳转到Boss房间</color>");
         }
 
         /// <summary>跳转到休息房间</summary>
@@ -336,7 +336,7 @@ namespace XianTu
         {
             if (PlayerResources.Instance == null) return;
             PlayerResources.Instance.AddShards(5000);
-            AddLog("<color=#88CCFF>✦ +5000 灵力碎片</color>");
+            AddLog("<color=#88CCFF>[资源] +5000 回路碎片</color>");
         }
 
         /// <summary>强制通关当前房间</summary>
@@ -355,7 +355,7 @@ namespace XianTu
         {
             if (PlayerController.Instance == null) return;
             PlayerController.Instance.Stats.attackDamage += 50f;
-            AddLog($"<color=red>⚔ 攻击力 +50（当前：{PlayerController.Instance.Stats.attackDamage:F0}）</color>");
+            AddLog($"<color=red>[攻击] +50（当前：{PlayerController.Instance.Stats.attackDamage:F0}）</color>");
             RefreshStatus();
         }
 
@@ -448,7 +448,7 @@ namespace XianTu
             // 关掉 Debug 面板，避免遮挡装配界面
             _isOpen = false;
             if (_panelGo != null) _panelGo.SetActive(false);
-            AddLog("<color=#9be0c0>🔧 已打开模块装配界面 · 手动配链（Q/E/R）</color>");
+            AddLog("<color=#9be0c0>🔧 已打开回路装配界面 · 手动接通Q/E/R载体</color>");
         }
 
         private void AutoAssembleQChain()
@@ -475,7 +475,7 @@ namespace XianTu
                 modifier0 = modifiers.Count > 0 ? modifiers[0] : null
             };
             slots.EquipChain(0, chain);
-            AddLog($"<color=#00ffcc>⚡ Q 链已装配：{chain.DisplayName}</color>");
+            AddLog($"<color=#00ffcc>[回路] Q槽已装配：{chain.DisplayName}</color>");
         }
 
         private void AutoAssembleAllChains()
@@ -507,7 +507,7 @@ namespace XianTu
                 var chain = new ModuleChain { trigger = t, effect = e, modifier0 = m };
                 slots.EquipChain(s, chain);
                 assembled++;
-                AddLog($"<color=#00ffcc>⚡ {(s == 0 ? "Q" : s == 1 ? "E" : "R")} 链：{chain.DisplayName}</color>");
+                AddLog($"<color=#00ffcc>[回路] {(s == 0 ? "Q" : s == 1 ? "E" : "R")}槽：{chain.DisplayName}</color>");
             }
             AddLog($"<color=cyan>共装配 {assembled} 条链</color>");
         }
@@ -680,7 +680,7 @@ namespace XianTu
             // ===== 按钮组 =====
 
             CreateSectionHeader(contentGo.transform, "【 信息 】");
-            CreateButton(contentGo.transform, "📜 事件提示",
+            CreateButton(contentGo.transform, "事件提示",
                 new Color(0.12f, 0.38f, 0.48f), ToggleLevelGuide);
 
             CreateSectionHeader(contentGo.transform, "【 关卡事件 Debug 】");
@@ -689,12 +689,12 @@ namespace XianTu
 
             CreateSectionHeader(contentGo.transform, "【 战斗调试 】");
             CreateButton(contentGo.transform, "🛡 不掉血", new Color(0.45f, 0.4f, 0.15f), ToggleGodMode);
-            CreateButton(contentGo.transform, "⚔ 攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
+            CreateButton(contentGo.transform, "攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
             CreateButton(contentGo.transform, "👟 3倍移动速度", new Color(0.12f, 0.38f, 0.5f), ToggleSpeedBoost);
-            CreateButton(contentGo.transform, "☠ 全屏秒杀", new Color(0.55f, 0.1f, 0.1f), KillAllEnemies);
+            CreateButton(contentGo.transform, "全屏秒杀", new Color(0.55f, 0.1f, 0.1f), KillAllEnemies);
 
             CreateSectionHeader(contentGo.transform, "【 Edgar 节点直达 】");
-            CreateButton(contentGo.transform, "☠ 直达本局 Boss", new Color(0.6f, 0.08f, 0.08f), GotoBossRoom);
+            CreateButton(contentGo.transform, "直达本局 Boss", new Color(0.6f, 0.08f, 0.08f), GotoBossRoom);
             CreateButton(contentGo.transform, "O0 外环端点", new Color(0.45f, 0.2f, 0.25f), () => GotoEdgarNode("O0"));
             CreateButton(contentGo.transform, "O1 外环事件", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("O1"));
             CreateButton(contentGo.transform, "O2 外环战斗", new Color(0.35f, 0.3f, 0.2f), () => GotoEdgarNode("O2"));
@@ -1034,7 +1034,7 @@ namespace XianTu
                 int level = GameManager.Instance != null ? GameManager.Instance.CurrentLevel : 0;
                 string realm = GameManager.Instance != null ? GameManager.Instance.CurrentRealmName : "?";
 
-                status += $"<color=#AAF>境界：</color>{realm}（第{level + 1}层）\n";
+                status += $"<color=#AAF>区域：</color>{realm}（深度 {level + 1}）\n";
                 status += $"<color=#AFA>生命：</color>{stats.currentHp:F0}/{stats.maxHp:F0}\n";
                 status += $"<color=#FAA>攻击：</color>{stats.attackDamage:F0}  <color=#AAF>攻速：</color>{stats.attackSpeed:F1}\n";
                 status += $"<color=#AFF>移速：</color>{stats.moveSpeed:F1}  <color=#FFA>碎片：</color>{shards}\n";

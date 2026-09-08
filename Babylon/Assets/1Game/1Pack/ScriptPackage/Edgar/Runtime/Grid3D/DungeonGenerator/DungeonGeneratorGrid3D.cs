@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 
 namespace Edgar.Unity
 {
-    [AddComponentMenu("仙途秘境/Edgar Grid3D/地牢生成器")]
+    [AddComponentMenu("ProjectR/Legacy/关卡/Edgar/地牢生成器")]
     public class DungeonGeneratorGrid3D : LevelGeneratorBase<DungeonGeneratorPayloadGrid3D>
     {
         [InspectorName("输入类型")]

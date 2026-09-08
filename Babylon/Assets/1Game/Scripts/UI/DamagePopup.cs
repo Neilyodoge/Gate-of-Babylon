@@ -94,7 +94,7 @@ namespace XianTu
                         popup.Timer = 1.0f;
                         break;
                     case "剑阵":
-                        popup.Text.text = $"⚔️{dmgInt}";
+                        popup.Text.text = $"暴 {dmgInt}";
                         popup.Text.fontSize = 18;
                         popup.Text.color = new Color(0.5f, 0.7f, 1f); // 淡蓝色
                         break;
@@ -109,7 +109,7 @@ namespace XianTu
                         popup.Text.color = new Color(1f, 0.4f, 0.1f); // 火红色
                         break;
                     case "元素爆发":
-                        popup.Text.text = $"⚡{dmgInt}";
+                        popup.Text.text = $"雷 {dmgInt}";
                         popup.Text.fontSize = 26;
                         popup.Text.color = new Color(0.9f, 0.8f, 1f); // 淡紫色
                         popup.Duration = 1.0f;
@@ -157,7 +157,7 @@ namespace XianTu
                         popup.Timer = 1.0f;
                         break;
                     default:
-                        popup.Text.text = $"✦{dmgInt}";
+                        popup.Text.text = $"+{dmgInt}";
                         popup.Text.fontSize = 20;
                         popup.Text.color = new Color(0.8f, 0.8f, 1f);
                         break;

@@ -6,7 +6,7 @@ namespace Edgar.Unity
     /// Settings of the dungeon generator.
     /// The main purpose right now is to configure the cell size of the grid.
     /// </summary>
-    [CreateAssetMenu(fileName = "Edgar生成器设置", menuName = "仙途秘境/Edgar Grid3D/生成器设置")]
+    [CreateAssetMenu(fileName = "Edgar生成器设置", menuName = "ProjectR/Legacy/关卡/Edgar生成器设置")]
     public class GeneratorSettingsGrid3D : ScriptableObject
     {
         /// <summary>

@@ -5,9 +5,9 @@ namespace XianTu
     /// <summary>
     /// 音效配置 —— ScriptableObject
     /// 集中管理所有音效资源引用，后续只需在 Inspector 中拖入音频文件即可
-    /// 菜单：Assets → Create → 仙途秘境 → 音效配置
+    /// 菜单：Assets → Create → ProjectR → 配置 → 音效配置
     /// </summary>
-    [CreateAssetMenu(fileName = "AudioConfig", menuName = "仙途秘境/音效配置")]
+    [CreateAssetMenu(fileName = "AudioConfig", menuName = "ProjectR/配置/音效配置")]
     public class AudioConfig : ScriptableObject
     {
         // ========== 单例访问 ==========
@@ -129,7 +129,7 @@ namespace XianTu
         [Tooltip("商店购买失败音效（灵力碎片不足）")]
         public AudioClip shopFail;
 
-        [Tooltip("境界突破音效")]
+        [Tooltip("阶段晋级音效")]
         public AudioClip realmBreakthrough;
 
         [Tooltip("游戏通关（飞升成仙）音效")]
@@ -163,7 +163,7 @@ namespace XianTu
         [Tooltip("主菜单 BGM")]
         public AudioClip bgmMenu;
 
-        [Tooltip("战斗 BGM（按层数索引，不够则循环最后一首）")]
+        [Tooltip("战斗BGM（按Legacy区域索引，不够则循环最后一首）")]
         public AudioClip[] bgmBattle;
 
         [Tooltip("商店/休息房间 BGM")]

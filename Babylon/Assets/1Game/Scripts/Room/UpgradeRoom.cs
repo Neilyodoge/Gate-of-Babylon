@@ -109,10 +109,10 @@ namespace XianTu
 
             _headCard = NpcHeadCard.Attach(npc.transform, new NpcHeadCard.Config
             {
-                displayName = "功法宗师",
-                icon = "✦",
-                roleSub = "功法修炼",
-                hintText = "按 [F] 修炼功法",
+                displayName = "术法调律师",
+                icon = "调",
+                roleSub = "载体调试",
+                hintText = "按 [F] 调试术法",
                 themeColor = new Color(0.4f, 1f, 0.55f),
                 yOffset = 2.0f,
                 showLongRangeMarker = true
@@ -190,9 +190,9 @@ namespace XianTu
 
             var header = UGuiKit.CreateRow(panel, 12f, 44f);
             header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
-            var title = UGuiKit.CreateText(header, "功法修炼", 28, new Color(0.4f, 1f, 0.55f), TextAlignmentOptions.Left, FontStyles.Bold);
+            var title = UGuiKit.CreateText(header, "术法载体调试", 28, new Color(0.4f, 1f, 0.55f), TextAlignmentOptions.Left, FontStyles.Bold);
             UGuiKit.SetHeight(title, 40f); title.GetComponent<LayoutElement>().preferredWidth = 360f;
-            _shardsLabel = UGuiKit.CreateText(header, "✦ 灵力碎片：0", 20, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Right);
+            _shardsLabel = UGuiKit.CreateText(header, "回路碎片：0", 20, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Right);
             UGuiKit.SetHeight(_shardsLabel, 40f); _shardsLabel.GetComponent<LayoutElement>().preferredWidth = 300f;
             var close = UGuiKit.CreateButton(header, "✕", ClosePanel, UGuiKit.BtnNormal, 20, new Vector2(44f, 40f));
             UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 40f); close.GetComponent<LayoutElement>().preferredWidth = 44f;
@@ -246,15 +246,15 @@ namespace XianTu
 
             if (skill == null)
             {
-                var empty = UGuiKit.CreateText(content, "装备功法后\n可在此升级", 14, new Color(0.5f, 0.5f, 0.55f), TextAlignmentOptions.Center);
+                var empty = UGuiKit.CreateText(content, "装备术法后\n可在此调试", 14, new Color(0.5f, 0.5f, 0.55f), TextAlignmentOptions.Center);
                 var ele = empty.gameObject.AddComponent<LayoutElement>(); ele.flexibleHeight = 1f; ele.minHeight = 60f;
                 return card;
             }
 
             int s = slotIndex;
-            (card.dmgBtn, _, card.dmgPrice) = MakeUpgradeButton(content, "⚔ 伤害 +15%", new Color(0.5f, 0.25f, 0.2f, 0.95f), () => OnUpgradeDamage(s));
+            (card.dmgBtn, _, card.dmgPrice) = MakeUpgradeButton(content, "伤害 +15%", new Color(0.5f, 0.25f, 0.2f, 0.95f), () => OnUpgradeDamage(s));
             (card.cdBtn, _, card.cdPrice) = MakeUpgradeButton(content, "⏱ CD -10%", new Color(0.2f, 0.35f, 0.5f, 0.95f), () => OnUpgradeCooldown(s));
-            (card.chargeBtn, card.chargeLabel, card.chargePrice) = MakeUpgradeButton(content, "⚡ 充能 +1层", new Color(0.2f, 0.45f, 0.3f, 0.95f), () => OnUpgradeCharge(s));
+            (card.chargeBtn, card.chargeLabel, card.chargePrice) = MakeUpgradeButton(content, "充能 +1层", new Color(0.2f, 0.45f, 0.3f, 0.95f), () => OnUpgradeCharge(s));
 
             return card;
         }
@@ -305,7 +305,7 @@ namespace XianTu
             skill.baseDamage *= 1.15f;
             _upgradeCount[slotIndex]++;
 
-            Debug.Log($"<color=green>✦ {skill.skillName} 伤害升级！基础伤害 → {skill.baseDamage:F1}</color>");
+            Debug.Log($"<color=green>[调试] {skill.skillName}伤害升级，基础伤害 → {skill.baseDamage:F1}</color>");
             RefreshAllCards();
         }
 
@@ -322,7 +322,7 @@ namespace XianTu
             skill.cooldown = Mathf.Max(1f, skill.cooldown * 0.9f);
             _upgradeCount[slotIndex]++;
 
-            Debug.Log($"<color=green>✦ {skill.skillName} CD缩减！冷却时间 → {skill.cooldown:F1}s</color>");
+            Debug.Log($"<color=green>[调试] {skill.skillName}冷却缩减 → {skill.cooldown:F1}s</color>");
             RefreshAllCards();
         }
 
@@ -352,7 +352,7 @@ namespace XianTu
             }
             _upgradeCount[slotIndex]++;
 
-            Debug.Log($"<color=green>✦ {skill.skillName} 充能升级！最大充能 → {skill.maxCharges}层</color>");
+            Debug.Log($"<color=green>[调试] {skill.skillName}充能升级，最大充能 → {skill.maxCharges}层</color>");
             RefreshAllCards();
         }
 
@@ -360,7 +360,7 @@ namespace XianTu
         {
             if (PlayerResources.Instance == null || !PlayerResources.Instance.SpendShards(price))
             {
-                Debug.Log("<color=red>灵力碎片不足！</color>");
+                Debug.Log("<color=red>回路碎片不足！</color>");
                 return false;
             }
             RefreshShardsDisplay();
@@ -372,7 +372,7 @@ namespace XianTu
         private void RefreshShardsDisplay()
         {
             if (_shardsLabel != null && PlayerResources.Instance != null)
-                _shardsLabel.text = $"✦ 灵力碎片：{PlayerResources.Instance.SpiritShards}";
+                _shardsLabel.text = $"回路碎片：{PlayerResources.Instance.SpiritShards}";
         }
 
         private void RefreshAllCards()
@@ -396,20 +396,20 @@ namespace XianTu
                 if (card.dmgBtn != null)
                 {
                     card.dmgBtn.interactable = skill != null && canAfford;
-                    if (card.dmgPrice != null) card.dmgPrice.text = $"✦ {price}";
+                    if (card.dmgPrice != null) card.dmgPrice.text = $"{price}碎片";
                 }
                 if (card.cdBtn != null)
                 {
                     card.cdBtn.interactable = skill != null && canAfford;
-                    if (card.cdPrice != null) card.cdPrice.text = $"✦ {price}";
+                    if (card.cdPrice != null) card.cdPrice.text = $"{price}碎片";
                 }
                 if (card.chargeBtn != null)
                 {
                     int currentMax = combat != null ? combat.GetMaxCharges(card.slotIndex) : 1;
                     bool atMax = currentMax >= 3;
                     card.chargeBtn.interactable = skill != null && canAffordCharge && !atMax;
-                    if (card.chargePrice != null) card.chargePrice.text = atMax ? "已满" : $"✦ {chargePrice}";
-                    if (card.chargeLabel != null) card.chargeLabel.text = atMax ? "⚡ 充能已满" : "⚡ 充能 +1层";
+                    if (card.chargePrice != null) card.chargePrice.text = atMax ? "已满" : $"{chargePrice}碎片";
+                    if (card.chargeLabel != null) card.chargeLabel.text = atMax ? "充能已满" : "充能 +1层";
                 }
             }
         }

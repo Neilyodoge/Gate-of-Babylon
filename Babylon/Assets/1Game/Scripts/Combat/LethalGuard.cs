@@ -51,7 +51,18 @@ namespace XianTu
             if (pc == null) return false;
 
             // 免死：恢复到 15% 血量
-            pc.Stats.currentHp = pc.Stats.maxHp * 0.15f;
+            float oldHp = pc.Stats.currentHp;
+            float restoredHp = pc.Stats.maxHp * 0.15f;
+            pc.Stats.currentHp = restoredHp;
+            RunCombatStats.AddPlayerHealing(
+                restoredHp - oldHp,
+                restoredHp - oldHp,
+                new CircuitEntityRef(
+                    pc.gameObject.GetInstanceID(),
+                    null,
+                    System.Guid.Empty,
+                    new StableConfigId("legacy.player"),
+                    default));
 
             // 原地爆炸替身：对周围敌人造成伤害 + 击退
             Vector3 origin = transform.position;

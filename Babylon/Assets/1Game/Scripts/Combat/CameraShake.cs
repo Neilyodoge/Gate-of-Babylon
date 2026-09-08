@@ -21,7 +21,7 @@ namespace XianTu
             EnsureDriver()?.Begin(duration, intensity, frequency);
         }
 
-        /// <summary>大事件（渡劫 / 心魔劫 / 击杀 Boss）</summary>
+        /// <summary>大事件或Boss击杀。</summary>
         public static void TriggerBig() => Trigger(0.5f, 0.45f, 30f);
 
         /// <summary>中等事件（暴击命中 / 重击）</summary>

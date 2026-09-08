@@ -8,8 +8,8 @@ using TMPro;
 namespace XianTu
 {
     /// <summary>
-    /// V0.3.3 图鉴（V0.4.6 改 uGUI+TMP）—— 展示当前存档已发现的模块和核心技能。
-    /// 按 Tab 页切换（模块/技能），支持按大类筛选。主菜单和暂停菜单均可打开。
+    /// ProjectR图鉴——展示当前兼容存档已发现的回路构件和术法载体。
+    /// 按Tab页切换，支持按大类筛选。主菜单和暂停菜单均可打开。
     /// 类名保留 CodexUITK 以兼容既有调用。
     /// </summary>
     public class CodexUITK : MonoBehaviour
@@ -102,8 +102,8 @@ namespace XianTu
         private void BuildTabs()
         {
             for (int i = _tabsBar.childCount - 1; i >= 0; i--) Destroy(_tabsBar.GetChild(i).gameObject);
-            AddTab("模块", Tab.Modules);
-            AddTab("核心技能", Tab.Skills);
+            AddTab("回路构件", Tab.Modules);
+            AddTab("术法载体", Tab.Skills);
         }
 
         private void AddTab(string label, Tab tab)
@@ -156,7 +156,7 @@ namespace XianTu
             var allModules = Resources.LoadAll<ModuleDef>("Modules");
             if (allModules == null || allModules.Length == 0)
             {
-                EmptyLabel("暂无模块数据");
+                EmptyLabel("暂无回路构件数据");
                 UpdateCount(0);
                 return;
             }
@@ -188,7 +188,7 @@ namespace XianTu
                 else
                 {
                     BuildEntryCard("?", new Color(0.35f, 0.37f, 0.42f),
-                        "<b><color=#777b85>未发现模块</color></b>", "在秘境中首次获得后解锁详情。", null);
+                        "<b><color=#777b85>未发现构件</color></b>", "在秘境中首次获得后解锁详情。", null);
                 }
             }
 
@@ -223,7 +223,7 @@ namespace XianTu
 
             if (allSkills == null || allSkills.Length == 0)
             {
-                EmptyLabel("暂无技能数据");
+                EmptyLabel("暂无术法数据");
                 UpdateCount(0);
                 return;
             }
@@ -240,12 +240,12 @@ namespace XianTu
                                       $"<size=75%><color=#a6bee6>{s.skillType}</color></size>";
                     string desc = !string.IsNullOrEmpty(s.description) ? s.description : "（无描述）";
                     string extra = $"CD: {s.cooldown:F1}s  |  伤害倍率: {s.baseDamage:F1}";
-                    BuildEntryCard("⚡", new Color(0.7f, 0.85f, 1f), nameLine, desc, extra);
+                    BuildEntryCard("术", new Color(0.7f, 0.85f, 1f), nameLine, desc, extra);
                 }
                 else
                 {
                     BuildEntryCard("?", new Color(0.35f, 0.37f, 0.42f),
-                        "<b><color=#777b85>未发现技能</color></b>", "在秘境中首次获得后解锁详情。", null);
+                        "<b><color=#777b85>未发现术法</color></b>", "在秘境中首次获得后解锁详情。", null);
                 }
             }
             UpdateCount(unlockedCount, allSkills.Length);

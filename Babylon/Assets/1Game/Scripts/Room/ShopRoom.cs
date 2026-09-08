@@ -130,7 +130,7 @@ namespace XianTu
             _headCard = NpcHeadCard.Attach(npc.transform, new NpcHeadCard.Config
             {
                 displayName = "散修商人",
-                icon = "✦",
+                icon = "店",
                 roleSub = "道具交易",
                 hintText = "按 [F] 交易",
                 themeColor = new Color(1f, 0.82f, 0.35f),
@@ -213,9 +213,9 @@ namespace XianTu
             header.gameObject.GetComponent<HorizontalLayoutGroup>().childControlWidth = false;
             var title = UGuiKit.CreateText(header, "散修商店", 28, new Color(1f, 0.82f, 0.35f), TextAlignmentOptions.Left, FontStyles.Bold);
             UGuiKit.SetHeight(title, 40f); title.GetComponent<LayoutElement>().preferredWidth = 300f;
-            _shardsLabel = UGuiKit.CreateText(header, "✦ 碎片：0", 20, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Center);
+            _shardsLabel = UGuiKit.CreateText(header, "碎片：0", 20, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Center);
             UGuiKit.SetHeight(_shardsLabel, 40f); _shardsLabel.GetComponent<LayoutElement>().preferredWidth = 240f;
-            _refreshBtn = UGuiKit.CreateButton(header, "🔄 刷新", OnRefreshClicked, out _refreshLabel, UGuiKit.BtnNormal, 16, new Vector2(200f, 40f));
+            _refreshBtn = UGuiKit.CreateButton(header, "刷新", OnRefreshClicked, out _refreshLabel, UGuiKit.BtnNormal, 16, new Vector2(200f, 40f));
             UGuiKit.SetHeight(_refreshBtn.GetComponent<RectTransform>(), 40f); _refreshBtn.GetComponent<LayoutElement>().preferredWidth = 200f;
             var close = UGuiKit.CreateButton(header, "✕", CloseShop, UGuiKit.BtnNormal, 20, new Vector2(44f, 40f));
             UGuiKit.SetHeight(close.GetComponent<RectTransform>(), 40f); close.GetComponent<LayoutElement>().preferredWidth = 44f;
@@ -341,7 +341,7 @@ namespace XianTu
             effL.enableWordWrapping = true;
             var ele = effL.gameObject.AddComponent<LayoutElement>(); ele.flexibleHeight = 1f; ele.minHeight = 40f;
 
-            slot.priceLabel = UGuiKit.CreateText(card, $"✦ {slot.price}", 16, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
+            slot.priceLabel = UGuiKit.CreateText(card, $"{slot.price} 碎片", 16, new Color(0.95f, 0.85f, 0.4f), TextAlignmentOptions.Center, FontStyles.Bold);
             UGuiKit.SetHeight(slot.priceLabel, 22f);
 
             slot.buyBtn = UGuiKit.CreateButton(card, "购 买", () => OnBuyClicked(index), out slot.buyLabel, new Color(rarityColor.r * 0.35f, rarityColor.g * 0.35f, rarityColor.b * 0.35f, 0.95f), 15, new Vector2(160f, 36f));
@@ -457,7 +457,7 @@ namespace XianTu
         private void RefreshShardsDisplay()
         {
             if (_shardsLabel != null && PlayerResources.Instance != null)
-                _shardsLabel.text = $"✦ 碎片：{PlayerResources.Instance.SpiritShards}";
+                _shardsLabel.text = $"碎片：{PlayerResources.Instance.SpiritShards}";
         }
 
         private void RefreshAllCards()
@@ -486,13 +486,13 @@ namespace XianTu
                 string eff = slot.skill.skillType == SkillType.Heal
                     ? $"类型：{SkillTypeName(slot.skill.skillType)}　治疗：{slot.skill.healAmount} (+{slot.skill.healScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s"
                     : $"类型：{SkillTypeName(slot.skill.skillType)}　伤害：{slot.skill.baseDamage} (+{slot.skill.damageScaling * 100:0}%攻)　CD：{slot.skill.cooldown}s";
-                _tooltipBody.text = $"{slot.skill.description}\n{eff}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 碎片")}";
+                _tooltipBody.text = $"{slot.skill.description}\n{eff}\n{(slot.sold ? "已售出" : $"价格：{slot.price} 碎片")}";
             }
             else if (slot.module != null)
             {
                 _tooltipTitle.text = $"{slot.module.displayName}（{RarityName(slot.module.rarity)} · {ModuleCategoryName(slot.module.category)}）";
                 _tooltipTitle.color = RarityColor(slot.module.rarity);
-                _tooltipBody.text = $"{slot.module.description}\n{(slot.sold ? "已售出" : $"价格：✦ {slot.price} 碎片")}";
+                _tooltipBody.text = $"{slot.module.description}\n{(slot.sold ? "已售出" : $"价格：{slot.price} 碎片")}";
             }
             else return;
             _tooltip.SetActive(true);
@@ -548,7 +548,7 @@ namespace XianTu
         {
             if (_refreshBtn == null) return;
             int cost = GetRefreshCost();
-            if (_refreshLabel != null) _refreshLabel.text = $"🔄 刷新（✦{cost}）";
+            if (_refreshLabel != null) _refreshLabel.text = $"刷新（{cost}碎片）";
             bool canAfford = PlayerResources.Instance != null && PlayerResources.Instance.HasShards(cost);
             _refreshBtn.interactable = canAfford;
         }

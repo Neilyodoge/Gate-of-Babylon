@@ -15,7 +15,6 @@ namespace XianTu.Editor
         private const string AnimationRoot =
             "Assets/1Game/ArtRes/Package/Monster/KayKit/Characters/Animations/Animations";
 
-        [MenuItem("仙途秘境/怪物/生成 KayKit 昼夜怪物", false, 30)]
         public static void Build()
         {
             EnsureFolder("Assets/1Game/Resources", "MonsterPrefabs");

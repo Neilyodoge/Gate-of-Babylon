@@ -18,7 +18,7 @@ namespace XianTu
     public class FormationPlatform : CaveModule
     {
         public override string ModuleName => "阵法台";
-        public override string ModuleIcon => "🪶";
+        public override string ModuleIcon => "阵";
         public override string ModuleRole => "阵法符 → 单局开场增益";
         public override Color ModuleColor => new Color(1f, 0.7f, 0.95f);
 
@@ -130,7 +130,7 @@ namespace XianTu
             var panel = UGuiKit.CreatePanel(_ui.transform, "Panel", new Vector2(700f, 520f), UGuiKit.Panel);
             UGuiKit.AddVLayout(panel, 8f, new RectOffset(24, 24, 18, 18), TextAnchor.UpperCenter);
 
-            var title = UGuiKit.CreateText(panel, "🪶 阵法台 · 出梦前布置房间增益", 20, ModuleColor, TextAlignmentOptions.Center, FontStyles.Bold);
+            var title = UGuiKit.CreateText(panel, "阵法台 · 入秘境前布置增益", 20, ModuleColor, TextAlignmentOptions.Center, FontStyles.Bold);
             UGuiKit.SetHeight(title, 30f);
             _infoLabel = UGuiKit.CreateText(panel, "", 13, new Color(0.75f, 0.78f, 0.85f), TextAlignmentOptions.Center);
             UGuiKit.SetHeight(_infoLabel, 22f);

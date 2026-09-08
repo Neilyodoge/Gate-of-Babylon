@@ -7,7 +7,7 @@ namespace XianTu
     /// P1 状态型触发器「种子生成 / 种子引爆」的世界状态载体。
     ///
     /// 种子 = 世界坐标上的无伤害标记，带落点 / 存续时间 / 数量上限：
-    /// - <see cref="TriggerType.SeedPlant"/> 触发器：核心技能 / 普攻命中时 <see cref="Plant"/> 一颗种子。
+    /// - <see cref="TriggerType.SeedPlant"/>触发器：术法或普攻命中时<see cref="Plant"/>一颗种子。
     /// - <see cref="TriggerType.SeedDetonate"/> 触发器：场上有种子即可 Proc，消费时 <see cref="DetonateAll"/>
     ///   在每颗种子位置触发接入效果器的伤害 / 元素 / 状态（种子本身不造成伤害）。
     ///

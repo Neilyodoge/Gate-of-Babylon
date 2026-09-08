@@ -67,7 +67,7 @@ namespace XianTu
     /// <summary>
     /// Boss/精英共用的技能决策配置。这里只描述“何时可释放”，具体动作由宿主执行。
     /// </summary>
-    [CreateAssetMenu(fileName = "EnemyAbilityProfile", menuName = "仙途秘境/敌人/技能决策配置")]
+    [CreateAssetMenu(fileName = "EnemyAbilityProfile", menuName = "ProjectR/敌人/技能决策配置")]
     public sealed class EnemyAbilityProfile : ScriptableObject
     {
         [Min(0.05f)] public float DecisionInterval = 0.2f;

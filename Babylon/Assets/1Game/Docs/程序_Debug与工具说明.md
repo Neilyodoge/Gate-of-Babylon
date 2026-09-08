@@ -1,8 +1,8 @@
 # 🔧 Debug 与工具说明
 
-> 本文档面向程序员和AI Agent，详细说明《仙途秘境》项目的所有Debug功能、编辑器工具和开发辅助系统。
+> 本文档面向程序员和AI Agent，说明ProjectR的Debug功能、编辑器工具和开发辅助系统。
 >
-> **注**：Unity 编辑器菜单路径已于 2026-06-01 统一改为 `仙途秘境/...`（与项目新名一致，C# `MenuItem` 已更新）。
+> **注**：当前Unity编辑器菜单统一使用 `ProjectR/...`；旧产品与冻结关卡工具不再暴露菜单入口。
 > 最后更新：2026-04-15
 
 ---
@@ -93,7 +93,7 @@ public bool debugMaxDropRate
 - `[Drop] xxx possibleDrops为空，跳过掉落` — 说明敌人没有被分配掉落池
 - `[Drop] 爆率拉满但未掉落？` — 不应出现，如果出现说明有逻辑bug
 
-> **常见问题**：如果爆率拉满不生效，请先检查 Console 中是否有 `[Demo1Setup] 灵物池为空` 的错误日志。如果有，请运行编辑器工具 `仙途秘境 → 自动配置 Demo1 场景` 来自动填充灵物池。在编辑器模式下，`Demo1Setup` 会自动从 `Assets/1Game/Data/Items` 加载所有灵物数据。
+> **Legacy说明**：旧灵物池不再提供自动生成菜单；需要回归旧Demo时由 `Demo1Setup`读取现有兼容资产。
 
 **覆盖范围**：
 | 掉落来源 | 是否受爆率拉满影响 | 文件 |
@@ -119,62 +119,22 @@ public bool debugMaxDropRate
 
 ### 2.1 菜单入口
 
-所有编辑器工具在 Unity 顶部菜单栏 `仙途秘境` 下：
+ProjectR仍需使用的编辑器工具统一位于 Unity 顶部菜单栏 `ProjectR` 下：
 
 | 菜单项 | 功能 | 文件 |
 |--------|------|------|
-| ① 配置 Tags 和 Layers | 自动设置项目所需的Tag和Layer | `Demo1DataCreator.cs` |
-| ② 创建 Demo1 测试数据 | 创建所有灵物/功法/配置的SO资产 | `Demo1DataCreator.cs` |
-| ③ 创建 Animator Controller | 创建玩家动画控制器 | `Demo1DataCreator.cs` |
-| ④ 自动配置 Demo1 场景 | 自动绑定所有数据到场景组件 | `Demo1DataCreator.cs` |
-| ⑤ 创建 Demo1 场景文件 | 创建Demo1.unity场景 | `Demo1DataCreator.cs` |
-| ⑥ 创建怪物预制体配置 | 创建MonsterPrefabs.asset | `Demo1DataCreator.cs` |
+| 配置/运行参数总控 | 调整当前运行参数 | `ConfigDashboard.cs` |
+| 配置/创建游戏配置 | 创建 `GameConfig.asset` | `GameConfigEditor.cs` |
+| 数据工具/导入战斗配表 | CSV导入运行时JSON | `CsvToJsonImporter.cs` |
+| 开发工具/相机定位器 | 场景相机定位 | `CameraLocatorWindow.cs` |
+| 开发工具/运行载体与回路契约测试 | 执行ProjectR契约回归测试 | `ProjectRP0ContractTests.cs` |
+| UI/生成中文TMP字体资产 | 创建TMP字体资产 | `TMPFontAssetCreator.cs` |
 
-### 2.2 首次搭建流程
+旧 `Demo1DataCreator`、KayKit生成器和关卡白盒／生成菜单已移除。关卡脚本仅隐藏入口，等待关卡策划解冻后重新评估。
 
-从零开始搭建项目，按顺序执行：
+### 2.2 工具栏快速启动
 
-```
-① 配置 Tags 和 Layers
-② 创建 Demo1 测试数据        ← 创建所有 SO 资产
-③ 创建 Animator Controller
-④ 创建 Demo1 场景文件
-⑤ 自动配置 Demo1 场景         ← 自动绑定数据
-⑥ 创建怪物预制体配置
-⑦ 点击 Play 即可运行
-```
-
-### 2.3 日常更新流程
-
-修改代码后需要更新数据时：
-
-| 场景 | 操作 |
-|------|------|
-| 新增/修改灵物或功法 | 执行 ② + ④ |
-| 修改 GameConfig 字段 | 直接在 Inspector 中修改 |
-| 修改场景配置 | 执行 ④ |
-| 修改动画 | 执行 ③ |
-
-### 2.4 Demo1DataCreator 详解
-
-> 文件：`Editor/Demo1DataCreator.cs`（约60KB，项目最大的编辑器脚本）
-
-**创建的资产列表**：
-
-| 类型 | 数量 | 存放路径 |
-|------|------|---------|
-| 灵物 (ItemData) | 18个 | `Assets/1Game/Data/Items/` |
-| 功法 (SkillData) | 12个 | `Assets/1Game/Data/Skills/` |
-| 游戏配置 (GameConfig) | 1个 | `Assets/1Game/Resources/` |
-| 音效配置 (AudioConfig) | 1个 | `Assets/1Game/Resources/` |
-| 怪物配置 (MonsterPrefabs) | 1个 | `Assets/1Game/Resources/` |
-
-**自动配置逻辑**（④ 自动配置 Demo1 场景）：
-1. 查找场景中的 `Demo1Setup` 组件
-2. 加载所有灵物SO → 赋值到 `itemPool`
-3. 加载Q槽位默认技能（落石术） → 赋值到 `testSkillQ`
-4. E/R槽位设为 `null`（开局只有Q技能）
-5. 加载所有功法SO → 赋值到 `skillPool`
+Unity播放控制左侧提供“启动游戏”按钮。编辑状态点击后会先提示保存未保存场景，再切换到 `Assets/1Game/Scenes/Demo1.unity`并进入播放；已经处于播放或播放切换状态时点击不会停止或重启当前游戏。实现位于 `Editor/ProjectRGameLauncher.cs`。
 
 ---
 

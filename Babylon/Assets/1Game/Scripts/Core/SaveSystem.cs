@@ -318,11 +318,11 @@ namespace XianTu
                 : $"{span.Minutes}分";
         }
 
-        /// <summary>补齐缺失集合，并将 v2 Build 快照一次性迁移为发现记录。</summary>
+        /// <summary>补齐缺失集合，并迁移ProjectR灵宠与初契序章字段。</summary>
         private static bool NormalizeAndMigrate(SaveDataV1 data)
         {
             if (data == null) return false;
-            bool changed = data.schemaVersion < 4;
+            bool changed = data.schemaVersion < 8;
 
             changed |= EnsureList(ref data.unlockedSkillIds);
             changed |= EnsureList(ref data.unlockedModuleIds);
@@ -334,6 +334,75 @@ namespace XianTu
             changed |= EnsureList(ref data.pendingOpportunities);
             changed |= EnsureList(ref data.masteryNodeIds);
             changed |= EnsureList(ref data.unlockedGrowthBranches);
+            changed |= EnsureList(ref data.spiritRoster);
+            changed |= EnsureList(ref data.activeSpiritInstanceGuids);
+            changed |= NormalizeSpiritRoster(
+                data.spiritRoster,
+                out HashSet<string> rosterIds);
+            changed |= NormalizeSpiritGuids(
+                data.activeSpiritInstanceGuids,
+                rosterIds,
+                3);
+            string starterSpecies =
+                data.starterSpiritSpeciesId?.Trim() ?? "";
+            if (data.starterSpiritSpeciesId != starterSpecies)
+            {
+                data.starterSpiritSpeciesId = starterSpecies;
+                changed = true;
+            }
+            bool validStarter =
+                !string.IsNullOrEmpty(starterSpecies) &&
+                StarterSpiritChoice.IsOption(
+                    new StableConfigId(starterSpecies));
+            if (!validStarter)
+            {
+                if (data.starterPrologueStep !=
+                        (int)StarterPrologueStep.NotStarted ||
+                    data.starterPrologueCarrier != -1 ||
+                    data.starterTechniqueUnlocked)
+                {
+                    data.starterPrologueStep =
+                        (int)StarterPrologueStep.NotStarted;
+                    data.starterPrologueCarrier = -1;
+                    data.starterTechniqueUnlocked = false;
+                    changed = true;
+                }
+            }
+            else
+            {
+                int normalizedStep = Mathf.Clamp(
+                    data.starterPrologueStep,
+                    (int)StarterPrologueStep.StarterChosen,
+                    (int)StarterPrologueStep.Completed);
+                if (normalizedStep >=
+                        (int)StarterPrologueStep.AttachmentChosen &&
+                    !StarterSpiritCarrierRuntime.Supports(
+                        (CarrierSlot)data.starterPrologueCarrier))
+                {
+                    normalizedStep =
+                        (int)StarterPrologueStep.StarterChosen;
+                    data.starterPrologueCarrier = -1;
+                    changed = true;
+                }
+                else if (normalizedStep <
+                             (int)StarterPrologueStep
+                                 .AttachmentChosen &&
+                         data.starterPrologueCarrier != -1)
+                {
+                    data.starterPrologueCarrier = -1;
+                    changed = true;
+                }
+                if (data.starterPrologueStep != normalizedStep)
+                {
+                    data.starterPrologueStep = normalizedStep;
+                    changed = true;
+                }
+                if (!data.starterTechniqueUnlocked)
+                {
+                    data.starterTechniqueUnlocked = true;
+                    changed = true;
+                }
+            }
             if (data.levelAProgress == null)
             {
                 data.levelAProgress = new LevelAProgressState();
@@ -366,9 +435,9 @@ namespace XianTu
                 changed = true;
             }
 
-            if (data.schemaVersion != 4)
+            if (data.schemaVersion < 8)
             {
-                data.schemaVersion = 4;
+                data.schemaVersion = 8;
                 changed = true;
             }
             return changed;
@@ -379,6 +448,93 @@ namespace XianTu
             if (list != null) return false;
             list = new List<T>();
             return true;
+        }
+
+        private static bool NormalizeSpiritRoster(
+            List<SpiritInstanceSave> spirits,
+            out HashSet<string> rosterIds)
+        {
+            bool changed = false;
+            rosterIds = new HashSet<string>(
+                StringComparer.Ordinal);
+            for (int i = 0; i < spirits.Count; i++)
+            {
+                SpiritInstanceSave spirit = spirits[i];
+                if (spirit == null ||
+                    !Guid.TryParse(
+                        spirit.instanceGuid,
+                        out Guid parsed) ||
+                    parsed == Guid.Empty ||
+                    string.IsNullOrWhiteSpace(
+                        spirit.speciesConfigId) ||
+                    string.IsNullOrWhiteSpace(
+                        spirit.primaryPersonalityId))
+                {
+                    spirits.RemoveAt(i);
+                    i--;
+                    changed = true;
+                    continue;
+                }
+
+                string normalized = parsed.ToString("N");
+                if (!rosterIds.Add(normalized))
+                {
+                    spirits.RemoveAt(i);
+                    i--;
+                    changed = true;
+                    continue;
+                }
+                if (spirit.instanceGuid != normalized)
+                {
+                    spirit.instanceGuid = normalized;
+                    changed = true;
+                }
+                changed |= SpiritSaveMapper.Normalize(spirit);
+            }
+            return changed;
+        }
+
+        private static bool NormalizeSpiritGuids(
+            List<string> ids,
+            HashSet<string> rosterIds,
+            int maxCount)
+        {
+            bool changed = false;
+            var unique = new HashSet<string>(
+                StringComparer.Ordinal);
+            for (int i = 0; i < ids.Count; i++)
+            {
+                if (!Guid.TryParse(ids[i], out Guid parsed) ||
+                    parsed == Guid.Empty)
+                {
+                    ids.RemoveAt(i);
+                    i--;
+                    changed = true;
+                    continue;
+                }
+
+                string normalized = parsed.ToString("N");
+                if (!rosterIds.Contains(normalized) ||
+                    !unique.Add(normalized))
+                {
+                    ids.RemoveAt(i);
+                    i--;
+                    changed = true;
+                    continue;
+                }
+                if (ids[i] != normalized)
+                {
+                    ids[i] = normalized;
+                    changed = true;
+                }
+            }
+
+            if (ids.Count > maxCount)
+            {
+                ids.RemoveRange(maxCount, ids.Count - maxCount);
+                changed = true;
+            }
+            return changed;
         }
 
         private static void MigrateChain(LegacyChainSnapshot chain, List<string> ids)

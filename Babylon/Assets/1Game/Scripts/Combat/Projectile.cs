@@ -20,6 +20,7 @@ namespace XianTu
         private bool _initialized;
         private ElementTag _elementTag;
         private PlayerController _ownerPlayer;
+        public PlayerController OwnerPlayer => _ownerPlayer;
 
         // V.08 增强 payload：投射物携带链的控制/状态，命中时施加
         private bool _hasEnh;

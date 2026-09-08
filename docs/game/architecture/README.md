@@ -53,9 +53,9 @@ Persistent Save
 ## 新增领域对象
 
 - `SpiritDefinition`：种族核心机制和可用显化。
-- `SpiritInstance`：永久 GUID、性格、关系、悟法池。
+- `SpiritIdentity / SpiritInstanceState`：永久 GUID、性格、关系、载体适应和悟法状态。
 - `CarrierDefinition`：动作与插槽能力。
-- `AttachmentLoadout`：器灵到载体的多对一附着。
+- `SpiritAttachmentLayout`：器灵到载体的多对一附着及三种布局识别。
 - `CircuitEvent`：来源、标签、数值、因果链和预算。
 - `RunBuildState`：本局载体、悟法、铭刻和联契。
 - `RegionState`：区域生态状态。

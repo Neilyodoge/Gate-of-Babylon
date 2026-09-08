@@ -8,7 +8,7 @@ namespace Edgar.Unity
     /// <summary>
     /// Component that is attached to each room template game objects and contains basic settings.
     /// </summary>
-    [AddComponentMenu("仙途秘境/Edgar Grid3D/房间模板设置")]
+    [AddComponentMenu("ProjectR/Legacy/关卡/Edgar/房间模板设置")]
     public class RoomTemplateSettingsGrid3D : MonoBehaviour
     {
         /// <summary>

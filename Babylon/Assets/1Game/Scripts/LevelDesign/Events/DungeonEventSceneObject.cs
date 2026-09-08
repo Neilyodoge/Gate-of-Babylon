@@ -10,7 +10,7 @@ namespace XianTu
     }
 
     /// <summary>正式房间可放置此标记，让事件选择直接启用或移除对应场景对象。</summary>
-    [AddComponentMenu("仙途秘境/关卡/事件场景对象")]
+    [AddComponentMenu("ProjectR/Legacy/关卡/事件场景对象")]
     public sealed class DungeonEventSceneObject : MonoBehaviour
     {
         [SerializeField, InspectorName("响应的场景结果")]

@@ -11,7 +11,7 @@ namespace XianTu
     /// 运行时由 <see cref="PlayerController.ApplyCharacterProfile"/> 热替换玩家模型，
     /// 资产放在 Resources/CharacterProfiles/ 下，由 <see cref="PlayerCharacterRegistry"/> 统一加载。
     /// </summary>
-    [CreateAssetMenu(fileName = "CharacterProfile", menuName = "仙途秘境/主角档案")]
+    [CreateAssetMenu(fileName = "CharacterProfile", menuName = "ProjectR/角色/主角档案")]
     public class PlayerCharacterProfile : ScriptableObject
     {
         [Header("标识")]

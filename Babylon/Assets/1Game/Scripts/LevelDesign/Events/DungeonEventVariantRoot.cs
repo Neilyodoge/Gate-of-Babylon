@@ -5,7 +5,7 @@ using System.Linq;
 namespace XianTu.LevelDesign
 {
     /// <summary>同一事件房 Prefab 内按 EventID 启用对应的白膜内容。</summary>
-    [AddComponentMenu("仙途秘境/关卡/事件内容变体根")]
+    [AddComponentMenu("ProjectR/Legacy/关卡/事件内容变体根")]
     public sealed class DungeonEventVariantRoot : MonoBehaviour
     {
         [SerializeField, InspectorName("事件编号")]

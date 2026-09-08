@@ -14,8 +14,8 @@ namespace XianTu
     [Serializable]
     public class SaveDataV1
     {
-        /// <summary>存档格式版本号（v4：增加关卡 A 白昼 / 永夜阶段状态）。</summary>
-        public int schemaVersion = 4;
+        /// <summary>存档格式版本号（v8：增加灵宠天赋树永久开放节点）。</summary>
+        public int schemaVersion = 8;
 
         /// <summary>洞府素材库存：itemName → 数量（用 itemName 当 id，因为 ItemData 是 SO 无 GUID）</summary>
         public List<ItemCountEntry> caveInventory = new();
@@ -140,6 +140,30 @@ namespace XianTu
 
         /// <summary>关卡 A 当前阶段、地图复现信息与待落位事件结果。</summary>
         public LevelAProgressState levelAProgress = new();
+
+        // ========== v5：ProjectR 永久器灵 ==========
+
+        /// <summary>契匣中的永久器灵实例；不包含临时悟法和局内附着。</summary>
+        public List<SpiritInstanceSave> spiritRoster = new();
+
+        /// <summary>出战器灵实例GUID，最多3项；载体附着仍属于局内态。</summary>
+        public List<string> activeSpiritInstanceGuids = new();
+
+        // ========== v6：新手灵宠选择 ==========
+
+        /// <summary>新手关卡已选择的初始灵宠种族ID；空串表示尚未选择。</summary>
+        public string starterSpiritSpeciesId = "";
+
+        // ========== v7：新手初契序章 ==========
+
+        /// <summary>初契序章单调推进步骤，取值见 StarterPrologueStep。</summary>
+        public int starterPrologueStep = 0;
+
+        /// <summary>首次附着载体；-1表示尚未完成，其他值取 CarrierSlot。</summary>
+        public int starterPrologueCarrier = -1;
+
+        /// <summary>是否已获得基础Q术法“灵息弹”。</summary>
+        public bool starterTechniqueUnlocked = false;
 
         // ========== V0.4.1 旧 Build 背包墓碑（仅供 v2 → v3 迁移） ==========
 

@@ -8,7 +8,7 @@ namespace Edgar.Unity
     public class DungeonRoomTemplateInitializerGrid3D
     {
         #if UNITY_EDITOR
-        [MenuItem("Assets/Create/仙途秘境/Edgar Grid3D/房间模板")]
+        [MenuItem("Assets/Create/ProjectR/Legacy/关卡/Edgar/房间模板")]
         public static void CreateRoomTemplatePrefab()
         {
             // Create empty game object
@@ -33,7 +33,7 @@ namespace Edgar.Unity
         #endif
 
         #if UNITY_EDITOR
-        [MenuItem("Assets/Create/仙途秘境/Edgar Grid3D/门")]
+        [MenuItem("Assets/Create/ProjectR/Legacy/关卡/Edgar/门")]
         public static void CreateDoorPrefab()
         {
             // Create empty game object
