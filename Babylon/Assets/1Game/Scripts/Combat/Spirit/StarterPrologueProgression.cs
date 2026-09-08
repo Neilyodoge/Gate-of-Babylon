@@ -5,7 +5,8 @@ namespace XianTu
         NotStarted = 0,
         StarterChosen = 1,
         AttachmentChosen = 2,
-        Completed = 3,
+        RescueCompleted = 3,
+        Completed = 4,
     }
 
     public enum StarterPrologueAdvanceResult
@@ -83,13 +84,29 @@ namespace XianTu
                 : result;
         }
 
-        public static StarterPrologueAdvanceResult RecordTrialCompleted(
+        public static StarterPrologueAdvanceResult RecordRescueCompleted(
             SaveDataV1 save)
         {
             if (save == null)
                 return StarterPrologueAdvanceResult.InvalidSave;
             if (GetStep(save) <
                 StarterPrologueStep.AttachmentChosen)
+            {
+                return StarterPrologueAdvanceResult
+                    .PrerequisiteMissing;
+            }
+            return AdvanceTo(
+                save,
+                StarterPrologueStep.RescueCompleted);
+        }
+
+        public static StarterPrologueAdvanceResult RecordPrologueCompleted(
+            SaveDataV1 save)
+        {
+            if (save == null)
+                return StarterPrologueAdvanceResult.InvalidSave;
+            if (GetStep(save) <
+                StarterPrologueStep.RescueCompleted)
             {
                 return StarterPrologueAdvanceResult
                     .PrerequisiteMissing;

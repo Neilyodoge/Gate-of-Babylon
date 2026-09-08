@@ -3,7 +3,7 @@
 ## 当前项目
 
 - [ProjectR GDD](game/design/GDD_秘境探索.md)：产品愿景、设计支柱与可执行总纲。
-- [ProjectR项目驾驶舱](game/README.md)：架构、交付、待办和历史入口。
+- [ProjectR项目驾驶舱](game/README.md)：架构、交付、待办和实现入口。
 
 ## 参考资料
 
@@ -19,5 +19,5 @@
 6. [开发待办](game/design/开发待办.md)与[修改记录](game/CHANGELOG.md)
 7. [游戏测试清单](game/playtest/游戏测试清单.md)
 
-旧《仙途秘境／秘境探索》内容统一从[旧版归档](game/design/旧版秘境探索归档.md)进入。
+旧《仙途秘境／秘境探索》策划和阶段记录已从当前工作区清除，需要时通过版本控制追溯。
 

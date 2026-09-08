@@ -13,8 +13,8 @@ namespace XianTu
     public enum StarterPrologueTrainingWave
     {
         None = 0,
-        MechanismTargets = 1,
-        CombatValidation = 2,
+        AgitatedSpirits = 1,
+        PossessedHost = 2,
         Completed = 3,
     }
 
@@ -32,10 +32,11 @@ namespace XianTu
         }
     }
 
-    /// <summary>验证战的纯状态合同：固定三个不同目标，仅最后一个有效击败完成。</summary>
+    /// <summary>序章救援战状态：先击退两只躁动灵宠，再打断一名失控附身者。</summary>
     public sealed class StarterPrologueTrainingRuntime
     {
-        public const int RequiredEnemyCount = 3;
+        public const int RequiredAgitatedSpiritCount = 2;
+        public const int RequiredPossessedHostCount = 1;
         private readonly HashSet<int> _remaining = new();
 
         public bool IsRunning { get; private set; }
@@ -52,20 +53,22 @@ namespace XianTu
             if (CurrentWave != StarterPrologueTrainingWave.None)
                 return StarterPrologueTrainingStartResult.InvalidTransition;
             StarterPrologueTrainingStartResult result =
-                BeginRoster(enemyIds);
+                BeginRoster(
+                    enemyIds,
+                    RequiredAgitatedSpiritCount);
             if (result == StarterPrologueTrainingStartResult.Success)
             {
                 CurrentWave =
-                    StarterPrologueTrainingWave.MechanismTargets;
+                    StarterPrologueTrainingWave.AgitatedSpirits;
             }
             return result;
         }
 
-        public StarterPrologueTrainingStartResult BeginValidation(
+        public StarterPrologueTrainingStartResult BeginPossessedHost(
             IReadOnlyList<int> enemyIds)
         {
             if (CurrentWave !=
-                    StarterPrologueTrainingWave.MechanismTargets ||
+                    StarterPrologueTrainingWave.AgitatedSpirits ||
                 IsRunning ||
                 Remaining != 0)
             {
@@ -73,22 +76,25 @@ namespace XianTu
                     .InvalidTransition;
             }
             StarterPrologueTrainingStartResult result =
-                BeginRoster(enemyIds);
+                BeginRoster(
+                    enemyIds,
+                    RequiredPossessedHostCount);
             if (result == StarterPrologueTrainingStartResult.Success)
             {
                 CurrentWave =
-                    StarterPrologueTrainingWave.CombatValidation;
+                    StarterPrologueTrainingWave.PossessedHost;
             }
             return result;
         }
 
         private StarterPrologueTrainingStartResult BeginRoster(
-            IReadOnlyList<int> enemyIds)
+            IReadOnlyList<int> enemyIds,
+            int requiredCount)
         {
             if (IsRunning)
                 return StarterPrologueTrainingStartResult.AlreadyRunning;
             if (enemyIds == null ||
-                enemyIds.Count != RequiredEnemyCount)
+                enemyIds.Count != requiredCount)
             {
                 return StarterPrologueTrainingStartResult.InvalidRoster;
             }
@@ -119,7 +125,7 @@ namespace XianTu
             {
                 IsRunning = false;
                 if (CurrentWave ==
-                    StarterPrologueTrainingWave.CombatValidation)
+                    StarterPrologueTrainingWave.PossessedHost)
                 {
                     CurrentWave =
                         StarterPrologueTrainingWave.Completed;

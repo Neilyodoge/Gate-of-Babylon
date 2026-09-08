@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 7139426334645485350}
   - component: {fileID: 896473434096813482}
   m_Layer: 0
-  m_Name: CaveGate_PillarL
+  m_Name: HomeReturn_PillarL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -118,7 +118,7 @@ GameObject:
   - component: {fileID: 1114670550922051241}
   - component: {fileID: 2190052650035535968}
   m_Layer: 0
-  m_Name: BondingAltar_Front_WallR
+  m_Name: RescueClearing_Front_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -222,7 +222,7 @@ GameObject:
   - component: {fileID: 364725751068376807}
   - component: {fileID: 1244861695873158287}
   m_Layer: 0
-  m_Name: BondingAltar_ChoiceTrigger
+  m_Name: RescueClearing_ChoiceTrigger
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -290,7 +290,7 @@ GameObject:
   - component: {fileID: 3451639524866166359}
   - component: {fileID: 1732686615547032205}
   m_Layer: 0
-  m_Name: TrainingTargetPad_1
+  m_Name: PossessedHostSpawn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -411,7 +411,7 @@ GameObject:
   - component: {fileID: 5962467828404004459}
   - component: {fileID: 724953455581508796}
   m_Layer: 0
-  m_Name: TrainingTargetPad_0
+  m_Name: AgitatedSpiritSpawn_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -530,7 +530,7 @@ GameObject:
   - component: {fileID: 8623072858529869213}
   - component: {fileID: 6948595266956352499}
   m_Layer: 0
-  m_Name: TrainingArena_EncounterTrigger
+  m_Name: PossessionClearing_EncounterTrigger
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -597,7 +597,7 @@ GameObject:
   - component: {fileID: 5710446362782430173}
   - component: {fileID: 6593819190802941473}
   m_Layer: 0
-  m_Name: DailyCourtyard_Back
+  m_Name: HomeOutskirts_Back
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -702,7 +702,7 @@ GameObject:
   - component: {fileID: 8897533296097596044}
   - component: {fileID: 75069522231330995}
   m_Layer: 0
-  m_Name: TrainingArena_Front_WallR
+  m_Name: PossessionClearing_Front_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -910,7 +910,7 @@ GameObject:
   - component: {fileID: 8819264240057466647}
   - component: {fileID: 7505700675497357395}
   m_Layer: 0
-  m_Name: BondingAltar_Front_WallL
+  m_Name: RescueClearing_Front_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1015,7 +1015,7 @@ GameObject:
   - component: {fileID: 3896439472041938596}
   - component: {fileID: 2387054953814758244}
   m_Layer: 0
-  m_Name: BondingAltar_Floor
+  m_Name: RescueClearing_Floor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1120,7 +1120,7 @@ GameObject:
   - component: {fileID: 1004241327136232762}
   - component: {fileID: 4860857559094586728}
   m_Layer: 0
-  m_Name: Path_ToCave
+  m_Name: Path_ToHome
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1212,6 +1212,51 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &2349919598357548567
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2242869377568245499}
+  - component: {fileID: 823401791905586397}
+  m_Layer: 0
+  m_Name: RescueResolvedMarker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2242869377568245499
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2349919598357548567}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.05, z: 20.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 407069622120295100}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &823401791905586397
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2349919598357548567}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5055d5fcd430ba4a8d4f2afa6b1581f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  kind: 5
 --- !u!1 &2503761056533225368
 GameObject:
   m_ObjectHideFlags: 0
@@ -1270,7 +1315,7 @@ GameObject:
   - component: {fileID: 250488717437910103}
   - component: {fileID: 6638187300576532149}
   m_Layer: 0
-  m_Name: TrainingArena_Back_WallR
+  m_Name: PossessionClearing_Back_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1362,6 +1407,113 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &3167005684482396366
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3712225686811793878}
+  - component: {fileID: 4362706923183273131}
+  - component: {fileID: 8007710633961611198}
+  - component: {fileID: 9123329212473736256}
+  m_Layer: 0
+  m_Name: RescueCaretaker_Whitebox
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3712225686811793878
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3167005684482396366}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.976296, z: 0, w: 0.21643965}
+  m_LocalPosition: {x: -3.4, y: 1, z: -5.3}
+  m_LocalScale: {x: 0.7, y: 1, z: 0.7}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3769305266081811875}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &4362706923183273131
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3167005684482396366}
+  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!136 &8007710633961611198
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3167005684482396366}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 2
+  m_Radius: 0.5
+  m_Height: 2
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &9123329212473736256
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3167005684482396366}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &3198540684581312756
 GameObject:
   m_ObjectHideFlags: 0
@@ -1375,7 +1527,7 @@ GameObject:
   - component: {fileID: 7859421981818156850}
   - component: {fileID: 1060940458237480849}
   m_Layer: 0
-  m_Name: BondingAltar_WallR
+  m_Name: RescueClearing_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1480,7 +1632,7 @@ GameObject:
   - component: {fileID: 8626328900606076824}
   - component: {fileID: 584087782607292138}
   m_Layer: 0
-  m_Name: Path_ToAltar
+  m_Name: Path_ToRescue
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1585,7 +1737,7 @@ GameObject:
   - component: {fileID: 6794032453028931642}
   - component: {fileID: 5465170818676026}
   m_Layer: 0
-  m_Name: TrainingArena_Back_WallL
+  m_Name: PossessionClearing_Back_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1797,7 +1949,7 @@ GameObject:
   - component: {fileID: 8333988557484203181}
   - component: {fileID: 8374563839857003105}
   m_Layer: 0
-  m_Name: TrainingArena_Front_WallL
+  m_Name: PossessionClearing_Front_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1902,7 +2054,7 @@ GameObject:
   - component: {fileID: 2342754257070033020}
   - component: {fileID: 4372611273948416329}
   m_Layer: 0
-  m_Name: Path_ToTraining
+  m_Name: Path_ToPossession
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2007,7 +2159,7 @@ GameObject:
   - component: {fileID: 8538588831103587431}
   - component: {fileID: 7657826288352875403}
   m_Layer: 0
-  m_Name: CaveGate_Back_WallL
+  m_Name: HomeReturn_Back_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2112,7 +2264,7 @@ GameObject:
   - component: {fileID: 7062452038067579423}
   - component: {fileID: 1727418008142007531}
   m_Layer: 0
-  m_Name: DailyCourtyard_WallL
+  m_Name: HomeOutskirts_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2217,7 +2369,7 @@ GameObject:
   - component: {fileID: 669033190982166922}
   - component: {fileID: 4356635583866304747}
   m_Layer: 0
-  m_Name: BondingAltar_Back_WallL
+  m_Name: RescueClearing_Back_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2322,7 +2474,7 @@ GameObject:
   - component: {fileID: 826528838545570702}
   - component: {fileID: 4900295210703393173}
   m_Layer: 0
-  m_Name: CaveGate_Back_WallR
+  m_Name: HomeReturn_Back_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2427,7 +2579,7 @@ GameObject:
   - component: {fileID: 2133851985122236897}
   - component: {fileID: 6375326275821470953}
   m_Layer: 0
-  m_Name: DailyCourtyard_Floor
+  m_Name: HomeOutskirts_Floor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2640,7 +2792,7 @@ GameObject:
   - component: {fileID: 7659707642233213551}
   - component: {fileID: 311413113624464881}
   m_Layer: 0
-  m_Name: TrainingTargetPad_2
+  m_Name: AgitatedSpiritSpawn_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2760,7 +2912,7 @@ GameObject:
   - component: {fileID: 8901471215375400571}
   - component: {fileID: 2807707413602684210}
   m_Layer: 0
-  m_Name: CaveGate_Floor
+  m_Name: HomeReturn_Floor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2880,8 +3032,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4816756177567499283}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -4, y: 1.35, z: -7}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalPosition: {x: -1.8, y: 1.35, z: -5.8}
   m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3007,6 +3159,7 @@ Transform:
   - {fileID: 1906051312532938431}
   - {fileID: 4398809325320148154}
   - {fileID: 7106047332516083175}
+  - {fileID: 3712225686811793878}
   m_Father: {fileID: 1442964018423214951}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5001629007103836469
@@ -3022,7 +3175,7 @@ GameObject:
   - component: {fileID: 3847688202259830623}
   - component: {fileID: 5189012606417259954}
   m_Layer: 0
-  m_Name: DailyCourtyard_WallR
+  m_Name: HomeOutskirts_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3128,7 +3281,7 @@ GameObject:
   - component: {fileID: 4224242907545773863}
   - component: {fileID: 7662906239792582204}
   m_Layer: 0
-  m_Name: CaveGate_Door
+  m_Name: HomeReturn_Door
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3243,7 +3396,7 @@ GameObject:
   - component: {fileID: 1435147981169594756}
   - component: {fileID: 6113325380262654859}
   m_Layer: 0
-  m_Name: BondingAltarMarker
+  m_Name: RescueClearingMarker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3305,8 +3458,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5308667435912486725}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.35, z: -7}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalPosition: {x: 0, y: 1.35, z: -4.9}
   m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3410,7 +3563,7 @@ GameObject:
   - component: {fileID: 743153676225996608}
   - component: {fileID: 1959519849216429366}
   m_Layer: 0
-  m_Name: CaveGate_WallR
+  m_Name: HomeReturn_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3536,6 +3689,7 @@ Transform:
   - {fileID: 1435147981169594756}
   - {fileID: 3132695704321837425}
   - {fileID: 1573514423674423161}
+  - {fileID: 2242869377568245499}
   m_Father: {fileID: 1442964018423214951}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6630096108502280839
@@ -3551,7 +3705,7 @@ GameObject:
   - component: {fileID: 5541575961164606931}
   - component: {fileID: 1709561437510404716}
   m_Layer: 0
-  m_Name: TrainingArena_WallR
+  m_Name: PossessionClearing_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3656,7 +3810,7 @@ GameObject:
   - component: {fileID: 8858539425246801202}
   - component: {fileID: 1583413010242494041}
   m_Layer: 0
-  m_Name: TrainingArena_WallL
+  m_Name: PossessionClearing_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3776,8 +3930,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7192716202639820310}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4, y: 1.35, z: -7}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalPosition: {x: 1.8, y: 1.35, z: -5.8}
   m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3988,7 +4142,7 @@ GameObject:
   - component: {fileID: 3650433222220728834}
   - component: {fileID: 2074610270735805262}
   m_Layer: 0
-  m_Name: TrainingArena_Floor
+  m_Name: PossessionClearing_Floor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4093,7 +4247,7 @@ GameObject:
   - component: {fileID: 7222935126346181256}
   - component: {fileID: 884798247938505126}
   m_Layer: 0
-  m_Name: BondingAltar_Back_WallR
+  m_Name: RescueClearing_Back_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4198,7 +4352,7 @@ GameObject:
   - component: {fileID: 7541447640584750637}
   - component: {fileID: 8516070050900472313}
   m_Layer: 0
-  m_Name: DailyCourtyard_Front_WallL
+  m_Name: HomeOutskirts_Front_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4301,7 +4455,7 @@ GameObject:
   - component: {fileID: 1573514423674423161}
   - component: {fileID: 3848466908588727886}
   m_Layer: 0
-  m_Name: CaveGateMarker
+  m_Name: HomeReturnMarker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4348,7 +4502,7 @@ GameObject:
   - component: {fileID: 4394653325671874847}
   - component: {fileID: 4283282769808547686}
   m_Layer: 0
-  m_Name: BondingAltar_Center
+  m_Name: RescueClearing_Center
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4455,7 +4609,7 @@ GameObject:
   - component: {fileID: 409233682513852737}
   - component: {fileID: 7682845434601062140}
   m_Layer: 0
-  m_Name: CaveGate_PillarR
+  m_Name: HomeReturn_PillarR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4558,7 +4712,7 @@ GameObject:
   - component: {fileID: 3132695704321837425}
   - component: {fileID: 7328369597587245355}
   m_Layer: 0
-  m_Name: TrainingArenaMarker
+  m_Name: PossessionClearingMarker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4603,7 +4757,7 @@ GameObject:
   - component: {fileID: 6057001019797032372}
   - component: {fileID: 7301699993545345398}
   m_Layer: 0
-  m_Name: DailyCourtyardMarker
+  m_Name: HomeOutskirtsMarker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4650,7 +4804,7 @@ GameObject:
   - component: {fileID: 2183145360291215305}
   - component: {fileID: 7375640965348364207}
   m_Layer: 0
-  m_Name: BondingAltar_WallL
+  m_Name: RescueClearing_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4755,7 +4909,7 @@ GameObject:
   - component: {fileID: 46395981411819075}
   - component: {fileID: 6116090726198784246}
   m_Layer: 0
-  m_Name: CaveGate_WallL
+  m_Name: HomeReturn_WallL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4860,7 +5014,7 @@ GameObject:
   - component: {fileID: 6086389101605886703}
   - component: {fileID: 8113092336608588820}
   m_Layer: 0
-  m_Name: DailyCourtyard_Front_WallR
+  m_Name: HomeOutskirts_Front_WallR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

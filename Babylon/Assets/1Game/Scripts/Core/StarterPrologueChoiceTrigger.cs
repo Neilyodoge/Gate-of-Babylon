@@ -33,6 +33,13 @@ namespace XianTu
                 return;
             }
 
+            FocusCamera(transform.position, 1.1f);
+            GameEvents.Publish(
+                new GameEvents.StarterPrologueObjectiveChanged
+                {
+                    Text = string.Empty,
+                    HasWorldPosition = false
+                });
             _opened = StarterSpiritChoiceUI.ShowForScene(OnChosen);
         }
 
@@ -45,6 +52,12 @@ namespace XianTu
             StarterSpiritCarrierController controller =
                 FindObjectOfType<StarterSpiritCarrierController>();
             controller?.TryConfigure(SaveSystem.Instance.Data);
+            GameEvents.Publish(
+                new GameEvents.StarterPrologueObjectiveChanged
+                {
+                    Text = "将灵宠附着到一个动作",
+                    HasWorldPosition = false
+                });
             TryOpenRequiredAttachment();
         }
 
@@ -68,14 +81,21 @@ namespace XianTu
             if (string.IsNullOrWhiteSpace(chosen))
                 return;
 
-            var chosenId = new StableConfigId(chosen);
             StarterSpiritChoiceWorldEntity[] entities =
                 FindObjectsOfType<StarterSpiritChoiceWorldEntity>();
             foreach (StarterSpiritChoiceWorldEntity entity in entities)
             {
-                entity.gameObject.SetActive(
-                    entity.SpeciesId == chosenId);
+                entity.gameObject.SetActive(false);
             }
+        }
+
+        private static void FocusCamera(
+            Vector3 position,
+            float duration)
+        {
+            TopDownCamera camera =
+                FindObjectOfType<TopDownCamera>();
+            camera?.FocusOn(position, duration);
         }
     }
 }

@@ -40,6 +40,7 @@ namespace XianTu
             }
 
             systems.BuildObjectPool();
+            BuildNavigation();
             gameplay.BuildPlayer(
                 null,
                 null,
@@ -49,7 +50,11 @@ namespace XianTu
                 null,
                 null);
             PlacePlayerAtMarker();
+            RestorePostRescueState();
             hud.BuildHud();
+            StarterPrologueObjectiveHUD.EnsureExists();
+            SetupReturnGuide();
+            PublishInitialObjective();
             systems.BuildHitStop();
             systems.BuildEventSystem();
             systems.BuildAudioManager();
@@ -91,19 +96,127 @@ namespace XianTu
             }
         }
 
+        private static void BuildNavigation()
+        {
+            StarterPrologueMarker marker =
+                FindObjectOfType<StarterPrologueMarker>();
+            if (marker != null)
+                DungeonNavMeshRuntime.BuildFor(
+                    marker.transform.root.gameObject);
+        }
+
+        private static void PublishInitialObjective()
+        {
+            StarterPrologueStep step =
+                StarterPrologueProgression.GetStep(
+                    SaveSystem.Instance.Data);
+            StarterPrologueMarkerKind markerKind;
+            string text;
+            switch (step)
+            {
+                case StarterPrologueStep.StarterChosen:
+                    markerKind =
+                        StarterPrologueMarkerKind.RescueClearing;
+                    text = "将灵宠附着到一个动作";
+                    break;
+                case StarterPrologueStep.AttachmentChosen:
+                    markerKind =
+                        StarterPrologueMarkerKind.PossessionClearing;
+                    text = "赶往失控区救人";
+                    break;
+                case StarterPrologueStep.RescueCompleted:
+                    markerKind =
+                        StarterPrologueMarkerKind.HomeReturn;
+                    text = "沿小径回家";
+                    break;
+                case StarterPrologueStep.Completed:
+                    markerKind =
+                        StarterPrologueMarkerKind.HomeReturn;
+                    text = "序章完成 · 已回到家园";
+                    break;
+                default:
+                    markerKind =
+                        StarterPrologueMarkerKind.RescueClearing;
+                    text = "前往救援空地";
+                    break;
+            }
+
+            StarterPrologueMarker[] markers =
+                FindObjectsOfType<StarterPrologueMarker>();
+            foreach (StarterPrologueMarker marker in markers)
+            {
+                if (marker.Kind != markerKind)
+                    continue;
+                GameEvents.Publish(
+                    new GameEvents.StarterPrologueObjectiveChanged
+                    {
+                        Text = text,
+                        WorldPosition = marker.transform.position,
+                        HasWorldPosition =
+                            step != StarterPrologueStep.Completed
+                    });
+                return;
+            }
+        }
+
+        private static void SetupReturnGuide()
+        {
+            StarterPrologueMarker[] markers =
+                FindObjectsOfType<StarterPrologueMarker>();
+            foreach (StarterPrologueMarker marker in markers)
+            {
+                if (marker.Kind ==
+                    StarterPrologueMarkerKind.HomeReturn)
+                {
+                    StarterPrologueReturnGuide.EnsureAt(
+                        marker.transform);
+                    StarterPrologueHomeCompletion.EnsureAt(
+                        marker.transform);
+                    return;
+                }
+            }
+        }
+
         public static StarterPrologueMarkerKind ResumeMarkerFor(
             SaveDataV1 save)
         {
             return StarterPrologueProgression.GetStep(save) switch
             {
                 StarterPrologueStep.StarterChosen =>
-                    StarterPrologueMarkerKind.BondingAltar,
+                    StarterPrologueMarkerKind.RescueClearing,
                 StarterPrologueStep.AttachmentChosen =>
-                    StarterPrologueMarkerKind.TrainingArena,
+                    StarterPrologueMarkerKind.PossessionClearing,
+                StarterPrologueStep.RescueCompleted =>
+                    StarterPrologueMarkerKind.RescueResolved,
                 StarterPrologueStep.Completed =>
-                    StarterPrologueMarkerKind.CaveGate,
+                    StarterPrologueMarkerKind.HomeReturn,
                 _ => StarterPrologueMarkerKind.PlayerSpawn
             };
+        }
+
+        private static void RestorePostRescueState()
+        {
+            if (StarterPrologueProgression.GetStep(
+                    SaveSystem.Instance.Data) !=
+                StarterPrologueStep.RescueCompleted)
+            {
+                return;
+            }
+            StarterPrologueMarker[] markers =
+                FindObjectsOfType<StarterPrologueMarker>();
+            foreach (StarterPrologueMarker marker in markers)
+            {
+                if (marker.Kind !=
+                    StarterPrologueMarkerKind.RescueResolved)
+                {
+                    continue;
+                }
+                StarterPrologueTrainingEncounter
+                    .SpawnUnconsciousPair(
+                        marker.transform.position +
+                        marker.transform.forward * 2.5f);
+                return;
+            }
         }
     }
 }

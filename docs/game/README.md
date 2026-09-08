@@ -5,7 +5,7 @@
 > 代码：`Babylon/Assets/1Game/`  
 > 文档重置：2026-09-02
 
-ProjectR 已全面取代旧《仙途秘境／秘境探索》产品方向。旧文件路径尽量保留以避免断链，内容状态以本页为准。
+ProjectR 已全面取代旧《仙途秘境／秘境探索》产品方向。旧产品策划、备份和阶段记录已从工作区清除，需要时通过版本控制追溯。
 
 ## 从这里开始
 
@@ -21,7 +21,6 @@ ProjectR 已全面取代旧《仙途秘境／秘境探索》产品方向。旧�
 | 下一步做什么 | [开发待办](design/开发待办.md) |
 | 已经改了什么 | [CHANGELOG](CHANGELOG.md) |
 | 怎样验证体验 | [游戏测试清单](playtest/游戏测试清单.md) |
-| 旧版设计是什么 | [旧《秘境探索》统一归档](design/旧版秘境探索归档.md) |
 
 ## 文档分层
 
@@ -68,8 +67,7 @@ docs/game/CHANGELOG.md + design/开发待办.md
 
 ## 当前开放决策
 
-- **秘境关卡部分暂缓**：首个区域、地点结构、生态传播、推进和出口均等待后续专题讨论，当前不实施；[新手初契序章](design/levels/新手关_初契序章.md)保留连续空间白盒和固定验证战，主角与叙事开场等待重新设计。
-- 奖励以世界拾取为主，还是使用“世界拾取＋灵龛选择”。
+- **首区程序暂缓**：风痕林谷策划已经冻结，但按当前优先级暂不制作白盒；先完成[新手初契序章](design/levels/新手关_初契序章.md)具体内容对账。
 - 迁灵仅限脱战／灵龛，还是允许战斗中付费迁灵。
 - 火花狸、响响鸮、弹弹胶三只工作名灵宠的性格、外形和最终命名。
 - 死亡时普通材料保留比例。
@@ -91,17 +89,7 @@ docs/game/CHANGELOG.md + design/开发待办.md
 
 ## 旧文档状态
 
-以下内容不再是现行设计权威：
-
-- [旧简明版GDD](design/GDD_秘境探索_简明版.md)
-- [旧Demo路线图](design/Demo路线图.md)
-- [旧设计草案](design/ideas/)
-- [旧功法／灵物／隐藏组合表](design/)
-- [旧战斗与灵物技术深档](tech/)
-- [阶段复查与接力快照](reviews/)
-- [历史备份](design/_archive/)
-
-它们的背景、替代关系和复用边界统一记录在[旧版归档](design/旧版秘境探索归档.md)。
+旧产品策划、重复备份、ideas、阶段复查和旧系统深档不再留在当前工作区。Git／版本控制是唯一历史来源，现行规则只看本导航列出的ProjectR文档。
 
 ## 程序与资源入口
 
@@ -109,7 +97,6 @@ docs/game/CHANGELOG.md + design/开发待办.md
 - [程序架构说明](../../Babylon/Assets/1Game/Docs/程序_架构说明.md)
 - [ProjectR程序模块规划](architecture/程序模块规划.md)
 - [code-review-graph变更影响检查](architecture/变更影响检查.md)
-- [关卡设计填表指南](design/关卡设计填表指南.md)
 - 游戏代码：`Babylon/Assets/1Game/Scripts/`
 - 游戏资源：`Babylon/Assets/1Game/`
 - The Archer迁移目标：`Babylon/Assets/1Game/ArtRes/Package/Character/TheArcherRog/`

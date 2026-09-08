@@ -17,6 +17,10 @@ namespace XianTu
         private Transform _target;
         private EdgarDungeonRuntime _dungeonRuntime;
         private int _lastDungeonRotation = int.MinValue;
+        private Vector3 _focusPoint;
+        private float _focusRemaining;
+
+        public bool IsFocusActive => _focusRemaining > 0f;
 
         private void Awake()
         {
@@ -52,9 +56,15 @@ namespace XianTu
                 return;
             }
 
+            if (_focusRemaining > 0f)
+                _focusRemaining -= Time.unscaledDeltaTime;
+
             int dungeonRotation = GetDungeonRotation();
             Quaternion layoutRotation = Quaternion.Euler(0f, dungeonRotation, 0f);
-            Vector3 desiredPos = _target.position + layoutRotation * offset;
+            Vector3 followPoint = IsFocusActive
+                ? _focusPoint
+                : _target.position;
+            Vector3 desiredPos = followPoint + layoutRotation * offset;
             Quaternion desiredRotation =
                 layoutRotation * Quaternion.Euler(lookDownAngle, 0f, 0f);
 
@@ -67,9 +77,22 @@ namespace XianTu
                 return;
             }
 
-            float interpolation = smoothSpeed * Time.deltaTime;
+            float interpolation = smoothSpeed *
+                (IsFocusActive
+                    ? Time.unscaledDeltaTime
+                    : Time.deltaTime);
             transform.position = Vector3.Lerp(transform.position, desiredPos, interpolation);
             transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, interpolation);
+        }
+
+        /// <summary>
+        /// 短暂聚焦序章关键构图，结束后自动回到玩家。
+        /// 使用非缩放时间，选择界面暂停时也能完成推镜。
+        /// </summary>
+        public void FocusOn(Vector3 worldPoint, float duration)
+        {
+            _focusPoint = worldPoint;
+            _focusRemaining = Mathf.Max(0f, duration);
         }
 
         private int GetDungeonRotation()

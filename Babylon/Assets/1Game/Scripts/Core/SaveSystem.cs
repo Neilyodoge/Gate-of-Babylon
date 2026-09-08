@@ -322,7 +322,7 @@ namespace XianTu
         private static bool NormalizeAndMigrate(SaveDataV1 data)
         {
             if (data == null) return false;
-            bool changed = data.schemaVersion < 8;
+            bool changed = data.schemaVersion < 9;
 
             changed |= EnsureList(ref data.unlockedSkillIds);
             changed |= EnsureList(ref data.unlockedModuleIds);
@@ -348,6 +348,15 @@ namespace XianTu
             if (data.starterSpiritSpeciesId != starterSpecies)
             {
                 data.starterSpiritSpeciesId = starterSpecies;
+                changed = true;
+            }
+            if (data.schemaVersion < 9 &&
+                data.starterPrologueStep ==
+                    (int)StarterPrologueStep.RescueCompleted)
+            {
+                // v8 的数值3表示序章已完成；v9才把3用于救援完成。
+                data.starterPrologueStep =
+                    (int)StarterPrologueStep.Completed;
                 changed = true;
             }
             bool validStarter =
@@ -435,9 +444,9 @@ namespace XianTu
                 changed = true;
             }
 
-            if (data.schemaVersion < 8)
+            if (data.schemaVersion < 9)
             {
-                data.schemaVersion = 8;
+                data.schemaVersion = 9;
                 changed = true;
             }
             return changed;

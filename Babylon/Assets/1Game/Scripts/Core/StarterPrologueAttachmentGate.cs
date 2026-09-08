@@ -24,6 +24,24 @@ namespace XianTu
             {
                 return;
             }
+            StarterPrologueMarker[] markers =
+                FindObjectsOfType<StarterPrologueMarker>();
+            foreach (StarterPrologueMarker marker in markers)
+            {
+                if (marker.Kind !=
+                    StarterPrologueMarkerKind.PossessionClearing)
+                {
+                    continue;
+                }
+                GameEvents.Publish(
+                    new GameEvents.StarterPrologueObjectiveChanged
+                    {
+                        Text = "赶往失控区救人",
+                        WorldPosition = marker.transform.position,
+                        HasWorldPosition = true
+                    });
+                break;
+            }
             gameObject.SetActive(false);
         }
     }

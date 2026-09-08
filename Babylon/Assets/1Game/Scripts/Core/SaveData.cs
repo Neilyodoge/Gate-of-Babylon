@@ -14,8 +14,8 @@ namespace XianTu
     [Serializable]
     public class SaveDataV1
     {
-        /// <summary>存档格式版本号（v8：增加灵宠天赋树永久开放节点）。</summary>
-        public int schemaVersion = 8;
+        /// <summary>存档格式版本号（v9：拆分序章救援完成与正式回家完成）。</summary>
+        public int schemaVersion = 9;
 
         /// <summary>洞府素材库存：itemName → 数量（用 itemName 当 id，因为 ItemData 是 SO 无 GUID）</summary>
         public List<ItemCountEntry> caveInventory = new();

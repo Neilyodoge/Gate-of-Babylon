@@ -1566,7 +1566,7 @@ namespace XianTu.Editor.Tests
                 new object[] { data });
 
             Assert.That(changed, Is.True);
-            Assert.That(data.schemaVersion, Is.EqualTo(8));
+            Assert.That(data.schemaVersion, Is.EqualTo(9));
             Assert.That(data.spiritRoster, Is.Not.Null);
             Assert.That(
                 data.activeSpiritInstanceGuids.Count,
@@ -1615,6 +1615,37 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 spirit.Identity.PrimaryPersonalityId,
                 Is.EqualTo(StarterSpiritChoice.DefaultPersonality));
+        }
+
+        [Test]
+        public void SaveSystem_MigratesOldCompletedPrologueToSchemaNine()
+        {
+            var data = new SaveDataV1
+            {
+                schemaVersion = 8,
+                starterSpiritSpeciesId =
+                    FirstSpiritCircuitContent
+                        .SparkRaccoonSpecies.Value,
+                starterPrologueStep = 3,
+                starterPrologueCarrier =
+                    (int)CarrierSlot.Weapon,
+                starterTechniqueUnlocked = true
+            };
+            var method = typeof(SaveSystem).GetMethod(
+                "NormalizeAndMigrate",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static);
+
+            bool changed = (bool)method.Invoke(
+                null,
+                new object[] { data });
+
+            Assert.That(changed, Is.True);
+            Assert.That(data.schemaVersion, Is.EqualTo(9));
+            Assert.That(
+                data.starterPrologueStep,
+                Is.EqualTo(
+                    (int)StarterPrologueStep.Completed));
         }
 
         [Test]
@@ -1775,7 +1806,15 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 prefab.GetComponentsInChildren<
                     StarterPrologueMarker>(true).Length,
-                Is.EqualTo(5));
+                Is.EqualTo(6));
+            Assert.That(
+                System.Array.Exists(
+                    prefab.GetComponentsInChildren<
+                        StarterPrologueMarker>(true),
+                    marker =>
+                        marker.Kind ==
+                        StarterPrologueMarkerKind.RescueResolved),
+                Is.True);
             Assert.That(
                 prefab.GetComponentsInChildren<
                     StarterSpiritChoiceWorldEntity>(true).Length,
@@ -1792,6 +1831,31 @@ namespace XianTu.Editor.Tests
                 prefab.GetComponentsInChildren<
                     StarterPrologueEnemySpawnMarker>(true).Length,
                 Is.EqualTo(3));
+            StarterPrologueEnemySpawnMarker[] encounterMarkers =
+                prefab.GetComponentsInChildren<
+                    StarterPrologueEnemySpawnMarker>(true);
+            Assert.That(
+                encounterMarkers.Count(
+                    marker => marker.Role ==
+                              StarterPrologueEnemyRole.Melee),
+                Is.EqualTo(2));
+            Assert.That(
+                encounterMarkers.Count(
+                    marker => marker.Role ==
+                              StarterPrologueEnemyRole.Ranged),
+                Is.EqualTo(1));
+            Assert.That(
+                prefab.transform.Find(
+                    "Geometry/HomeOutskirts_Floor"),
+                Is.Not.Null);
+            Assert.That(
+                prefab.transform.Find(
+                    "Geometry/PossessionClearing_Floor"),
+                Is.Not.Null);
+            Assert.That(
+                prefab.transform.Find(
+                    "Interactions/RescueCaretaker_Whitebox"),
+                Is.Not.Null);
             Assert.That(
                 prefab.GetComponentsInChildren<
                     StarterPrologueTrainingEncounter>(true).Length,
@@ -1867,38 +1931,38 @@ namespace XianTu.Editor.Tests
         }
 
         [Test]
-        public void StarterPrologueTraining_RequiresThreeUniqueEnemies()
+        public void StarterPrologueTraining_RunsAgitatedThenPossessedWaves()
         {
             var runtime = new StarterPrologueTrainingRuntime();
 
             Assert.That(
-                runtime.Begin(new[] { 1, 1, 2 }),
+                runtime.Begin(new[] { 1, 1 }),
                 Is.EqualTo(
                     StarterPrologueTrainingStartResult.InvalidRoster));
             Assert.That(
-                runtime.Begin(new[] { 11, 22, 33 }),
+                runtime.Begin(new[] { 11, 22 }),
                 Is.EqualTo(
                     StarterPrologueTrainingStartResult.Success));
             Assert.That(
                 runtime.CurrentWave,
                 Is.EqualTo(
-                    StarterPrologueTrainingWave.MechanismTargets));
+                    StarterPrologueTrainingWave.AgitatedSpirits));
             Assert.That(
-                runtime.BeginValidation(new[] { 44, 55, 66 }),
+                runtime.BeginPossessedHost(new[] { 44 }),
                 Is.EqualTo(
                     StarterPrologueTrainingStartResult
                         .InvalidTransition));
             Assert.That(
                 runtime.RegisterDefeated(99).Remaining,
-                Is.EqualTo(3));
+                Is.EqualTo(2));
             Assert.That(
                 runtime.RegisterDefeated(11).Completed,
                 Is.False);
             Assert.That(
-                runtime.RegisterDefeated(22).Remaining,
+                runtime.RegisterDefeated(11).Remaining,
                 Is.EqualTo(1));
             StarterPrologueTrainingStep completed =
-                runtime.RegisterDefeated(33);
+                runtime.RegisterDefeated(22);
             Assert.That(completed.Completed, Is.True);
             Assert.That(completed.Remaining, Is.Zero);
             Assert.That(runtime.IsRunning, Is.False);
@@ -1907,17 +1971,15 @@ namespace XianTu.Editor.Tests
                 Is.False);
 
             Assert.That(
-                runtime.BeginValidation(new[] { 44, 55, 66 }),
+                runtime.BeginPossessedHost(new[] { 44 }),
                 Is.EqualTo(
                     StarterPrologueTrainingStartResult.Success));
             Assert.That(
                 runtime.CurrentWave,
                 Is.EqualTo(
-                    StarterPrologueTrainingWave.CombatValidation));
-            runtime.RegisterDefeated(44);
-            runtime.RegisterDefeated(55);
+                    StarterPrologueTrainingWave.PossessedHost));
             StarterPrologueTrainingStep encounterCompleted =
-                runtime.RegisterDefeated(66);
+                runtime.RegisterDefeated(44);
             Assert.That(encounterCompleted.Completed, Is.True);
             Assert.That(
                 runtime.CurrentWave,
@@ -1939,21 +2001,28 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 StarterPrologueSceneBootstrap.ResumeMarkerFor(save),
                 Is.EqualTo(
-                    StarterPrologueMarkerKind.BondingAltar));
+                    StarterPrologueMarkerKind.RescueClearing));
 
             save.starterPrologueStep =
                 (int)StarterPrologueStep.AttachmentChosen;
             Assert.That(
                 StarterPrologueSceneBootstrap.ResumeMarkerFor(save),
                 Is.EqualTo(
-                    StarterPrologueMarkerKind.TrainingArena));
+                    StarterPrologueMarkerKind.PossessionClearing));
+
+            save.starterPrologueStep =
+                (int)StarterPrologueStep.RescueCompleted;
+            Assert.That(
+                StarterPrologueSceneBootstrap.ResumeMarkerFor(save),
+                Is.EqualTo(
+                    StarterPrologueMarkerKind.RescueResolved));
 
             save.starterPrologueStep =
                 (int)StarterPrologueStep.Completed;
             Assert.That(
                 StarterPrologueSceneBootstrap.ResumeMarkerFor(save),
                 Is.EqualTo(
-                    StarterPrologueMarkerKind.CaveGate));
+                    StarterPrologueMarkerKind.HomeReturn));
         }
 
         [Test]
@@ -1979,7 +2048,7 @@ namespace XianTu.Editor.Tests
                 StarterPrologueProgression.RequiresFirstAttachment(save),
                 Is.False);
 
-            StarterPrologueProgression.RecordTrialCompleted(save);
+            StarterPrologueProgression.RecordRescueCompleted(save);
             Assert.That(
                 StarterPrologueProgression.RequiresFirstAttachment(save),
                 Is.False);
@@ -2007,7 +2076,15 @@ namespace XianTu.Editor.Tests
                 Is.EqualTo(
                     StarterPrologueAdvanceResult.NoChange));
             Assert.That(
-                StarterPrologueProgression.RecordTrialCompleted(save),
+                StarterPrologueProgression.RecordRescueCompleted(save),
+                Is.EqualTo(
+                    StarterPrologueAdvanceResult.Success));
+            Assert.That(
+                StarterPrologueProgression.GetStep(save),
+                Is.EqualTo(
+                    StarterPrologueStep.RescueCompleted));
+            Assert.That(
+                StarterPrologueProgression.RecordPrologueCompleted(save),
                 Is.EqualTo(
                     StarterPrologueAdvanceResult.Success));
             Assert.That(
@@ -2041,7 +2118,13 @@ namespace XianTu.Editor.Tests
                 FirstSpiritCircuitContent.BounceGelSpecies,
                 out _);
             Assert.That(
-                StarterPrologueProgression.RecordTrialCompleted(save),
+                StarterPrologueProgression.RecordRescueCompleted(save),
+                Is.EqualTo(
+                    StarterPrologueAdvanceResult
+                        .PrerequisiteMissing));
+            Assert.That(
+                StarterPrologueProgression
+                    .RecordPrologueCompleted(save),
                 Is.EqualTo(
                     StarterPrologueAdvanceResult
                         .PrerequisiteMissing));
@@ -5220,6 +5303,7 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.FirstPetCircuitTuning_ExposesDevelopmentEffects, ref passed);
             Run(fixture, fixture.FirstPetCircuit_LinkTalentRefundsHeatOnlyOnEcho, ref passed);
             Run(fixture, fixture.SaveSystem_MigratesSpiritFieldsToSchemaEight, ref passed);
+            Run(fixture, fixture.SaveSystem_MigratesOldCompletedPrologueToSchemaNine, ref passed);
             Run(fixture, fixture.StarterSpiritChoice_AddsExactlyOneSelectedPet, ref passed);
             Run(fixture, fixture.StarterSpiritChoice_RejectsRepeatAndNonEmptyRoster, ref passed);
             Run(fixture, fixture.StarterSpiritChoicePresentation_ExposesOnlyThreeProfiles, ref passed);
@@ -5227,7 +5311,7 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterSpiritChoiceUI_RequiresOneEntityPerProfile, ref passed);
             Run(fixture, fixture.StarterPrologueScene_LoadsReusableWhiteboxPrefab, ref passed);
             Run(fixture, fixture.ProjectRUITheme_LoadsGeneratedCoreArt, ref passed);
-            Run(fixture, fixture.StarterPrologueTraining_RequiresThreeUniqueEnemies, ref passed);
+            Run(fixture, fixture.StarterPrologueTraining_RunsAgitatedThenPossessedWaves, ref passed);
             Run(fixture, fixture.StarterPrologueResume_UsesCheckpointMarkers, ref passed);
             Run(fixture, fixture.StarterPrologue_RequiresExactlyOneFirstAttachment, ref passed);
             Run(fixture, fixture.StarterPrologue_AdvancesMonotonicallyAndRestoresCarrier, ref passed);

@@ -160,6 +160,13 @@ namespace XianTu
         /// <summary>玩家死亡</summary>
         public struct PlayerDied { }
 
+        /// <summary>新手序章当前目标及其世界位置。</summary>
+        public struct StarterPrologueObjectiveChanged
+        {
+            public string Text;
+            public UnityEngine.Vector3 WorldPosition;
+            public bool HasWorldPosition;
+        }
 
         /// <summary>进入新层</summary>
         public struct RealmBreakthrough
