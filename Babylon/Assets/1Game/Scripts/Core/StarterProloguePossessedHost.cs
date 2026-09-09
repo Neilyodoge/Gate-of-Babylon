@@ -11,7 +11,8 @@ namespace XianTu
     [RequireComponent(typeof(CharacterController))]
     public sealed class StarterProloguePossessedHost :
         MonoBehaviour,
-        IDamageable
+        IDamageable,
+        ICombatImpulseReceiver
     {
         private const float PreferredRange = 7f;
         private const float MoveSpeed = 2.6f;
@@ -42,6 +43,8 @@ namespace XianTu
         private bool _isResolved;
         private float _dashCooldown;
         private float _hitFlash;
+        private int _actionVersion;
+        private GameObject _activeWarning;
 
         public CombatStats Stats => stability;
         public bool IsResolved => _isResolved;
@@ -190,6 +193,40 @@ namespace XianTu
             Destroy(gameObject);
         }
 
+        public bool TryApplyCombatImpulse(
+            Vector3 origin,
+            float distance,
+            bool interrupt)
+        {
+            if (_isResolved ||
+                !stability.IsAlive ||
+                distance <= 0f ||
+                _controller == null ||
+                !_controller.enabled)
+            {
+                return false;
+            }
+
+            Vector3 direction = transform.position - origin;
+            direction.y = 0f;
+            direction = direction.sqrMagnitude > 0.01f
+                ? direction.normalized
+                : -transform.forward;
+            _controller.Move(direction * distance);
+            _navMotor?.ResyncAfterForcedMove();
+            if (interrupt)
+            {
+                _actionVersion++;
+                _isActing = false;
+                if (_activeWarning != null)
+                {
+                    Destroy(_activeWarning);
+                    _activeWarning = null;
+                }
+            }
+            return true;
+        }
+
         private IEnumerator AttackLoop()
         {
             yield return new WaitForSeconds(0.8f);
@@ -225,25 +262,29 @@ namespace XianTu
         private IEnumerator EnergyWave()
         {
             _isActing = true;
+            int actionVersion = _actionVersion;
             Vector3 direction = DirectionToTarget();
             LineRenderer warning = CreateWarningLine(
                 direction,
                 13f);
             yield return new WaitForSeconds(
                 WaveWarningSeconds);
-            if (!_isResolved)
+            if (!_isResolved && actionVersion == _actionVersion)
             {
                 EnergyWaveCount++;
                 SpawnProjectile(direction);
             }
             if (warning != null)
                 Destroy(warning.gameObject);
-            _isActing = false;
+            _activeWarning = null;
+            if (actionVersion == _actionVersion)
+                _isActing = false;
         }
 
         private IEnumerator DashSlash()
         {
             _isActing = true;
+            int actionVersion = _actionVersion;
             Vector3 direction = DirectionToTarget();
             LineRenderer warning = CreateWarningLine(
                 direction,
@@ -252,9 +293,14 @@ namespace XianTu
                 DashWarningSeconds);
             if (warning != null)
                 Destroy(warning.gameObject);
+            _activeWarning = null;
+            if (_isResolved || actionVersion != _actionVersion)
+                yield break;
 
             float elapsed = 0f;
-            while (!_isResolved && elapsed < DashDuration)
+            while (!_isResolved &&
+                   actionVersion == _actionVersion &&
+                   elapsed < DashDuration)
             {
                 elapsed += Time.deltaTime;
                 _controller.Move(
@@ -262,6 +308,8 @@ namespace XianTu
                 yield return null;
             }
             _navMotor.ResyncAfterForcedMove();
+            if (_isResolved || actionVersion != _actionVersion)
+                yield break;
             DashSlashCount++;
             DamagePlayerInRadius(1.7f, 1.15f);
             _isActing = false;
@@ -270,17 +318,20 @@ namespace XianTu
         private IEnumerator OverflowPulse()
         {
             _isActing = true;
+            int actionVersion = _actionVersion;
             GameObject warning = CreatePulseWarning();
             yield return new WaitForSeconds(
                 PulseWarningSeconds);
-            if (!_isResolved)
+            if (!_isResolved && actionVersion == _actionVersion)
             {
                 OverflowPulseCount++;
                 DamagePlayerInRadius(3.25f, 0.85f);
             }
             if (warning != null)
                 Destroy(warning);
-            _isActing = false;
+            _activeWarning = null;
+            if (actionVersion == _actionVersion)
+                _isActing = false;
         }
 
         private void SpawnProjectile(Vector3 direction)
@@ -350,6 +401,7 @@ namespace XianTu
             float length)
         {
             GameObject go = new("PossessedAttackWarning");
+            _activeWarning = go;
             go.transform.SetParent(transform, false);
             LineRenderer line = go.AddComponent<LineRenderer>();
             line.material =
@@ -373,6 +425,7 @@ namespace XianTu
             GameObject pulse = GameObject.CreatePrimitive(
                 PrimitiveType.Cylinder);
             pulse.name = "PossessedOverflowWarning";
+            _activeWarning = pulse;
             pulse.transform.position =
                 transform.position + Vector3.up * 0.03f;
             pulse.transform.localScale =

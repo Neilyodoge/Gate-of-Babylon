@@ -9,18 +9,20 @@ namespace XianTu
     public class TopDownCamera : MonoBehaviour
     {
         [Header("跟随参数")]
-        [SerializeField] private Vector3 offset = new(0, 25f, -9f);
+        [SerializeField] private Vector3 offset = new(0, 22f, -12.7f);
         [SerializeField] private float smoothSpeed = 8f;
-        [SerializeField] private float lookDownAngle = 70f;
-        [SerializeField, Range(20f, 80f)] private float verticalFov = 50f;
+        [SerializeField] private float lookDownAngle = 60f;
+        [SerializeField, Range(20f, 80f)] private float verticalFov = 48f;
 
         private Transform _target;
         private EdgarDungeonRuntime _dungeonRuntime;
         private int _lastDungeonRotation = int.MinValue;
         private Vector3 _focusPoint;
         private float _focusRemaining;
+        private bool _interactionFocus;
 
         public bool IsFocusActive => _focusRemaining > 0f;
+        public bool IsInteractionFocusActive => _interactionFocus;
 
         private void Awake()
         {
@@ -49,6 +51,7 @@ namespace XianTu
 
         private void LateUpdate()
         {
+            UpdateLens();
             if (_target == null)
             {
                 if (PlayerController.Instance != null)
@@ -93,6 +96,29 @@ namespace XianTu
         {
             _focusPoint = worldPoint;
             _focusRemaining = Mathf.Max(0f, duration);
+        }
+
+        /// <summary>
+        /// 首次附着等短交互期间轻微收紧构图，退出交互后自动恢复。
+        /// 镜头移动使用非缩放时间，选择流程暂停时仍能平滑完成。
+        /// </summary>
+        public void SetInteractionFocus(bool active)
+        {
+            _interactionFocus = active;
+        }
+
+        private void UpdateLens()
+        {
+            Camera attachedCamera = GetComponent<Camera>();
+            if (attachedCamera == null)
+                return;
+            float targetFov = Mathf.Max(
+                20f,
+                verticalFov - (_interactionFocus ? 4f : 0f));
+            attachedCamera.fieldOfView = Mathf.MoveTowards(
+                attachedCamera.fieldOfView,
+                targetFov,
+                18f * Time.unscaledDeltaTime);
         }
 
         private int GetDungeonRotation()

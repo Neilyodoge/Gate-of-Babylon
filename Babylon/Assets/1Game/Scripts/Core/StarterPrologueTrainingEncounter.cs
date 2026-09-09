@@ -58,6 +58,7 @@ namespace XianTu
                 return false;
             }
 
+            StarterPrologueThreatPreview.Remove();
             var targets = new List<GameObject>(
                 StarterPrologueTrainingRuntime
                     .RequiredAgitatedSpiritCount);
@@ -245,16 +246,17 @@ namespace XianTu
                     SaveSystem.Instance.Data);
             if (result == StarterPrologueAdvanceResult.Success)
                 SaveSystem.Instance.Save();
-            StarterPrologueMarker home =
-                FindMarker(StarterPrologueMarkerKind.HomeReturn);
             PublishObjective(
-                "救援完成 · 沿小径回家",
-                home != null
-                    ? home.transform.position
-                    : separationPosition,
-                home != null);
+                "救援完成 · 准备返回家园",
+                separationPosition,
+                false);
+            StarterPrologueMilestoneHUD.Show(
+                "失控解除",
+                "人和灵宠都已脱离危险",
+                new Color(0.42f, 0.86f, 0.92f));
+            StarterPrologueHomeTransition.Begin(2.4f);
             Debug.Log(
-                "<color=#F2B45E>[新手序章] 救援完成，回家路径已开放。</color>");
+                "<color=#F2B45E>[新手序章] 救援完成，等待转场家园。</color>");
         }
 
         private void PublishEnemyCount()

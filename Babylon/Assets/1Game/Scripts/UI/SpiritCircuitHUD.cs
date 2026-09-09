@@ -18,7 +18,10 @@ namespace XianTu
             _selectionBorderColors = new();
         private RectTransform[] _skillSlots;
         private RectTransform _starterBadge;
+        private GameObject _attachmentPanel;
         private TextMeshProUGUI _attachmentHint;
+        private readonly TextMeshProUGUI[] _attachmentCardLabels =
+            new TextMeshProUGUI[3];
         private TextMeshProUGUI _circuitStageHint;
         private Image _stageBorder;
         private Color _stageBorderOriginal;
@@ -307,6 +310,24 @@ namespace XianTu
                 EndAttachmentSelection();
                 return;
             }
+            if (_attachmentSelecting && keyboard != null)
+            {
+                if (keyboard.digit1Key.wasPressedThisFrame)
+                {
+                    TrySelectAttachment(CarrierSlot.Weapon);
+                    return;
+                }
+                if (keyboard.digit2Key.wasPressedThisFrame)
+                {
+                    TrySelectAttachment(CarrierSlot.TechniqueQ);
+                    return;
+                }
+                if (keyboard.digit3Key.wasPressedThisFrame)
+                {
+                    TrySelectAttachment(CarrierSlot.Mobility);
+                    return;
+                }
+            }
             if (mouse == null)
                 return;
 
@@ -340,6 +361,13 @@ namespace XianTu
                 return;
             }
 
+            TrySelectAttachment(carrier);
+        }
+
+        private void TrySelectAttachment(CarrierSlot carrier)
+        {
+            if (!_attachmentSelecting)
+                return;
             StarterSpiritCarrierController controller =
                 PlayerController.Instance != null
                     ? PlayerController.Instance.GetComponent<
@@ -365,6 +393,8 @@ namespace XianTu
             _attachmentSelecting = true;
             _attachmentRequired = required;
             IsAttachmentSelectionActive = true;
+            if (required)
+                SetAttachmentCameraFocus(true);
             _selectionBorderColors.Clear();
             int[] indices = { 4, 0, 3 };
             foreach (int index in indices)
@@ -381,10 +411,11 @@ namespace XianTu
             {
                 _attachmentHint.text =
                     required
-                        ? "首次附着：选择LMB武器 / Q术法 / SPACE身法"
-                        : "选择附着位置：LMB 武器 / Q 术法 / SPACE 身法";
-                _attachmentHint.gameObject.SetActive(true);
+                        ? "首次附着 · 选择一个动作"
+                        : "重新选择附着动作";
             }
+            UpdateAttachmentCards();
+            _attachmentPanel?.SetActive(true);
         }
 
         private void EndAttachmentSelection()
@@ -399,9 +430,16 @@ namespace XianTu
             _attachmentSelecting = false;
             _attachmentRequired = false;
             IsAttachmentSelectionActive = false;
+            SetAttachmentCameraFocus(false);
             _attachmentErrorUntil = 0f;
-            if (_attachmentHint != null)
-                _attachmentHint.gameObject.SetActive(false);
+            _attachmentPanel?.SetActive(false);
+        }
+
+        private static void SetAttachmentCameraFocus(bool active)
+        {
+            TopDownCamera camera =
+                FindFirstObjectByType<TopDownCamera>();
+            camera?.SetInteractionFocus(active);
         }
 
         private int FindAttachmentSlot(Vector2 screenPosition)
@@ -447,7 +485,7 @@ namespace XianTu
             int visualIndex)
         {
             if (visualIndex < 0)
-                return "点击LMB、Q或SPACE槽位完成附着 · ESC取消";
+                return "选择下方动作卡，或按1／2／3";
 
             if (species ==
                 FirstSpiritCircuitContent.SparkRaccoonSpecies)
@@ -455,7 +493,7 @@ namespace XianTu
                 return visualIndex switch
                 {
                     4 => "LMB · 连续3次命中产生火花",
-                    0 => "Q · 术法命中产生强化火花",
+                    0 => "Q灵息弹 · 命中产生强化火花",
                     3 => "SPACE · 身法终点产生范围火花",
                     _ => ""
                 };
@@ -466,7 +504,7 @@ namespace XianTu
                 return visualIndex switch
                 {
                     4 => "LMB · 连续3次命中后复响攻击",
-                    0 => "Q · 延迟复响一次术法",
+                    0 => "Q灵息弹 · 命中后延迟复响",
                     3 => "SPACE · 身法结束后产生回声脉冲",
                     _ => ""
                 };
@@ -474,7 +512,7 @@ namespace XianTu
             return visualIndex switch
             {
                 4 => "LMB · 连续3次命中后弹向近敌",
-                0 => "Q · 术法命中后额外弹射",
+                0 => "Q灵息弹 · 命中后额外弹射",
                 3 => "SPACE · 身法终点产生弹力脉冲",
                 _ => ""
             };
@@ -482,25 +520,102 @@ namespace XianTu
 
         private void CreateAttachmentHint()
         {
-            var go = new GameObject("AttachmentSelectionHint");
-            go.transform.SetParent(transform, false);
-            var rt = go.AddComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.5f, 0f);
-            rt.anchorMax = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(0f, 136f);
-            rt.sizeDelta = new Vector2(440f, 22f);
-            _attachmentHint = go.AddComponent<TextMeshProUGUI>();
+            RectTransform panel = UGuiKit.CreatePanel(
+                transform,
+                "AttachmentSelectionPanel",
+                new Vector2(720f, 142f),
+                new Color(0.09f, 0.085f, 0.065f, 0.94f));
+            panel.anchorMin = panel.anchorMax =
+                new Vector2(0.5f, 0f);
+            panel.pivot = new Vector2(0.5f, 0f);
+            panel.anchoredPosition = new Vector2(0f, 122f);
+            _attachmentPanel = panel.gameObject;
+
+            _attachmentHint = UGuiKit.CreateText(
+                panel,
+                "",
+                17,
+                new Color(1f, 0.84f, 0.55f, 0.98f),
+                TextAlignmentOptions.Center,
+                FontStyles.Bold);
+            RectTransform hintRect = _attachmentHint.rectTransform;
+            hintRect.anchorMin = new Vector2(0f, 1f);
+            hintRect.anchorMax = new Vector2(1f, 1f);
+            hintRect.pivot = new Vector2(0.5f, 1f);
+            hintRect.anchoredPosition = new Vector2(0f, -10f);
+            hintRect.sizeDelta = new Vector2(-24f, 28f);
             if (UGuiKit.CjkFont != null)
                 _attachmentHint.font = UGuiKit.CjkFont;
-            _attachmentHint.fontSize = 13f;
-            _attachmentHint.alignment = TextAlignmentOptions.Center;
-            _attachmentHint.color =
-                new Color(1f, 0.84f, 0.55f, 0.95f);
             _attachmentHint.outlineColor =
                 new Color(0.12f, 0.08f, 0.04f, 0.9f);
-            _attachmentHint.outlineWidth = 0.2f;
+            _attachmentHint.outlineWidth = 0.15f;
             _attachmentHint.raycastTarget = false;
-            go.SetActive(false);
+
+            CarrierSlot[] carriers =
+            {
+                CarrierSlot.Weapon,
+                CarrierSlot.TechniqueQ,
+                CarrierSlot.Mobility
+            };
+            Color[] colors =
+            {
+                new(0.42f, 0.27f, 0.14f, 1f),
+                new(0.18f, 0.36f, 0.46f, 1f),
+                new(0.19f, 0.40f, 0.30f, 1f)
+            };
+            for (int i = 0; i < carriers.Length; i++)
+            {
+                CarrierSlot carrier = carriers[i];
+                Button button = UGuiKit.CreateButton(
+                    panel,
+                    "",
+                    () => TrySelectAttachment(carrier),
+                    colors[i],
+                    14,
+                    new Vector2(216f, 78f));
+                RectTransform buttonRect =
+                    button.GetComponent<RectTransform>();
+                buttonRect.anchorMin = buttonRect.anchorMax =
+                    new Vector2(0.5f, 0f);
+                buttonRect.pivot = new Vector2(0.5f, 0f);
+                buttonRect.anchoredPosition =
+                    new Vector2((i - 1) * 230f, 12f);
+                _attachmentCardLabels[i] =
+                    button.GetComponentInChildren<TextMeshProUGUI>();
+            }
+            _attachmentPanel.SetActive(false);
+        }
+
+        private void UpdateAttachmentCards()
+        {
+            StarterSpiritCarrierController controller =
+                PlayerController.Instance != null
+                    ? PlayerController.Instance.GetComponent<
+                        StarterSpiritCarrierController>()
+                    : null;
+            StableConfigId species =
+                controller?.Spirit?.Identity.SpeciesConfigId ?? default;
+            int[] indices = { 4, 0, 3 };
+            string[] keys = { "1", "2", "3" };
+            for (int i = 0; i < _attachmentCardLabels.Length; i++)
+            {
+                TextMeshProUGUI label = _attachmentCardLabels[i];
+                if (label == null)
+                    continue;
+                string description =
+                    AttachmentDescription(species, indices[i]);
+                int separator = description.IndexOf(" · ",
+                    StringComparison.Ordinal);
+                string action = separator >= 0
+                    ? description.Substring(0, separator)
+                    : description;
+                string effect = separator >= 0
+                    ? description.Substring(separator + 3)
+                    : string.Empty;
+                label.text =
+                    $"<b>{keys[i]}  {action}</b>\n" +
+                    $"<size=12>{effect}</size>";
+            }
         }
 
         private void CreateCircuitStageHint()

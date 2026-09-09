@@ -7,7 +7,14 @@ namespace XianTu
     [RequireComponent(typeof(BoxCollider))]
     public sealed class StarterPrologueChoiceTrigger : MonoBehaviour
     {
+        public const string CaretakerWarning =
+            "先别过来！它们被失控的能量惊到了！";
+
+        [SerializeField]
+        private Transform revealFocus;
+
         private bool _opened;
+        private bool _opening;
 
         private void Awake()
         {
@@ -23,7 +30,7 @@ namespace XianTu
 
         private void OnTriggerEnter(Collider other)
         {
-            if (_opened || !other.CompareTag("Player"))
+            if (_opened || _opening || !other.CompareTag("Player"))
                 return;
             if (StarterPrologueProgression.GetStep(
                     SaveSystem.Instance.Data) >=
@@ -33,14 +40,54 @@ namespace XianTu
                 return;
             }
 
-            FocusCamera(transform.position, 1.1f);
+            StartCoroutine(OpenChoiceAfterThreatReveal());
+        }
+
+        private IEnumerator OpenChoiceAfterThreatReveal()
+        {
+            _opening = true;
             GameEvents.Publish(
                 new GameEvents.StarterPrologueObjectiveChanged
                 {
                     Text = string.Empty,
                     HasWorldPosition = false
                 });
+
+            Transform caretaker = ResolveRevealFocus();
+            if (caretaker != null)
+            {
+                FocusCamera(caretaker.position, 1.05f);
+                StarterPrologueDialogueHUD.Show(
+                    "照料员",
+                    CaretakerWarning,
+                    1.8f);
+                yield return new WaitForSecondsRealtime(1.08f);
+            }
+
+            StarterPrologueThreatPreview preview =
+                FindObjectOfType<StarterPrologueThreatPreview>();
+            if (preview != null)
+            {
+                FocusCamera(preview.transform.position, 0.7f);
+                yield return new WaitForSecondsRealtime(0.72f);
+            }
+            FocusCamera(transform.position, 1.1f);
             _opened = StarterSpiritChoiceUI.ShowForScene(OnChosen);
+            _opening = false;
+        }
+
+        private Transform ResolveRevealFocus()
+        {
+            if (revealFocus != null)
+                return revealFocus;
+
+            GameObject caretaker =
+                GameObject.Find("RescueCaretaker_Whitebox");
+            if (caretaker == null)
+                caretaker = GameObject.Find("MARKER_Caretaker");
+            return caretaker != null
+                ? caretaker.transform
+                : null;
         }
 
         private void OnChosen(
@@ -48,7 +95,7 @@ namespace XianTu
             SpiritInstanceState spirit)
         {
             _opened = false;
-            ApplyChosenEntityState();
+            StarterPrologueCaretakerExit.Play(species);
             StarterSpiritCarrierController controller =
                 FindObjectOfType<StarterSpiritCarrierController>();
             controller?.TryConfigure(SaveSystem.Instance.Data);
@@ -82,11 +129,17 @@ namespace XianTu
                 return;
 
             StarterSpiritChoiceWorldEntity[] entities =
-                FindObjectsOfType<StarterSpiritChoiceWorldEntity>();
+                FindObjectsByType<StarterSpiritChoiceWorldEntity>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None);
             foreach (StarterSpiritChoiceWorldEntity entity in entities)
             {
                 entity.gameObject.SetActive(false);
             }
+            GameObject caretaker =
+                GameObject.Find("RescueCaretaker_Whitebox");
+            if (caretaker != null)
+                caretaker.SetActive(false);
         }
 
         private static void FocusCamera(

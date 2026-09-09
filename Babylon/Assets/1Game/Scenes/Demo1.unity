@@ -350,10 +350,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e42fb78d815928642a78f733fb973921, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  offset: {x: 0, y: 25, z: -9}
+  offset: {x: 0, y: 22, z: -12.7}
   smoothSpeed: 8
-  lookDownAngle: 70
-  verticalFov: 50
+  lookDownAngle: 60
+  verticalFov: 48
 --- !u!81 &1029762368
 AudioListener:
   m_ObjectHideFlags: 0

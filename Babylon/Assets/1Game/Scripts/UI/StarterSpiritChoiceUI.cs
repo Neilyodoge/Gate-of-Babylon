@@ -27,6 +27,7 @@ namespace XianTu
             _entities = new();
         private readonly List<Canvas> _hiddenHudCanvases = new();
         private StarterSpiritChoiceSession _session;
+        private StarterSpiritChoiceWorldEntity _pointerEntity;
         private Action<StableConfigId, SpiritInstanceState> _onChosen;
         private float _previousTimeScale = 1f;
         private CursorLockMode _previousCursorLock;
@@ -102,18 +103,23 @@ namespace XianTu
 
         private void Update()
         {
-            if (!IsOpen ||
-                _session.Stage !=
-                StarterSpiritChoiceStage.Confirming)
-            {
+            if (!IsOpen)
                 return;
-            }
 
             Keyboard keyboard = Keyboard.current;
-            if (keyboard != null &&
+            if (_session.Stage ==
+                StarterSpiritChoiceStage.Confirming &&
+                keyboard != null &&
                 keyboard.escapeKey.wasPressedThisFrame)
             {
                 CancelConfirmation();
+                return;
+            }
+
+            if (_session.Stage == StarterSpiritChoiceStage.Browsing)
+            {
+                UpdateKeyboardChoice(keyboard);
+                UpdateScenePointer();
             }
         }
 
@@ -132,8 +138,9 @@ namespace XianTu
             _onChosen = onChosen;
             _nameLabel.text = "看看它们";
             _descriptionLabel.text =
-                "靠近或点击一只灵宠，只会看到少量性格与战斗倾向。";
-            _hintLabel.text = "点击场景中的灵宠进行选择";
+                "选择一只灵宠，先看看它的性格与战斗倾向。";
+            _hintLabel.text =
+                "点击中间的选项，或按数字键 1 / 2 / 3";
             _profilePortrait.gameObject.SetActive(false);
             _confirmPortrait.gameObject.SetActive(false);
             _confirmRoot.SetActive(false);
@@ -146,8 +153,72 @@ namespace XianTu
             Time.timeScale = 0f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            _pointerEntity = null;
             SetFocused(default);
             return true;
+        }
+
+        private void UpdateKeyboardChoice(Keyboard keyboard)
+        {
+            if (keyboard == null)
+                return;
+            if (keyboard.digit1Key.wasPressedThisFrame)
+                SelectProfileAt(0);
+            else if (keyboard.digit2Key.wasPressedThisFrame)
+                SelectProfileAt(1);
+            else if (keyboard.digit3Key.wasPressedThisFrame)
+                SelectProfileAt(2);
+        }
+
+        private void SelectProfileAt(int index)
+        {
+            if (index < 0 || index >= _entities.Count)
+                return;
+            OnEntityClicked(_entities[index]);
+        }
+
+        private void UpdateScenePointer()
+        {
+            Mouse mouse = Mouse.current;
+            Camera camera = Camera.main;
+            StarterSpiritChoiceWorldEntity pointed = null;
+            if (mouse != null && camera != null)
+            {
+                Ray ray = camera.ScreenPointToRay(
+                    mouse.position.ReadValue());
+                RaycastHit[] hits = Physics.RaycastAll(ray, 1000f);
+                Array.Sort(
+                    hits,
+                    (left, right) =>
+                        left.distance.CompareTo(right.distance));
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    StarterSpiritChoiceWorldEntity candidate =
+                        hits[i].collider.GetComponentInParent<
+                            StarterSpiritChoiceWorldEntity>();
+                    if (candidate != null &&
+                        _entities.Contains(candidate))
+                    {
+                        pointed = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (pointed != _pointerEntity)
+            {
+                if (_pointerEntity != null)
+                    OnEntityHoverExited(_pointerEntity);
+                _pointerEntity = pointed;
+                if (_pointerEntity != null)
+                    OnEntityHoverEntered(_pointerEntity);
+            }
+
+            if (_pointerEntity != null &&
+                mouse.leftButton.wasPressedThisFrame)
+            {
+                OnEntityClicked(_pointerEntity);
+            }
         }
 
         private bool TryCollectEntities(
@@ -243,6 +314,8 @@ namespace XianTu
                 out StarterSpiritChoiceProfile profile);
             _confirmLabel.text =
                 $"确定与 <color=#F2B45E>{profile.DisplayName}</color> 结契吗？\n" +
+                $"<size=17>{profile.PersonalityLine}\n" +
+                $"<color=#B8D6C8>{profile.CombatTendency}</color></size>\n\n" +
                 "另外两只会离开，之后仍可在秘境中相遇。";
             SetPortrait(_confirmPortrait, entity.SpeciesId);
             _confirmRoot.SetActive(true);
@@ -316,6 +389,7 @@ namespace XianTu
             _confirmRoot.SetActive(false);
             _root.SetActive(false);
             _entities.Clear();
+            _pointerEntity = null;
             _session = null;
             _onChosen = null;
             RestoreInteraction();
@@ -358,70 +432,136 @@ namespace XianTu
             RectTransform titlePanel = UGuiKit.CreatePanel(
                 _root.transform,
                 "TitlePanel",
-                new Vector2(720f, 104f),
-                new Color(0.12f, 0.11f, 0.08f, 0.82f));
+                new Vector2(620f, 82f),
+                new Color(0.10f, 0.095f, 0.075f, 0.78f));
             titlePanel.anchorMin = titlePanel.anchorMax =
                 new Vector2(0.5f, 1f);
             titlePanel.pivot = new Vector2(0.5f, 1f);
-            titlePanel.anchoredPosition = new Vector2(0f, -18f);
+            titlePanel.anchoredPosition = new Vector2(0f, -20f);
             TextMeshProUGUI title = UGuiKit.CreateText(
                 titlePanel,
-                "选择与你结契的伙伴",
-                30,
+                "选择第一位伙伴",
+                27,
                 new Color(0.96f, 0.82f, 0.52f),
                 TextAlignmentOptions.Center,
                 FontStyles.Bold);
-            SetRect(title.rectTransform, 20f, 44f, -20f, 96f);
+            SetRect(title.rectTransform, 20f, 34f, -20f, 76f);
             TextMeshProUGUI subtitle = UGuiKit.CreateText(
                 titlePanel,
-                "火花狸 · 响响鸮 · 弹弹胶",
-                16,
+                "它会改变你所附着动作的表现",
+                14,
                 new Color(0.78f, 0.72f, 0.61f));
-            SetRect(subtitle.rectTransform, 20f, 8f, -20f, 40f);
+            SetRect(subtitle.rectTransform, 20f, 6f, -20f, 32f);
 
             RectTransform infoPanel = UGuiKit.CreatePanel(
                 _root.transform,
                 "InfoPanel",
-                new Vector2(720f, 176f),
-                new Color(0.11f, 0.10f, 0.08f, 0.90f));
+                new Vector2(720f, 146f),
+                new Color(0.10f, 0.095f, 0.075f, 0.92f));
             infoPanel.anchorMin = infoPanel.anchorMax =
                 new Vector2(0.5f, 0f);
             infoPanel.pivot = new Vector2(0.5f, 0f);
-            infoPanel.anchoredPosition = new Vector2(0f, 76f);
+            infoPanel.anchoredPosition = new Vector2(0f, 22f);
 
             _nameLabel = UGuiKit.CreateText(
                 infoPanel,
                 "",
-                26,
+                23,
                 new Color(0.95f, 0.77f, 0.42f),
-                TextAlignmentOptions.Center,
+                TextAlignmentOptions.Left,
                 FontStyles.Bold);
-            SetRect(_nameLabel.rectTransform, 146f, 120f, -20f, 162f);
+            SetRect(_nameLabel.rectTransform, 130f, 98f, -20f, 136f);
             _profilePortrait = CreatePortrait(
                 infoPanel,
                 "SpiritPortrait",
-                new Vector2(22f, 30f),
-                112f);
+                new Vector2(20f, 22f),
+                96f);
             _descriptionLabel = UGuiKit.CreateText(
                 infoPanel,
                 "",
-                17,
+                16,
                 new Color(0.92f, 0.88f, 0.78f));
             SetRect(
                 _descriptionLabel.rectTransform,
-                146f,
-                48f,
+                130f,
+                42f,
                 -20f,
-                120f);
+                98f);
             _hintLabel = UGuiKit.CreateText(
                 infoPanel,
                 "",
                 14,
                 new Color(0.68f, 0.78f, 0.72f));
-            SetRect(_hintLabel.rectTransform, 20f, 8f, -20f, 44f);
+            SetRect(_hintLabel.rectTransform, 130f, 12f, -20f, 40f);
 
+            BuildChoiceButtons();
             BuildConfirmation();
             _root.SetActive(false);
+        }
+
+        private void BuildChoiceButtons()
+        {
+            RectTransform panel = UGuiKit.CreatePanel(
+                _root.transform,
+                "ChoiceButtons",
+                new Vector2(700f, 74f),
+                new Color(0.08f, 0.075f, 0.06f, 0.82f));
+            panel.anchorMin = panel.anchorMax = new Vector2(0.5f, 0f);
+            panel.pivot = new Vector2(0.5f, 0f);
+            panel.anchoredPosition = new Vector2(0f, 178f);
+
+            IReadOnlyList<StarterSpiritChoiceProfile> profiles =
+                StarterSpiritChoicePresentation.Profiles;
+            Color[] colors =
+            {
+                new(0.55f, 0.27f, 0.12f, 1f),
+                new(0.20f, 0.38f, 0.48f, 1f),
+                new(0.17f, 0.43f, 0.31f, 1f)
+            };
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                int profileIndex = i;
+                StarterSpiritChoiceProfile profile = profiles[i];
+                Button button = UGuiKit.CreateButton(
+                    panel,
+                    $"{i + 1}  {profile.DisplayName}\n" +
+                    ChoiceRoleLabel(i),
+                    () => SelectProfileAt(profileIndex),
+                    colors[i],
+                    15,
+                    new Vector2(210f, 58f));
+                RectTransform rect =
+                    button.GetComponent<RectTransform>();
+                rect.anchorMin = rect.anchorMax =
+                    new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition =
+                    new Vector2((i - 1) * 224f, 0f);
+                Image portrait = CreatePortrait(
+                    rect,
+                    $"CardPortrait_{profile.DisplayName}",
+                    new Vector2(8f, 8f),
+                    42f);
+                SetPortrait(portrait, profile.SpeciesId);
+                TextMeshProUGUI label =
+                    button.GetComponentInChildren<TextMeshProUGUI>();
+                if (label != null)
+                {
+                    label.rectTransform.offsetMin =
+                        new Vector2(52f, 2f);
+                    label.rectTransform.offsetMax =
+                        new Vector2(-6f, -2f);
+                }
+            }
+        }
+
+        private static string ChoiceRoleLabel(int index)
+        {
+            return index switch
+            {
+                0 => "<size=12>火 · 爆发</size>",
+                1 => "<size=12>响 · 复响</size>",
+                _ => "<size=12>水 · 弹射</size>"
+            };
         }
 
         private void BuildConfirmation()
@@ -435,7 +575,7 @@ namespace XianTu
             RectTransform panel = UGuiKit.CreatePanel(
                 _confirmRoot.transform,
                 "ConfirmPanel",
-                new Vector2(620f, 280f),
+                new Vector2(620f, 320f),
                 new Color(0.16f, 0.14f, 0.10f, 0.98f));
 
             _confirmLabel = UGuiKit.CreateText(
@@ -443,11 +583,11 @@ namespace XianTu
                 "",
                 21,
                 new Color(0.94f, 0.90f, 0.80f));
-            SetRect(_confirmLabel.rectTransform, 166f, 112f, -40f, 242f);
+            SetRect(_confirmLabel.rectTransform, 166f, 106f, -40f, 282f);
             _confirmPortrait = CreatePortrait(
                 panel,
                 "ConfirmPortrait",
-                new Vector2(38f, 118f),
+                new Vector2(38f, 154f),
                 104f);
 
             Button confirm = UGuiKit.CreateButton(

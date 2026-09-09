@@ -74,6 +74,7 @@ namespace XianTu
         private const float DAMAGE_BAR_DELAY = 0.5f;
         private const float DAMAGE_BAR_SPEED = 2f;
         private bool _initialized;
+        private bool _starterPrologueMode;
 
         // 连招颜色
         private readonly Color _comboInactiveColor = new(0.3f, 0.3f, 0.3f, 0.5f);
@@ -82,6 +83,33 @@ namespace XianTu
             new(0.3f, 1f, 0.5f, 1f),    // 第2段：绿色
             new(1f, 0.85f, 0.2f, 1f)    // 第3段：金色
         };
+
+        public void ConfigureForStarterPrologue()
+        {
+            _starterPrologueMode = true;
+            SetContainerVisible(realmText, false);
+            SetContainerVisible(enemyCountText, false);
+            SetContainerVisible(shardCountText, false);
+            SetDirectChildVisible("MinimapPanel", false);
+            SetDirectChildVisible("MinimapLegend", false);
+        }
+
+        private static void SetContainerVisible(
+            Component content,
+            bool visible)
+        {
+            if (content != null && content.transform.parent != null)
+                content.transform.parent.gameObject.SetActive(visible);
+        }
+
+        private void SetDirectChildVisible(
+            string childName,
+            bool visible)
+        {
+            Transform child = transform.Find(childName);
+            if (child != null)
+                child.gameObject.SetActive(visible);
+        }
 
         private void Start()
         {
@@ -429,7 +457,9 @@ namespace XianTu
                         : "弹弹胶";
             ShowMessage(
                 $"<color=#F2B45E>{spirit}已附着到{carrier}</color>" +
-                "  <color=#B8AD91>脱战按1/2/3换挂</color>");
+                (_starterPrologueMode
+                    ? string.Empty
+                    : "  <color=#B8AD91>脱战按1/2/3换挂</color>"));
         }
 
         // ==================== 房间清理 ====================
@@ -443,6 +473,8 @@ namespace XianTu
 
         private void OnPlayerDied(GameEvents.PlayerDied evt)
         {
+            if (_starterPrologueMode)
+                return;
             if (deathPanel != null)
             {
                 deathPanel.SetActive(true);

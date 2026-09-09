@@ -20,7 +20,11 @@ namespace XianTu
         private bool _initialized;
         private ElementTag _elementTag;
         private PlayerController _ownerPlayer;
+        private int _sourceSkillSlot = -1;
+        private SkillData _sourceSkill;
         public PlayerController OwnerPlayer => _ownerPlayer;
+        public int SourceSkillSlot => _sourceSkillSlot;
+        public SkillData SourceSkill => _sourceSkill;
 
         // V.08 增强 payload：投射物携带链的控制/状态，命中时施加
         private bool _hasEnh;
@@ -51,6 +55,17 @@ namespace XianTu
         {
             _chainRemaining = Mathf.Max(0, count);
             _chainMask = enemyMask;
+        }
+
+        /// <summary>
+        /// 记录产生本投射物的主动技能槽位，使延迟命中仍可归因到原动作。
+        /// 非技能投射物保持-1和null。
+        /// </summary>
+        public void SetSkillSource(int slotIndex, SkillData skill)
+        {
+            _sourceSkillSlot =
+                slotIndex >= 0 && slotIndex <= 2 ? slotIndex : -1;
+            _sourceSkill = _sourceSkillSlot >= 0 ? skill : null;
         }
 
         /// <summary>形态改造·火域：投射物命中/寿命结束时在落点生成小型持续区域。在 Initialize 之后调用。</summary>
@@ -84,6 +99,8 @@ namespace XianTu
             _lifeTimer = lifetime;
             _elementTag = elementTag;
             _ownerPlayer = owner;
+            _sourceSkillSlot = -1;
+            _sourceSkill = null;
             _initialized = true;
             _hasEnh = false; // 对象池复用：清除上一次的增强 payload，等待 SetEnhancement 重新设置
             _chainRemaining = 0; // 对象池复用：清除上一次的链锁状态
@@ -110,14 +127,23 @@ namespace XianTu
         {
             if (!_initialized) return;
 
-            // 不伤害玩家
-            if (other.CompareTag("Player")) return;
+            // 忽略释放者自身及其子碰撞体。
+            if (_ownerPlayer != null &&
+                other.GetComponentInParent<PlayerController>() ==
+                _ownerPlayer)
+            {
+                return;
+            }
 
             // 忽略其他投射物
             if (other.GetComponent<Projectile>() != null) return;
             if (other.GetComponent<EnemyProjectile>() != null) return;
 
-            var damageable = other.GetComponent<IDamageable>();
+            var damageable = other.GetComponentInParent<IDamageable>();
+            // 教学区、遭遇区等逻辑Trigger不应吞掉飞行中的技能。
+            if (damageable == null && other.isTrigger)
+                return;
+
             if (damageable != null)
             {
                 float finalDmg = _damage;
@@ -128,16 +154,22 @@ namespace XianTu
                 // 灼烧效果
                 if (_burnDPS > 0)
                 {
-                    var burn = other.GetComponent<BurnEffect>();
+                    var burn = other.GetComponentInParent<BurnEffect>();
                     if (burn == null)
-                        burn = other.gameObject.AddComponent<BurnEffect>();
+                        burn = damageable is Component component
+                            ? component.gameObject.AddComponent<BurnEffect>()
+                            : other.gameObject.AddComponent<BurnEffect>();
                     burn.Apply(_burnDPS, 3f); // 灼烧3秒
                 }
 
                 // 元素命中表现（cube 颜色 + 灼烧 / 冻结 / 雷击）
                 if (_elementTag != ElementTag.None && _ownerPlayer != null)
                 {
-                    var list = new System.Collections.Generic.List<Collider> { other };
+                    var list =
+                        new System.Collections.Generic.List<Collider>
+                        {
+                            other
+                        };
                     SkillModifierApplier.ApplyElementImpact(_elementTag, transform.position, list, _ownerPlayer);
                 }
 
@@ -151,8 +183,8 @@ namespace XianTu
                 // v0.3.3 融合层：投射物命中也算技能命中（御剑术等）
                 GameEvents.Publish(new GameEvents.SkillHitConnected
                 {
-                    SlotIndex = -1,  // 投射物来源槽位未跟踪，置 -1
-                    Skill = null,
+                    SlotIndex = _sourceSkillSlot,
+                    Skill = _sourceSkill,
                     HitPoint = transform.position,
                     Target = other.gameObject
                 });

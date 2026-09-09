@@ -27,14 +27,16 @@ namespace XianTu
                 PlayerController.Instance.transform;
             Vector3 offset = player.position - _center;
             offset.y = 0f;
-            if (offset.sqrMagnitude <= _radius * _radius)
+            float distance = offset.magnitude;
+            UpdateRingVisual(distance);
+            if (distance <= _radius)
                 return;
 
             Vector3 direction = offset.sqrMagnitude > 0.01f
                 ? offset.normalized
                 : Vector3.forward;
             Vector3 safePosition =
-                _center + direction * (_radius - 1.25f);
+                _center + direction * (_radius - 0.35f);
             safePosition.y = player.position.y;
             CharacterController controller =
                 player.GetComponent<CharacterController>();
@@ -87,14 +89,14 @@ namespace XianTu
             _ring = gameObject.AddComponent<LineRenderer>();
             _ring.loop = true;
             _ring.positionCount = RingSegments;
-            _ring.startWidth = 0.055f;
-            _ring.endWidth = 0.055f;
+            _ring.startWidth = 0.045f;
+            _ring.endWidth = 0.045f;
             _ring.material =
                 new Material(Shader.Find("Sprites/Default"));
             _ring.startColor =
-                new Color(0.45f, 0.82f, 1f, 0.55f);
+                new Color(0.45f, 0.82f, 1f, 0.04f);
             _ring.endColor =
-                new Color(0.45f, 0.82f, 1f, 0.55f);
+                new Color(0.45f, 0.82f, 1f, 0.04f);
             for (int i = 0; i < RingSegments; i++)
             {
                 float angle =
@@ -107,6 +109,47 @@ namespace XianTu
                         0.08f,
                         Mathf.Sin(angle) * _radius));
             }
+        }
+
+        private void UpdateRingVisual(float playerDistance)
+        {
+            if (_ring == null)
+                return;
+            float pulse =
+                (Mathf.Sin(Time.time * 4f) + 1f) * 0.5f;
+            float alpha = EvaluateRingAlpha(
+                playerDistance,
+                _radius,
+                pulse);
+            Color color = new(0.45f, 0.82f, 1f, alpha);
+            _ring.startColor = color;
+            _ring.endColor = color;
+        }
+
+        public static float EvaluateRingAlpha(
+            float playerDistance,
+            float radius,
+            float pulse01)
+        {
+            if (radius <= 0f)
+                return 0f;
+            float normalized =
+                Mathf.Max(0f, playerDistance) / radius;
+            float proximity = Mathf.InverseLerp(
+                0.68f,
+                1f,
+                normalized);
+            float alpha = Mathf.SmoothStep(
+                0.04f,
+                0.58f,
+                proximity);
+            if (normalized > 1f)
+                alpha = 0.76f;
+            float pulse = Mathf.Lerp(
+                0.9f,
+                1.08f,
+                Mathf.Clamp01(pulse01));
+            return Mathf.Clamp01(alpha * pulse);
         }
     }
 }

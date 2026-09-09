@@ -7,7 +7,10 @@ namespace XianTu
     /// Demo1: 简单追踪玩家 + 近战攻击
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public class EnemyBase : MonoBehaviour, IDamageable
+    public class EnemyBase :
+        MonoBehaviour,
+        IDamageable,
+        ICombatImpulseReceiver
     {
         [Header("属性")]
         [SerializeField] private CombatStats stats = new()
@@ -107,6 +110,34 @@ namespace XianTu
                 Damage = 0,
                 SpecialTag = "冻结"
             });
+        }
+
+        public bool TryApplyCombatImpulse(
+            Vector3 origin,
+            float distance,
+            bool interrupt)
+        {
+            if (!stats.IsAlive || distance <= 0f || _cc == null)
+                return false;
+
+            Vector3 direction = transform.position - origin;
+            direction.y = 0f;
+            direction = direction.sqrMagnitude > 0.01f
+                ? direction.normalized
+                : -transform.forward;
+            _cc.Move(direction * distance);
+            _navMotor?.ResyncAfterForcedMove();
+
+            if (!interrupt)
+                return true;
+
+            _stunTimer = Mathf.Max(_stunTimer, 0.45f);
+            _isPreparing = false;
+            _isDodging = false;
+            _aiState = AIState.Chase;
+            DestroyAttackWarning();
+            ReleaseAttackToken();
+            return true;
         }
 
         private void Awake()

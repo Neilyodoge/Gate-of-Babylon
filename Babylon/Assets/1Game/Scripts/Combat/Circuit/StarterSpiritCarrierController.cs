@@ -161,6 +161,7 @@ namespace XianTu
                 _spirit.Identity.SpeciesConfigId,
                 initialCarrier);
             RefreshTalentTuning();
+            EnsureStarterTechnique();
             PublishAttachmentChanged();
             return true;
         }
@@ -638,6 +639,17 @@ namespace XianTu
                         ? MetricFor(carrier)
                         : metricOverride,
                     carrier);
+                if (carrier == CarrierSlot.Mobility &&
+                    _spirit.Identity.SpeciesConfigId ==
+                    FirstSpiritCircuitContent.BounceGelSpecies)
+                {
+                    target.GetComponent<ICombatImpulseReceiver>()
+                        ?.TryApplyCombatImpulse(
+                            position,
+                            1.15f +
+                            _talentTuning.RadiusBonus * 0.1f,
+                            interrupt: true);
+                }
             }
         }
 

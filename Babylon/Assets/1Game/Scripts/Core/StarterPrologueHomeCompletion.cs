@@ -2,7 +2,10 @@ using UnityEngine;
 
 namespace XianTu
 {
-    /// <summary>玩家走到回家路径终点后，正式提交序章完成状态。</summary>
+    /// <summary>
+    /// Legacy回家终点兼容触发器。
+    /// V5不在序章场景提交完成，只从这里转入独立家园场景。
+    /// </summary>
     [RequireComponent(typeof(BoxCollider))]
     public sealed class StarterPrologueHomeCompletion : MonoBehaviour
     {
@@ -24,21 +27,7 @@ namespace XianTu
                 return;
             }
 
-            StarterPrologueAdvanceResult result =
-                StarterPrologueProgression.RecordPrologueCompleted(
-                    SaveSystem.Instance.Data);
-            if (result != StarterPrologueAdvanceResult.Success)
-                return;
-
-            SaveSystem.Instance.Save();
-            GameEvents.Publish(
-                new GameEvents.StarterPrologueObjectiveChanged
-                {
-                    Text = "序章完成 · 已回到家园",
-                    HasWorldPosition = false
-                });
-            Debug.Log(
-                "<color=#F2B45E>[新手序章] 已回到家园，序章正式完成。</color>");
+            StarterPrologueHomeTransition.Begin();
         }
 
         public static void EnsureAt(Transform marker)

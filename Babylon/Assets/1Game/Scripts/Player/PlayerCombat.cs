@@ -42,6 +42,8 @@ namespace XianTu
         private ModuleSlotManager _moduleSlots;
         private SkillCarrierAction _skillCarrierAction;
         private SkillEffectExecutor _skillEffectExecutor;
+        private int _executingSkillSlot = -1;
+        private SkillData _executingSkill;
         private ImmediateSkillEffectRuntime _immediateSkillEffects;
         private WorldSkillEffectRuntime _worldSkillEffects;
         private DashSkillEffectRuntime _dashSkillEffects;
@@ -1309,12 +1311,27 @@ namespace XianTu
         /// <summary>术法载体门面；开关关闭时回退Legacy分发，启用时进入独立效果执行器。</summary>
         private bool UseSkill(SkillData skill, int slotIndex, int chargeLevel = 1)
         {
-            if (!FeatureFlags.EnableCarrierRuntime)
-                return UseSkillLegacy(skill, slotIndex, chargeLevel);
+            _executingSkillSlot = slotIndex;
+            _executingSkill = skill;
+            try
+            {
+                if (!FeatureFlags.EnableCarrierRuntime)
+                    return UseSkillLegacy(skill, slotIndex, chargeLevel);
 
-            _skillEffectExecutor ??= new SkillEffectExecutor(this);
-            float enhancementMultiplier = _enhActive ? _enhDamageMul : 1f;
-            return _skillEffectExecutor.Execute(skill, slotIndex, chargeLevel, enhancementMultiplier);
+                _skillEffectExecutor ??= new SkillEffectExecutor(this);
+                float enhancementMultiplier =
+                    _enhActive ? _enhDamageMul : 1f;
+                return _skillEffectExecutor.Execute(
+                    skill,
+                    slotIndex,
+                    chargeLevel,
+                    enhancementMultiplier);
+            }
+            finally
+            {
+                _executingSkillSlot = -1;
+                _executingSkill = null;
+            }
         }
 
         private bool UseSkillLegacy(SkillData skill, int slotIndex, int chargeLevel)
@@ -2236,7 +2253,11 @@ namespace XianTu
 
         private void CastProjectileSkillLegacy(SkillData skill, float damageMul)
         {
-            Vector3 spawnPos = attackOrigin != null ? attackOrigin.position : transform.position + Vector3.up * 0.8f;
+            Vector3 spawnPos = attackOrigin != null
+                ? attackOrigin.position
+                : transform.position +
+                  Vector3.up * 0.8f +
+                  _player.AimDirection * 0.75f;
             Vector3 dir = _player.AimDirection;
             // 目标改造·最远：增强让核心投射技自动改朝范围内最远敌（覆盖鼠标瞄准；环绕时不适用）
             if (_enhActive && _enhTargetFarthest && !_enhSurround
@@ -2300,6 +2321,7 @@ namespace XianTu
                     if (projectile != null)
                     {
                         projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0, EnhElem(skill), _player, _player.Stats.armorPenPercent);
+                        AssignProjectileSkillSource(projectile);
                         if (_enhActive)
                         {
                             projectile.SetEnhancement(_enhCfg);
@@ -2309,10 +2331,12 @@ namespace XianTu
                         }
                     }
                 }
-                else if (showDebugVisuals)
+                else if (showDebugVisuals ||
+                         IsStarterSpiritBolt(skill))
                 {
-                    // 没有Prefab时创建Debug投射物（带元素颜色提示）
                     var dbgProj = CreateDebugProjectile(pos, projDir, skill.projectileSpeed, damage, skill.vfxDuration, EnhElem(skill));
+                    NameStarterSpiritBolt(dbgProj, skill);
+                    AssignProjectileSkillSource(dbgProj);
                     if (_enhActive && dbgProj != null)
                     {
                         dbgProj.SetEnhancement(_enhCfg);
@@ -2327,7 +2351,9 @@ namespace XianTu
         Vector3 IProjectileSkillEffectHost.ProjectileOrigin
             => attackOrigin != null
                 ? attackOrigin.position
-                : transform.position + Vector3.up * 0.8f;
+                : transform.position +
+                  Vector3.up * 0.8f +
+                  _player.AimDirection * 0.75f;
 
         Vector3 IProjectileSkillEffectHost.AimDirection => _player.AimDirection;
         bool IProjectileSkillEffectHost.EnhancementActive => _enhActive;
@@ -2393,8 +2419,10 @@ namespace XianTu
                     element,
                     _player,
                     _player.Stats.armorPenPercent);
+                AssignProjectileSkillSource(projectile);
             }
-            else if (showDebugVisuals)
+            else if (showDebugVisuals ||
+                     IsStarterSpiritBolt(skill))
             {
                 projectile = CreateDebugProjectile(
                     position,
@@ -2403,6 +2431,8 @@ namespace XianTu
                     damage,
                     skill.vfxDuration,
                     element);
+                NameStarterSpiritBolt(projectile, skill);
+                AssignProjectileSkillSource(projectile);
             }
 
             if (!applyEnhancement || projectile == null)
@@ -2414,6 +2444,31 @@ namespace XianTu
             if (impactZone)
                 ApplyImpactZone(projectile, damage, element);
             _enhWorldDelegated = true;
+        }
+
+        private void AssignProjectileSkillSource(Projectile projectile)
+        {
+            if (projectile == null)
+                return;
+            projectile.SetSkillSource(
+                _executingSkillSlot,
+                _executingSkill);
+        }
+
+        private static bool IsStarterSpiritBolt(SkillData skill)
+        {
+            return skill != null &&
+                   skill == Resources.Load<SkillData>(
+                       StarterSpiritCarrierController
+                           .StarterTechniqueResourcePath);
+        }
+
+        private static void NameStarterSpiritBolt(
+            Projectile projectile,
+            SkillData skill)
+        {
+            if (projectile != null && IsStarterSpiritBolt(skill))
+                projectile.gameObject.name = "StarterSpiritBoltProjectile";
         }
 
         /// <summary>形态改造·火域：为投射物挂上命中落点小型持续区域（程序化，复用 ActiveSkillZone）。</summary>

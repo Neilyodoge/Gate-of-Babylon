@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -1797,6 +1798,9 @@ namespace XianTu.Editor.Tests
             const string prefabPath =
                 "Assets/1Game/Prefabs/Tutorial/" +
                 "StarterPrologueWhitebox.prefab";
+            const string activeLayoutPath =
+                "Assets/1Game/Prefabs/Tutorial/" +
+                "StarterPrologueLayoutV3.prefab";
             const string scenePath =
                 "Assets/1Game/Scenes/StarterPrologue.unity";
             GameObject prefab =
@@ -1869,7 +1873,7 @@ namespace XianTu.Editor.Tests
                 Is.Not.Null);
             Assert.That(
                 AssetDatabase.GetDependencies(scenePath, true),
-                Does.Contain(prefabPath));
+                Does.Contain(activeLayoutPath));
         }
 
         [Test]
@@ -1985,6 +1989,19 @@ namespace XianTu.Editor.Tests
                 runtime.CurrentWave,
                 Is.EqualTo(
                     StarterPrologueTrainingWave.Completed));
+        }
+
+        [Test]
+        public void StarterPrologueCombatTargets_AcceptBounceGelImpulse()
+        {
+            Assert.That(
+                typeof(ICombatImpulseReceiver).IsAssignableFrom(
+                    typeof(EnemyBase)),
+                Is.True);
+            Assert.That(
+                typeof(ICombatImpulseReceiver).IsAssignableFrom(
+                    typeof(StarterProloguePossessedHost)),
+                Is.True);
         }
 
         [Test]
@@ -2134,6 +2151,169 @@ namespace XianTu.Editor.Tests
                     CarrierSlot.TechniqueE),
                 Is.EqualTo(
                     StarterPrologueAdvanceResult.InvalidCarrier));
+        }
+
+        [Test]
+        public void StarterPrologueHomeTransition_CommitsOnlyAfterRescue()
+        {
+            var save = new SaveDataV1();
+            Assert.That(
+                StarterPrologueHomeTransition.CanTransition(
+                    StarterPrologueProgression.GetStep(save)),
+                Is.False);
+            Assert.That(
+                ProjectRHomeSceneBootstrap.TryCommitArrival(save),
+                Is.EqualTo(
+                    StarterPrologueAdvanceResult
+                        .PrerequisiteMissing));
+
+            StarterSpiritChoice.TryChoose(
+                save,
+                FirstSpiritCircuitContent.EchoOwlSpecies,
+                out _);
+            StarterPrologueProgression.RecordAttachment(
+                save,
+                CarrierSlot.TechniqueQ);
+            StarterPrologueProgression.RecordRescueCompleted(
+                save);
+
+            Assert.That(
+                StarterPrologueHomeTransition.CanTransition(
+                    StarterPrologueProgression.GetStep(save)),
+                Is.True);
+            Assert.That(
+                ProjectRHomeSceneBootstrap.TryCommitArrival(save),
+                Is.EqualTo(
+                    StarterPrologueAdvanceResult.Success));
+            Assert.That(
+                StarterPrologueProgression.GetStep(save),
+                Is.EqualTo(StarterPrologueStep.Completed));
+            Assert.That(
+                ProjectRHomeSceneBootstrap.TryCommitArrival(save),
+                Is.EqualTo(
+                    StarterPrologueAdvanceResult.NoChange));
+            Assert.That(
+                StarterPrologueHomeTransition.HomeSceneName,
+                Is.EqualTo("ProjectRHome"));
+        }
+
+        [Test]
+        public void StarterPrologueTiming_UsesInclusiveSixToSevenPointFiveMinuteTarget()
+        {
+            Assert.That(
+                StarterPrologueTimingTracker.IsTargetDuration(359f),
+                Is.False);
+            Assert.That(
+                StarterPrologueTimingTracker.IsTargetDuration(360f),
+                Is.True);
+            Assert.That(
+                StarterPrologueTimingTracker.IsTargetDuration(450f),
+                Is.True);
+            Assert.That(
+                StarterPrologueTimingTracker.IsTargetDuration(451f),
+                Is.False);
+            Assert.That(
+                StarterPrologueTimingTracker.Format(405f),
+                Is.EqualTo("06:45"));
+        }
+
+        [Test]
+        public void StarterPrologueOpening_UsesV5NonBlockingLines()
+        {
+            Assert.That(
+                StarterPrologueOpeningBeat.ShouldPlay(
+                    StarterPrologueStep.NotStarted),
+                Is.True);
+            Assert.That(
+                StarterPrologueOpeningBeat.ShouldPlay(
+                    StarterPrologueStep.StarterChosen),
+                Is.False);
+            Assert.That(
+                StarterPrologueOpeningBeat.ProtagonistLine,
+                Is.EqualTo("照料员怎么还没来……"));
+            Assert.That(
+                StarterPrologueOpeningBeat.MovementObjective,
+                Is.EqualTo("沿林间小路去看看"));
+            Assert.That(
+                StarterPrologueChoiceTrigger.CaretakerWarning,
+                Is.EqualTo(
+                    "先别过来！它们被失控的能量惊到了！"));
+        }
+
+        [Test]
+        public void StarterPrologueObjective_LabelsDistinctPhases()
+        {
+            Assert.That(
+                StarterPrologueObjectiveHUD.PhaseLabelFor(
+                    StarterPrologueStep.NotStarted,
+                    "前往救援空地"),
+                Is.EqualTo("序章 · 遇险"));
+            Assert.That(
+                StarterPrologueObjectiveHUD.PhaseLabelFor(
+                    StarterPrologueStep.StarterChosen,
+                    "将灵宠附着到一个动作"),
+                Is.EqualTo("初契 · 选择附着"));
+            Assert.That(
+                StarterPrologueObjectiveHUD.PhaseLabelFor(
+                    StarterPrologueStep.AttachmentChosen,
+                    "平息躁动灵宠"),
+                Is.EqualTo("救援 · 躁动灵宠"));
+            Assert.That(
+                StarterPrologueObjectiveHUD.PhaseLabelFor(
+                    StarterPrologueStep.AttachmentChosen,
+                    "稳定失控宿主"),
+                Is.EqualTo("救援 · 失控宿主"));
+            Assert.That(
+                StarterPrologueObjectiveHUD.PhaseLabelFor(
+                    StarterPrologueStep.RescueCompleted,
+                    "准备返回家园"),
+                Is.EqualTo("转场 · 家园"));
+        }
+
+        [Test]
+        public void StarterProloguePathGuide_BuildsThreeOrderedPoints()
+        {
+            Vector3[] points =
+                StarterProloguePathGuide.BuildGuidePoints(
+                    Vector3.zero,
+                    Vector3.forward * 10f);
+
+            Assert.That(points.Length, Is.EqualTo(3));
+            Assert.That(points[0].z, Is.LessThan(points[1].z));
+            Assert.That(points[1].z, Is.LessThan(points[2].z));
+            Assert.That(points[0].z, Is.GreaterThan(0f));
+            Assert.That(points[2].z, Is.LessThan(10f));
+            Assert.That(points[0].y, Is.GreaterThan(0.5f));
+        }
+
+        [Test]
+        public void StarterPrologueBoundary_RevealsOnlyNearItsEdge()
+        {
+            float center =
+                StarterPrologueCombatBoundary.EvaluateRingAlpha(
+                    0f,
+                    10f,
+                    0.5f);
+            float nearEdge =
+                StarterPrologueCombatBoundary.EvaluateRingAlpha(
+                    9.5f,
+                    10f,
+                    0.5f);
+            float outside =
+                StarterPrologueCombatBoundary.EvaluateRingAlpha(
+                    10.1f,
+                    10f,
+                    0.5f);
+
+            Assert.That(center, Is.LessThan(0.1f));
+            Assert.That(nearEdge, Is.GreaterThan(center));
+            Assert.That(outside, Is.GreaterThan(nearEdge));
+            Assert.That(
+                StarterPrologueCombatBoundary.EvaluateRingAlpha(
+                    1f,
+                    0f,
+                    0.5f),
+                Is.EqualTo(0f));
         }
 
         [Test]
@@ -3018,15 +3198,24 @@ namespace XianTu.Editor.Tests
             save.spiritRoster.Add(SpiritSaveMapper.ToSave(spark));
             save.activeSpiritInstanceGuids.Add(
                 spark.Identity.InstanceId.ToString("N"));
+            save.starterTechniqueUnlocked = true;
             var player = new GameObject("SingleSpiritTalentPlayer");
             try
             {
+                PlayerCombat combat =
+                    player.AddComponent<PlayerCombat>();
                 SpiritTalentRunController talents =
                     player.AddComponent<SpiritTalentRunController>();
                 Assert.That(talents.TryConfigure(save), Is.True);
                 StarterSpiritCarrierController carrier =
                     player.AddComponent<StarterSpiritCarrierController>();
                 Assert.That(carrier.TryConfigure(save), Is.True);
+                Assert.That(
+                    combat.GetSkillInSlot(0),
+                    Is.EqualTo(
+                        Resources.Load<SkillData>(
+                            StarterSpiritCarrierController
+                                .StarterTechniqueResourcePath)));
 
                 talents.GrantSharedExperience(2, "test");
                 Assert.That(
@@ -3151,6 +3340,84 @@ namespace XianTu.Editor.Tests
                 Assert.That(
                     runtime.RegisterMobilityFinished().Activated,
                     Is.True);
+            }
+        }
+
+        [Test]
+        public void Projectile_PreservesAndResetsSkillSource()
+        {
+            var go = new GameObject("ProjectileSkillSourceTest");
+            SkillData skill =
+                ScriptableObject.CreateInstance<SkillData>();
+            try
+            {
+                Projectile projectile = go.AddComponent<Projectile>();
+                projectile.Initialize(
+                    1f,
+                    Vector3.forward,
+                    1f,
+                    0,
+                    0f);
+                projectile.SetSkillSource(0, skill);
+                Assert.That(projectile.SourceSkillSlot, Is.Zero);
+                Assert.That(projectile.SourceSkill, Is.SameAs(skill));
+
+                projectile.Initialize(
+                    1f,
+                    Vector3.forward,
+                    1f,
+                    0,
+                    0f);
+                Assert.That(projectile.SourceSkillSlot, Is.EqualTo(-1));
+                Assert.That(projectile.SourceSkill, Is.Null);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+                UnityEngine.Object.DestroyImmediate(skill);
+            }
+        }
+
+        [Test]
+        public void Projectile_IgnoresNonDamageableLogicTriggers()
+        {
+            var projectileObject =
+                new GameObject("ProjectileTriggerTest");
+            var triggerObject =
+                new GameObject("TutorialLogicTrigger");
+            try
+            {
+                Projectile projectile =
+                    projectileObject.AddComponent<Projectile>();
+                projectile.Initialize(
+                    1f,
+                    Vector3.forward,
+                    1f,
+                    0,
+                    0f);
+                BoxCollider trigger =
+                    triggerObject.AddComponent<BoxCollider>();
+                trigger.isTrigger = true;
+
+                typeof(Projectile)
+                    .GetMethod(
+                        "OnTriggerEnter",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic)
+                    ?.Invoke(projectile, new object[] { trigger });
+
+                bool initialized = (bool)typeof(Projectile)
+                    .GetField(
+                        "_initialized",
+                        BindingFlags.Instance |
+                        BindingFlags.NonPublic)
+                    ?.GetValue(projectile);
+                Assert.That(initialized, Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(projectileObject);
+                UnityEngine.Object.DestroyImmediate(triggerObject);
             }
         }
 
@@ -5312,10 +5579,17 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterPrologueScene_LoadsReusableWhiteboxPrefab, ref passed);
             Run(fixture, fixture.ProjectRUITheme_LoadsGeneratedCoreArt, ref passed);
             Run(fixture, fixture.StarterPrologueTraining_RunsAgitatedThenPossessedWaves, ref passed);
+            Run(fixture, fixture.StarterPrologueCombatTargets_AcceptBounceGelImpulse, ref passed);
             Run(fixture, fixture.StarterPrologueResume_UsesCheckpointMarkers, ref passed);
             Run(fixture, fixture.StarterPrologue_RequiresExactlyOneFirstAttachment, ref passed);
             Run(fixture, fixture.StarterPrologue_AdvancesMonotonicallyAndRestoresCarrier, ref passed);
             Run(fixture, fixture.StarterPrologue_RejectsSkippedOrInvalidProgress, ref passed);
+            Run(fixture, fixture.StarterPrologueHomeTransition_CommitsOnlyAfterRescue, ref passed);
+            Run(fixture, fixture.StarterPrologueTiming_UsesInclusiveSixToSevenPointFiveMinuteTarget, ref passed);
+            Run(fixture, fixture.StarterPrologueOpening_UsesV5NonBlockingLines, ref passed);
+            Run(fixture, fixture.StarterPrologueObjective_LabelsDistinctPhases, ref passed);
+            Run(fixture, fixture.StarterProloguePathGuide_BuildsThreeOrderedPoints, ref passed);
+            Run(fixture, fixture.StarterPrologueBoundary_RevealsOnlyNearItsEdge, ref passed);
             Run(fixture, fixture.SpiritAttachmentLayout_RecognizesThreePatterns, ref passed);
             Run(fixture, fixture.SpiritAttachmentLayout_MovesWithoutDroppingStateAndCapsRoster, ref passed);
             Run(fixture, fixture.SpiritLoadoutRuntime_AddsThreeAndRejectsFourth, ref passed);
@@ -5345,6 +5619,8 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterSpiritCarrierController_AppliesAndResetsRunTalent, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_BlocksCombatAndLockedTechnique, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_AllThreeSpeciesUseThreeCarriers, ref passed);
+            Run(fixture, fixture.Projectile_PreservesAndResetsSkillSource, ref passed);
+            Run(fixture, fixture.Projectile_IgnoresNonDamageableLogicTriggers, ref passed);
             Run(fixture, fixture.StarterSpiritCarrierProvider_RestoresOnlySingleSpark, ref passed);
             Run(fixture, fixture.FirstPetCircuitController_AcceptsOnlyResolvedCarrierHits, ref passed);
             Run(fixture, fixture.FirstPetCircuitController_StagesOneOneOneByPlayerAction, ref passed);
@@ -5420,7 +5696,8 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.EvadeCommandRuntime_BuffersWhenChargesAreEmpty, ref passed);
             Run(fixture, fixture.EvadeCommandRuntime_RechargesSequentially, ref passed);
 
-            Debug.Log($"<color=green>[ProjectR] {passed}/145 载体与回路契约测试通过。</color>");
+            Debug.Log(
+                $"<color=green>[ProjectR] {passed}项载体与回路契约测试通过。</color>");
         }
 
         private static void Run(ProjectRP0ContractTests fixture, Action test, ref int passed)

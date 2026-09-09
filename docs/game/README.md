@@ -14,6 +14,7 @@ ProjectR 已全面取代旧《仙途秘境／秘境探索》产品方向。旧�
 | 做什么、为什么做、规则是什么 | [ProjectR GDD](design/GDD_秘境探索.md) |
 | 各系统怎样工作 | [系统规格](design/systems/) |
 | 第一次进入游戏怎样教学 | [新手关：初契序章](design/levels/新手关_初契序章.md) |
+| 场景、角色和灵宠遵循什么美术方向 | [ProjectR美术风格基准](design/art/ProjectR_美术风格基准.md) |
 | UI采用什么布局与视觉风格 | [战斗HUD视觉基准](design/ui/战斗HUD视觉基准.md) |
 | 技术边界怎样划分 | [技术架构与ADR](architecture/README.md) |
 | 程序模块怎样拆、改动影响怎样查 | [程序模块规划](architecture/程序模块规划.md)与[变更影响检查](architecture/变更影响检查.md) |
@@ -50,6 +51,7 @@ docs/game/CHANGELOG.md + design/开发待办.md
 - [秘境区域与灾相](design/systems/蜂巢秘境与灾相.md)
 - [家园与局外成长](design/systems/洞府与局外成长.md)
 - [战斗HUD视觉基准](design/ui/战斗HUD视觉基准.md)
+- [ProjectR美术风格基准](design/art/ProjectR_美术风格基准.md)
 - [新手关：初契序章](design/levels/新手关_初契序章.md)
 
 ## 当前阶段
