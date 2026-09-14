@@ -1793,14 +1793,14 @@ namespace XianTu.Editor.Tests
         }
 
         [Test]
-        public void StarterPrologueScene_LoadsReusableWhiteboxPrefab()
+        public void StarterPrologueScene_UsesV5GuideAndKeepsGameplayContract()
         {
             const string prefabPath =
                 "Assets/1Game/Prefabs/Tutorial/" +
                 "StarterPrologueWhitebox.prefab";
             const string activeLayoutPath =
                 "Assets/1Game/Prefabs/Tutorial/" +
-                "StarterPrologueLayoutV3.prefab";
+                "StarterPrologueLayoutV5_BlockoutGuide.prefab";
             const string scenePath =
                 "Assets/1Game/Scenes/StarterPrologue.unity";
             GameObject prefab =
@@ -5576,7 +5576,7 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterSpiritChoicePresentation_ExposesOnlyThreeProfiles, ref passed);
             Run(fixture, fixture.StarterSpiritChoiceSession_RequiresExplicitConfirmation, ref passed);
             Run(fixture, fixture.StarterSpiritChoiceUI_RequiresOneEntityPerProfile, ref passed);
-            Run(fixture, fixture.StarterPrologueScene_LoadsReusableWhiteboxPrefab, ref passed);
+            Run(fixture, fixture.StarterPrologueScene_UsesV5GuideAndKeepsGameplayContract, ref passed);
             Run(fixture, fixture.ProjectRUITheme_LoadsGeneratedCoreArt, ref passed);
             Run(fixture, fixture.StarterPrologueTraining_RunsAgitatedThenPossessedWaves, ref passed);
             Run(fixture, fixture.StarterPrologueCombatTargets_AcceptBounceGelImpulse, ref passed);

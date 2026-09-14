@@ -2,6 +2,50 @@
 
 > 仅记录 2026-09-02 ProjectR 产品重置后的有效变更，最新在上。旧产品历史通过版本控制追溯。
 
+## P3.55 序章战斗内场陈设清理（2026-09-14）
+
+- 清空合并空地北半区约26×12米战斗内场的碰撞陈设：删除10棵树（`Fir_1`／`Fir_2`／`Fir_3`／`Fir_Dead_1`／`Fir_Dead_2`／`Fir_Tall_2`，最高13.6米）、15块高过1.5米的岩石、1根`Pillar`和1根`Log_1`，共26件。
+- 保留3块低矮岩石作掩体与视觉锚点：西侧`Stone_2 (4)`(-4.1, -6.2)、中央`Stone_4 (3)`(-0.7, -9.5)、东侧`Stone_3`(14.4, -7.7)，高度1.2～1.4米，不遮挡俯视镜头下的角色轮廓。
+- 清理视觉噪点：删除内场7丛灌木和21株高过0.8米的`Grass_1`；保留37株矮草与三叶草、野花、碎石共83件地面陈设，最高1.0米。
+- 陈设改动后重烘`StarterPrologue_NavMesh.asset`，顶点数由868降至573（障碍减少后可行走面更连贯）；战斗入口、两处躁动灵宠出生、失控宿主出生、选择区与家园出口均可采样到NavMesh，`躁动灵宠2→战斗入口`寻路为`PathComplete`。
+- PlayMode复验两只躁动灵宠生成正常且`isOnNavMesh=true`，运行期0报错。
+
+## P3.54 序章救援与战斗空地合并（2026-09-14）
+
+- 按策划在`StarterPrologueLayoutV5_BlockoutGuide`上的手改收口布局：独立战斗空地`AREA_E`、`LABEL_E`与自动越坡示意已删除，救援空地放大到约29×22米并同时承担三选一和同场两阶段战斗；场景实例的修改已Apply回Guide Prefab，Prefab与场景重新成为同一基准。
+- 重排战斗节点到合并空地北半区：战斗触发器`(3.76, -12.5)`、躁动灵宠出生`(-7, -8)`与`(8, -8)`、失控宿主出生`(8, -4.5)`、首次附着门`(3.76, -16.3)`、失控区续玩点`(-3, -15.8)`、家园转场`(22, -8)`；全部落点经射线验证为y≈5.0平坦地面，不再像旧坐标那样压在y=8～15的岩石高地下。
+- 通往战斗区的通道改为家园出口，并按岩壁实际位置从22米缩短到约9.6米；战斗触发器体积由18×3×8改为30×3×3，覆盖空地全宽且与照料员保持距离，避免选择阶段误触发后无法重入。
+- 序章NavMesh改为编辑器预烘`Assets/1Game/Scenes/StarterPrologue/StarterPrologue_NavMesh.asset`（868顶点，覆盖37×25米合并空地与家园出口），`StarterPrologueSceneBootstrap`只在预烘数据缺失时退回运行时构建；`DungeonNavMeshRuntime`新增按世界体积收集的重载，Edgar地牢仍走原有的子物体收集。
+- 修复出包隐患：旧的运行时烘焙会对HIGHLANDS岩石、树木和圆木的MeshCollider报“does not allow read access”，在编辑器可用但打包后丢失障碍；改为预烘后运行期0报错。
+- `FirstAttachmentGate`去掉墙体：合并后没有通道可封，7米白盒墙在29米宽空地上形同虚设，改为关闭MeshRenderer与BoxCollider，只保留脚本发布“赶往失控区救人”目标点，准入仍由`BeginEncounter`的存档进度判定保证。
+- PlayMode验证两只躁动灵宠生成于新点位且`isOnNavMesh=true`，战斗入口、选择区与家园出口均可采样到NavMesh；Unity编译0错误，契约测试594通过，4项失败均为既有且与本次无关（3项URP`ShaderStrippingReportTest`换行差异、1项`SpiritTalentTreeVisuals`Sprite销毁）。
+
+## P3.53 序章出生点与战斗导航修正（2026-09-14）
+
+- 将`StarterPrologue`玩家出生标记从偏离V5引导约22米的位置重新对齐到`MARKER_PlayerSpawn`世界坐标`(1.11, 6.21, -51.85)`。
+- 修正V5正式环境接入后训练战运行时NavMesh为空的问题：序章只为引导定义的战斗空地生成临时导航底板，不扫描HIGHLANDS不可读美术网格；首次附着后进入战斗区可正常生成2只躁动灵宠，后续失控宿主出生点也已覆盖。
+- PlayMode验证两只躁动灵宠均生成且`NavMeshAgent.isOnNavMesh=true`，战斗入口、两处近战出生点与失控宿主出生点均可采样到NavMesh；Unity编译错误为0。
+
+## P3.52 初契三宠与序章Boss原型模型接入（2026-09-14）
+
+- 在`Assets/1Game/ArtRes/Package/Character/palu/`导入Kitsunebi、WizardOwl、SheepBall与Ronin四套FBX蒙皮模型及贴图，统一配置Generic Avatar、关闭动画导入、关闭相机／灯光导入，并建立ProjectR URP Lit材质和独立视觉Prefab。
+- `StarterPrologue`三只初契场景实体保留原选择组件与SphereCollider，关闭白盒MeshRenderer并分别挂接火花狸、响响鸮与弹弹胶模型；按原展示位缩放、落地并转向序章来路。
+- `MonsterPrefabs.Boss敌人Prefab`改接Ronin视觉Prefab；Prefab内部缩放与现有Boss生成时的2倍根缩放配合，使最终模型约3.6米高，继续复用现有`EnemyBoss`、CharacterController和战斗逻辑。
+- 四套源模型只有骨架与蒙皮，不含AnimationClip；当前Animator Avatar有效，但Idle、移动、攻击、受击与死亡动画仍待制作或重定向。Unity编译错误、场景缺失引用和资产缺失引用均为0。
+
+## P3.51 初契序章V5正式场景集成（2026-09-14）
+
+- 以已在HIGHLANDS `Demo 1.unity`中搭建的环境、Terrain、Lighting、Global Volume与反射探针为新场景底稿，迁入原`StarterPrologue`的Systems、Gameplay、UI、Bootstrap、主相机和序章玩法对象，并替换正式`Assets/1Game/Scenes/StarterPrologue.unity`；原场景备份到`Scenes/Backups/StarterPrologue_PreV5_20260914.unity`。
+- 以两个场景中的`StarterPrologueLayoutV5_BlockoutGuide`为唯一对齐基准：先应用Guide根节点矩阵差，再逐项将玩家出生、照料员、三宠、落地选择触发器、两只躁动灵宠、失控宿主、战斗入口与家园转场节点对齐到V5标记；旧V3可见环境与112个旧几何碰撞停用。
+- Hierarchy收敛为`00_序章环境_V5`、`01_光照与氛围`、`02_运行时系统`、`03_序章玩法布局_V5`与`99_设计引导_默认关闭`五个中文根；环境、光照、反射探针、运行时构建器和Guide等安全对象同步使用中文语义命名，名称可能被代码查询的具体玩法节点保留兼容英文。删除HIGHLANDS演示Controller及全部关闭的演示根，保留源场景中启用的环境内容。
+- 更新序章Scene契约，从强制依赖LayoutV3改为依赖V5 Guide。Unity编译与缺失引用检查为0，155项ProjectR契约测试通过；PlayMode烟测确认玩家、HUD、相机和序章Bootstrap正常启动。出生镜头右侧仍有大型岩体遮挡，留待环境构图人工调整。
+
+## P3.50 场景物体贴地与编辑器菜单精简（2026-09-11）
+
+- 新增`ProjectR/选中物体贴地`编辑器窗口：支持将多选场景物体按包围盒底部或Transform轴心贴合TerrainCollider／普通Collider，提供地面层、离地偏移、最大检测距离、法线对齐与Undo；执行结果直接显示在工具面板内，不弹出需手动确认的对话框。可勾选启用数字键`1`快捷贴地，快捷键仅在工具窗口打开期间响应。
+- 删除已无ProjectR专属职责的通用相机定位器，以及字体资产生成完成后不再需要的一次性TMP导入／字体生成脚本；保留配置总控、战斗配表、序章测试与契约测试等当前开发工具。
+- 同步移除`UGuiKit`对已删除字体生成菜单的提示，缺失字体时改为检查项目内置字体资产。Unity编译错误为0。
+
 ## P3.49 初契序章V5开场与揭示节拍（2026-09-09）
 
 - 新增非阻塞`StarterPrologueDialogueHUD`与`StarterPrologueOpeningBeat`：全新序章取得操作权后显示“主角｜照料员怎么还没来……”，目标同步改为“沿林间小路去看看”；已有初契检查点不会重播开场。

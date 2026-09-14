@@ -10,8 +10,8 @@ namespace XianTu
     ///
     /// 全项目 UI 从 UITK 迁移到 uGUI+TMP：本 helper 提供一套代码化的
     /// Canvas / 面板 / 文本 / 按钮 构建 API，保证各面板视觉与中文字体一致。
-    /// 中文依赖动态 TMP 字体资产 Resources/Fonts/"NotoSansSC SDF"（由
-    /// 「ProjectR/UI/生成中文 TMP 字体资产」菜单生成）。
+    /// 中文依赖项目内置的动态 TMP 字体资产
+    /// Resources/Fonts/"NotoSansSC SDF"。
     ///
     /// 用法：CreateOverlayCanvas → CreatePanel → CreateText / CreateButton。
     /// EventSystem 由 Demo1Setup 用 InputSystemUIInputModule 创建；此处兜底。
@@ -42,7 +42,7 @@ namespace XianTu
                 _triedFont = true;
                 _cjkFont = Resources.Load<TMP_FontAsset>("Fonts/NotoSansSC SDF");
                 if (_cjkFont == null)
-                    Debug.LogWarning("[UGuiKit] 未找到 Resources/Fonts/NotoSansSC SDF，中文将无法显示。请执行菜单「ProjectR/UI/生成中文 TMP 字体资产」。");
+                    Debug.LogWarning("[UGuiKit] 未找到 Resources/Fonts/NotoSansSC SDF，中文将无法显示。请检查字体资产是否完整。");
                 return _cjkFont;
             }
         }

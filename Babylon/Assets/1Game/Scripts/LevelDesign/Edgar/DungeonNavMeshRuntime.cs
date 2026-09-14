@@ -15,23 +15,55 @@ namespace XianTu
 
         public static DungeonNavMeshRuntime BuildFor(GameObject dungeonRoot)
         {
+            return BuildFor(dungeonRoot, null);
+        }
+
+        /// <summary>
+        /// <paramref name="worldVolume"/> 用于手工搭建的场景：那里的地形和环境碰撞体
+        /// 不在玩法根之下，只能按世界空间体积收集。
+        /// </summary>
+        public static DungeonNavMeshRuntime BuildFor(
+            GameObject dungeonRoot,
+            Bounds? worldVolume)
+        {
             if (dungeonRoot == null)
                 return null;
 
             var runtime = dungeonRoot.GetComponent<DungeonNavMeshRuntime>();
             if (runtime == null)
                 runtime = dungeonRoot.AddComponent<DungeonNavMeshRuntime>();
-            runtime.Build();
+            runtime.Build(worldVolume);
             return runtime;
         }
 
         public void Build()
         {
+            Build(null);
+        }
+
+        public void Build(Bounds? worldVolume)
+        {
             _surface = GetComponent<NavMeshSurface>();
             if (_surface == null)
                 _surface = gameObject.AddComponent<NavMeshSurface>();
 
-            _surface.collectObjects = CollectObjects.Children;
+            if (worldVolume.HasValue)
+            {
+                Bounds volume = worldVolume.Value;
+                Vector3 scale = transform.lossyScale;
+                _surface.collectObjects = CollectObjects.Volume;
+                _surface.center =
+                    transform.InverseTransformPoint(volume.center);
+                _surface.size = new Vector3(
+                    volume.size.x / Mathf.Max(0.0001f, scale.x),
+                    volume.size.y / Mathf.Max(0.0001f, scale.y),
+                    volume.size.z / Mathf.Max(0.0001f, scale.z));
+            }
+            else
+            {
+                _surface.collectObjects = CollectObjects.Children;
+            }
+
             _surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
             _surface.layerMask = ~0;
             if (_surface.navMeshData != null)

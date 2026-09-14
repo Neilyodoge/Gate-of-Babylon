@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace XianTu
 {
@@ -106,9 +107,28 @@ namespace XianTu
         {
             StarterPrologueMarker marker =
                 FindObjectOfType<StarterPrologueMarker>();
-            if (marker != null)
-                DungeonNavMeshRuntime.BuildFor(
-                    marker.transform.root.gameObject);
+            if (marker == null)
+                return;
+
+            // 序章是手工场景，NavMesh 由场景上的 NavMeshSurface 预烘并随场景加载。
+            // HIGHLANDS 的环境网格不开放读取，运行时烘焙在打包后会丢失这些障碍，
+            // 所以只有预烘数据缺失时才退回运行时构建保底。
+            if (NavMesh.CalculateTriangulation().vertices.Length > 0)
+                return;
+
+            // 救援与战斗已合并为同一块空地，兜底导航覆盖这块空地和通往家园的出口。
+            GameObject owner = marker.transform.root.gameObject;
+            var clearing = new Bounds(
+                new Vector3(6.5f, 8f, -14.5f),
+                new Vector3(37f, 12f, 25f));
+
+            DungeonNavMeshRuntime runtime =
+                DungeonNavMeshRuntime.BuildFor(owner, clearing);
+            if (runtime == null || !runtime.IsBuilt)
+            {
+                Debug.LogError(
+                    "[新手序章] 战斗区运行时NavMesh构建失败。");
+            }
         }
 
         private static void PublishInitialObjective()
