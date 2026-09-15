@@ -1,12 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
 namespace XianTu
 {
     /// <summary>
-    /// 新手序章两阶段救援战：先击退两只躁动灵宠，再打断一名失控附身者。
+    /// 新手序章两阶段遭遇战：先击退两只躁动灵宠，再迫使刃铠灵撤离。
     /// 只统计自己生成的目标，失败重载当前独立场景并按检查点回到遭遇区。
     /// </summary>
     [RequireComponent(typeof(BoxCollider))]
@@ -14,15 +15,24 @@ namespace XianTu
     {
         private const float TutorialHpMultiplier = 0.55f;
         private const float TutorialDamageMultiplier = 0.25f;
-        private const float PossessedHpMultiplier = 0.9f;
+        private const float BladeBeastHpMultiplier = 0.9f;
+        private const float AgitatedSpiritRadius = 0.6f;
 
         private readonly Dictionary<GameObject, int> _enemyIds = new();
         private readonly StarterPrologueTrainingRuntime _runtime = new();
+        [SerializeField] private GameObject agitatedSpiritPrefab;
+        [SerializeField] private GameObject possessedHostPrefab;
         private bool _resetting;
+        private bool _completing;
+        private bool _preparing;
         private StarterPrologueCombatBoundary _boundary;
+        private StarterPrologueCombatTutorial _tutorial;
 
         public bool IsRunning => _runtime.IsRunning;
+        public bool IsPreparing => _preparing;
         public int Remaining => _runtime.Remaining;
+        public GameObject ThreatVisualPrefab =>
+            possessedHostPrefab;
 
         private void Awake()
         {
@@ -41,7 +51,8 @@ namespace XianTu
             StarterPrologueStep step =
                 StarterPrologueProgression.GetStep(
                     SaveSystem.Instance.Data);
-            if (_runtime.CurrentWave !=
+            if (_preparing ||
+                _runtime.CurrentWave !=
                     StarterPrologueTrainingWave.None ||
                 step < StarterPrologueStep.AttachmentChosen ||
                 step >= StarterPrologueStep.RescueCompleted)
@@ -49,6 +60,26 @@ namespace XianTu
                 return false;
             }
 
+            _preparing = true;
+            _tutorial =
+                StarterPrologueCombatTutorial.EnsureExists();
+            _tutorial.BeginPrimer(BeginCombatAfterPrimer);
+            return true;
+        }
+
+        private void BeginCombatAfterPrimer()
+        {
+            _preparing = false;
+            if (!StartAgitatedSpiritWave())
+            {
+                PublishObjective(
+                    "战斗目标生成失败，请重新进入战斗区",
+                    transform.position);
+            }
+        }
+
+        private bool StartAgitatedSpiritWave()
+        {
             StarterPrologueEnemySpawnMarker[] markers =
                 FindObjectsOfType<StarterPrologueEnemySpawnMarker>();
             if (!HasValidRoster(markers))
@@ -58,7 +89,6 @@ namespace XianTu
                 return false;
             }
 
-            StarterPrologueThreatPreview.Remove();
             var targets = new List<GameObject>(
                 StarterPrologueTrainingRuntime
                     .RequiredAgitatedSpiritCount);
@@ -72,9 +102,13 @@ namespace XianTu
                 GameObject enemy = EnemyBase.Spawn(
                     marker.transform.position,
                     TutorialHpMultiplier,
-                    TutorialDamageMultiplier).gameObject;
+                    TutorialDamageMultiplier,
+                    agitatedSpiritPrefab).gameObject;
                 enemy.name =
                     $"TutorialAgitatedSpirit_{++agitatedIndex}";
+                ConfigureAgitatedSpiritSpacing(
+                    enemy,
+                    agitatedIndex);
                 targets.Add(enemy);
             }
 
@@ -84,8 +118,28 @@ namespace XianTu
             BeginCombatBoundary(markers);
             GameEvents.Subscribe<GameEvents.EnemyKilled>(OnEnemyKilled);
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
+            _tutorial?.BeginCarrierPractice();
             PublishEnemyCount();
             return true;
+        }
+
+        private static void ConfigureAgitatedSpiritSpacing(
+            GameObject enemy,
+            int index)
+        {
+            CharacterController controller =
+                enemy.GetComponent<CharacterController>();
+            if (controller != null)
+                controller.radius = AgitatedSpiritRadius;
+
+            NavMeshAgent agent =
+                enemy.GetComponent<NavMeshAgent>();
+            if (agent != null)
+            {
+                agent.radius = AgitatedSpiritRadius;
+                agent.avoidancePriority =
+                    index % 2 == 0 ? 35 : 65;
+            }
         }
 
         private bool RegisterWave(
@@ -135,14 +189,16 @@ namespace XianTu
                     StarterPrologueTrainingWave.AgitatedSpirits)
                 {
                     PublishObjective(
-                        "躁动已平息，注意更强的能量",
+                        "躁动灵宠已退开，注意远处的刃铠灵",
                         evt.Position);
                     StartCoroutine(BeginPossessedHostWave());
                 }
                 else if (_runtime.CurrentWave ==
-                         StarterPrologueTrainingWave.Completed)
+                             StarterPrologueTrainingWave.Completed &&
+                         !_completing)
                 {
-                    CompleteEncounter(evt.Position);
+                    StartCoroutine(
+                        CompleteEncounterSequence(evt.Position));
                 }
             }
         }
@@ -173,37 +229,71 @@ namespace XianTu
 
         private IEnumerator BeginPossessedHostWave()
         {
-            yield return new WaitForSeconds(0.7f);
+            yield return new WaitForSeconds(2.5f);
             StarterPrologueEnemySpawnMarker[] markers =
                 FindObjectsOfType<StarterPrologueEnemySpawnMarker>();
-            if (!HasValidRoster(markers))
-            {
-                Debug.LogError(
-                    "[新手验证战] 失控者阶段缺少远程出生标记。");
-                yield break;
-            }
-
-            var enemies = new List<GameObject>(
-                StarterPrologueTrainingRuntime
-                    .RequiredPossessedHostCount);
+            Vector3 spawnPosition =
+                transform.position + transform.forward * 7f;
+            bool foundMarker = false;
             foreach (StarterPrologueEnemySpawnMarker marker in markers)
             {
                 if (marker.Role != StarterPrologueEnemyRole.Ranged)
                     continue;
-
-                GameObject enemy =
-                    StarterProloguePossessedHost.Spawn(
-                    marker.transform.position,
-                    PossessedHpMultiplier,
-                    TutorialDamageMultiplier,
-                    OnPossessedHostResolved).gameObject;
-                enemies.Add(enemy);
+                spawnPosition = marker.transform.position;
+                foundMarker = true;
+                break;
+            }
+            if (!foundMarker)
+            {
+                NavMeshHit hit;
+                if (NavMesh.SamplePosition(
+                        spawnPosition,
+                        out hit,
+                        8f,
+                        NavMesh.AllAreas))
+                {
+                    spawnPosition = hit.position;
+                }
+                Debug.LogWarning(
+                    "[新手验证战] 刃铠灵远程出生标记缺失，已使用战斗区导航位置兜底。");
             }
 
+            GameObject enemy =
+                StarterProloguePossessedHost.Spawn(
+                    spawnPosition,
+                    BladeBeastHpMultiplier,
+                    TutorialDamageMultiplier,
+                    OnPossessedHostResolved,
+                    possessedHostPrefab).gameObject;
+            var enemies = new List<GameObject> { enemy };
             if (!RegisterWave(enemies, true))
+            {
+                RecoverFromWaveSpawnFailure();
                 yield break;
+            }
+            // 正式战斗体已在相同出生点生成后再移除预告体，
+            // 避免第一波开始时头目从远景中凭空消失。
+            StarterPrologueThreatPreview.Remove();
             FocusCamera(enemies[0].transform.position, 0.9f);
+            _tutorial?.BeginBossRule();
             PublishEnemyCount();
+        }
+
+        private void RecoverFromWaveSpawnFailure()
+        {
+            Unsubscribe();
+            _runtime.Reset();
+            _enemyIds.Clear();
+            if (_boundary != null)
+            {
+                _boundary.End();
+                _boundary = null;
+            }
+            PublishObjective(
+                "刃铠灵暂未进入战场，请重新靠近战斗区",
+                transform.position);
+            Debug.LogError(
+                "[新手验证战] 刃铠灵波次注册失败，遭遇已复位以避免流程锁死。");
         }
 
         private void OnPossessedHostResolved(
@@ -225,38 +315,86 @@ namespace XianTu
             PublishEnemyCount();
             if (result.Completed &&
                 _runtime.CurrentWave ==
-                    StarterPrologueTrainingWave.Completed)
+                    StarterPrologueTrainingWave.Completed &&
+                !_completing)
             {
-                CompleteEncounter(position);
+                StartCoroutine(
+                    CompleteEncounterSequence(position));
             }
         }
 
-        private void CompleteEncounter(Vector3 separationPosition)
+        private IEnumerator CompleteEncounterSequence(
+            Vector3 retreatPosition)
         {
+            _completing = true;
+            _tutorial?.Complete();
             Unsubscribe();
             if (_boundary != null)
             {
                 _boundary.End();
                 _boundary = null;
             }
-            SpawnUnconsciousPair(separationPosition);
-            FocusCamera(separationPosition, 1.2f);
+
+            FocusCamera(retreatPosition, 0.65f);
+            yield return new WaitForSeconds(0.45f);
+
+            GameObject caretaker =
+                GameObject.Find("RescueCaretaker_Whitebox");
+            if (caretaker != null)
+            {
+                StarterPrologueCaretakerFear fear =
+                    caretaker.GetComponent<
+                        StarterPrologueCaretakerFear>();
+                fear?.Calm();
+                FocusCamera(caretaker.transform.position, 1.1f);
+                PublishObjective(
+                    "听照料员说明情况",
+                    caretaker.transform.position);
+                StarterPrologueDialogueHUD.Show(
+                    "照料员",
+                    "它退走了……刚才真是吓死我了。",
+                    2.1f);
+                yield return new WaitForSeconds(1.75f);
+                StarterPrologueDialogueHUD.Show(
+                    "照料员",
+                    $"多亏你和{ChosenSpiritName()}。这里还不安全，我们先回去。",
+                    2.4f);
+                yield return new WaitForSeconds(2.45f);
+            }
+
             StarterPrologueAdvanceResult result =
                 StarterPrologueProgression.RecordRescueCompleted(
                     SaveSystem.Instance.Data);
             if (result == StarterPrologueAdvanceResult.Success)
                 SaveSystem.Instance.Save();
-            PublishObjective(
-                "救援完成 · 准备返回家园",
-                separationPosition,
-                false);
+            StarterPrologueMarker homeReturn =
+                FindMarker(StarterPrologueMarkerKind.HomeReturn);
+            Vector3 returnPosition = homeReturn != null
+                ? homeReturn.transform.position
+                : retreatPosition;
+            PublishObjective("前往回家点", returnPosition);
             StarterPrologueMilestoneHUD.Show(
-                "失控解除",
-                "人和灵宠都已脱离危险",
-                new Color(0.42f, 0.86f, 0.92f));
-            StarterPrologueHomeTransition.Begin(2.4f);
+                "道路安全",
+                "凶兽退去，先返回家园",
+                new Color(0.94f, 0.62f, 0.24f));
+            if (caretaker != null)
+                StarterPrologueCaretakerExit.Play();
             Debug.Log(
-                "<color=#F2B45E>[新手序章] 救援完成，等待转场家园。</color>");
+                "<color=#F2B45E>[新手序章] 刃铠灵撤离与照料员对话完成，等待玩家前往回家点。</color>");
+        }
+
+        private static string ChosenSpiritName()
+        {
+            string chosen =
+                SaveSystem.Instance.Data.starterSpiritSpeciesId;
+            if (!string.IsNullOrWhiteSpace(chosen) &&
+                StarterSpiritChoicePresentation.TryGetProfile(
+                    new StableConfigId(chosen),
+                    out StarterSpiritChoiceProfile profile))
+            {
+                return profile.DisplayName;
+            }
+            return "灵宠";
         }
 
         private void PublishEnemyCount()
@@ -277,7 +415,7 @@ namespace XianTu
             {
                 GameObject host = FirstTrackedTarget();
                 PublishObjective(
-                    "稳定失控宿主",
+                    "削弱刃铠灵凶势",
                     host != null
                         ? host.transform.position
                         : transform.position);
@@ -293,46 +431,6 @@ namespace XianTu
                         ? target.transform.position
                         : transform.position);
             }
-        }
-
-        public static void SpawnUnconsciousPair(Vector3 position)
-        {
-            GameObject host = GameObject.CreatePrimitive(
-                PrimitiveType.Capsule);
-            host.name = "Unconscious_StarTeamMember";
-            host.transform.SetPositionAndRotation(
-                position + Vector3.left * 0.65f,
-                Quaternion.Euler(0f, 0f, 90f));
-            host.transform.localScale =
-                new Vector3(0.48f, 0.78f, 0.48f);
-            DisableCollider(host);
-            SetColor(host, new Color(0.31f, 0.37f, 0.5f));
-
-            GameObject spirit = GameObject.CreatePrimitive(
-                PrimitiveType.Sphere);
-            spirit.name = "Unconscious_SeparatedSpirit";
-            spirit.transform.position =
-                position + Vector3.right * 0.75f +
-                Vector3.up * 0.22f;
-            spirit.transform.localScale = Vector3.one * 0.58f;
-            DisableCollider(spirit);
-            SetColor(spirit, new Color(0.25f, 0.66f, 0.92f));
-        }
-
-        private static void DisableCollider(GameObject target)
-        {
-            Collider collider = target.GetComponent<Collider>();
-            if (collider != null)
-                collider.enabled = false;
-        }
-
-        private static void SetColor(
-            GameObject target,
-            Color color)
-        {
-            Renderer renderer = target.GetComponent<Renderer>();
-            if (renderer != null)
-                renderer.material.color = color;
         }
 
         private void BeginCombatBoundary(
@@ -445,6 +543,8 @@ namespace XianTu
                 _boundary.End();
             _runtime.Reset();
             _enemyIds.Clear();
+            _completing = false;
+            _preparing = false;
         }
     }
 }

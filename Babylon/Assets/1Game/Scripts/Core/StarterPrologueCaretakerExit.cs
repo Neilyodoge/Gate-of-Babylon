@@ -5,7 +5,8 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 初契确认后的白盒退场：照料员带两只未选幼宠从来路离开。
+    /// 战后对话完成后，照料员独自沿来路离开。
+    /// 三只初契候选已在结契时退场，不在这里重新激活。
     /// </summary>
     public sealed class StarterPrologueCaretakerExit : MonoBehaviour
     {
@@ -15,27 +16,23 @@ namespace XianTu
         private readonly List<Transform> _actors = new();
         private readonly List<Vector3> _startPositions = new();
         private readonly List<Vector3> _startScales = new();
+        private Vector3 _travelDirection =
+            new Vector3(1f, 0f, 0.4f).normalized;
 
         public int ActorCount => _actors.Count;
         public bool IsPlaying { get; private set; }
 
-        private void Configure(StableConfigId chosenSpecies)
+        private void Configure()
         {
             GameObject caretaker =
                 GameObject.Find("RescueCaretaker_Whitebox");
             if (caretaker != null)
-                AddActor(caretaker);
-
-            StarterSpiritChoiceWorldEntity[] spirits =
-                FindObjectsByType<StarterSpiritChoiceWorldEntity>(
-                    FindObjectsInactive.Include,
-                    FindObjectsSortMode.None);
-            foreach (StarterSpiritChoiceWorldEntity spirit in spirits)
             {
-                bool chosen = spirit.SpeciesId == chosenSpecies;
-                spirit.gameObject.SetActive(!chosen);
-                if (!chosen)
-                    AddActor(spirit.gameObject);
+                _travelDirection =
+                    ResolveHomeDirection(caretaker.transform.position);
+                caretaker.GetComponent<
+                    StarterPrologueCaretakerFear>()?.BeginExit();
+                AddActor(caretaker);
             }
             StartCoroutine(PlayExit());
         }
@@ -55,8 +52,7 @@ namespace XianTu
         private IEnumerator PlayExit()
         {
             IsPlaying = true;
-            Vector3 direction =
-                new Vector3(-0.2f, 0f, -1f).normalized;
+            Vector3 direction = _travelDirection;
             float elapsed = 0f;
             while (elapsed < Duration)
             {
@@ -92,8 +88,27 @@ namespace XianTu
             Destroy(gameObject);
         }
 
-        public static StarterPrologueCaretakerExit Play(
-            StableConfigId chosenSpecies)
+        private static Vector3 ResolveHomeDirection(Vector3 origin)
+        {
+            StarterPrologueMarker[] markers =
+                FindObjectsOfType<StarterPrologueMarker>();
+            foreach (StarterPrologueMarker marker in markers)
+            {
+                if (marker.Kind !=
+                    StarterPrologueMarkerKind.HomeReturn)
+                {
+                    continue;
+                }
+                Vector3 direction =
+                    marker.transform.position - origin;
+                direction.y = 0f;
+                if (direction.sqrMagnitude > 0.01f)
+                    return direction.normalized;
+            }
+            return new Vector3(1f, 0f, 0.4f).normalized;
+        }
+
+        public static StarterPrologueCaretakerExit Play()
         {
             StarterPrologueCaretakerExit existing =
                 FindFirstObjectByType<
@@ -104,7 +119,7 @@ namespace XianTu
                 new GameObject("StarterPrologueCaretakerExit")
                     .AddComponent<
                         StarterPrologueCaretakerExit>();
-            exit.Configure(chosenSpecies);
+            exit.Configure();
             return exit;
         }
     }

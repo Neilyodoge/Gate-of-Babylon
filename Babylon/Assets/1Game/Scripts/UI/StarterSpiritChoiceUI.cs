@@ -307,7 +307,6 @@ namespace XianTu
             {
                 return;
             }
-
             ShowProfile(entity.SpeciesId);
             StarterSpiritChoicePresentation.TryGetProfile(
                 entity.SpeciesId,

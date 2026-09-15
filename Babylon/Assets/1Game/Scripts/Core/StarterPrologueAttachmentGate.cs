@@ -36,7 +36,7 @@ namespace XianTu
                 GameEvents.Publish(
                     new GameEvents.StarterPrologueObjectiveChanged
                     {
-                        Text = "赶往失控区救人",
+                        Text = "赶往前方击退凶性灵宠",
                         WorldPosition = marker.transform.position,
                         HasWorldPosition = true
                     });

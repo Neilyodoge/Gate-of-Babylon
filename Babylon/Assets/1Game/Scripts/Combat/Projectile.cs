@@ -22,9 +22,16 @@ namespace XianTu
         private PlayerController _ownerPlayer;
         private int _sourceSkillSlot = -1;
         private SkillData _sourceSkill;
+        private bool _showSceneryImpactFeedback;
+        private ElementTag _sceneryImpactElement;
         public PlayerController OwnerPlayer => _ownerPlayer;
         public int SourceSkillSlot => _sourceSkillSlot;
         public SkillData SourceSkill => _sourceSkill;
+        public bool ShowsSceneryImpactFeedback =>
+            _showSceneryImpactFeedback;
+        public ElementTag SceneryImpactElement =>
+            _sceneryImpactElement;
+        public float RemainingLifetime => _lifeTimer;
 
         // V.08 增强 payload：投射物携带链的控制/状态，命中时施加
         private bool _hasEnh;
@@ -68,6 +75,23 @@ namespace XianTu
             _sourceSkill = _sourceSkillSlot >= 0 ? skill : null;
         }
 
+        /// <summary>
+        /// 为没有受伤组件的墙体／布景命中配置独立颜色反馈。
+        /// </summary>
+        public void SetSceneryImpactFeedback(ElementTag element)
+        {
+            _showSceneryImpactFeedback = true;
+            _sceneryImpactElement = element;
+        }
+
+        /// <summary>覆盖本次对象池租用期间的最大飞行时间。</summary>
+        public void SetRemainingLifetime(float seconds)
+        {
+            if (seconds <= 0f)
+                return;
+            _lifeTimer = seconds;
+        }
+
         /// <summary>形态改造·火域：投射物命中/寿命结束时在落点生成小型持续区域。在 Initialize 之后调用。</summary>
         public void SetImpactZone(float radius, float life, float tick, float dps, ElementTag element, LayerMask enemyMask)
         {
@@ -101,6 +125,8 @@ namespace XianTu
             _ownerPlayer = owner;
             _sourceSkillSlot = -1;
             _sourceSkill = null;
+            _showSceneryImpactFeedback = false;
+            _sceneryImpactElement = ElementTag.None;
             _initialized = true;
             _hasEnh = false; // 对象池复用：清除上一次的增强 payload，等待 SetEnhancement 重新设置
             _chainRemaining = 0; // 对象池复用：清除上一次的链锁状态
@@ -212,6 +238,15 @@ namespace XianTu
                         return; // 转向下一目标继续飞行
                     }
                 }
+            }
+
+            if (damageable == null && _showSceneryImpactFeedback)
+            {
+                FxFactory.SpawnElementBurst(
+                    transform.position,
+                    _sceneryImpactElement,
+                    0.55f,
+                    0.24f);
             }
 
             // 碰到墙壁、障碍物等环境物体也回收

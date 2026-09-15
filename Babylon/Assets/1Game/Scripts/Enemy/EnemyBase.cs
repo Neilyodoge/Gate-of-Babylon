@@ -439,6 +439,7 @@ namespace XianTu
             _isPreparing = true;
             _attackPrepTimer = _warningDuration;
             CreateAttackWarning();
+            GetComponent<KayKitLocomotionDriver>()?.PlayAttack();
 
             // 蓄力时变色
             SetAllRenderersColor(new Color(1f, 0.4f, 0.2f));
@@ -678,8 +679,25 @@ namespace XianTu
         /// </summary>
         public static EnemyBase Spawn(Vector3 position, float hpMultiplier = 1f, float dmgMultiplier = 1f)
         {
+            return Spawn(position, hpMultiplier, dmgMultiplier, null);
+        }
+
+        /// <summary>
+        /// 使用指定表现Prefab生成基础敌人；为空时沿用全局怪物配置。
+        /// 供序章等独立遭遇替换外观，不污染常规关卡怪物池。
+        /// </summary>
+        public static EnemyBase Spawn(
+            Vector3 position,
+            float hpMultiplier,
+            float dmgMultiplier,
+            GameObject visualPrefab)
+        {
             var prefabs = MonsterPrefabs.Instance;
-            var prefab = prefabs != null ? prefabs.GetEnemyPrefab(EnemyVisualRole.Melee) : null;
+            var prefab = visualPrefab != null
+                ? visualPrefab
+                : prefabs != null
+                    ? prefabs.GetEnemyPrefab(EnemyVisualRole.Melee)
+                    : null;
             var go = MonsterPrefabs.InstantiateMonster(prefab, position, "Enemy");
             go.tag = "Enemy";
             int enemyLayerIndex = LayerMask.NameToLayer("Enemy");

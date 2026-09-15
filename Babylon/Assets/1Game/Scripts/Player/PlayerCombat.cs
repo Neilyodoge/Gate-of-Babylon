@@ -2468,7 +2468,12 @@ namespace XianTu
             SkillData skill)
         {
             if (projectile != null && IsStarterSpiritBolt(skill))
+            {
                 projectile.gameObject.name = "StarterSpiritBoltProjectile";
+                projectile.SetSceneryImpactFeedback(ElementTag.Earth);
+                projectile.SetRemainingLifetime(
+                    Mathf.Max(0.1f, skill.vfxDuration));
+            }
         }
 
         /// <summary>形态改造·火域：为投射物挂上命中落点小型持续区域（程序化，复用 ActiveSkillZone）。</summary>

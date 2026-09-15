@@ -276,6 +276,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d775c4c17e89da7459751dfa13113bde, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  revealFocus: {fileID: 0}
+  containerFocus: {fileID: 0}
 --- !u!1 &350219477148185507
 GameObject:
   m_ObjectHideFlags: 0
@@ -584,6 +586,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a143f70c4f00754db220a796061bafe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  agitatedSpiritPrefab: {fileID: 0}
+  possessedHostPrefab: {fileID: 0}
 --- !u!1 &872351249846749797
 GameObject:
   m_ObjectHideFlags: 0
@@ -3064,7 +3068,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
@@ -3124,6 +3128,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speciesConfigId: pet.spark-raccoon
   focusedScale: 1.08
+  containerVisual: {fileID: 0}
+  spiritVisual: {fileID: 0}
 --- !u!1 &4960597291848640920
 GameObject:
   m_ObjectHideFlags: 0
@@ -3490,7 +3496,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
@@ -3550,6 +3556,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speciesConfigId: pet.echo-owl
   focusedScale: 1.08
+  containerVisual: {fileID: 0}
+  spiritVisual: {fileID: 0}
 --- !u!1 &5406107702495095285
 GameObject:
   m_ObjectHideFlags: 0
@@ -3962,7 +3970,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
@@ -4022,6 +4030,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speciesConfigId: pet.bounce-gel
   focusedScale: 1.08
+  containerVisual: {fileID: 0}
+  spiritVisual: {fileID: 0}
 --- !u!1 &7301895146542305022
 GameObject:
   m_ObjectHideFlags: 0

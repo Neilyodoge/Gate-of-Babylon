@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a82ea286a1267ac42ab33e68b45fde60, type: 3}
   m_Name: ProjectRUITheme
   m_EditorClassIdentifier: 
-  sparkRaccoon: {fileID: 21300000, guid: ce3407c6ded7b7446b3d210603900be2, type: 3}
-  echoOwl: {fileID: 21300000, guid: 4395155d5effb55469c945907cfcb500, type: 3}
-  bounceGel: {fileID: 21300000, guid: a2832b9ed691b0c46a63609f6a0a8d92, type: 3}
+  sparkRaccoon: {fileID: 21300000, guid: 822e97f1f66237c409dfbf25f53e3b61, type: 3}
+  echoOwl: {fileID: 21300000, guid: 07312fb9e81f35641ba7b625a7cff55a, type: 3}
+  bounceGel: {fileID: 21300000, guid: 2def1aae67e029a41bcd565287545e47, type: 3}
   weapon: {fileID: 21300000, guid: 85373c9ff2af2c74982f62e16aa22460, type: 3}
   techniqueQ: {fileID: 21300000, guid: 6b434260368b1304a8b2fb9d2ca14acb, type: 3}
   lockedTechniqueE: {fileID: 21300000, guid: e51b391a27677c34f922b60ea76ddc0e, type: 3}

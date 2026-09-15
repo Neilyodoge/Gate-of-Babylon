@@ -1803,6 +1803,12 @@ namespace XianTu.Editor.Tests
                 "StarterPrologueLayoutV5_BlockoutGuide.prefab";
             const string scenePath =
                 "Assets/1Game/Scenes/StarterPrologue.unity";
+            const string agitatedMonkeyPath =
+                "Assets/1Game/ArtRes/Package/Character/palu/Monkey/" +
+                "Prefabs/AgitatedMonkey.prefab";
+            const string possessedRoninPath =
+                "Assets/1Game/ArtRes/Package/Character/palu/Ronin/" +
+                "Prefabs/PossessedHost_Ronin.prefab";
             GameObject prefab =
                 AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
 
@@ -1874,6 +1880,95 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 AssetDatabase.GetDependencies(scenePath, true),
                 Does.Contain(activeLayoutPath));
+            Assert.That(
+                AssetDatabase.GetDependencies(scenePath, true),
+                Does.Contain(agitatedMonkeyPath));
+            Assert.That(
+                AssetDatabase.GetDependencies(scenePath, true),
+                Does.Contain(possessedRoninPath));
+
+            GameObject agitatedMonkey =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    agitatedMonkeyPath);
+            Assert.That(agitatedMonkey, Is.Not.Null);
+            Assert.That(
+                agitatedMonkey.GetComponent<KayKitLocomotionDriver>(),
+                Is.Not.Null);
+            Animator monkeyAnimator =
+                agitatedMonkey.GetComponentInChildren<Animator>(true);
+            Assert.That(monkeyAnimator, Is.Not.Null);
+            Assert.That(monkeyAnimator.avatar.isHuman, Is.True);
+            Assert.That(
+                monkeyAnimator.cullingMode,
+                Is.EqualTo(AnimatorCullingMode.AlwaysAnimate));
+            Assert.That(
+                monkeyAnimator.runtimeAnimatorController,
+                Is.Not.Null);
+            SkinnedMeshRenderer monkeyRenderer =
+                agitatedMonkey.GetComponentInChildren<
+                    SkinnedMeshRenderer>(true);
+            Assert.That(monkeyRenderer, Is.Not.Null);
+            Assert.That(
+                monkeyRenderer.allowOcclusionWhenDynamic,
+                Is.False);
+            Assert.That(
+                monkeyRenderer.updateWhenOffscreen,
+                Is.True);
+            Assert.That(
+                monkeyRenderer.sharedMaterials.All(
+                    material =>
+                        material != null &&
+                        material.GetTexture("_BaseMap") != null),
+                Is.True);
+
+            GameObject possessedRonin =
+                AssetDatabase.LoadAssetAtPath<GameObject>(
+                    possessedRoninPath);
+            Assert.That(possessedRonin, Is.Not.Null);
+            Assert.That(
+                possessedRonin.GetComponent<
+                    KayKitLocomotionDriver>(),
+                Is.Not.Null);
+            Animator roninAnimator =
+                possessedRonin.GetComponentInChildren<
+                    Animator>(true);
+            Assert.That(roninAnimator, Is.Not.Null);
+            Assert.That(roninAnimator.avatar.isHuman, Is.True);
+            Assert.That(
+                roninAnimator.runtimeAnimatorController,
+                Is.Not.Null);
+        }
+
+        [Test]
+        public void DynamicCharacterRendering_ForcesSafeDefaults()
+        {
+            GameObject root = new("DynamicCharacterRenderingTest");
+            try
+            {
+                Animator animator = root.AddComponent<Animator>();
+                animator.cullingMode =
+                    AnimatorCullingMode.CullUpdateTransforms;
+                SkinnedMeshRenderer renderer =
+                    root.AddComponent<SkinnedMeshRenderer>();
+                renderer.allowOcclusionWhenDynamic = true;
+                renderer.updateWhenOffscreen = false;
+
+                DynamicCharacterRendering.Apply(root);
+
+                Assert.That(
+                    animator.cullingMode,
+                    Is.EqualTo(AnimatorCullingMode.AlwaysAnimate));
+                Assert.That(
+                    renderer.allowOcclusionWhenDynamic,
+                    Is.False);
+                Assert.That(
+                    renderer.updateWhenOffscreen,
+                    Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
 
         [Test]
@@ -1992,6 +2087,104 @@ namespace XianTu.Editor.Tests
         }
 
         [Test]
+        public void StarterPrologueCombatTutorial_CompletesBasicActionsInAnyOrder()
+        {
+            var runtime =
+                new StarterPrologueCombatTutorialRuntime();
+            runtime.BeginBasicActions();
+
+            Assert.That(runtime.RecordDodge(), Is.False);
+            Assert.That(runtime.RecordBasicAttack(), Is.False);
+            Assert.That(runtime.RecordTechnique(), Is.True);
+            Assert.That(
+                runtime.Stage,
+                Is.EqualTo(
+                    StarterPrologueCombatTutorialStage
+                        .BasicActionsComplete));
+            Assert.That(runtime.BasicAttackDone, Is.True);
+            Assert.That(runtime.TechniqueDone, Is.True);
+            Assert.That(runtime.DodgeDone, Is.True);
+        }
+
+        [Test]
+        public void StarterPrologueCombatTutorial_CompletesCarrierOnlyOnce()
+        {
+            var runtime =
+                new StarterPrologueCombatTutorialRuntime();
+            runtime.BeginCarrierPractice(CarrierSlot.Weapon);
+
+            Assert.That(
+                runtime.RecordCarrierAdvanced(
+                    new GameEvents.StarterSpiritCarrierAdvanced
+                    {
+                        Carrier = CarrierSlot.TechniqueQ,
+                        Activated = true,
+                        Progress = 1
+                    }),
+                Is.False);
+            Assert.That(
+                runtime.RecordCarrierAdvanced(
+                    new GameEvents.StarterSpiritCarrierAdvanced
+                    {
+                        Carrier = CarrierSlot.Weapon,
+                        Activated = false,
+                        Progress = 2
+                    }),
+                Is.False);
+            Assert.That(runtime.CarrierProgress, Is.EqualTo(2));
+            Assert.That(
+                runtime.RecordCarrierAdvanced(
+                    new GameEvents.StarterSpiritCarrierAdvanced
+                    {
+                        Carrier = CarrierSlot.Weapon,
+                        Activated = true,
+                        Progress = 0
+                    }),
+                Is.True);
+            Assert.That(
+                runtime.RecordCarrierAdvanced(
+                    new GameEvents.StarterSpiritCarrierAdvanced
+                    {
+                        Carrier = CarrierSlot.Weapon,
+                        Activated = true
+                    }),
+                Is.False);
+            Assert.That(runtime.CarrierActivated, Is.True);
+        }
+
+        [Test]
+        public void StarterPrologueCombatTutorial_UsesReminderAndAutoReleaseTimeouts()
+        {
+            var carrier =
+                new StarterPrologueCombatTutorialRuntime();
+            carrier.BeginCarrierPractice(CarrierSlot.Mobility);
+            Assert.That(
+                carrier.Tick(
+                    StarterPrologueCombatTutorialRuntime
+                        .CarrierReminderSeconds - 0.1f),
+                Is.False);
+            Assert.That(carrier.Tick(0.1f), Is.True);
+            Assert.That(carrier.CarrierReminderShown, Is.True);
+            Assert.That(carrier.Tick(10f), Is.False);
+
+            var primer =
+                new StarterPrologueCombatTutorialRuntime();
+            primer.BeginBasicActions();
+            Assert.That(
+                primer.Tick(
+                    StarterPrologueCombatTutorialRuntime
+                        .PrimerAutoReleaseSeconds - 0.1f),
+                Is.False);
+            Assert.That(primer.Tick(0.1f), Is.True);
+            Assert.That(primer.PrimerAutoReleased, Is.True);
+            Assert.That(
+                primer.Stage,
+                Is.EqualTo(
+                    StarterPrologueCombatTutorialStage
+                        .BasicActionsComplete));
+        }
+
+        [Test]
         public void StarterPrologueCombatTargets_AcceptBounceGelImpulse()
         {
             Assert.That(
@@ -2002,6 +2195,53 @@ namespace XianTu.Editor.Tests
                 typeof(ICombatImpulseReceiver).IsAssignableFrom(
                     typeof(StarterProloguePossessedHost)),
                 Is.True);
+        }
+
+        [Test]
+        public void StarterSpiritBolt_ConfiguresSceneryFeedbackAndVisualLifetime()
+        {
+            GameObject projectileObject =
+                GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            try
+            {
+                Projectile projectile =
+                    projectileObject.AddComponent<Projectile>();
+                projectile.Initialize(
+                    8f,
+                    Vector3.forward,
+                    16f,
+                    0,
+                    0f);
+                projectile.SetSceneryImpactFeedback(
+                    ElementTag.Earth);
+                projectile.SetRemainingLifetime(0.8f);
+
+                Assert.That(
+                    projectile.ShowsSceneryImpactFeedback,
+                    Is.True);
+                Assert.That(
+                    projectile.SceneryImpactElement,
+                    Is.EqualTo(ElementTag.Earth));
+                Assert.That(
+                    projectile.RemainingLifetime,
+                    Is.EqualTo(0.8f).Within(0.001f));
+
+                projectile.Initialize(
+                    8f,
+                    Vector3.forward,
+                    16f,
+                    0,
+                    0f);
+                Assert.That(
+                    projectile.ShowsSceneryImpactFeedback,
+                    Is.False);
+            }
+            finally
+            {
+                if (projectileObject != null)
+                    UnityEngine.Object.DestroyImmediate(
+                        projectileObject);
+            }
         }
 
         [Test]
@@ -2162,6 +2402,10 @@ namespace XianTu.Editor.Tests
                     StarterPrologueProgression.GetStep(save)),
                 Is.False);
             Assert.That(
+                StarterPrologueHomeCompletion.CanTrigger(
+                    StarterPrologueProgression.GetStep(save)),
+                Is.False);
+            Assert.That(
                 ProjectRHomeSceneBootstrap.TryCommitArrival(save),
                 Is.EqualTo(
                     StarterPrologueAdvanceResult
@@ -2182,6 +2426,10 @@ namespace XianTu.Editor.Tests
                     StarterPrologueProgression.GetStep(save)),
                 Is.True);
             Assert.That(
+                StarterPrologueHomeCompletion.CanTrigger(
+                    StarterPrologueProgression.GetStep(save)),
+                Is.True);
+            Assert.That(
                 ProjectRHomeSceneBootstrap.TryCommitArrival(save),
                 Is.EqualTo(
                     StarterPrologueAdvanceResult.Success));
@@ -2192,6 +2440,10 @@ namespace XianTu.Editor.Tests
                 ProjectRHomeSceneBootstrap.TryCommitArrival(save),
                 Is.EqualTo(
                     StarterPrologueAdvanceResult.NoChange));
+            Assert.That(
+                StarterPrologueHomeCompletion.CanTrigger(
+                    StarterPrologueProgression.GetStep(save)),
+                Is.False);
             Assert.That(
                 StarterPrologueHomeTransition.HomeSceneName,
                 Is.EqualTo("ProjectRHome"));
@@ -2237,7 +2489,10 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 StarterPrologueChoiceTrigger.CaretakerWarning,
                 Is.EqualTo(
-                    "先别过来！它们被失控的能量惊到了！"));
+                    "别过来！那只大家伙会冲过来！"));
+            Assert.That(
+                StarterPrologueChoiceTrigger.ContainerResponse,
+                Is.EqualTo("等等……它们在回应你。"));
         }
 
         [Test]
@@ -2261,8 +2516,8 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 StarterPrologueObjectiveHUD.PhaseLabelFor(
                     StarterPrologueStep.AttachmentChosen,
-                    "稳定失控宿主"),
-                Is.EqualTo("救援 · 失控宿主"));
+                    "削弱刃铠灵凶势"),
+                Is.EqualTo("救援 · 凶性灵宠"));
             Assert.That(
                 StarterPrologueObjectiveHUD.PhaseLabelFor(
                     StarterPrologueStep.RescueCompleted,
@@ -5579,7 +5834,11 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterPrologueScene_UsesV5GuideAndKeepsGameplayContract, ref passed);
             Run(fixture, fixture.ProjectRUITheme_LoadsGeneratedCoreArt, ref passed);
             Run(fixture, fixture.StarterPrologueTraining_RunsAgitatedThenPossessedWaves, ref passed);
+            Run(fixture, fixture.StarterPrologueCombatTutorial_CompletesBasicActionsInAnyOrder, ref passed);
+            Run(fixture, fixture.StarterPrologueCombatTutorial_CompletesCarrierOnlyOnce, ref passed);
+            Run(fixture, fixture.StarterPrologueCombatTutorial_UsesReminderAndAutoReleaseTimeouts, ref passed);
             Run(fixture, fixture.StarterPrologueCombatTargets_AcceptBounceGelImpulse, ref passed);
+            Run(fixture, fixture.StarterSpiritBolt_ConfiguresSceneryFeedbackAndVisualLifetime, ref passed);
             Run(fixture, fixture.StarterPrologueResume_UsesCheckpointMarkers, ref passed);
             Run(fixture, fixture.StarterPrologue_RequiresExactlyOneFirstAttachment, ref passed);
             Run(fixture, fixture.StarterPrologue_AdvancesMonotonicallyAndRestoresCarrier, ref passed);

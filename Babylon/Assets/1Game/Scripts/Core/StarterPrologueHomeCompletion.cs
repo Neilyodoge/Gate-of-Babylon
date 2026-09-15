@@ -3,8 +3,8 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// Legacy回家终点兼容触发器。
-    /// V5不在序章场景提交完成，只从这里转入独立家园场景。
+    /// 序章固定回家点触发器。
+    /// 救援完成后必须由玩家走到此处，才加载独立家园场景。
     /// </summary>
     [RequireComponent(typeof(BoxCollider))]
     public sealed class StarterPrologueHomeCompletion : MonoBehaviour
@@ -20,14 +20,19 @@ namespace XianTu
         private void OnTriggerEnter(Collider other)
         {
             if (!other.CompareTag("Player") ||
-                StarterPrologueProgression.GetStep(
-                    SaveSystem.Instance.Data) !=
-                StarterPrologueStep.RescueCompleted)
+                !CanTrigger(
+                    StarterPrologueProgression.GetStep(
+                        SaveSystem.Instance.Data)))
             {
                 return;
             }
 
             StarterPrologueHomeTransition.Begin();
+        }
+
+        public static bool CanTrigger(StarterPrologueStep step)
+        {
+            return step == StarterPrologueStep.RescueCompleted;
         }
 
         public static void EnsureAt(Transform marker)

@@ -51,17 +51,18 @@ namespace XianTu
                 null,
                 null);
             PlacePlayerAtMarker();
-            RestorePostRescueState();
+            SetupCaretakerPresentation();
             hud.BuildHud();
             FindObjectOfType<GameHUD>()
                 ?.ConfigureForStarterPrologue();
             StarterPrologueObjectiveHUD.EnsureExists();
+            StarterPrologueCombatTutorial.EnsureExists();
             StarterPrologueTimingTracker.EnsureExists();
             SetupPathGuide();
             SetupThreatPreview();
+            SetupHomeReturnTrigger();
             PublishInitialObjective();
             StarterPrologueOpeningBeat.EnsureExists();
-            ResumeHomeTransition();
             systems.BuildHitStop();
             systems.BuildEventSystem();
             systems.BuildAudioManager();
@@ -148,17 +149,13 @@ namespace XianTu
                 case StarterPrologueStep.AttachmentChosen:
                     markerKind =
                         StarterPrologueMarkerKind.PossessionClearing;
-                    text = "赶往失控区救人";
+                    text = "赶往前方击退凶性灵宠";
                     break;
                 case StarterPrologueStep.RescueCompleted:
-                    GameEvents.Publish(
-                        new GameEvents
-                            .StarterPrologueObjectiveChanged
-                        {
-                            Text = "救援完成 · 准备返回家园",
-                            HasWorldPosition = false
-                        });
-                    return;
+                    markerKind =
+                        StarterPrologueMarkerKind.HomeReturn;
+                    text = "前往回家点";
+                    break;
                 case StarterPrologueStep.Completed:
                     GameEvents.Publish(
                         new GameEvents
@@ -195,15 +192,39 @@ namespace XianTu
             }
         }
 
-        private static void ResumeHomeTransition()
+        private static void SetupHomeReturnTrigger()
         {
-            StarterPrologueStep step =
-                StarterPrologueProgression.GetStep(
-                    SaveSystem.Instance.Data);
-            if (StarterPrologueHomeTransition
-                .CanTransition(step))
+            StarterPrologueMarker[] markers =
+                FindObjectsOfType<StarterPrologueMarker>();
+            foreach (StarterPrologueMarker marker in markers)
             {
-                StarterPrologueHomeTransition.Begin(0.75f);
+                if (marker.Kind !=
+                    StarterPrologueMarkerKind.HomeReturn)
+                {
+                    continue;
+                }
+                StarterPrologueHomeCompletion.EnsureAt(
+                    marker.transform);
+                return;
+            }
+        }
+
+        private static void SetupCaretakerPresentation()
+        {
+            if (StarterPrologueProgression.GetStep(
+                    SaveSystem.Instance.Data) >=
+                StarterPrologueStep.RescueCompleted)
+            {
+                return;
+            }
+            GameObject caretaker =
+                GameObject.Find("RescueCaretaker_Whitebox");
+            if (caretaker != null &&
+                caretaker.GetComponent<
+                    StarterPrologueCaretakerFear>() == null)
+            {
+                caretaker.AddComponent<
+                    StarterPrologueCaretakerFear>();
             }
         }
 
@@ -253,8 +274,14 @@ namespace XianTu
             {
                 if (marker.Role != StarterPrologueEnemyRole.Ranged)
                     continue;
+                StarterPrologueTrainingEncounter encounter =
+                    FindObjectOfType<
+                        StarterPrologueTrainingEncounter>();
                 StarterPrologueThreatPreview.CreateAt(
-                    marker.transform.position);
+                    marker.transform.position,
+                    encounter != null
+                        ? encounter.ThreatVisualPrefab
+                        : null);
                 return;
             }
         }
@@ -276,29 +303,5 @@ namespace XianTu
             };
         }
 
-        private static void RestorePostRescueState()
-        {
-            if (StarterPrologueProgression.GetStep(
-                    SaveSystem.Instance.Data) !=
-                StarterPrologueStep.RescueCompleted)
-            {
-                return;
-            }
-            StarterPrologueMarker[] markers =
-                FindObjectsOfType<StarterPrologueMarker>();
-            foreach (StarterPrologueMarker marker in markers)
-            {
-                if (marker.Kind !=
-                    StarterPrologueMarkerKind.RescueResolved)
-                {
-                    continue;
-                }
-                StarterPrologueTrainingEncounter
-                    .SpawnUnconsciousPair(
-                        marker.transform.position +
-                        marker.transform.forward * 2.5f);
-                return;
-            }
-        }
     }
 }

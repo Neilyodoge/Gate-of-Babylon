@@ -8,10 +8,14 @@ namespace XianTu
     public sealed class StarterPrologueChoiceTrigger : MonoBehaviour
     {
         public const string CaretakerWarning =
-            "先别过来！它们被失控的能量惊到了！";
+            "别过来！那只大家伙会冲过来！";
+        public const string ContainerResponse =
+            "等等……它们在回应你。";
 
         [SerializeField]
         private Transform revealFocus;
+        [SerializeField]
+        private Transform containerFocus;
 
         private bool _opened;
         private bool _opening;
@@ -23,6 +27,12 @@ namespace XianTu
 
         private IEnumerator Start()
         {
+            if (StarterPrologueProgression.GetStep(
+                    SaveSystem.Instance.Data) <
+                StarterPrologueStep.StarterChosen)
+            {
+                HideCandidatesForStory();
+            }
             ApplyChosenEntityState();
             yield return null;
             TryOpenRequiredAttachment();
@@ -64,6 +74,15 @@ namespace XianTu
                 yield return new WaitForSecondsRealtime(1.08f);
             }
 
+            Vector3 containers = ResolveContainerFocus();
+            FocusCamera(containers, 0.72f);
+            RevealCandidates();
+            StarterPrologueDialogueHUD.Show(
+                "照料员",
+                ContainerResponse,
+                1.6f);
+            yield return new WaitForSecondsRealtime(0.9f);
+
             StarterPrologueThreatPreview preview =
                 FindObjectOfType<StarterPrologueThreatPreview>();
             if (preview != null)
@@ -74,6 +93,22 @@ namespace XianTu
             FocusCamera(transform.position, 1.1f);
             _opened = StarterSpiritChoiceUI.ShowForScene(OnChosen);
             _opening = false;
+        }
+
+        private Vector3 ResolveContainerFocus()
+        {
+            if (containerFocus != null)
+                return containerFocus.position;
+
+            StarterSpiritChoiceWorldEntity[] entities =
+                FindObjectsOfType<StarterSpiritChoiceWorldEntity>(
+                    true);
+            if (entities.Length == 0)
+                return transform.position;
+            Vector3 center = Vector3.zero;
+            foreach (StarterSpiritChoiceWorldEntity entity in entities)
+                center += entity.transform.position;
+            return center / entities.Length;
         }
 
         private Transform ResolveRevealFocus()
@@ -95,7 +130,16 @@ namespace XianTu
             SpiritInstanceState spirit)
         {
             _opened = false;
-            StarterPrologueCaretakerExit.Play(species);
+            StarterSpiritChoiceWorldEntity[] entities =
+                FindObjectsOfType<StarterSpiritChoiceWorldEntity>(
+                    true);
+            foreach (StarterSpiritChoiceWorldEntity entity in entities)
+            {
+                if (entity.SpeciesId == species)
+                    entity.RevealChosenAndHide();
+                else
+                    entity.HideImmediately();
+            }
             StarterSpiritCarrierController controller =
                 FindObjectOfType<StarterSpiritCarrierController>();
             controller?.TryConfigure(SaveSystem.Instance.Data);
@@ -132,14 +176,47 @@ namespace XianTu
                 FindObjectsByType<StarterSpiritChoiceWorldEntity>(
                     FindObjectsInactive.Include,
                     FindObjectsSortMode.None);
+            bool rescueCompleted =
+                StarterPrologueProgression.GetStep(
+                    SaveSystem.Instance.Data) >=
+                StarterPrologueStep.RescueCompleted;
             foreach (StarterSpiritChoiceWorldEntity entity in entities)
-            {
-                entity.gameObject.SetActive(false);
-            }
+                entity.HideImmediately();
             GameObject caretaker =
                 GameObject.Find("RescueCaretaker_Whitebox");
             if (caretaker != null)
-                caretaker.SetActive(false);
+                caretaker.SetActive(!rescueCompleted);
+        }
+
+        private static void HideCandidatesForStory()
+        {
+            StarterSpiritChoiceWorldEntity[] entities =
+                FindObjectsByType<StarterSpiritChoiceWorldEntity>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None);
+            foreach (StarterSpiritChoiceWorldEntity entity in entities)
+                entity.HideForStory();
+        }
+
+        private static void RevealCandidates()
+        {
+            StarterSpiritChoiceWorldEntity[] entities =
+                FindObjectsByType<StarterSpiritChoiceWorldEntity>(
+                    FindObjectsInactive.Include,
+                    FindObjectsSortMode.None);
+            float delay = 0f;
+            foreach (StarterSpiritChoiceProfile profile in
+                     StarterSpiritChoicePresentation.Profiles)
+            {
+                foreach (StarterSpiritChoiceWorldEntity entity in entities)
+                {
+                    if (entity.SpeciesId != profile.SpeciesId)
+                        continue;
+                    entity.RevealForChoice(delay);
+                    delay += 0.16f;
+                    break;
+                }
+            }
         }
 
         private static void FocusCamera(

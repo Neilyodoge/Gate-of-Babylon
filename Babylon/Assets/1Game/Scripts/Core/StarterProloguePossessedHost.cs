@@ -6,7 +6,7 @@ using UnityEngine;
 namespace XianTu
 {
     /// <summary>
-    /// 序章失控附身者。稳定值归零只解除人宠连接，不进入普通敌人死亡与掉落流程。
+    /// 序章凶性刃铠灵。凶势归零后撤离，不进入普通敌人死亡与掉落流程。
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public sealed class StarterProloguePossessedHost :
@@ -189,7 +189,42 @@ namespace XianTu
             _navMotor.Stop();
             gameObject.tag = "Untagged";
             _controller.enabled = false;
-            _resolved?.Invoke(gameObject, transform.position);
+            StartCoroutine(RetreatAndResolve());
+        }
+
+        private IEnumerator RetreatAndResolve()
+        {
+            Vector3 start = transform.position;
+            Vector3 direction = _target != null
+                ? transform.position - _target.position
+                : transform.forward;
+            direction.y = 0f;
+            direction = direction.sqrMagnitude > 0.01f
+                ? direction.normalized
+                : transform.forward;
+            transform.rotation = Quaternion.LookRotation(direction);
+            TopDownCamera camera = FindObjectOfType<TopDownCamera>();
+            camera?.FocusOn(
+                start + direction * 4f,
+                1.55f);
+
+            const float duration = 1.55f;
+            const float distance = 8f;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(
+                    0f,
+                    1f,
+                    Mathf.Clamp01(elapsed / duration));
+                transform.position =
+                    start + direction * (distance * t);
+                yield return null;
+            }
+
+            Vector3 resolvedPosition = transform.position;
+            _resolved?.Invoke(gameObject, resolvedPosition);
             Destroy(gameObject);
         }
 
@@ -262,6 +297,7 @@ namespace XianTu
         private IEnumerator EnergyWave()
         {
             _isActing = true;
+            PlayActionAnimation();
             int actionVersion = _actionVersion;
             Vector3 direction = DirectionToTarget();
             LineRenderer warning = CreateWarningLine(
@@ -284,6 +320,7 @@ namespace XianTu
         private IEnumerator DashSlash()
         {
             _isActing = true;
+            PlayActionAnimation();
             int actionVersion = _actionVersion;
             Vector3 direction = DirectionToTarget();
             LineRenderer warning = CreateWarningLine(
@@ -318,6 +355,7 @@ namespace XianTu
         private IEnumerator OverflowPulse()
         {
             _isActing = true;
+            PlayActionAnimation();
             int actionVersion = _actionVersion;
             GameObject warning = CreatePulseWarning();
             yield return new WaitForSeconds(
@@ -396,6 +434,12 @@ namespace XianTu
                 : transform.forward;
         }
 
+        private void PlayActionAnimation()
+        {
+            GetComponentInChildren<KayKitLocomotionDriver>()
+                ?.PlayAttack();
+        }
+
         private LineRenderer CreateWarningLine(
             Vector3 direction,
             float length)
@@ -409,9 +453,9 @@ namespace XianTu
             line.startWidth = 0.12f;
             line.endWidth = 0.04f;
             line.startColor =
-                new Color(0.2f, 0.65f, 1f, 0.9f);
+                new Color(1f, 0.34f, 0.08f, 0.9f);
             line.endColor =
-                new Color(0.2f, 0.65f, 1f, 0.15f);
+                new Color(1f, 0.34f, 0.08f, 0.15f);
             line.positionCount = 2;
             Vector3 start =
                 transform.position + Vector3.up * 0.1f;
@@ -436,14 +480,14 @@ namespace XianTu
             Renderer renderer = pulse.GetComponent<Renderer>();
             if (renderer != null)
                 renderer.material = CreateEnergyMaterial(
-                    new Color(0.2f, 0.72f, 1f));
+                    new Color(1f, 0.24f, 0.05f));
             return pulse;
         }
 
         private Material CreateEnergyMaterial()
         {
             return CreateEnergyMaterial(
-                new Color(0.18f, 0.58f, 1f));
+                new Color(1f, 0.28f, 0.06f));
         }
 
         private Material CreateEnergyMaterial(Color color)
@@ -464,7 +508,7 @@ namespace XianTu
                 1.5f + Mathf.PingPong(Time.time * 2.5f, 1.2f);
             _energyMaterial.SetColor(
                 "_EmissionColor",
-                new Color(0.18f, 0.58f, 1f) * pulse);
+                new Color(1f, 0.28f, 0.06f) * pulse);
         }
 
         private void CreateStabilityLabel()
@@ -476,12 +520,12 @@ namespace XianTu
             _stabilityLabel = label.AddComponent<TextMeshPro>();
             if (UGuiKit.CjkFont != null)
                 _stabilityLabel.font = UGuiKit.CjkFont;
-            _stabilityLabel.text = "稳定值";
+            _stabilityLabel.text = "凶势";
             _stabilityLabel.fontSize = 2.4f;
             _stabilityLabel.alignment =
                 TextAlignmentOptions.Center;
             _stabilityLabel.color =
-                new Color(0.55f, 0.85f, 1f, 0.95f);
+                new Color(1f, 0.68f, 0.24f, 0.95f);
             _stabilityLabel.transform.localScale =
                 Vector3.one * 0.14f;
         }
@@ -515,10 +559,11 @@ namespace XianTu
             Vector3 position,
             float hpMultiplier,
             float damageMultiplier,
-            Action<GameObject, Vector3> resolved)
+            Action<GameObject, Vector3> resolved,
+            GameObject visualPrefab = null)
         {
             GameObject root =
-                new("TutorialPossessedHost");
+                new("TutorialBladeBeast");
             root.transform.position = position;
             root.tag = "Enemy";
             int enemyLayer = LayerMask.NameToLayer("Enemy");
@@ -526,49 +571,102 @@ namespace XianTu
                 root.layer = enemyLayer;
             root.AddComponent<CharacterController>();
 
-            GameObject body = GameObject.CreatePrimitive(
-                PrimitiveType.Capsule);
-            body.name = "HostBody";
-            body.transform.SetParent(root.transform, false);
-            body.transform.localPosition = Vector3.up * 0.95f;
-            body.transform.localScale =
-                new Vector3(0.72f, 0.95f, 0.72f);
-            Collider bodyCollider = body.GetComponent<Collider>();
-            if (bodyCollider != null)
-                Destroy(bodyCollider);
-            Renderer bodyRenderer = body.GetComponent<Renderer>();
-            if (bodyRenderer != null)
+            Renderer energyRenderer = null;
+            if (visualPrefab != null)
             {
-                bodyRenderer.material =
-                    new Material(MaterialHelper.GetLitShader());
-                bodyRenderer.material.color =
-                    new Color(0.25f, 0.3f, 0.42f);
+                GameObject visual = Instantiate(
+                    visualPrefab,
+                    root.transform);
+                visual.name = "HostVisual";
+                visual.transform.SetLocalPositionAndRotation(
+                    Vector3.zero,
+                    Quaternion.identity);
+                EnemyBase.SetLayerRecursively(
+                    visual,
+                    root.layer);
+                foreach (Collider collider in
+                         visual.GetComponentsInChildren<Collider>(true))
+                {
+                    Destroy(collider);
+                }
+                foreach (Animator animator in
+                         visual.GetComponentsInChildren<Animator>(true))
+                {
+                    animator.applyRootMotion = false;
+                }
             }
+            else
+            {
+                GameObject body = GameObject.CreatePrimitive(
+                    PrimitiveType.Capsule);
+                body.name = "HostBody";
+                body.transform.SetParent(root.transform, false);
+                body.transform.localPosition =
+                    Vector3.up * 0.95f;
+                body.transform.localScale =
+                    new Vector3(0.72f, 0.95f, 0.72f);
+                Collider bodyCollider =
+                    body.GetComponent<Collider>();
+                if (bodyCollider != null)
+                    Destroy(bodyCollider);
+                Renderer bodyRenderer =
+                    body.GetComponent<Renderer>();
+                if (bodyRenderer != null)
+                {
+                    bodyRenderer.material =
+                        new Material(
+                            MaterialHelper.GetLitShader());
+                    bodyRenderer.material.color =
+                        new Color(0.25f, 0.3f, 0.42f);
+                }
 
-            GameObject weapon = GameObject.CreatePrimitive(
-                PrimitiveType.Cube);
-            weapon.name = "FlowingEnergyWeapon";
-            weapon.transform.SetParent(root.transform, false);
-            weapon.transform.localPosition =
-                new Vector3(0.62f, 1f, 0.05f);
-            weapon.transform.localRotation =
-                Quaternion.Euler(0f, 0f, -18f);
-            weapon.transform.localScale =
-                new Vector3(0.12f, 1.15f, 0.12f);
-            Collider weaponCollider =
-                weapon.GetComponent<Collider>();
-            if (weaponCollider != null)
-                Destroy(weaponCollider);
+                GameObject weapon = GameObject.CreatePrimitive(
+                    PrimitiveType.Cube);
+                weapon.name = "FlowingEnergyWeapon";
+                weapon.transform.SetParent(root.transform, false);
+                weapon.transform.localPosition =
+                    new Vector3(0.62f, 1f, 0.05f);
+                weapon.transform.localRotation =
+                    Quaternion.Euler(0f, 0f, -18f);
+                weapon.transform.localScale =
+                    new Vector3(0.12f, 1.15f, 0.12f);
+                Collider weaponCollider =
+                    weapon.GetComponent<Collider>();
+                if (weaponCollider != null)
+                    Destroy(weaponCollider);
+                energyRenderer = weapon.GetComponent<Renderer>();
+            }
 
             StarterProloguePossessedHost host =
                 root.AddComponent<StarterProloguePossessedHost>();
-            Renderer weaponRenderer =
-                weapon.GetComponent<Renderer>();
-            if (weaponRenderer != null)
+            if (visualPrefab != null)
+            {
+                foreach (Renderer renderer in
+                         root.GetComponentsInChildren<Renderer>(true))
+                {
+                    Material[] materials = renderer.materials;
+                    for (int i = 0; i < materials.Length; i++)
+                    {
+                        if (materials[i] == null ||
+                            !materials[i].name.Contains(
+                                "Ronin_Weapon"))
+                        {
+                            continue;
+                        }
+                        host._energyMaterial = materials[i];
+                        host._energyMaterial.EnableKeyword(
+                            "_EMISSION");
+                        break;
+                    }
+                    if (host._energyMaterial != null)
+                        break;
+                }
+            }
+            else if (energyRenderer != null)
             {
                 host._energyMaterial =
                     host.CreateEnergyMaterial();
-                weaponRenderer.material = host._energyMaterial;
+                energyRenderer.material = host._energyMaterial;
             }
             host.Configure(
                 hpMultiplier,

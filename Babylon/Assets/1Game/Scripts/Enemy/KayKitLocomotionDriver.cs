@@ -6,6 +6,7 @@ namespace XianTu
     public sealed class KayKitLocomotionDriver : MonoBehaviour
     {
         private static readonly int SpeedId = Animator.StringToHash("Speed");
+        private static readonly int AttackId = Animator.StringToHash("Attack");
 
         [SerializeField] private float damping = 0.12f;
 
@@ -14,6 +15,7 @@ namespace XianTu
 
         private void Awake()
         {
+            DynamicCharacterRendering.Apply(gameObject);
             _animator = GetComponentInChildren<Animator>(true);
             _lastPosition = transform.position;
             if (_animator != null)
@@ -30,6 +32,24 @@ namespace XianTu
             delta.y = 0f;
             _lastPosition = transform.position;
             _animator.SetFloat(SpeedId, delta.magnitude / deltaTime, damping, deltaTime);
+        }
+
+        public void PlayAttack()
+        {
+            if (_animator == null)
+                return;
+
+            foreach (AnimatorControllerParameter parameter in
+                     _animator.parameters)
+            {
+                if (parameter.nameHash == AttackId &&
+                    parameter.type ==
+                    AnimatorControllerParameterType.Trigger)
+                {
+                    _animator.SetTrigger(AttackId);
+                    return;
+                }
+            }
         }
     }
 }

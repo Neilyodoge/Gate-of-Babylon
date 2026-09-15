@@ -167,6 +167,20 @@
             "shortcutSlot": 0,
             "createdTimeStamp": 1785829805241,
             "modifiedTimeStamp": 1785829813081
+        },
+        {
+            "guid": "5884b10e2066a494391587de2d09099f",
+            "title": "Game资源包",
+            "comment": "",
+            "titleColor": {
+                "r": 0.7861634492874146,
+                "g": 0.46230360865592959,
+                "b": 0.7266121506690979,
+                "a": 1.0
+            },
+            "shortcutSlot": 0,
+            "createdTimeStamp": 1788942165108,
+            "modifiedTimeStamp": 1788942165108
         }
     ]
 }

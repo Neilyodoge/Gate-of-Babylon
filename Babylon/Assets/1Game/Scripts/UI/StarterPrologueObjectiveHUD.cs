@@ -97,11 +97,10 @@ namespace XianTu
             if (step == StarterPrologueStep.AttachmentChosen)
             {
                 if (!string.IsNullOrWhiteSpace(objective) &&
-                    (objective.Contains("稳定") ||
-                     objective.Contains("更强") ||
-                     objective.Contains("失控宿主")))
+                    (objective.Contains("凶势") ||
+                     objective.Contains("刃铠灵")))
                 {
-                    return "救援 · 失控宿主";
+                    return "救援 · 凶性灵宠";
                 }
                 if (!string.IsNullOrWhiteSpace(objective) &&
                     objective.Contains("躁动"))

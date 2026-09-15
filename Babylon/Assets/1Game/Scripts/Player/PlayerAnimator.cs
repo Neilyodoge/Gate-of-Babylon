@@ -101,6 +101,7 @@ namespace XianTu
         {
             if (animator == null)
                 animator = GetComponentInChildren<Animator>();
+            DynamicCharacterRendering.Apply(gameObject);
         }
 
         private void Update()
@@ -183,6 +184,7 @@ namespace XianTu
         public void SetAnimator(Animator anim)
         {
             animator = anim;
+            DynamicCharacterRendering.Apply(gameObject);
         }
 
         // ==================== 优先级判断 ====================

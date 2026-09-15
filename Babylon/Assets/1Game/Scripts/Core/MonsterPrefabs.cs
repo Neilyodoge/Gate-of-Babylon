@@ -97,6 +97,7 @@ namespace XianTu
                 go.name = fallbackName;
                 foreach (var animator in go.GetComponentsInChildren<Animator>(true))
                     animator.applyRootMotion = false;
+                DynamicCharacterRendering.Apply(go);
             }
             else
             {
