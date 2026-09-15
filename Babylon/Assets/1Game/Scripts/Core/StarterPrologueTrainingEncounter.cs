@@ -13,9 +13,9 @@ namespace XianTu
     [RequireComponent(typeof(BoxCollider))]
     public sealed class StarterPrologueTrainingEncounter : MonoBehaviour
     {
-        private const float TutorialHpMultiplier = 0.55f;
+        private const float TutorialHpMultiplier = 1.0f;
         private const float TutorialDamageMultiplier = 0.25f;
-        private const float BladeBeastHpMultiplier = 0.9f;
+        private const float BladeBeastHpMultiplier = 1.5f;
         private const float AgitatedSpiritRadius = 0.6f;
 
         private readonly Dictionary<GameObject, int> _enemyIds = new();
@@ -31,6 +31,10 @@ namespace XianTu
         public bool IsRunning => _runtime.IsRunning;
         public bool IsPreparing => _preparing;
         public int Remaining => _runtime.Remaining;
+        public static float AgitatedSpiritHealthMultiplier =>
+            TutorialHpMultiplier;
+        public static float BladeBeastHealthMultiplier =>
+            BladeBeastHpMultiplier;
         public GameObject ThreatVisualPrefab =>
             possessedHostPrefab;
 
@@ -350,16 +354,8 @@ namespace XianTu
                 PublishObjective(
                     "听照料员说明情况",
                     caretaker.transform.position);
-                StarterPrologueDialogueHUD.Show(
-                    "照料员",
-                    "它退走了……刚才真是吓死我了。",
-                    2.1f);
-                yield return new WaitForSeconds(1.75f);
-                StarterPrologueDialogueHUD.Show(
-                    "照料员",
-                    $"多亏你和{ChosenSpiritName()}。这里还不安全，我们先回去。",
-                    2.4f);
-                yield return new WaitForSeconds(2.45f);
+                yield return StarterPrologueDialogueSystem.PlayNode(
+                    BattleEndDialogueNode());
             }
 
             StarterPrologueAdvanceResult result =
@@ -383,18 +379,26 @@ namespace XianTu
                 "<color=#F2B45E>[新手序章] 刃铠灵撤离与照料员对话完成，等待玩家前往回家点。</color>");
         }
 
-        private static string ChosenSpiritName()
+        private static string BattleEndDialogueNode()
         {
-            string chosen =
-                SaveSystem.Instance.Data.starterSpiritSpeciesId;
-            if (!string.IsNullOrWhiteSpace(chosen) &&
-                StarterSpiritChoicePresentation.TryGetProfile(
-                    new StableConfigId(chosen),
-                    out StarterSpiritChoiceProfile profile))
+            StableConfigId species = new(
+                SaveSystem.Instance.Data.starterSpiritSpeciesId);
+            if (species ==
+                FirstSpiritCircuitContent.SparkRaccoonSpecies)
             {
-                return profile.DisplayName;
+                return "BattleEndSparkRaccoon";
             }
-            return "灵宠";
+            if (species ==
+                FirstSpiritCircuitContent.EchoOwlSpecies)
+            {
+                return "BattleEndEchoOwl";
+            }
+            if (species ==
+                FirstSpiritCircuitContent.BounceGelSpecies)
+            {
+                return "BattleEndBounceGel";
+            }
+            return "BattleEndFallback";
         }
 
         private void PublishEnemyCount()

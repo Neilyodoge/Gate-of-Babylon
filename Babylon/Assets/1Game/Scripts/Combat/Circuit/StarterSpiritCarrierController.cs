@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -69,6 +70,8 @@ namespace XianTu
         public CarrierSlot Attachment =>
             _runtime?.Attachment ?? CarrierSlot.Weapon;
         public int ActivatedCount { get; private set; }
+        public bool IsStarterTrial =>
+            _runtime != null && _configuredSave == null;
 
         private void Awake()
         {
@@ -117,7 +120,7 @@ namespace XianTu
 
         private void Update()
         {
-            if (_runtime == null)
+            if (_runtime == null || IsStarterTrial)
                 return;
 
             Keyboard keyboard = Keyboard.current;
@@ -166,6 +169,37 @@ namespace XianTu
             return true;
         }
 
+        public bool BeginStarterTrial(
+            StableConfigId species,
+            CarrierSlot carrier,
+            bool grantTechnique = true)
+        {
+            if (!FeatureFlags.EnableCircuitRuntime ||
+                !StarterSpiritChoice.IsOption(species))
+            {
+                return false;
+            }
+
+            _configuredSave = null;
+            _spirit = new SpiritInstanceState(new SpiritIdentity(
+                Guid.NewGuid(),
+                species,
+                StarterSpiritChoice.DefaultPersonality));
+            _runtime = new StarterSpiritCarrierRuntime(
+                species,
+                carrier);
+            _markedEchoTargetId = 0;
+            _resolvedTargets.Clear();
+            _sparkActivations = 0;
+            _echoActivations = 0;
+            _carriedEmberReady = false;
+            RefreshTalentTuning();
+            if (grantTechnique)
+                EnsureTrialTechnique();
+            PublishAttachmentChanged();
+            return true;
+        }
+
         public StarterSpiritAttachmentResult TryAttach(
             CarrierSlot carrier)
         {
@@ -209,10 +243,11 @@ namespace XianTu
         public void RecordResolvedPlayerDamage(
             in GameEvents.PlayerDamageResolved evt)
         {
+            GameObject target = ResolveCarrierTarget(evt.Target);
             if (_runtime == null ||
                 !evt.IsPlayerOwnedDamage ||
-                evt.Target == null ||
-                evt.Target.GetComponent<Destructible>() != null ||
+                target == null ||
+                target.GetComponent<Destructible>() != null ||
                 evt.AppliedAmount <= 0f)
             {
                 return;
@@ -223,13 +258,14 @@ namespace XianTu
                 _resolvedTargets.Clear();
                 _resolvedFrame = Time.frameCount;
             }
-            _resolvedTargets[evt.Target.GetInstanceID()] = evt.TargetRef;
+            _resolvedTargets[target.GetInstanceID()] = evt.TargetRef;
         }
 
         public StarterSpiritCarrierStep RecordWeaponHit(
             GameObject target,
             Vector3 hitPoint)
         {
+            target = ResolveCarrierTarget(target);
             if (!TryConsumeResolved(target))
                 return default;
 
@@ -245,6 +281,7 @@ namespace XianTu
             Vector3 hitPoint,
             int slotIndex)
         {
+            target = ResolveCarrierTarget(target);
             if (slotIndex != 0 || !TryConsumeResolved(target))
                 return default;
 
@@ -266,6 +303,35 @@ namespace XianTu
                 _runtime.RegisterMobilityFinished();
             Advance(step, endPosition, null);
             return step;
+        }
+
+        /// <summary>
+        /// 赋予教学长时间无进展时，让玩家的下一次有效动作必定显化。
+        /// 只允许临时试玩态调用，不改变正式战斗触发规则。
+        /// </summary>
+        public bool ForceStarterTrialActivation(Vector3 position)
+        {
+            if (!IsStarterTrial || _spirit == null || _runtime == null)
+                return false;
+
+            GameEvents.Publish(
+                new GameEvents.StarterSpiritCarrierAdvanced
+                {
+                    SpiritInstanceId = _spirit.Identity.InstanceId,
+                    SpeciesId = _spirit.Identity.SpeciesConfigId,
+                    Carrier = _runtime.Attachment,
+                    Activated = true,
+                    Progress = 3
+                });
+            ActivatedCount++;
+            if (Application.isPlaying)
+            {
+                ApplySpeciesEffect(
+                    position,
+                    null,
+                    _runtime.Attachment);
+            }
+            return true;
         }
 
         private void OnPlayerDamageResolved(
@@ -658,6 +724,7 @@ namespace XianTu
             GameObject triggerTarget,
             CarrierSlot carrier)
         {
+            triggerTarget = ResolveCarrierTarget(triggerTarget);
             GameObject target = FindNearestTarget(
                 position,
                 triggerTarget);
@@ -909,6 +976,7 @@ namespace XianTu
             GameObject excluded,
             ISet<GameObject> excludedTargets = null)
         {
+            excluded = ResolveCarrierTarget(excluded);
             PlayerCombat combat = GetComponent<PlayerCombat>();
             LayerMask mask =
                 combat != null ? combat.EnemyLayer : Physics.AllLayers;
@@ -950,6 +1018,17 @@ namespace XianTu
                 }
             }
             return nearest;
+        }
+
+        public static GameObject ResolveCarrierTarget(GameObject target)
+        {
+            if (target == null)
+                return null;
+            IDamageable damageable =
+                target.GetComponentInParent<IDamageable>();
+            return damageable is Component component
+                ? component.gameObject
+                : target;
         }
 
         private static void TintGelProjectile(
@@ -1026,6 +1105,25 @@ namespace XianTu
                     "[ProjectR] 未找到基础术法灵息弹。");
                 return;
             }
+            combat.EquipSkillQ(starter);
+            GameEvents.Publish(
+                new GameEvents.SkillEquipped
+                {
+                    SlotIndex = 0,
+                    Skill = starter
+                });
+        }
+
+        private void EnsureTrialTechnique()
+        {
+            PlayerCombat combat = GetComponent<PlayerCombat>();
+            if (combat == null || combat.GetSkillInSlot(0) != null)
+                return;
+
+            SkillData starter = Resources.Load<SkillData>(
+                StarterTechniqueResourcePath);
+            if (starter == null)
+                return;
             combat.EquipSkillQ(starter);
             GameEvents.Publish(
                 new GameEvents.SkillEquipped

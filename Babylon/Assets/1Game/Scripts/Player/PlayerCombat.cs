@@ -2321,6 +2321,7 @@ namespace XianTu
                     if (projectile != null)
                     {
                         projectile.Initialize(damage, projDir, skill.projectileSpeed, 0, 0, EnhElem(skill), _player, _player.Stats.armorPenPercent);
+                        NameStarterSpiritBolt(projectile, skill);
                         AssignProjectileSkillSource(projectile);
                         if (_enhActive)
                         {
@@ -2419,6 +2420,7 @@ namespace XianTu
                     element,
                     _player,
                     _player.Stats.armorPenPercent);
+                NameStarterSpiritBolt(projectile, skill);
                 AssignProjectileSkillSource(projectile);
             }
             else if (showDebugVisuals ||

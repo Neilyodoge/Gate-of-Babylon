@@ -20,6 +20,7 @@ namespace XianTu
         private RectTransform _panelRT;
         private Canvas _canvas;
         private TextMeshProUGUI _statusText;
+        private TextMeshProUGUI _stopwatchButtonText;
         private GameObject _guidePanelGo;
         private RectTransform _guideFlowContent;
         private ScrollRect _scrollRect;
@@ -35,6 +36,10 @@ namespace XianTu
         private float _originalAttack;  // 原始攻击力（用于恢复）
         private bool _speedBoost;       // 加速模式
         private float _originalSpeed;   // 原始移速
+        private static bool _stopwatchRunning;
+        private static double _stopwatchAccumulated;
+        private static double _stopwatchStartedAt;
+        private double _nextStopwatchRefreshAt;
         // 日志
         private List<string> _logMessages = new();
         private TextMeshProUGUI _logText;
@@ -48,6 +53,15 @@ namespace XianTu
         private void Awake()
         {
             Instance = this;
+        }
+
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStopwatchSession()
+        {
+            _stopwatchRunning = false;
+            _stopwatchAccumulated = 0d;
+            _stopwatchStartedAt = 0d;
         }
 
         private void OnEnable()
@@ -71,6 +85,16 @@ namespace XianTu
             var kb = Keyboard.current;
             if (kb != null && kb.tabKey.wasPressedThisFrame)
                 TogglePanel();
+
+            if (_isOpen &&
+                _stopwatchRunning &&
+                Time.realtimeSinceStartupAsDouble >=
+                _nextStopwatchRefreshAt)
+            {
+                _nextStopwatchRefreshAt =
+                    Time.realtimeSinceStartupAsDouble + 0.1d;
+                RefreshStatus();
+            }
 
             // 锁血模式：每帧恢复到锁定值
             if (_lockHp && PlayerController.Instance != null)
@@ -383,6 +407,51 @@ namespace XianTu
             RefreshStatus();
         }
 
+        private void ToggleStopwatch()
+        {
+            double now = Time.realtimeSinceStartupAsDouble;
+            if (_stopwatchRunning)
+            {
+                _stopwatchAccumulated +=
+                    now - _stopwatchStartedAt;
+                _stopwatchRunning = false;
+                AddLog(
+                    $"<color=#FFD66B>⏸ 计时暂停：{FormatStopwatch(StopwatchElapsed)}</color>");
+                return;
+            }
+
+            _stopwatchStartedAt = now;
+            _stopwatchRunning = true;
+            AddLog(
+                $"<color=#80E09B>▶ 计时开始：{FormatStopwatch(StopwatchElapsed)}</color>");
+        }
+
+        private void ResetStopwatch()
+        {
+            _stopwatchRunning = false;
+            _stopwatchAccumulated = 0d;
+            _stopwatchStartedAt =
+                Time.realtimeSinceStartupAsDouble;
+            AddLog("<color=#AAB2C0>↺ 计时器已归零</color>");
+        }
+
+        private static double StopwatchElapsed =>
+            _stopwatchAccumulated +
+            (_stopwatchRunning
+                ? Time.realtimeSinceStartupAsDouble -
+                  _stopwatchStartedAt
+                : 0d);
+
+        public static string FormatStopwatch(double seconds)
+        {
+            seconds = System.Math.Max(0d, seconds);
+            int totalMinutes = (int)(seconds / 60d);
+            double remainingSeconds =
+                seconds - totalMinutes * 60d;
+            return
+                $"{totalMinutes:00}:{remainingSeconds:00.0}";
+        }
+
         /// <summary>重新开始</summary>
         private void RestartGame()
         {
@@ -615,109 +684,78 @@ namespace XianTu
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             canvasGo.AddComponent<GraphicRaycaster>();
+            UGuiKit.EnsureEventSystem();
 
-            // 主面板（左侧）
+            // 主面板只保留Playtest计时器。
             _panelGo = new GameObject("DebugPanel");
             _panelGo.transform.SetParent(canvasGo.transform, false);
             _panelRT = _panelGo.AddComponent<RectTransform>();
-            _panelRT.anchorMin = new Vector2(0, 0);
-            _panelRT.anchorMax = new Vector2(0, 1);
-            _panelRT.pivot = new Vector2(0, 0.5f);
-            _panelRT.offsetMin = new Vector2(10, 10);
-            _panelRT.offsetMax = new Vector2(300, -10);
+            _panelRT.anchorMin = _panelRT.anchorMax =
+                new Vector2(0f, 1f);
+            _panelRT.pivot = new Vector2(0f, 1f);
+            _panelRT.anchoredPosition = new Vector2(10f, -42f);
+            _panelRT.sizeDelta = new Vector2(330f, 174f);
             var panelImg = _panelGo.AddComponent<Image>();
             panelImg.color = new Color(0.05f, 0.05f, 0.1f, 0.92f);
 
-            // 标题
-            CreateLabel(_panelGo.transform, "Title", "═══ Debug 控制台 (Tab) ═══",
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -5), new Vector2(0, -30),
-                16, new Color(1f, 0.85f, 0.3f), FontStyle.Bold);
+            CreateLabel(
+                _panelGo.transform,
+                "Title",
+                "Playtest 计时器　(Tab关闭)",
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(10f, -6f),
+                new Vector2(-10f, -36f),
+                16,
+                new Color(1f, 0.85f, 0.3f),
+                FontStyle.Bold);
 
-            // 状态文本
-            var statusGo = CreateLabel(_panelGo.transform, "Status", "",
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(5, -35), new Vector2(-5, -130),
-                11, new Color(0.7f, 0.9f, 0.7f), FontStyle.Normal);
+            var statusGo = CreateLabel(
+                _panelGo.transform,
+                "Status",
+                "",
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(12f, -42f),
+                new Vector2(-12f, -100f),
+                30,
+                new Color(1f, 0.86f, 0.42f),
+                FontStyle.Bold);
             _statusText = statusGo.GetComponent<TextMeshProUGUI>();
-            _statusText.alignment = TextAlignmentOptions.TopLeft;
+            _statusText.alignment = TextAlignmentOptions.Center;
 
-            // 分隔线
-            CreateSeparator(_panelGo.transform, 0.87f);
+            GameObject controls = new(
+                "TimerControls",
+                typeof(RectTransform),
+                typeof(HorizontalLayoutGroup));
+            controls.transform.SetParent(_panelGo.transform, false);
+            RectTransform controlsRect =
+                controls.GetComponent<RectTransform>();
+            controlsRect.anchorMin = new Vector2(0f, 0f);
+            controlsRect.anchorMax = new Vector2(1f, 0f);
+            controlsRect.pivot = new Vector2(0.5f, 0f);
+            controlsRect.offsetMin = new Vector2(12f, 14f);
+            controlsRect.offsetMax = new Vector2(-12f, 58f);
+            HorizontalLayoutGroup layout =
+                controls.GetComponent<HorizontalLayoutGroup>();
+            layout.spacing = 10f;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = true;
 
-            // 按钮区域（ScrollView）
-            var scrollGo = new GameObject("Scroll");
-            scrollGo.transform.SetParent(_panelGo.transform, false);
-            var scrollRT = scrollGo.AddComponent<RectTransform>();
-            scrollRT.anchorMin = new Vector2(0, 0.08f);
-            scrollRT.anchorMax = new Vector2(1, 0.87f);
-            scrollRT.offsetMin = new Vector2(5, 0);
-            scrollRT.offsetMax = new Vector2(-5, 0);
-            _scrollRect = scrollGo.AddComponent<ScrollRect>();
-            _scrollRect.horizontal = false;
-            var scrollImg = scrollGo.AddComponent<Image>();
-            scrollImg.color = new Color(0, 0, 0, 0.01f); // 几乎透明，用于接收滚动
-            _scrollRect.movementType = ScrollRect.MovementType.Clamped;
-
-            // 内容容器
-            var contentGo = new GameObject("Content");
-            contentGo.transform.SetParent(scrollGo.transform, false);
-            _contentRT = contentGo.AddComponent<RectTransform>();
-            _contentRT.anchorMin = new Vector2(0, 1);
-            _contentRT.anchorMax = new Vector2(1, 1);
-            _contentRT.pivot = new Vector2(0.5f, 1);
-            _contentRT.offsetMin = Vector2.zero;
-            _contentRT.offsetMax = Vector2.zero;
-            var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
-            vlg.spacing = 4;
-            vlg.padding = new RectOffset(4, 4, 4, 4);
-            vlg.childForceExpandWidth = true;
-            vlg.childForceExpandHeight = false;
-            vlg.childControlWidth = true;
-            vlg.childControlHeight = true;
-            var csf = contentGo.AddComponent<ContentSizeFitter>();
-            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            _scrollRect.content = _contentRT;
-
-            // ===== 按钮组 =====
-
-            CreateSectionHeader(contentGo.transform, "【 信息 】");
-            CreateButton(contentGo.transform, "事件提示",
-                new Color(0.12f, 0.38f, 0.48f), ToggleLevelGuide);
-
-            CreateSectionHeader(contentGo.transform, "【 关卡事件 Debug 】");
-            CreateButton(contentGo.transform, "✓ 直接完成路线事件（开放）",
-                new Color(0.18f, 0.48f, 0.32f), CompleteLayoutEvent);
-
-            CreateSectionHeader(contentGo.transform, "【 战斗调试 】");
-            CreateButton(contentGo.transform, "🛡 不掉血", new Color(0.45f, 0.4f, 0.15f), ToggleGodMode);
-            CreateButton(contentGo.transform, "攻击力 +50", new Color(0.5f, 0.25f, 0.2f), BoostAttack);
-            CreateButton(contentGo.transform, "👟 3倍移动速度", new Color(0.12f, 0.38f, 0.5f), ToggleSpeedBoost);
-            CreateButton(contentGo.transform, "全屏秒杀", new Color(0.55f, 0.1f, 0.1f), KillAllEnemies);
-
-            CreateSectionHeader(contentGo.transform, "【 Edgar 节点直达 】");
-            CreateButton(contentGo.transform, "直达本局 Boss", new Color(0.6f, 0.08f, 0.08f), GotoBossRoom);
-            CreateButton(contentGo.transform, "O0 外环端点", new Color(0.45f, 0.2f, 0.25f), () => GotoEdgarNode("O0"));
-            CreateButton(contentGo.transform, "O1 外环事件", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("O1"));
-            CreateButton(contentGo.transform, "O2 外环战斗", new Color(0.35f, 0.3f, 0.2f), () => GotoEdgarNode("O2"));
-            CreateButton(contentGo.transform, "O3 外环精英", new Color(0.55f, 0.25f, 0.1f), () => GotoEdgarNode("O3"));
-            CreateButton(contentGo.transform, "O4 外环降落候选", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("O4"));
-            CreateButton(contentGo.transform, "C0 连接区商店", new Color(0.2f, 0.5f, 0.25f), () => GotoEdgarNode("C0"));
-            CreateButton(contentGo.transform, "C1 连接区战斗", new Color(0.4f, 0.35f, 0.15f), () => GotoEdgarNode("C1"));
-            CreateButton(contentGo.transform, "I0 内环战斗", new Color(0.3f, 0.2f, 0.45f), () => GotoEdgarNode("I0"));
-            CreateButton(contentGo.transform, "I1 内环事件", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("I1"));
-            CreateButton(contentGo.transform, "I2 内环精英", new Color(0.55f, 0.2f, 0.15f), () => GotoEdgarNode("I2"));
-            CreateButton(contentGo.transform, "I3 内环降落候选", new Color(0.15f, 0.4f, 0.5f), () => GotoEdgarNode("I3"));
-            CreateButton(contentGo.transform, "I4 内环端点", new Color(0.4f, 0.15f, 0.45f), () => GotoEdgarNode("I4"));
-
-            // 底部日志区域
-            CreateSeparator(_panelGo.transform, 0.08f);
-            var logGo = CreateLabel(_panelGo.transform, "Log", "",
-                new Vector2(0, 0), new Vector2(1, 0.08f), new Vector2(5, 2), new Vector2(-5, -2),
-                10, new Color(0.6f, 0.6f, 0.6f, 0.8f), FontStyle.Normal);
-            _logText = logGo.GetComponent<TextMeshProUGUI>();
-            _logText.alignment = TextAlignmentOptions.BottomLeft;
-            _logText.richText = true;
-
-            CreateGuidePanel(canvasGo.transform);
+            Button toggle = CreateButton(
+                controls.transform,
+                "▶ 开始",
+                new Color(0.18f, 0.42f, 0.3f),
+                ToggleStopwatch);
+            _stopwatchButtonText =
+                toggle.GetComponentInChildren<TextMeshProUGUI>();
+            CreateButton(
+                controls.transform,
+                "↺ 重置",
+                new Color(0.34f, 0.28f, 0.32f),
+                ResetStopwatch);
             RefreshStatus();
         }
 
@@ -948,7 +986,11 @@ namespace XianTu
             return go;
         }
 
-        private void CreateButton(Transform parent, string label, Color bgColor, UnityEngine.Events.UnityAction onClick)
+        private Button CreateButton(
+            Transform parent,
+            string label,
+            Color bgColor,
+            UnityEngine.Events.UnityAction onClick)
         {
             var btnGo = new GameObject($"Btn_{label}");
             btnGo.transform.SetParent(parent, false);
@@ -987,6 +1029,7 @@ namespace XianTu
             txt.raycastTarget = false;
             txt.outlineColor = new Color(0, 0, 0, 0.7f);
             txt.outlineWidth = 0.2f;
+            return btn;
         }
 
         private void CreateSectionHeader(Transform parent, string title)
@@ -1026,29 +1069,16 @@ namespace XianTu
         {
             if (_statusText == null) return;
 
-            string status = "";
-            if (PlayerController.Instance != null)
+            _statusText.text =
+                $"{FormatStopwatch(StopwatchElapsed)}\n" +
+                (_stopwatchRunning
+                    ? "<color=#80E09B>运行中</color>"
+                    : "<color=#AAB2C0>已暂停</color>");
+            if (_stopwatchButtonText != null)
             {
-                var stats = PlayerController.Instance.Stats;
-                int shards = PlayerResources.Instance != null ? PlayerResources.Instance.SpiritShards : 0;
-                int level = GameManager.Instance != null ? GameManager.Instance.CurrentLevel : 0;
-                string realm = GameManager.Instance != null ? GameManager.Instance.CurrentRealmName : "?";
-
-                status += $"<color=#AAF>区域：</color>{realm}（深度 {level + 1}）\n";
-                status += $"<color=#AFA>生命：</color>{stats.currentHp:F0}/{stats.maxHp:F0}\n";
-                status += $"<color=#FAA>攻击：</color>{stats.attackDamage:F0}  <color=#AAF>攻速：</color>{stats.attackSpeed:F1}\n";
-                status += $"<color=#AFF>移速：</color>{stats.moveSpeed:F1}  <color=#FFA>碎片：</color>{shards}\n";
-                status += "\n";
-                status += $"无敌：{BoolStr(_godMode)}  锁血：{BoolStr(_lockHp)}\n";
-                status += $"秒杀：{BoolStr(_oneHitKill)}  加速：{BoolStr(_speedBoost)}\n";
-                status += $"时间缩放：{Time.timeScale}x";
+                _stopwatchButtonText.text =
+                    _stopwatchRunning ? "⏸ 暂停" : "▶ 开始";
             }
-            else
-            {
-                status = "<color=red>玩家未初始化</color>";
-            }
-
-            _statusText.text = status;
         }
 
         private string BoolStr(bool v) => v ? "<color=yellow>ON</color>" : "<color=gray>OFF</color>";

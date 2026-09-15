@@ -2235,6 +2235,32 @@ namespace XianTu.Editor.Tests
                 Assert.That(
                     projectile.ShowsSceneryImpactFeedback,
                     Is.False);
+
+                SkillData starterBolt =
+                    Resources.Load<SkillData>(
+                        StarterSpiritCarrierController
+                            .StarterTechniqueResourcePath);
+                Assert.That(starterBolt, Is.Not.Null);
+                Assert.That(
+                    starterBolt.projectilePrefab,
+                    Is.Not.Null);
+                Assert.That(
+                    starterBolt.vfxDuration,
+                    Is.EqualTo(3f));
+                Assert.That(
+                    starterBolt.projectilePrefab
+                        .GetComponent<Projectile>(),
+                    Is.Not.Null);
+                Assert.That(
+                    starterBolt.projectilePrefab
+                        .GetComponent<
+                            StarterSpiritBoltVisual>(),
+                    Is.Not.Null);
+                Assert.That(
+                    starterBolt.projectilePrefab
+                        .GetComponentsInChildren<
+                            ParticleSystem>(true).Length,
+                    Is.EqualTo(4));
             }
             finally
             {
@@ -2470,7 +2496,7 @@ namespace XianTu.Editor.Tests
         }
 
         [Test]
-        public void StarterPrologueOpening_UsesV5NonBlockingLines()
+        public void StarterPrologueOpening_UsesV5YarnLines()
         {
             Assert.That(
                 StarterPrologueOpeningBeat.ShouldPlay(
@@ -2493,6 +2519,43 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 StarterPrologueChoiceTrigger.ContainerResponse,
                 Is.EqualTo("等等……它们在回应你。"));
+        }
+
+        [Test]
+        public void StarterPrologueDialogue_UsesYarnAndReadableCombatTuning()
+        {
+            Yarn.Unity.YarnProject project =
+                Resources.Load<Yarn.Unity.YarnProject>(
+                    StarterPrologueDialogueSystem
+                        .ProjectResourcePath);
+
+            Assert.That(project, Is.Not.Null);
+            Assert.That(project.NodeNames, Does.Contain("Opening"));
+            Assert.That(
+                project.NodeNames,
+                Does.Contain("CaretakerWarning"));
+            Assert.That(
+                project.NodeNames,
+                Does.Contain("CandidatesRespond"));
+            Assert.That(
+                project.NodeNames,
+                Does.Contain("BattleEndSparkRaccoon"));
+            Assert.That(
+                typeof(Yarn.Unity.DialoguePresenterBase)
+                    .IsAssignableFrom(
+                        typeof(StarterPrologueYarnPresenter)),
+                Is.True);
+            Assert.That(
+                StarterPrologueDialogueHUD.CharactersPerSecond,
+                Is.EqualTo(20f));
+            Assert.That(
+                StarterPrologueTrainingEncounter
+                    .AgitatedSpiritHealthMultiplier,
+                Is.EqualTo(1f));
+            Assert.That(
+                StarterPrologueTrainingEncounter
+                    .BladeBeastHealthMultiplier,
+                Is.EqualTo(1.5f));
         }
 
         [Test]
@@ -3596,6 +3659,235 @@ namespace XianTu.Editor.Tests
                     runtime.RegisterMobilityFinished().Activated,
                     Is.True);
             }
+        }
+
+        [Test]
+        public void StarterSpiritCarrier_UsesTransientUnsavedTrialLoadout()
+        {
+            bool previous = FeatureFlags.EnableCircuitRuntime;
+            FeatureFlags.EnableCircuitRuntime = true;
+            GameObject player = new("StarterTrialCarrierTest");
+            GameEvents.StarterSpiritCarrierAdvanced latest = default;
+            void Capture(GameEvents.StarterSpiritCarrierAdvanced evt)
+                => latest = evt;
+            GameEvents.Subscribe<GameEvents.StarterSpiritCarrierAdvanced>(
+                Capture);
+            try
+            {
+                PlayerCombat combat =
+                    player.AddComponent<PlayerCombat>();
+                StarterSpiritCarrierController controller =
+                    player.AddComponent<
+                        StarterSpiritCarrierController>();
+
+                Assert.That(
+                    controller.BeginStarterTrial(
+                        FirstSpiritCircuitContent
+                            .EchoOwlSpecies,
+                        CarrierSlot.Weapon,
+                        grantTechnique: false),
+                    Is.True);
+                Assert.That(combat.GetSkillInSlot(0), Is.Null);
+                Assert.That(controller.IsStarterTrial, Is.True);
+                Assert.That(
+                    controller.Spirit.Identity.SpeciesConfigId,
+                    Is.EqualTo(
+                        FirstSpiritCircuitContent
+                            .EchoOwlSpecies));
+                Assert.That(
+                    controller.TryAttach(
+                        CarrierSlot.TechniqueQ,
+                        false),
+                    Is.EqualTo(
+                        StarterSpiritAttachmentResult.Success));
+                Assert.That(
+                    controller.Attachment,
+                    Is.EqualTo(CarrierSlot.TechniqueQ));
+                Assert.That(
+                    controller.BeginStarterTrial(
+                        FirstSpiritCircuitContent
+                            .EchoOwlSpecies,
+                        CarrierSlot.TechniqueQ,
+                        grantTechnique: true),
+                    Is.True);
+                Assert.That(
+                    combat.GetSkillInSlot(0),
+                    Is.EqualTo(
+                        Resources.Load<SkillData>(
+                            StarterSpiritCarrierController
+                                .StarterTechniqueResourcePath)));
+                Assert.That(
+                    controller.ForceStarterTrialActivation(Vector3.zero),
+                    Is.True);
+                Assert.That(latest.Activated, Is.True);
+                Assert.That(
+                    latest.SpeciesId,
+                    Is.EqualTo(
+                        FirstSpiritCircuitContent.EchoOwlSpecies));
+                Assert.That(
+                    latest.Carrier,
+                    Is.EqualTo(CarrierSlot.TechniqueQ));
+            }
+            finally
+            {
+                GameEvents.Unsubscribe<
+                    GameEvents.StarterSpiritCarrierAdvanced>(Capture);
+                FeatureFlags.EnableCircuitRuntime = previous;
+                UnityEngine.Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
+        public void StarterSpiritCarrier_ResolvesNestedHitColliderToTargetRoot()
+        {
+            var root = new GameObject("NestedDamageableRoot");
+            var child = new GameObject("NestedHitCollider");
+            try
+            {
+                root.AddComponent<StarterSpiritTrialTarget>();
+                child.transform.SetParent(root.transform, false);
+                child.AddComponent<BoxCollider>();
+
+                Assert.That(
+                    StarterSpiritCarrierController.ResolveCarrierTarget(
+                        child),
+                    Is.SameAs(root));
+                Assert.That(
+                    StarterSpiritCarrierController.ResolveCarrierTarget(
+                        root),
+                    Is.SameAs(root));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void StarterSpiritTrial_UsesSingleVariableComparisonStages()
+        {
+            Assert.That(
+                StarterSpiritTrialController.GuidedStepFor(
+                    StarterSpiritTrialStage.ChooseFirstAssignment),
+                Is.EqualTo(1));
+            Assert.That(
+                StarterSpiritTrialController.GuidedStepFor(
+                    StarterSpiritTrialStage.VerifyFirstAssignment),
+                Is.EqualTo(1));
+            Assert.That(
+                StarterSpiritTrialController.GuidedStepFor(
+                    StarterSpiritTrialStage.ChooseDifferentCarrier),
+                Is.EqualTo(2));
+            Assert.That(
+                StarterSpiritTrialController.GuidedStepFor(
+                    StarterSpiritTrialStage.VerifyDifferentCarrier),
+                Is.EqualTo(2));
+            Assert.That(
+                StarterSpiritTrialController.GuidedStepFor(
+                    StarterSpiritTrialStage.ChooseDifferentSpecies),
+                Is.EqualTo(3));
+            Assert.That(
+                StarterSpiritTrialController.GuidedStepFor(
+                    StarterSpiritTrialStage.VerifyDifferentSpecies),
+                Is.EqualTo(3));
+            Assert.That(
+                StarterSpiritTrialController.IsVerificationStage(
+                    StarterSpiritTrialStage.ChooseDifferentCarrier),
+                Is.False);
+            Assert.That(
+                StarterSpiritTrialController.IsVerificationStage(
+                    StarterSpiritTrialStage.VerifyDifferentCarrier),
+                Is.True);
+        }
+
+        [Test]
+        public void StarterSpiritTrial_SoftPreviewKeepsAllCombinationsBrowsable()
+        {
+            UnityEngine.EventSystems.EventSystem previousEventSystem =
+                UnityEngine.EventSystems.EventSystem.current;
+            StarterSpiritTrialHUD hud = StarterSpiritTrialHUD.Create();
+            try
+            {
+                hud.ShowDifferentCarrier(
+                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
+                    CarrierSlot.Mobility,
+                    FirstSpiritCircuitContent.EchoOwlSpecies,
+                    CarrierSlot.TechniqueQ);
+                UnityEngine.UI.Button[] choices = hud.transform
+                    .Find("TrialPanel/TrialControls")
+                    .GetComponentsInChildren<UnityEngine.UI.Button>(true);
+                Assert.That(
+                    choices.All(button => button.interactable),
+                    Is.True);
+                UnityEngine.UI.Button assignment = hud.transform
+                    .Find("TrialPanel/Assignment")
+                    .GetComponent<UnityEngine.UI.Button>();
+                Assert.That(assignment.interactable, Is.False);
+
+                hud.ShowDifferentCarrier(
+                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
+                    CarrierSlot.Mobility,
+                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
+                    CarrierSlot.TechniqueQ);
+                Assert.That(assignment.interactable, Is.True);
+
+                hud.ShowDifferentSpecies(
+                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
+                    CarrierSlot.TechniqueQ,
+                    FirstSpiritCircuitContent.BounceGelSpecies,
+                    CarrierSlot.Weapon);
+                Assert.That(
+                    choices.All(button => button.interactable),
+                    Is.True);
+                Assert.That(assignment.interactable, Is.False);
+
+                hud.ShowDifferentSpecies(
+                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
+                    CarrierSlot.TechniqueQ,
+                    FirstSpiritCircuitContent.BounceGelSpecies,
+                    CarrierSlot.TechniqueQ);
+                Assert.That(assignment.interactable, Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(hud.gameObject);
+                if (previousEventSystem == null &&
+                    UnityEngine.EventSystems.EventSystem.current != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(
+                        UnityEngine.EventSystems.EventSystem.current
+                            .gameObject);
+                }
+            }
+        }
+
+        [Test]
+        public void StarterSpiritTrial_CommitsLastAssignmentWithChoice()
+        {
+            var save = new SaveDataV1();
+            StarterSpiritChoiceResult result =
+                StarterSpiritTrialController.CommitTrialChoice(
+                    save,
+                    FirstSpiritCircuitContent.BounceGelSpecies,
+                    CarrierSlot.Mobility,
+                    out SpiritInstanceState spirit);
+
+            Assert.That(
+                result,
+                Is.EqualTo(StarterSpiritChoiceResult.Success));
+            Assert.That(spirit, Is.Not.Null);
+            Assert.That(
+                StarterPrologueProgression.GetStep(save),
+                Is.EqualTo(StarterPrologueStep.AttachmentChosen));
+            Assert.That(
+                StarterPrologueProgression.RequiresFirstAttachment(save),
+                Is.False);
+            Assert.That(
+                StarterPrologueProgression.TryGetAttachment(
+                    save,
+                    out CarrierSlot carrier),
+                Is.True);
+            Assert.That(carrier, Is.EqualTo(CarrierSlot.Mobility));
         }
 
         [Test]
@@ -5845,7 +6137,8 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterPrologue_RejectsSkippedOrInvalidProgress, ref passed);
             Run(fixture, fixture.StarterPrologueHomeTransition_CommitsOnlyAfterRescue, ref passed);
             Run(fixture, fixture.StarterPrologueTiming_UsesInclusiveSixToSevenPointFiveMinuteTarget, ref passed);
-            Run(fixture, fixture.StarterPrologueOpening_UsesV5NonBlockingLines, ref passed);
+            Run(fixture, fixture.StarterPrologueOpening_UsesV5YarnLines, ref passed);
+            Run(fixture, fixture.StarterPrologueDialogue_UsesYarnAndReadableCombatTuning, ref passed);
             Run(fixture, fixture.StarterPrologueObjective_LabelsDistinctPhases, ref passed);
             Run(fixture, fixture.StarterProloguePathGuide_BuildsThreeOrderedPoints, ref passed);
             Run(fixture, fixture.StarterPrologueBoundary_RevealsOnlyNearItsEdge, ref passed);
@@ -5878,6 +6171,11 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterSpiritCarrierController_AppliesAndResetsRunTalent, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_BlocksCombatAndLockedTechnique, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_AllThreeSpeciesUseThreeCarriers, ref passed);
+            Run(fixture, fixture.StarterSpiritCarrier_UsesTransientUnsavedTrialLoadout, ref passed);
+            Run(fixture, fixture.StarterSpiritCarrier_ResolvesNestedHitColliderToTargetRoot, ref passed);
+            Run(fixture, fixture.StarterSpiritTrial_UsesSingleVariableComparisonStages, ref passed);
+            Run(fixture, fixture.StarterSpiritTrial_SoftPreviewKeepsAllCombinationsBrowsable, ref passed);
+            Run(fixture, fixture.StarterSpiritTrial_CommitsLastAssignmentWithChoice, ref passed);
             Run(fixture, fixture.Projectile_PreservesAndResetsSkillSource, ref passed);
             Run(fixture, fixture.Projectile_IgnoresNonDamageableLogicTriggers, ref passed);
             Run(fixture, fixture.StarterSpiritCarrierProvider_RestoresOnlySingleSpark, ref passed);

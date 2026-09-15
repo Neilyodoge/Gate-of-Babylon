@@ -1,0 +1,38 @@
+title: Opening
+---
+主角: 照料员怎么还没来……
+===
+
+title: CaretakerWarning
+---
+照料员: 别过来！那只大家伙会冲过来！
+===
+
+title: CandidatesRespond
+---
+照料员: 等等……它们在回应你。
+===
+
+title: BattleEndSparkRaccoon
+---
+照料员: 它退走了……刚才真是吓死我了。
+照料员: 多亏你和火花狸。这里还不安全，我们先回去。
+===
+
+title: BattleEndEchoOwl
+---
+照料员: 它退走了……刚才真是吓死我了。
+照料员: 多亏你和响响鸮。这里还不安全，我们先回去。
+===
+
+title: BattleEndBounceGel
+---
+照料员: 它退走了……刚才真是吓死我了。
+照料员: 多亏你和弹弹胶。这里还不安全，我们先回去。
+===
+
+title: BattleEndFallback
+---
+照料员: 它退走了……刚才真是吓死我了。
+照料员: 多亏你和新伙伴。这里还不安全，我们先回去。
+===

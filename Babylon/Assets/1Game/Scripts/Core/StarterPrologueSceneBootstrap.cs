@@ -55,7 +55,13 @@ namespace XianTu
             hud.BuildHud();
             FindObjectOfType<GameHUD>()
                 ?.ConfigureForStarterPrologue();
+            if (FindObjectOfType<DebugConsole>() == null)
+            {
+                new GameObject("StarterPrologueDebugConsole")
+                    .AddComponent<DebugConsole>();
+            }
             StarterPrologueObjectiveHUD.EnsureExists();
+            StarterPrologueDialogueSystem.EnsureExists();
             StarterPrologueCombatTutorial.EnsureExists();
             StarterPrologueTimingTracker.EnsureExists();
             SetupPathGuide();

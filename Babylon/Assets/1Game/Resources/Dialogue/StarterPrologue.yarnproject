@@ -1,0 +1,8 @@
+{
+  "projectFileVersion": 3,
+  "baseLanguage": "zh-CN",
+  "sourceFiles": [
+    "StarterPrologue.yarn"
+  ],
+  "excludeFiles": []
+}

@@ -34,7 +34,7 @@ MonoBehaviour:
   chargeLv3RadiusMultiplier: 1.3
   chargeMoveSpeedMultiplier: 0.4
   aoeRadius: 3
-  projectilePrefab: {fileID: 0}
+  projectilePrefab: {fileID: 4457598189953940232, guid: 2406e818a9160234194aa9ed8f202e28, type: 3}
   projectileSpeed: 16
   projectileCount: 1
   spreadAngle: 0
@@ -70,6 +70,6 @@ MonoBehaviour:
   modifierDefs: []
   playAnimation: 0
   vfxPrefab: {fileID: 0}
-  vfxDuration: 0.8
+  vfxDuration: 3
   castSFX: {fileID: 0}
   hitSFX: {fileID: 0}

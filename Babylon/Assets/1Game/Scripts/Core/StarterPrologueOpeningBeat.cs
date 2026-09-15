@@ -24,10 +24,8 @@ namespace XianTu
                 yield break;
             }
 
-            StarterPrologueDialogueHUD.Show(
-                "主角",
-                ProtagonistLine,
-                2.2f);
+            yield return StarterPrologueDialogueSystem.PlayNode(
+                "Opening");
         }
 
         public static bool ShouldPlay(

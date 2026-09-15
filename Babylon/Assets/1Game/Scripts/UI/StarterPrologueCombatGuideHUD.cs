@@ -51,11 +51,11 @@ namespace XianTu
             bool dodgeDone)
         {
             ShowPersistent(
-                "战斗操作",
-                $"{Checklist(attackDone)}  LMB　普攻\n" +
-                $"{Checklist(techniqueDone)}  Q　　 灵息弹\n" +
-                $"{Checklist(dodgeDone)}  SPACE　闪避",
-                "三项可按任意顺序完成");
+                "基础战斗 · 每项试一次",
+                $"{Checklist(attackDone)}  LMB　普攻　近身连续攻击\n" +
+                $"{Checklist(techniqueDone)}  Q　灵息弹　中距离直线攻击\n" +
+                $"{Checklist(dodgeDone)}  SPACE　闪避　快速拉开距离",
+                "可任意顺序；完成一项会立即打勾");
         }
 
         public void ShowPrimerComplete(bool autoReleased)
@@ -81,7 +81,7 @@ namespace XianTu
                 "让灵宠首次显化",
                 $"<color=#F2C66D>{name}</color> · " +
                 $"{CarrierName(carrier)}\n{instruction}",
-                "先处理两只躁动灵宠");
+                $"按提示命中即可触发：{SpeciesEffect(species, carrier)}");
         }
 
         public void ShowCarrierReminder(

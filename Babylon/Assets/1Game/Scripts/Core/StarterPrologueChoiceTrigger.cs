@@ -67,21 +67,15 @@ namespace XianTu
             if (caretaker != null)
             {
                 FocusCamera(caretaker.position, 1.05f);
-                StarterPrologueDialogueHUD.Show(
-                    "照料员",
-                    CaretakerWarning,
-                    1.8f);
-                yield return new WaitForSecondsRealtime(1.08f);
+                yield return StarterPrologueDialogueSystem.PlayNode(
+                    "CaretakerWarning");
             }
 
             Vector3 containers = ResolveContainerFocus();
             FocusCamera(containers, 0.72f);
             RevealCandidates();
-            StarterPrologueDialogueHUD.Show(
-                "照料员",
-                ContainerResponse,
-                1.6f);
-            yield return new WaitForSecondsRealtime(0.9f);
+            yield return StarterPrologueDialogueSystem.PlayNode(
+                "CandidatesRespond");
 
             StarterPrologueThreatPreview preview =
                 FindObjectOfType<StarterPrologueThreatPreview>();
@@ -91,7 +85,11 @@ namespace XianTu
                 yield return new WaitForSecondsRealtime(0.72f);
             }
             FocusCamera(transform.position, 1.1f);
-            _opened = StarterSpiritChoiceUI.ShowForScene(OnChosen);
+            _opened = StarterSpiritTrialController.Begin(
+                transform,
+                OnChosen);
+            if (!_opened)
+                _opened = StarterSpiritChoiceUI.ShowForScene(OnChosen);
             _opening = false;
         }
 
@@ -143,13 +141,19 @@ namespace XianTu
             StarterSpiritCarrierController controller =
                 FindObjectOfType<StarterSpiritCarrierController>();
             controller?.TryConfigure(SaveSystem.Instance.Data);
+            bool requiresAttachment =
+                StarterPrologueProgression.RequiresFirstAttachment(
+                    SaveSystem.Instance.Data);
             GameEvents.Publish(
                 new GameEvents.StarterPrologueObjectiveChanged
                 {
-                    Text = "将灵宠附着到一个动作",
+                    Text = requiresAttachment
+                        ? "将灵宠附着到一个动作"
+                        : "赶往前方击退凶性灵宠",
                     HasWorldPosition = false
                 });
-            TryOpenRequiredAttachment();
+            if (requiresAttachment)
+                TryOpenRequiredAttachment();
         }
 
         private static bool TryOpenRequiredAttachment()
