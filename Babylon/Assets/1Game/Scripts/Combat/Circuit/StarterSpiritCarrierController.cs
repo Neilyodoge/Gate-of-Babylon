@@ -362,7 +362,24 @@ namespace XianTu
         private void OnDodgeFinished(GameEvents.DodgeFinished evt)
         {
             if (Attachment == CarrierSlot.Mobility)
-                RecordMobilityFinished(evt.EndPosition);
+            {
+                RecordMobilityFinished(
+                    MobilityEffectPositionFor(
+                        _spirit?.Identity.SpeciesConfigId ?? default,
+                        evt.StartPosition,
+                        evt.EndPosition));
+            }
+        }
+
+        public static Vector3 MobilityEffectPositionFor(
+            StableConfigId species,
+            Vector3 startPosition,
+            Vector3 endPosition)
+        {
+            return species ==
+                   FirstSpiritCircuitContent.EchoOwlSpecies
+                ? startPosition
+                : endPosition;
         }
 
         private void OnSpiritTalentActivated(

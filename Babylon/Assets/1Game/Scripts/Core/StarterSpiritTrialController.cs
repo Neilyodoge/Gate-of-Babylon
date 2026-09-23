@@ -19,11 +19,13 @@ namespace XianTu
     }
 
     /// <summary>
-    /// 初契前赋予教学：玩家亲手完成首次赋予、同宠换动作、
-    /// 同动作换宠，再开放自由试玩和随时结契。试玩状态不写存档。
+    /// 初契前赋予教学：强引导完成首次赋予，随后保持面板常驻，
+    /// 使用三种不同组合即可结契。试玩状态不写存档。
     /// </summary>
     public sealed class StarterSpiritTrialController : MonoBehaviour
     {
+        public const int RequiredCombinationCount = 3;
+
         private readonly HashSet<string> _completed = new();
         private readonly List<GameObject> _targets = new();
         private Action<StableConfigId, SpiritInstanceState> _onChosen;
@@ -35,6 +37,9 @@ namespace XianTu
         private bool _transitioning;
         private bool _confirming;
         private bool _assistArmed;
+        private bool _hasComparisonAnchor;
+        private StableConfigId _comparisonSpecies;
+        private CarrierSlot _comparisonCarrier;
         private StableConfigId _currentSpecies;
         private CarrierSlot _currentCarrier = CarrierSlot.Weapon;
         private StableConfigId _pendingSpecies;
@@ -106,6 +111,7 @@ namespace XianTu
 
             _entities = FindObjectsOfType<
                 StarterSpiritChoiceWorldEntity>(true);
+            EnterCandidatePresentation();
             _hud = StarterSpiritTrialHUD.Create();
             _hud.SpeciesRequested += SelectSpecies;
             _hud.CarrierRequested += SelectCarrier;
@@ -157,6 +163,12 @@ namespace XianTu
                 evt.Progress);
             if (evt.Activated)
             {
+                if (!_hasComparisonAnchor)
+                {
+                    _hasComparisonAnchor = true;
+                    _comparisonSpecies = evt.SpeciesId;
+                    _comparisonCarrier = evt.Carrier;
+                }
                 _completed.Add(
                     StarterSpiritTrialHUD.Key(
                         evt.SpeciesId,
@@ -186,6 +198,7 @@ namespace XianTu
             if (Stage == StarterSpiritTrialStage.FreeTrial)
             {
                 RefreshFreeHud();
+                PublishPracticeObjective();
             }
         }
 
@@ -235,8 +248,7 @@ namespace XianTu
             _pendingSpecies = _currentSpecies;
             _pendingCarrier = _currentCarrier;
             RefreshFreeHud();
-            PublishObjective(
-                "自由尝试其他组合，满意后与当前灵宠结契");
+            PublishPracticeObjective();
         }
 
         private void SelectSpecies(StableConfigId species)
@@ -256,7 +268,11 @@ namespace XianTu
                 _confirming = false;
                 FocusWorldEntity(species);
                 if (Stage == StarterSpiritTrialStage.FreeTrial)
-                    RefreshFreeHud();
+                {
+                    ApplyFreeAssignment(
+                        species,
+                        _pendingCarrier ?? _currentCarrier);
+                }
                 else
                     RefreshSelectionHud();
             }
@@ -278,7 +294,13 @@ namespace XianTu
                 _pendingCarrier = carrier;
                 _confirming = false;
                 if (Stage == StarterSpiritTrialStage.FreeTrial)
-                    RefreshFreeHud();
+                {
+                    ApplyFreeAssignment(
+                        _pendingSpecies.IsEmpty
+                            ? _currentSpecies
+                            : _pendingSpecies,
+                        carrier);
+                }
                 else
                     RefreshSelectionHud();
             }
@@ -311,9 +333,7 @@ namespace XianTu
                     }
                     _currentSpecies = nextSpecies;
                     _currentCarrier = nextCarrier;
-                    BeginVerification(
-                        StarterSpiritTrialStage
-                            .VerifyFirstAssignment);
+                    BeginFreeTrial();
                     break;
                 case StarterSpiritTrialStage
                     .ChooseDifferentCarrier:
@@ -380,22 +400,12 @@ namespace XianTu
             if (!speciesChanged && !carrierChanged)
                 return;
 
-            bool success;
-            if (speciesChanged)
-            {
-                success = _carrier.BeginStarterTrial(
-                    species,
-                    carrier,
-                    grantTechnique: true);
-            }
-            else
-            {
-                StarterSpiritAttachmentResult result =
-                    _carrier.TryAttach(carrier, false);
-                success =
-                    result == StarterSpiritAttachmentResult.Success ||
-                    result == StarterSpiritAttachmentResult.NoChange;
-            }
+            // 每个试玩组合必须从自己的首次动作开始计数。
+            // 否则LMB打两次后切走再切回，会让下一击看似直接触发三击效果。
+            bool success = _carrier.BeginStarterTrial(
+                species,
+                carrier,
+                grantTechnique: true);
             if (!success)
             {
                 _hud.ShowError("当前无法应用这个试玩组合");
@@ -431,6 +441,13 @@ namespace XianTu
         {
             if (Stage != StarterSpiritTrialStage.FreeTrial)
                 return;
+            if (_completed.Count < RequiredCombinationCount)
+            {
+                _hud.ShowError(
+                    $"再实际使用{RequiredCombinationCount - _completed.Count}" +
+                    "种不同组合即可结契");
+                return;
+            }
             if (!_confirming)
             {
                 _confirming = true;
@@ -495,10 +512,91 @@ namespace XianTu
             _hud.ShowFree(
                 _currentSpecies,
                 _currentCarrier,
-                _pendingSpecies,
-                _pendingCarrier ?? _currentCarrier,
                 _completed,
-                _confirming);
+                RequiredCombinationCount,
+                _confirming,
+                PracticeSuggestion());
+        }
+
+        private void PublishPracticeObjective()
+        {
+            int completed = Mathf.Min(
+                _completed.Count,
+                RequiredCombinationCount);
+            PublishObjective(
+                completed >= RequiredCombinationCount
+                    ? "已使用3种组合，可以随时结契"
+                    : $"使用3种不同的灵宠＋动作组合　" +
+                      $"{completed} / {RequiredCombinationCount}");
+        }
+
+        private string PracticeSuggestion()
+        {
+            if (_completed.Count >= RequiredCombinationCount ||
+                !_hasComparisonAnchor)
+            {
+                return string.Empty;
+            }
+
+            if (!TryFindComparisonCarrier(out CarrierSlot carrier))
+            {
+                return $"建议：保留" +
+                       $"{StarterSpiritTrialHUD.NameOf(_comparisonSpecies)}，" +
+                       "只换一个动作比较（不强制）";
+            }
+
+            if (!HasDifferentSpeciesOn(carrier))
+            {
+                return $"建议：保持" +
+                       $"{StarterSpiritTrialHUD.CarrierName(carrier)}，" +
+                       "换另一只灵宠比较（不强制）";
+            }
+
+            return "继续使用任意一种尚未完成的组合";
+        }
+
+        private bool TryFindComparisonCarrier(
+            out CarrierSlot comparisonCarrier)
+        {
+            CarrierSlot[] carriers =
+            {
+                CarrierSlot.Weapon,
+                CarrierSlot.TechniqueQ,
+                CarrierSlot.Mobility
+            };
+            foreach (CarrierSlot carrier in carriers)
+            {
+                if (carrier == _comparisonCarrier)
+                    continue;
+                if (_completed.Contains(
+                        StarterSpiritTrialHUD.Key(
+                            _comparisonSpecies,
+                            carrier)))
+                {
+                    comparisonCarrier = carrier;
+                    return true;
+                }
+            }
+            comparisonCarrier = default;
+            return false;
+        }
+
+        private bool HasDifferentSpeciesOn(CarrierSlot carrier)
+        {
+            foreach (StarterSpiritChoiceProfile profile in
+                     StarterSpiritChoicePresentation.Profiles)
+            {
+                if (profile.SpeciesId == _comparisonSpecies)
+                    continue;
+                if (_completed.Contains(
+                        StarterSpiritTrialHUD.Key(
+                            profile.SpeciesId,
+                            carrier)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void RefreshSelectionHud()
@@ -607,7 +705,31 @@ namespace XianTu
             foreach (StarterSpiritChoiceWorldEntity entity in _entities)
             {
                 if (entity != null)
-                    entity.SetFocused(entity.SpeciesId == species);
+                {
+                    entity.SetTrialSelected(
+                        entity.SpeciesId == species);
+                }
+            }
+        }
+
+        private void EnterCandidatePresentation()
+        {
+            Vector3 center = Vector3.zero;
+            int count = 0;
+            foreach (StarterSpiritChoiceWorldEntity entity in _entities)
+            {
+                if (entity == null)
+                    continue;
+                center += entity.transform.position;
+                count++;
+            }
+            if (count == 0)
+                return;
+            center /= count;
+            foreach (StarterSpiritChoiceWorldEntity entity in _entities)
+            {
+                if (entity != null)
+                    entity.EnterTrialPresentation(center);
             }
         }
 
@@ -689,7 +811,11 @@ namespace XianTu
                     Destroy(target);
             }
             _targets.Clear();
-            FocusWorldEntity(default);
+            foreach (StarterSpiritChoiceWorldEntity entity in _entities)
+            {
+                if (entity != null)
+                    entity.ExitTrialPresentation();
+            }
             if (_cursorCaptured)
             {
                 Cursor.lockState = _previousCursorLock;

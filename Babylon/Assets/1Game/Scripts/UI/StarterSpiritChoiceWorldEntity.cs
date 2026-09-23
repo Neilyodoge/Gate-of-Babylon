@@ -26,6 +26,8 @@ namespace XianTu
             Array.Empty<Renderer>();
         private Collider[] _interactionColliders =
             Array.Empty<Collider>();
+        private Vector3 _storyPosition;
+        private bool _trialPresentation;
 
         public static event Action<StarterSpiritChoiceWorldEntity>
             HoverEntered;
@@ -121,6 +123,41 @@ namespace XianTu
             SetRenderers(_spiritRenderers, true);
             SetColliders(false);
             StartCoroutine(HideAfterReveal());
+        }
+
+        public void EnterTrialPresentation(Vector3 sharedPosition)
+        {
+            EnsurePresentation();
+            _storyPosition = transform.position;
+            transform.position = new Vector3(
+                sharedPosition.x,
+                _storyPosition.y,
+                sharedPosition.z);
+            _trialPresentation = true;
+            SetRenderers(_presentationRenderers, false);
+            SetColliders(false);
+            transform.localScale = _baseScale;
+        }
+
+        public void SetTrialSelected(bool selected)
+        {
+            if (!_trialPresentation)
+            {
+                SetFocused(selected);
+                return;
+            }
+            SetRenderers(_spiritRenderers, selected);
+            SetColliders(false);
+            SetFocused(selected);
+        }
+
+        public void ExitTrialPresentation()
+        {
+            if (!_trialPresentation)
+                return;
+            transform.position = _storyPosition;
+            transform.localScale = _baseScale;
+            _trialPresentation = false;
         }
 
         public void SetFocused(bool focused)

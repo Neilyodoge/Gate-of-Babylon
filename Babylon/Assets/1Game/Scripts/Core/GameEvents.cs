@@ -426,6 +426,7 @@ namespace XianTu
         /// <summary>闪避动作结束（水化身影息斩 / 金化身灵压窗口 30% 概率出现 等订阅）</summary>
         public struct DodgeFinished
         {
+            public UnityEngine.Vector3 StartPosition;
             public UnityEngine.Vector3 EndPosition;
             public UnityEngine.Vector3 EndDirection;
         }

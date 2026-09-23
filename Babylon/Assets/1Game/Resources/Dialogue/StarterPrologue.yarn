@@ -5,12 +5,20 @@ title: Opening
 
 title: CaretakerWarning
 ---
-照料员: 别过来！那只大家伙会冲过来！
+照料员: 停下！别离开火光——它一直在盯着这里！
+===
+
+title: CaretakerInjured
+---
+主角: 你受伤了？
+照料员: 腿伤了……驱兽火也快灭了。它一冲过来，我拦不住。
+照料员: 还有东西在靠近……不能让它们发现这些幼宠。
 ===
 
 title: CandidatesRespond
 ---
 照料员: 等等……它们在回应你。
+照料员: 选一只，把它的力量赋到你的动作上。快，我们得先撑住这里！
 ===
 
 title: BattleEndSparkRaccoon

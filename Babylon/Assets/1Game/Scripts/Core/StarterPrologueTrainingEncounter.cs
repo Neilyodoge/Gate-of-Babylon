@@ -17,6 +17,8 @@ namespace XianTu
         private const float TutorialDamageMultiplier = 0.25f;
         private const float BladeBeastHpMultiplier = 1.5f;
         private const float AgitatedSpiritRadius = 0.6f;
+        private const float FirstWaveWarningSeconds = 0.9f;
+        private const float SecondEnemyDelaySeconds = 0.8f;
 
         private readonly Dictionary<GameObject, int> _enemyIds = new();
         private readonly StarterPrologueTrainingRuntime _runtime = new();
@@ -67,8 +69,47 @@ namespace XianTu
             _preparing = true;
             _tutorial =
                 StarterPrologueCombatTutorial.EnsureExists();
-            _tutorial.BeginPrimer(BeginCombatAfterPrimer);
+            StartCoroutine(BeginCombatAfterWarning());
             return true;
+        }
+
+        private IEnumerator BeginCombatAfterWarning()
+        {
+            StarterPrologueEnemySpawnMarker[] markers =
+                FindObjectsOfType<StarterPrologueEnemySpawnMarker>();
+            if (!HasValidRoster(markers))
+            {
+                _preparing = false;
+                PublishObjective(
+                    "战斗目标生成失败，请重新进入战斗区",
+                    transform.position);
+                Debug.LogError(
+                    "[新手验证战] 需要2个近战和1个远程出生标记。");
+                yield break;
+            }
+
+            Vector3 focus = Vector3.zero;
+            int meleeCount = 0;
+            foreach (StarterPrologueEnemySpawnMarker marker in markers)
+            {
+                if (marker.Role != StarterPrologueEnemyRole.Melee)
+                    continue;
+                focus += marker.transform.position;
+                meleeCount++;
+                FxFactory.SpawnElementBurst(
+                    marker.transform.position + Vector3.up * 0.05f,
+                    ElementTag.Earth,
+                    0.65f,
+                    0.45f);
+            }
+            if (meleeCount > 0)
+                focus /= meleeCount;
+            PublishObjective(
+                "草丛中有动静，准备保护照料员",
+                focus);
+            FocusCamera(focus, 0.75f);
+            yield return new WaitForSeconds(FirstWaveWarningSeconds);
+            BeginCombatAfterPrimer();
         }
 
         private void BeginCombatAfterPrimer()
@@ -96,6 +137,7 @@ namespace XianTu
             var targets = new List<GameObject>(
                 StarterPrologueTrainingRuntime
                     .RequiredAgitatedSpiritCount);
+            GameObject delayedEnemy = null;
             int agitatedIndex = 0;
             for (int i = 0; i < markers.Length; i++)
             {
@@ -113,6 +155,11 @@ namespace XianTu
                 ConfigureAgitatedSpiritSpacing(
                     enemy,
                     agitatedIndex);
+                if (agitatedIndex == 2)
+                {
+                    enemy.SetActive(false);
+                    delayedEnemy = enemy;
+                }
                 targets.Add(enemy);
             }
 
@@ -124,7 +171,33 @@ namespace XianTu
             GameEvents.Subscribe<GameEvents.PlayerDied>(OnPlayerDied);
             _tutorial?.BeginCarrierPractice();
             PublishEnemyCount();
+            if (delayedEnemy != null)
+            {
+                StartCoroutine(
+                    ActivateDelayedEnemy(
+                        delayedEnemy,
+                        SecondEnemyDelaySeconds));
+            }
             return true;
+        }
+
+        private IEnumerator ActivateDelayedEnemy(
+            GameObject enemy,
+            float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            if (enemy == null ||
+                _runtime.CurrentWave !=
+                    StarterPrologueTrainingWave.AgitatedSpirits)
+            {
+                yield break;
+            }
+            enemy.SetActive(true);
+            FxFactory.SpawnElementBurst(
+                enemy.transform.position + Vector3.up * 0.05f,
+                ElementTag.Earth,
+                0.8f,
+                0.35f);
         }
 
         private static void ConfigureAgitatedSpiritSpacing(
@@ -233,6 +306,16 @@ namespace XianTu
 
         private IEnumerator BeginPossessedHostWave()
         {
+            StarterPrologueThreatPreview preview =
+                FindObjectOfType<StarterPrologueThreatPreview>();
+            if (preview != null)
+            {
+                PublishObjective(
+                    "刃铠灵发出威吓，准备迎战",
+                    preview.transform.position);
+                FocusCamera(preview.transform.position, 0.9f);
+                preview.SignalThreat();
+            }
             yield return new WaitForSeconds(2.5f);
             StarterPrologueEnemySpawnMarker[] markers =
                 FindObjectsOfType<StarterPrologueEnemySpawnMarker>();
@@ -278,7 +361,12 @@ namespace XianTu
             // 正式战斗体已在相同出生点生成后再移除预告体，
             // 避免第一波开始时头目从远景中凭空消失。
             StarterPrologueThreatPreview.Remove();
-            FocusCamera(enemies[0].transform.position, 0.9f);
+            FxFactory.SpawnElementBurst(
+                enemies[0].transform.position + Vector3.up * 0.3f,
+                ElementTag.Fire,
+                1.4f,
+                0.55f);
+            FocusCamera(enemies[0].transform.position, 1.1f);
             _tutorial?.BeginBossRule();
             PublishEnemyCount();
         }
@@ -460,6 +548,11 @@ namespace XianTu
 
         private GameObject FirstTrackedTarget()
         {
+            foreach (GameObject target in _enemyIds.Keys)
+            {
+                if (target != null && target.activeInHierarchy)
+                    return target;
+            }
             foreach (GameObject target in _enemyIds.Keys)
             {
                 if (target != null)

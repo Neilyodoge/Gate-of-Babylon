@@ -8,20 +8,45 @@ namespace XianTu
     public sealed class StarterPrologueThreatPreview : MonoBehaviour
     {
         private Material _energyMaterial;
+        private Vector3 _baseScale;
+        private float _signalUntil;
+
+        private void Awake()
+        {
+            _baseScale = transform.localScale;
+        }
 
         private void Update()
         {
-            if (_energyMaterial == null)
-                return;
+            bool signaling = Time.time < _signalUntil;
             float pulse =
                 1.4f + Mathf.PingPong(Time.time * 2.1f, 1.4f);
-            _energyMaterial.SetColor(
-                "_EmissionColor",
-                new Color(1f, 0.28f, 0.06f) * pulse);
+            if (_energyMaterial != null)
+            {
+                _energyMaterial.SetColor(
+                    "_EmissionColor",
+                    new Color(1f, 0.28f, 0.06f) *
+                    (signaling ? pulse * 2.2f : pulse));
+            }
             transform.localRotation = Quaternion.Euler(
                 0f,
-                Mathf.Sin(Time.time * 1.4f) * 3f,
+                Mathf.Sin(Time.time * (signaling ? 8f : 1.4f)) *
+                (signaling ? 8f : 3f),
                 0f);
+            transform.localScale = Vector3.Lerp(
+                transform.localScale,
+                _baseScale * (signaling ? 1.10f : 1f),
+                Time.deltaTime * 8f);
+        }
+
+        public void SignalThreat()
+        {
+            _signalUntil = Time.time + 0.9f;
+            FxFactory.SpawnElementBurst(
+                transform.position + Vector3.up * 0.8f,
+                ElementTag.Fire,
+                1.25f,
+                0.45f);
         }
 
         public static StarterPrologueThreatPreview CreateAt(

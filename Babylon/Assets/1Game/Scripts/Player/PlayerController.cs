@@ -33,6 +33,7 @@ namespace XianTu
         private bool _isDashing;
         private float _dashTimer;
         private Vector3 _dashDirection;
+        private Vector3 _dashStartPosition;
 
         // 闪避充能系统（2层充能）
         private int _dashCharges = 2;
@@ -338,7 +339,7 @@ namespace XianTu
             // 尝试播放闪避动画（会自动打断当前动作）
             if (!_playerAnim.PlayEvade()) return;
 
-            Vector3 dashStartPos = transform.position; // 记录起点（火墙用）
+            _dashStartPosition = transform.position;
 
             _isDashing = true;
             _dashTimer = dashDuration;
@@ -430,6 +431,7 @@ namespace XianTu
                     // v0.4 融合层：闪避结束事件（水化身影息斩 / 金化身灵压窗口 30% 概率出现）
                     GameEvents.Publish(new GameEvents.DodgeFinished
                     {
+                        StartPosition = _dashStartPosition,
                         EndPosition = transform.position,
                         EndDirection = _dashDirection
                     });
@@ -501,7 +503,10 @@ namespace XianTu
 
         bool IEvadeCommandHost.TryPlayEvade()
         {
-            return _playerAnim.PlayEvade();
+            bool played = _playerAnim.PlayEvade();
+            if (played)
+                _dashStartPosition = transform.position;
+            return played;
         }
 
         void IEvadeCommandHost.BufferEvade()
@@ -533,6 +538,7 @@ namespace XianTu
         {
             GameEvents.Publish(new GameEvents.DodgeFinished
             {
+                StartPosition = _dashStartPosition,
                 EndPosition = endPosition,
                 EndDirection = direction
             });

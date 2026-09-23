@@ -202,14 +202,27 @@ namespace XianTu
             direction = direction.sqrMagnitude > 0.01f
                 ? direction.normalized
                 : transform.forward;
-            transform.rotation = Quaternion.LookRotation(direction);
             TopDownCamera camera = FindObjectOfType<TopDownCamera>();
             camera?.FocusOn(
-                start + direction * 4f,
-                1.55f);
+                start + direction * 4.5f,
+                2.5f);
 
-            const float duration = 1.55f;
-            const float distance = 8f;
+            transform.rotation = Quaternion.LookRotation(-direction);
+            FxFactory.SpawnElementBurst(
+                start + Vector3.up * 0.45f,
+                ElementTag.Fire,
+                1.1f,
+                0.4f);
+            yield return new WaitForSeconds(0.35f);
+
+            transform.rotation = Quaternion.LookRotation(direction);
+            FxFactory.SpawnElementBurst(
+                start + Vector3.up * 0.05f,
+                ElementTag.Earth,
+                1.25f,
+                0.45f);
+            const float duration = 2.1f;
+            const float distance = 10f;
             float elapsed = 0f;
             while (elapsed < duration)
             {
@@ -224,6 +237,12 @@ namespace XianTu
             }
 
             Vector3 resolvedPosition = transform.position;
+            FxFactory.SpawnElementBurst(
+                resolvedPosition + Vector3.up * 0.2f,
+                ElementTag.Wind,
+                1.0f,
+                0.35f);
+            yield return new WaitForSeconds(0.2f);
             _resolved?.Invoke(gameObject, resolvedPosition);
             Destroy(gameObject);
         }

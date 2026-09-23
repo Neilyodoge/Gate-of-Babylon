@@ -22,6 +22,7 @@ namespace XianTu
         private Button _commitButton;
         private TextMeshProUGUI _commitLabel;
         private GameObject _controls;
+        private Image _guidanceDim;
 
         public event Action<StableConfigId> SpeciesRequested;
         public event Action<CarrierSlot> CarrierRequested;
@@ -54,29 +55,39 @@ namespace XianTu
             StableConfigId species,
             CarrierSlot? carrier)
         {
+            _guidanceDim.gameObject.SetActive(true);
             _controls.SetActive(true);
             _assignmentButton.gameObject.SetActive(true);
             _commitButton.gameObject.SetActive(false);
-            _title.text = "赋予教学 1 / 3 · 第一次附着";
+            _title.text = "赋予教学 · 跟着亮处点击";
             _body.text =
                 species.IsEmpty
-                    ? "先任选一只灵宠，再选择要让它改变的动作。"
+                    ? "第1步：点击一只发亮的灵宠。"
                     : !carrier.HasValue
                         ? $"已选择 <color=#F2C66D>{NameOf(species)}</color>\n" +
-                          "现在任选一个动作。"
+                          "第2步：点击一个发亮的动作。"
                         : $"<color=#F2C66D>{NameOf(species)}</color> " +
                           $"将附着到 {CarrierName(carrier.Value)}\n" +
                           Effect(species, carrier.Value);
-            _hint.text = "灵宠决定效果，动作决定触发时机";
+            _hint.text = !carrier.HasValue
+                ? "只需要点击亮起来的位置"
+                : "第3步：点击下方亮起的“应用组合”";
+            bool choosingSpecies = species.IsEmpty;
+            bool choosingCarrier =
+                !choosingSpecies && !carrier.HasValue;
             ConfigureControls(
                 species,
                 carrier,
-                _ => true,
-                _ => true);
+                _ => choosingSpecies,
+                _ => choosingCarrier);
             ConfigureAssignment(
                 species.IsEmpty || !carrier.HasValue
                     ? "先选择灵宠和动作"
-                    : $"附着到 {CarrierName(carrier.Value)}",
+                    : "应用这个组合",
+                !species.IsEmpty && carrier.HasValue);
+            ConfigureGuidance(
+                choosingSpecies,
+                choosingCarrier,
                 !species.IsEmpty && carrier.HasValue);
         }
 
@@ -86,6 +97,7 @@ namespace XianTu
             StableConfigId pendingSpecies,
             CarrierSlot? pendingCarrier)
         {
+            _guidanceDim.gameObject.SetActive(false);
             _controls.SetActive(true);
             _assignmentButton.gameObject.SetActive(true);
             _commitButton.gameObject.SetActive(false);
@@ -125,6 +137,7 @@ namespace XianTu
             StableConfigId pendingSpecies,
             CarrierSlot pendingCarrier)
         {
+            _guidanceDim.gameObject.SetActive(false);
             _controls.SetActive(true);
             _assignmentButton.gameObject.SetActive(true);
             _commitButton.gameObject.SetActive(false);
@@ -163,6 +176,7 @@ namespace XianTu
             int progress,
             int hintLevel)
         {
+            _guidanceDim.gameObject.SetActive(false);
             _controls.SetActive(false);
             _assignmentButton.gameObject.SetActive(false);
             _commitButton.gameObject.SetActive(false);
@@ -185,6 +199,7 @@ namespace XianTu
             StableConfigId species,
             CarrierSlot carrier)
         {
+            _guidanceDim.gameObject.SetActive(false);
             _controls.SetActive(false);
             _assignmentButton.gameObject.SetActive(false);
             _commitButton.gameObject.SetActive(false);
@@ -213,42 +228,57 @@ namespace XianTu
         public void ShowFree(
             StableConfigId currentSpecies,
             CarrierSlot currentCarrier,
-            StableConfigId pendingSpecies,
-            CarrierSlot pendingCarrier,
             IReadOnlyCollection<string> completed,
-            bool confirming)
+            int requiredCount,
+            bool confirming,
+            string comparisonSuggestion = "")
         {
+            _guidanceDim.gameObject.SetActive(false);
             _controls.SetActive(true);
-            _assignmentButton.gameObject.SetActive(true);
+            _assignmentButton.gameObject.SetActive(false);
             _commitButton.gameObject.SetActive(true);
-            _title.text = "自由试玩 · 随时可以结契";
-            bool changed =
-                pendingSpecies != currentSpecies ||
-                pendingCarrier != currentCarrier;
-            _body.text =
-                $"{(changed ? "预览" : "当前")}｜" +
-                $"<color=#F2C66D>{NameOf(pendingSpecies)}</color> " +
-                $"＋ {CarrierName(pendingCarrier)}\n" +
-                $"{Effect(pendingSpecies, pendingCarrier)}";
-            _hint.text = changed
-                ? "点击“应用组合”后，再使用对应动作试玩"
-                : Instruction(currentCarrier);
+            int completedCount = Mathf.Min(
+                completed?.Count ?? 0,
+                requiredCount);
+            bool objectiveComplete = completedCount >= requiredCount;
+            _title.text =
+                $"赋予试玩 · 使用不同组合 {completedCount} / " +
+                $"{requiredCount}";
+            _body.text = confirming
+                ? $"确认结契｜" +
+                  $"<color=#F2C66D>{NameOf(currentSpecies)}</color>\n" +
+                  $"保留赋予｜{CarrierName(currentCarrier)}\n" +
+                  $"{Effect(currentSpecies, currentCarrier)}"
+                : $"当前生效｜" +
+                  $"<color=#F2C66D>{NameOf(currentSpecies)}</color> " +
+                  $"＋ {CarrierName(currentCarrier)}\n" +
+                  $"{Effect(currentSpecies, currentCarrier)}";
+            _hint.text = confirming
+                ? "确认后，这只灵宠会成为当前伙伴；仍可点击卡片取消"
+                : objectiveComplete
+                    ? "点击灵宠或动作立即切换；也可以随时结契"
+                    : (string.IsNullOrWhiteSpace(comparisonSuggestion)
+                        ? string.Empty
+                        : comparisonSuggestion + "\n") +
+                      Instruction(currentCarrier);
             ConfigureControls(
-                pendingSpecies,
-                pendingCarrier,
+                currentSpecies,
+                currentCarrier,
                 _ => true,
                 _ => true,
                 completed);
-            ConfigureAssignment(
-                changed ? "应用当前组合" : "当前组合已应用",
-                changed);
+            ConfigureGuidance(false, false, false);
             _commitLabel.text = confirming
-                ? $"再次点击 · 确认{NameOf(currentSpecies)}＋" +
-                  $"{CarrierName(currentCarrier)}"
-                : $"与{NameOf(currentSpecies)}结契";
+                ? "再次点击确认"
+                : objectiveComplete
+                    ? "选好了"
+                    : $"再使用{requiredCount - completedCount}种组合";
+            _commitButton.interactable = objectiveComplete;
             SetButtonColor(
                 _commitButton,
-                confirming
+                !objectiveComplete
+                    ? new Color(0.11f, 0.14f, 0.13f)
+                    : confirming
                     ? new Color(0.66f, 0.34f, 0.12f)
                     : new Color(0.20f, 0.43f, 0.29f));
         }
@@ -320,6 +350,38 @@ namespace XianTu
                     : new Color(0.11f, 0.14f, 0.13f));
         }
 
+        private void ConfigureGuidance(
+            bool speciesStep,
+            bool carrierStep,
+            bool assignmentStep)
+        {
+            foreach (Button button in _speciesButtons)
+                SetGuideButton(button, speciesStep);
+            foreach (Button button in _carrierButtons)
+                SetGuideButton(button, carrierStep);
+            SetGuideButton(_assignmentButton, assignmentStep);
+        }
+
+        private static void SetGuideButton(Button button, bool highlighted)
+        {
+            if (button == null)
+                return;
+            Outline outline = button.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.enabled = highlighted;
+                outline.effectColor =
+                    new Color(1f, 0.76f, 0.22f, 0.95f);
+                outline.effectDistance = new Vector2(4f, -4f);
+            }
+            if (highlighted)
+            {
+                SetButtonColor(
+                    button,
+                    new Color(0.72f, 0.45f, 0.10f, 1f));
+            }
+        }
+
         public void ShowError(string message)
         {
             _hint.text = $"<color=#F28B72>{message}</color>";
@@ -332,6 +394,20 @@ namespace XianTu
 
         private void Build()
         {
+            GameObject dim = new(
+                "GuidanceDim",
+                typeof(RectTransform),
+                typeof(Image));
+            dim.transform.SetParent(transform, false);
+            RectTransform dimRect = dim.GetComponent<RectTransform>();
+            dimRect.anchorMin = Vector2.zero;
+            dimRect.anchorMax = Vector2.one;
+            dimRect.offsetMin = Vector2.zero;
+            dimRect.offsetMax = Vector2.zero;
+            _guidanceDim = dim.GetComponent<Image>();
+            _guidanceDim.color = new Color(0f, 0f, 0f, 0.62f);
+            _guidanceDim.raycastTarget = false;
+
             GameObject panel = new(
                 "TrialPanel",
                 typeof(RectTransform),
@@ -500,7 +576,8 @@ namespace XianTu
                 name,
                 typeof(RectTransform),
                 typeof(Image),
-                typeof(Button));
+                typeof(Button),
+                typeof(Outline));
             go.transform.SetParent(parent, false);
             RectTransform rect = go.GetComponent<RectTransform>();
             rect.anchorMin = anchorMin;
@@ -508,7 +585,9 @@ namespace XianTu
             rect.offsetMin = new Vector2(4f, 4f);
             rect.offsetMax = new Vector2(-4f, -4f);
             Button button = go.GetComponent<Button>();
+            button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => callback());
+            go.GetComponent<Outline>().enabled = false;
             SetButtonColor(
                 button,
                 new Color(0.15f, 0.21f, 0.19f));
@@ -532,7 +611,7 @@ namespace XianTu
                 button.GetComponent<Image>().color = color;
         }
 
-        private static string NameOf(StableConfigId species)
+        public static string NameOf(StableConfigId species)
         {
             return StarterSpiritChoicePresentation.TryGetProfile(
                 species,

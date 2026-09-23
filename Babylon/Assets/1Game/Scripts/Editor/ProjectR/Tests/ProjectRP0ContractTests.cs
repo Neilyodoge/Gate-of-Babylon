@@ -1781,6 +1781,22 @@ namespace XianTu.Editor.Tests
                 Assert.That(
                     entities[0].transform.localScale,
                     Is.EqualTo(baseScale));
+
+                Vector3 storyPosition = new(2f, 1f, 4f);
+                entities[0].transform.position = storyPosition;
+                entities[0].EnterTrialPresentation(
+                    new Vector3(8f, 0f, 9f));
+                Assert.That(
+                    entities[0].transform.position,
+                    Is.EqualTo(new Vector3(8f, 1f, 9f)));
+                entities[0].SetTrialSelected(true);
+                Assert.That(
+                    entities[0].transform.localScale.sqrMagnitude,
+                    Is.GreaterThan(baseScale.sqrMagnitude));
+                entities[0].ExitTrialPresentation();
+                Assert.That(
+                    entities[0].transform.position,
+                    Is.EqualTo(storyPosition));
             }
             finally
             {
@@ -1886,6 +1902,47 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 AssetDatabase.GetDependencies(scenePath, true),
                 Does.Contain(possessedRoninPath));
+
+            UnityEngine.SceneManagement.Scene scene =
+                UnityEngine.SceneManagement.SceneManager
+                    .GetSceneByPath(scenePath);
+            bool openedForTest = !scene.isLoaded;
+            if (openedForTest)
+            {
+                scene = UnityEditor.SceneManagement
+                    .EditorSceneManager.OpenScene(
+                        scenePath,
+                        UnityEditor.SceneManagement.OpenSceneMode
+                            .Additive);
+            }
+            try
+            {
+                StarterPrologueEnemySpawnMarker[] sceneMarkers =
+                    scene.GetRootGameObjects()
+                        .SelectMany(root =>
+                            root.GetComponentsInChildren<
+                                StarterPrologueEnemySpawnMarker>(true))
+                        .ToArray();
+                Assert.That(sceneMarkers.Length, Is.EqualTo(3));
+                Assert.That(
+                    sceneMarkers.Count(marker =>
+                        marker.Role ==
+                        StarterPrologueEnemyRole.Melee),
+                    Is.EqualTo(2));
+                Assert.That(
+                    sceneMarkers.Count(marker =>
+                        marker.Role ==
+                        StarterPrologueEnemyRole.Ranged),
+                    Is.EqualTo(1));
+            }
+            finally
+            {
+                if (openedForTest)
+                {
+                    UnityEditor.SceneManagement.EditorSceneManager
+                        .CloseScene(scene, true);
+                }
+            }
 
             GameObject agitatedMonkey =
                 AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -2515,7 +2572,10 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 StarterPrologueChoiceTrigger.CaretakerWarning,
                 Is.EqualTo(
-                    "别过来！那只大家伙会冲过来！"));
+                    "停下！别离开火光——它一直在盯着这里！"));
+            Assert.That(
+                StarterPrologueChoiceTrigger.CaretakerInjured,
+                Does.Contain("驱兽火也快灭了"));
             Assert.That(
                 StarterPrologueChoiceTrigger.ContainerResponse,
                 Is.EqualTo("等等……它们在回应你。"));
@@ -2534,6 +2594,9 @@ namespace XianTu.Editor.Tests
             Assert.That(
                 project.NodeNames,
                 Does.Contain("CaretakerWarning"));
+            Assert.That(
+                project.NodeNames,
+                Does.Contain("CaretakerInjured"));
             Assert.That(
                 project.NodeNames,
                 Does.Contain("CandidatesRespond"));
@@ -3662,6 +3725,32 @@ namespace XianTu.Editor.Tests
         }
 
         [Test]
+        public void StarterSpiritCarrier_MobilityUsesSpeciesSpecificPosition()
+        {
+            Vector3 start = new(2f, 0f, 3f);
+            Vector3 end = new(7f, 0f, 3f);
+
+            Assert.That(
+                StarterSpiritCarrierController.MobilityEffectPositionFor(
+                    FirstSpiritCircuitContent.EchoOwlSpecies,
+                    start,
+                    end),
+                Is.EqualTo(start));
+            Assert.That(
+                StarterSpiritCarrierController.MobilityEffectPositionFor(
+                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
+                    start,
+                    end),
+                Is.EqualTo(end));
+            Assert.That(
+                StarterSpiritCarrierController.MobilityEffectPositionFor(
+                    FirstSpiritCircuitContent.BounceGelSpecies,
+                    start,
+                    end),
+                Is.EqualTo(end));
+        }
+
+        [Test]
         public void StarterSpiritCarrier_UsesTransientUnsavedTrialLoadout()
         {
             bool previous = FeatureFlags.EnableCircuitRuntime;
@@ -3738,6 +3827,56 @@ namespace XianTu.Editor.Tests
         }
 
         [Test]
+        public void StarterSpiritCarrier_RestartedTrialClearsWeaponProgress()
+        {
+            bool previous = FeatureFlags.EnableCircuitRuntime;
+            FeatureFlags.EnableCircuitRuntime = true;
+            var player = new GameObject("StarterTrialProgressReset");
+            try
+            {
+                player.AddComponent<PlayerCombat>();
+                StarterSpiritCarrierController controller =
+                    player.AddComponent<StarterSpiritCarrierController>();
+                StableConfigId echo =
+                    FirstSpiritCircuitContent.EchoOwlSpecies;
+
+                Assert.That(
+                    controller.BeginStarterTrial(
+                        echo,
+                        CarrierSlot.Weapon),
+                    Is.True);
+                Assert.That(
+                    controller.Runtime.RegisterWeaponHit().Activated,
+                    Is.False);
+                Assert.That(
+                    controller.Runtime.RegisterWeaponHit().Activated,
+                    Is.False);
+                Assert.That(controller.Runtime.Progress, Is.EqualTo(2));
+
+                Assert.That(
+                    controller.BeginStarterTrial(
+                        echo,
+                        CarrierSlot.TechniqueQ),
+                    Is.True);
+                Assert.That(
+                    controller.BeginStarterTrial(
+                        echo,
+                        CarrierSlot.Weapon),
+                    Is.True);
+                Assert.That(controller.Runtime.Progress, Is.Zero);
+                Assert.That(
+                    controller.Runtime.RegisterWeaponHit().Activated,
+                    Is.False);
+                Assert.That(controller.Runtime.Progress, Is.EqualTo(1));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(player);
+                FeatureFlags.EnableCircuitRuntime = previous;
+            }
+        }
+
+        [Test]
         public void StarterSpiritCarrier_ResolvesNestedHitColliderToTargetRoot()
         {
             var root = new GameObject("NestedDamageableRoot");
@@ -3764,89 +3903,128 @@ namespace XianTu.Editor.Tests
         }
 
         [Test]
-        public void StarterSpiritTrial_UsesSingleVariableComparisonStages()
+        public void StarterSpiritTrial_RequiresThreeDistinctCombinations()
         {
             Assert.That(
-                StarterSpiritTrialController.GuidedStepFor(
-                    StarterSpiritTrialStage.ChooseFirstAssignment),
-                Is.EqualTo(1));
-            Assert.That(
-                StarterSpiritTrialController.GuidedStepFor(
-                    StarterSpiritTrialStage.VerifyFirstAssignment),
-                Is.EqualTo(1));
-            Assert.That(
-                StarterSpiritTrialController.GuidedStepFor(
-                    StarterSpiritTrialStage.ChooseDifferentCarrier),
-                Is.EqualTo(2));
-            Assert.That(
-                StarterSpiritTrialController.GuidedStepFor(
-                    StarterSpiritTrialStage.VerifyDifferentCarrier),
-                Is.EqualTo(2));
-            Assert.That(
-                StarterSpiritTrialController.GuidedStepFor(
-                    StarterSpiritTrialStage.ChooseDifferentSpecies),
-                Is.EqualTo(3));
-            Assert.That(
-                StarterSpiritTrialController.GuidedStepFor(
-                    StarterSpiritTrialStage.VerifyDifferentSpecies),
+                StarterSpiritTrialController.RequiredCombinationCount,
                 Is.EqualTo(3));
             Assert.That(
                 StarterSpiritTrialController.IsVerificationStage(
-                    StarterSpiritTrialStage.ChooseDifferentCarrier),
+                    StarterSpiritTrialStage.FreeTrial),
                 Is.False);
-            Assert.That(
-                StarterSpiritTrialController.IsVerificationStage(
-                    StarterSpiritTrialStage.VerifyDifferentCarrier),
-                Is.True);
         }
 
         [Test]
-        public void StarterSpiritTrial_SoftPreviewKeepsAllCombinationsBrowsable()
+        public void StarterSpiritTrial_GuidesFirstClicksThenStaysBrowsable()
         {
             UnityEngine.EventSystems.EventSystem previousEventSystem =
                 UnityEngine.EventSystems.EventSystem.current;
             StarterSpiritTrialHUD hud = StarterSpiritTrialHUD.Create();
             try
             {
-                hud.ShowDifferentCarrier(
-                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
-                    CarrierSlot.Mobility,
-                    FirstSpiritCircuitContent.EchoOwlSpecies,
-                    CarrierSlot.TechniqueQ);
-                UnityEngine.UI.Button[] choices = hud.transform
-                    .Find("TrialPanel/TrialControls")
-                    .GetComponentsInChildren<UnityEngine.UI.Button>(true);
-                Assert.That(
-                    choices.All(button => button.interactable),
-                    Is.True);
+                Transform controls = hud.transform.Find(
+                    "TrialPanel/TrialControls");
+                UnityEngine.UI.Button[] species = Enumerable.Range(0, 3)
+                    .Select(i => controls.Find($"Species_{i}")
+                        .GetComponent<UnityEngine.UI.Button>())
+                    .ToArray();
+                UnityEngine.UI.Button[] carriers = Enumerable.Range(0, 3)
+                    .Select(i => controls.Find($"Carrier_{i}")
+                        .GetComponent<UnityEngine.UI.Button>())
+                    .ToArray();
                 UnityEngine.UI.Button assignment = hud.transform
                     .Find("TrialPanel/Assignment")
                     .GetComponent<UnityEngine.UI.Button>();
-                Assert.That(assignment.interactable, Is.False);
+                UnityEngine.UI.Button commit = hud.transform
+                    .Find("TrialPanel/Commit")
+                    .GetComponent<UnityEngine.UI.Button>();
+                TMPro.TextMeshProUGUI body = hud.transform
+                    .Find("TrialPanel/Body")
+                    .GetComponent<TMPro.TextMeshProUGUI>();
+                TMPro.TextMeshProUGUI hint = hud.transform
+                    .Find("TrialPanel/Hint")
+                    .GetComponent<TMPro.TextMeshProUGUI>();
+                GameObject dim = hud.transform.Find("GuidanceDim").gameObject;
+                StableConfigId spark =
+                    FirstSpiritCircuitContent.SparkRaccoonSpecies;
 
-                hud.ShowDifferentCarrier(
-                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
-                    CarrierSlot.Mobility,
-                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
-                    CarrierSlot.TechniqueQ);
-                Assert.That(assignment.interactable, Is.True);
-
-                hud.ShowDifferentSpecies(
-                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
-                    CarrierSlot.TechniqueQ,
-                    FirstSpiritCircuitContent.BounceGelSpecies,
-                    CarrierSlot.Weapon);
+                hud.ShowFirstAssignment(default, null);
                 Assert.That(
-                    choices.All(button => button.interactable),
+                    species.All(button => button.interactable),
+                    Is.True);
+                Assert.That(
+                    carriers.All(button => !button.interactable),
+                    Is.True);
+                Assert.That(assignment.interactable, Is.False);
+                Assert.That(dim.activeSelf, Is.True);
+
+                hud.ShowFirstAssignment(spark, null);
+                Assert.That(
+                    species.All(button => !button.interactable),
+                    Is.True);
+                Assert.That(
+                    carriers.All(button => button.interactable),
                     Is.True);
                 Assert.That(assignment.interactable, Is.False);
 
-                hud.ShowDifferentSpecies(
-                    FirstSpiritCircuitContent.SparkRaccoonSpecies,
-                    CarrierSlot.TechniqueQ,
-                    FirstSpiritCircuitContent.BounceGelSpecies,
-                    CarrierSlot.TechniqueQ);
+                hud.ShowFirstAssignment(spark, CarrierSlot.Weapon);
+                Assert.That(
+                    species.Concat(carriers)
+                        .All(button => !button.interactable),
+                    Is.True);
                 Assert.That(assignment.interactable, Is.True);
+
+                var completed = new HashSet<string>();
+                hud.ShowFree(
+                    spark,
+                    CarrierSlot.Weapon,
+                    completed,
+                    3,
+                    false,
+                    "建议：保留火花狸，只换一个动作比较（不强制）");
+                Assert.That(
+                    species.Concat(carriers)
+                        .All(button => button.interactable),
+                    Is.True);
+                Assert.That(commit.interactable, Is.False);
+                Assert.That(dim.activeSelf, Is.False);
+                Assert.That(hint.text, Does.Contain("只换一个动作"));
+
+                completed.Add(StarterSpiritTrialHUD.Key(
+                    spark,
+                    CarrierSlot.Weapon));
+                completed.Add(StarterSpiritTrialHUD.Key(
+                    spark,
+                    CarrierSlot.TechniqueQ));
+                completed.Add(StarterSpiritTrialHUD.Key(
+                    FirstSpiritCircuitContent.EchoOwlSpecies,
+                    CarrierSlot.Weapon));
+                hud.ShowFree(
+                    spark,
+                    CarrierSlot.Weapon,
+                    completed,
+                    3,
+                    false);
+                Assert.That(
+                    commit.GetComponentInChildren<
+                        TMPro.TextMeshProUGUI>().text,
+                    Is.EqualTo("选好了"));
+                hud.ShowFree(
+                    spark,
+                    CarrierSlot.Weapon,
+                    completed,
+                    3,
+                    true);
+                Assert.That(commit.interactable, Is.True);
+                Assert.That(
+                    commit.GetComponentInChildren<
+                        TMPro.TextMeshProUGUI>().text,
+                    Is.EqualTo("再次点击确认"));
+                Assert.That(body.text, Does.Contain("确认结契"));
+                Assert.That(body.text, Does.Contain("LMB 普攻"));
+                Assert.That(
+                    hint.text,
+                    Does.Contain("这只灵宠会成为当前伙伴"));
             }
             finally
             {
@@ -6171,10 +6349,12 @@ namespace XianTu.Editor.Tests
             Run(fixture, fixture.StarterSpiritCarrierController_AppliesAndResetsRunTalent, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_BlocksCombatAndLockedTechnique, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_AllThreeSpeciesUseThreeCarriers, ref passed);
+            Run(fixture, fixture.StarterSpiritCarrier_MobilityUsesSpeciesSpecificPosition, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_UsesTransientUnsavedTrialLoadout, ref passed);
+            Run(fixture, fixture.StarterSpiritCarrier_RestartedTrialClearsWeaponProgress, ref passed);
             Run(fixture, fixture.StarterSpiritCarrier_ResolvesNestedHitColliderToTargetRoot, ref passed);
-            Run(fixture, fixture.StarterSpiritTrial_UsesSingleVariableComparisonStages, ref passed);
-            Run(fixture, fixture.StarterSpiritTrial_SoftPreviewKeepsAllCombinationsBrowsable, ref passed);
+            Run(fixture, fixture.StarterSpiritTrial_RequiresThreeDistinctCombinations, ref passed);
+            Run(fixture, fixture.StarterSpiritTrial_GuidesFirstClicksThenStaysBrowsable, ref passed);
             Run(fixture, fixture.StarterSpiritTrial_CommitsLastAssignmentWithChoice, ref passed);
             Run(fixture, fixture.Projectile_PreservesAndResetsSkillSource, ref passed);
             Run(fixture, fixture.Projectile_IgnoresNonDamageableLogicTriggers, ref passed);

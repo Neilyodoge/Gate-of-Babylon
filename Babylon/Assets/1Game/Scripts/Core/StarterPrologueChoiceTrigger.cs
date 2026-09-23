@@ -8,7 +8,9 @@ namespace XianTu
     public sealed class StarterPrologueChoiceTrigger : MonoBehaviour
     {
         public const string CaretakerWarning =
-            "别过来！那只大家伙会冲过来！";
+            "停下！别离开火光——它一直在盯着这里！";
+        public const string CaretakerInjured =
+            "腿伤了……驱兽火也快灭了。它一冲过来，我拦不住。";
         public const string ContainerResponse =
             "等等……它们在回应你。";
 
@@ -64,11 +66,22 @@ namespace XianTu
                 });
 
             Transform caretaker = ResolveRevealFocus();
+            StarterPrologueThreatPreview preview =
+                FindObjectOfType<StarterPrologueThreatPreview>();
             if (caretaker != null)
             {
                 FocusCamera(caretaker.position, 1.05f);
                 yield return StarterPrologueDialogueSystem.PlayNode(
                     "CaretakerWarning");
+                if (preview != null)
+                {
+                    FocusCamera(preview.transform.position, 0.82f);
+                    preview.SignalThreat();
+                    yield return new WaitForSecondsRealtime(0.9f);
+                }
+                FocusCamera(caretaker.position, 0.75f);
+                yield return StarterPrologueDialogueSystem.PlayNode(
+                    "CaretakerInjured");
             }
 
             Vector3 containers = ResolveContainerFocus();
@@ -77,12 +90,11 @@ namespace XianTu
             yield return StarterPrologueDialogueSystem.PlayNode(
                 "CandidatesRespond");
 
-            StarterPrologueThreatPreview preview =
-                FindObjectOfType<StarterPrologueThreatPreview>();
             if (preview != null)
             {
                 FocusCamera(preview.transform.position, 0.7f);
-                yield return new WaitForSecondsRealtime(0.72f);
+                preview.SignalThreat();
+                yield return new WaitForSecondsRealtime(0.65f);
             }
             FocusCamera(transform.position, 1.1f);
             _opened = StarterSpiritTrialController.Begin(
@@ -144,12 +156,19 @@ namespace XianTu
             bool requiresAttachment =
                 StarterPrologueProgression.RequiresFirstAttachment(
                     SaveSystem.Instance.Data);
+            if (!requiresAttachment)
+            {
+                StarterPrologueMilestoneHUD.Show(
+                    "初契完成",
+                    $"{StarterSpiritTrialHUD.NameOf(species)}已成为伙伴",
+                    new Color(0.94f, 0.68f, 0.26f));
+            }
             GameEvents.Publish(
                 new GameEvents.StarterPrologueObjectiveChanged
                 {
                     Text = requiresAttachment
                         ? "将灵宠附着到一个动作"
-                        : "赶往前方击退凶性灵宠",
+                        : "进入前方空地，保护照料员",
                     HasWorldPosition = false
                 });
             if (requiresAttachment)

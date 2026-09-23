@@ -1,0 +1,120 @@
+# 小嗯的unity渲染设置
+
+> Unity 2022 LTS。用于随时查找渲染设置，后续持续追加。
+
+## 目录
+
+- [合批](#合批)
+  - [使用条件与快速选择](#使用条件与快速选择)
+  - [优先级与冲突](#优先级与冲突)
+  - [Static Batching](#static-batching)
+  - [GPU Instancing](#gpu-instancing)
+  - [SRP Batcher](#srp-batcher)
+- [质量分级](#质量分级)
+  - [Global Mipmap Limit](#global-mipmap-limit)
+  - [Mipmap Limit Groups](#mipmap-limit-groups)
+
+---
+
+## 合批
+
+### 使用条件与快速选择
+
+| 合批方式 | 适用情况 | Mesh 必须相同 | Material 必须相同 | Transform 可变化 | 需勾 `Batching Static` | 支持实例属性差异 | 顶点/数量 | 关键要求 |
+|---|---|:---:|:---:|:---:|:---:|:---:|---|---|
+| Static Batching | 不同 Mesh、相同 Material 的固定建筑和装饰 | ❌ | ✅ | ❌ | ✅ | ❌ | 每批最多约 64,000 顶点 | 顶点属性布局兼容 |
+| GPU Instancing | 相同 Mesh、相同 Material 的大量(起码超百个)草、树、石头 | ✅ | ✅ | ✅ | ❌ | ✅ | 低于约 256 顶点收益可能较低 | Shader 支持 Instancing，Shader Pass 相同 |
+| SRP Batcher | URP/HDRP 中大量使用相同 Shader 的物体 | ❌ | ❌ | ✅ | ❌ | ❌ | 无明确顶点限制 | Shader 兼容 SRP Batcher，不能使用 `MaterialPropertyBlock` |
+### 优先级与冲突
+
+- Static Batching 成功后，通常不再走 GPU Instancing。
+- SRP Batcher 与普通 GameObject 的 GPU Instancing 不兼容。
+- `MaterialPropertyBlock` 与 SRP Batcher 不兼容。
+- 最终是否合批，以 Frame Debugger 结果为准。(还是实机打debug包连着看吧)
+
+
+### Static Batching
+
+适合：运行时不会单独移动、旋转、缩放的物体。
+
+
+主要条件：
+
+- 同一个 Material。
+- Mesh 顶点属性布局需要兼容。
+- 勾选 `Batching Static`，并在 Player Settings 中启用 Static Batching。
+
+注意：
+
+- 合批后子物体不能单独修改 Transform。
+- 会增加 Mesh 内存，不要无脑合批整个场景。
+- 单个静态批次最多约 64,000 顶点，超出后 Unity 自动拆分。
+- 运行时使用 `StaticBatchingUtility.Combine` 时，Mesh 需要开启 Read/Write。
+
+### GPU Instancing
+
+适合：大量重复的相同模型。
+
+主要条件：
+
+- 同 Mesh，Mat，ShaderPass。
+- Shader 支持 Instancing。
+- Material 开启 `Enable GPU Instancing`。
+- 不支持普通 `SkinnedMeshRenderer`。
+- 使用烘焙光照的静态物体需要位于同一张 Lightmap。
+
+实例差异：
+
+- 颜色、浮点参数等需要声明为 `Instanced Property`。
+- 通过 `MaterialPropertyBlock` 设置运行时差异。
+- 不要向 `MaterialPropertyBlock` 写入非 Instanced Property，否则会打断 Instancing。
+- 纹理有差异时，优先考虑 Texture2DArray 或图集。
+
+注意：
+
+- Mesh 没有明确顶点上限，但低于约 256 顶点时 GPU 利用率可能较低。
+- `Graphics.RenderMeshInstanced` 单次最多 1023 个实例；默认实例数据下通常最多 511 个。
+
+### SRP Batcher
+
+适合：URP/HDRP 中大量使用相同 Shader 的物体。
+
+特点：
+
+- 主要降低 Draw Call 之间的材质数据和状态切换成本。不一定减少 Draw Call 数量。
+- Static Batching 与 SRP Batcher 可以同时启用。
+- 对普通 GameObject Renderer，SRP Batcher 优先于 GPU Instancing。
+- 使用 `MaterialPropertyBlock` 会使 Renderer 不兼容 SRP Batcher。
+- 没有明确顶点数量限制，但不支持粒子。
+- Shader 内置属性放入 `UnityPerDraw`，Material 属性放入 `UnityPerMaterial`。
+
+
+---
+
+## 质量分级
+
+位置：`Project Settings > Quality`
+
+常见分级项：
+
+- Global Mipmap Limit
+- Mipmap Limit Groups
+- Mipmap Streaming
+- 阴影距离与级联
+- 抗锯齿
+- LOD Bias
+- URP Render Scale
+- 后处理和特效等级
+
+### Global Mipmap Limit
+
+控制纹理使用的最高 Mipmap 分辨率
+### Mipmap Limit Groups
+
+用于让特定纹理组覆盖或偏移 Global Mipmap Limit：
+
+- `Use Global`：跟随全局设置。
+- `Offset -1`：比全局清晰一级。
+- `Offset +1`：比全局模糊一级。
+- `Override`：固定使用指定等级。
+- 没有 Mipmap 的 UI Sprite 不受该设置影响。
