@@ -1,0 +1,16 @@
+[mcp_servers.code-review-graph]
+command = "uvx"
+args = [
+    "code-review-graph",
+    "serve",
+]
+
+[mcp_servers.unity]
+command = "npx"
+args = [
+    "-y",
+    "anklebreaker-unity-mcp@latest",
+]
+
+[mcp_servers.unity.env]
+UNITY_BRIDGE_PORT = "7890"

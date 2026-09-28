@@ -251,6 +251,13 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
+    "dev.yarnspinner.unity": {
+      "version": "3.2.7",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://package.openupm.com"
+    },
     "moe.meryuhi.effects.fog": {
       "version": "file:moe.meryuhi.effects.fog",
       "depth": 0,
