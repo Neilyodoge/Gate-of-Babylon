@@ -1,0 +1,7 @@
+__pycache__/
+tests/artifacts/
+tests/*.log
+TL_OutlineNormals_Max.zip
+native/*.obj
+native/*.lib
+native/*.exp

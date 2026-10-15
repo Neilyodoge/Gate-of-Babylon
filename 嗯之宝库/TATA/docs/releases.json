@@ -1,0 +1,85 @@
+﻿{
+    "lastFullReview":  "4.16",
+    "releases":  [
+                     {
+                         "version":  "4.1",
+                         "fullReview":  true,
+                         "report":  "docs/reviews/ux-review-v4.1.md"
+                     },
+                     {
+                         "version":  "4.2",
+                         "fullReview":  false,
+                         "report":  "docs/reviews/feedback-check-v4.2.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.3",
+                         "report":  "docs/reviews/forecast-check-v4.3.md"
+                     },
+                     {
+                         "fullReview":  true,
+                         "version":  "4.4",
+                         "report":  "docs/reviews/ux-review-v4.4.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.5",
+                         "report":  "docs/reviews/reward-fit-check-v4.5.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.6",
+                         "report":  "docs/reviews/browse-check-v4.6.md"
+                     },
+                     {
+                         "fullReview":  true,
+                         "version":  "4.7",
+                         "report":  "docs/reviews/ux-review-v4.7.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.8",
+                         "report":  "docs/reviews/receipt-check-v4.8.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.9",
+                         "report":  "docs/reviews/inspect-check-v4.9.md"
+                     },
+                     {
+                         "fullReview":  true,
+                         "version":  "4.10",
+                         "report":  "docs/reviews/ux-review-v4.10.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.11",
+                         "report":  "docs/reviews/turn-receipt-check-v4.11.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.12",
+                         "report":  "docs/reviews/damage-check-v4.12.md"
+                     },
+                     {
+                         "fullReview":  true,
+                         "version":  "4.13",
+                         "report":  "docs/reviews/ux-review-v4.13.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.14",
+                         "report":  "docs/reviews/relic-check-v4.14.md"
+                     },
+                     {
+                         "fullReview":  false,
+                         "version":  "4.15",
+                         "report":  "docs/reviews/launcher-check-v4.15.md"
+                     },
+                     {
+                         "fullReview":  true,
+                         "version":  "4.16",
+                         "report":  "docs/reviews/ux-review-v4.16.md"
+                     }
+                 ]
+}

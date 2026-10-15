@@ -1,0 +1,93 @@
+[
+  {
+    "icon": "water",
+    "sourceTexture": "19036458",
+    "flipY": true
+  },
+  {
+    "icon": "fire",
+    "sourceTexture": "19090155",
+    "flipY": true
+  },
+  {
+    "icon": "grass",
+    "sourceTexture": "19036467",
+    "flipY": true
+  },
+  {
+    "icon": "earth",
+    "sourceTexture": "19090062",
+    "flipY": true
+  },
+  {
+    "icon": "lightning",
+    "sourceTexture": "19090162",
+    "flipY": true
+  },
+  {
+    "icon": "tank",
+    "sourceTexture": "19041664",
+    "rectangle": [
+      310,
+      49,
+      356,
+      96
+    ],
+    "flipY": true
+  },
+  {
+    "icon": "warrior",
+    "sourceTexture": "19041664",
+    "rectangle": [
+      310,
+      98,
+      356,
+      146
+    ],
+    "flipY": true
+  },
+  {
+    "icon": "ranger",
+    "sourceTexture": "19041664",
+    "rectangle": [
+      181,
+      49,
+      228,
+      97
+    ],
+    "flipY": true
+  },
+  {
+    "icon": "healer",
+    "sourceTexture": "19041664",
+    "rectangle": [
+      181,
+      98,
+      228,
+      147
+    ],
+    "flipY": true
+  },
+  {
+    "icon": "support",
+    "sourceTexture": "19041664",
+    "rectangle": [
+      310,
+      0,
+      356,
+      48
+    ],
+    "flipY": true
+  },
+  {
+    "icon": "special",
+    "sourceTexture": "19041664",
+    "rectangle": [
+      181,
+      0,
+      228,
+      48
+    ],
+    "flipY": true
+  }
+]
