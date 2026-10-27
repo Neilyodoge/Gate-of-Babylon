@@ -1,2 +1,10 @@
 # Added by code-review-graph
 .code-review-graph/
+
+# 本地渲染截帧和安装包体积较大，不进入 Git 历史
+*.rdc
+*.apk
+
+# 超大分析压缩包仅保留在本地
+嗯之宝库/笔记/截帧分析/rdc/slg_rdc.zip
+嗯之宝库/笔记/截帧分析/无尽冬日渲染速览.zip
