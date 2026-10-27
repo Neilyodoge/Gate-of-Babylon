@@ -1,0 +1,6 @@
+bin/
+obj/
+build/
+data/
+capture-data/
+*.user

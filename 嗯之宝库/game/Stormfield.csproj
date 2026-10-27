@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Stormfield</AssemblyName>
+    <RootNamespace>Stormfield</RootNamespace>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Raylib-cs" Version="7.0.2" />
+    <None Update="tuning.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="glyphs.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

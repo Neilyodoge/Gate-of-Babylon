@@ -1,0 +1,12 @@
+{
+  "MoveSpeed": 7.8,
+  "DashSpeed": 25.0,
+  "DashDuration": 0.21,
+  "DashRecharge": 1.5,
+  "MouseSensitivity": 0.0025,
+  "ProjectileDamage": 18.0,
+  "MeleeDamage": 34.0,
+  "EnemyDamageScale": 1.0,
+  "ClearDuration": 36.0,
+  "StormDuration": 30.0
+}
