@@ -1,0 +1,7 @@
+interface:
+  display_name: "neilyodog决策"
+  short_description: "记录判断依据、方案取舍与适用边界，在后续相关讨论中持续完善个人决策认知"
+  default_prompt: "使用 $neilyodog-decisions，结合我的决策认知分析当前取舍，说明依据和适用边界；如有明确的新判断，补充到对应记录。"
+
+policy:
+  allow_implicit_invocation: true
