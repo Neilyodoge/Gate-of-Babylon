@@ -40,11 +40,14 @@ Material:
     - _AlphaClip: 0
     - _AlphaCutoff: 0.5
     - _DepthDistance: 0.4
+    - _DisplaceSmoothing: 0
     - _DistanceBasedNoiseScale: 1
     - _EmmissiveDepthFade: 0.20869511
     - _EmmissiveNoiseCol: 0.20000027
     - _EmmissiveNoiseColor: 0.20000027
     - _EnvironmentReflections: 1
+    - _FakeVolume: 0
+    - _FakeVolumeDepth: 0.35
     - _Float2: 0
     - _Float3: 0
     - _GlobalNoiseScale: 0
@@ -78,6 +81,7 @@ Material:
     - _VoronoiScale: 1.4
     - _VoronoiStrength: 0.8
     - _WindSpeed: 1
+    - _ZWrite: 1
     m_Colors:
     - _AdditionalNoiseDir: {r: 0, g: 0, b: 0, a: 0}
     - _AdditionalVoronoiDir: {r: 0.7, g: -0.3, b: -0.3, a: 0}
