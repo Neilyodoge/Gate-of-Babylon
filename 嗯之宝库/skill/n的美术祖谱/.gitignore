@@ -1,0 +1,4 @@
+# Machine-specific configuration and personal learning records
+/config/storage.local.json
+/memory/
+*.codex-update-tmp
