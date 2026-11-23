@@ -26,6 +26,11 @@ SETUP_PATHS = {
         "scripts/publish-learning.py",
     )),
 }
+WORKFLOW_SUBJECT = "docs(ta): refine research workflow"
+WORKFLOW_PATHS = {
+    PREFIX + "references/learning-workflow.md",
+    PREFIX + "scripts/publish-learning.py",
+}
 DAILY_SUBJECT = re.compile(r"docs\(ta\): publish research \d{4}-\d{2}-\d{2}")
 DAILY_PATH = re.compile(r"references/(?:research-queue\.md|cases/[a-z0-9]+(?:-[a-z0-9]+)*\.md)")
 GIT_ENV = {
@@ -70,7 +75,8 @@ def verify_outgoing(remote, head):
             p.startswith(PREFIX) and DAILY_PATH.fullmatch(p[len(PREFIX):]) for p in paths
         )
         setup = subject == SETUP_SUBJECT and paths == SETUP_PATHS
-        if len(parents) != 1 or not (daily or setup):
+        workflow = subject == WORKFLOW_SUBJECT and paths == WORKFLOW_PATHS
+        if len(parents) != 1 or not (daily or setup or workflow):
             raise RuntimeError(f"Unrelated outgoing commit {sha[:12]}; did not push.")
     return commits
 
